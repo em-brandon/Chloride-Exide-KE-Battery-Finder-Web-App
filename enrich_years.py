@@ -10,6 +10,7 @@ from rapidfuzz import process, fuzz
 # CONFIG
 # =========================
 INPUT_CSV          = "battery_lookup_dataset.csv"
+EXCEL_SOURCE       = "New-CRSP---July-2025.xlsx"
 OUTPUT_CSV         = "vehicle_years.csv"
 OUTPUT_EXCEL       = "vehicle_years.xlsx"
 UNMATCHED_CSV      = "unmatched_models.csv"
@@ -212,6 +213,18 @@ for key in ("nhtsa", "carapi", "years"):
 # LOAD DATASET
 # =========================
 df = pd.read_csv(INPUT_CSV)
+
+# Merge model numbers from source Excel (model_number is the primary search key)
+_xls = pd.read_excel(EXCEL_SOURCE)
+_xls.columns = _xls.columns.str.strip().str.lower().str.replace(r'[\s\n]+', '_', regex=True)
+if "model_number" in _xls.columns:
+    _xls["make"]  = _xls["make"].astype(str).str.strip()
+    _xls["model"] = _xls["model"].astype(str).str.strip()
+    _model_nums = _xls[["make", "model", "model_number"]].drop_duplicates()
+    df = df.merge(_model_nums, on=["make", "model"], how="left")
+else:
+    df["model_number"] = None
+
 unique_makes = df["make"].str.upper().unique().tolist()
 total_makes  = len(unique_makes)
 
@@ -269,15 +282,20 @@ pairs_count = 0
 for row_num, (_, row) in enumerate(df.iterrows(), start=1):
     make      = str(row.get("make", "")).strip().upper()
     model     = str(row.get("model", "")).strip()
-    pair_key  = f"{make}||{model}"
+    model_number = str(row.get("model_number", "")).strip()
+    has_model_number = bool(model_number) and model_number.lower() not in ("nan", "")
+    pair_key  = f"{make}||{model_number}" if has_model_number else f"{make}||{model}"
 
     if pair_key not in pairs_done:
         pairs_count += 1
         nhtsa_models = cache["nhtsa"].get(make, [])
         ca_models    = cache["carapi"].get(make, [])
 
+        # NHTSA fuzzy match always uses the descriptive model name
         matched_name, score = best_model_match(model, nhtsa_models)
-        lookup_name = matched_name if matched_name else model
+
+        # For Wikipedia/Wikidata queries: model_number first, fall back to matched/model name
+        lookup_name = model_number if has_model_number else (matched_name if matched_name else model)
 
         year_key = f"{make}|{lookup_name}"
         if year_key in cache["years"]:
@@ -305,16 +323,19 @@ for row_num, (_, row) in enumerate(df.iterrows(), start=1):
 # =========================
 out_rows = []
 for _, row in df.iterrows():
-    make     = str(row.get("make", "")).strip().upper()
-    model    = str(row.get("model", "")).strip()
-    pair_key = f"{make}||{model}"
-    yf, yt, src = pairs_done.get(pair_key, (None, None, None))
+    make         = str(row.get("make", "")).strip().upper()
+    model        = str(row.get("model", "")).strip()
+    model_number = str(row.get("model_number", "")).strip()
+    has_mn       = bool(model_number) and model_number.lower() not in ("nan", "")
+    pair_key     = f"{make}||{model_number}" if has_mn else f"{make}||{model}"
+    yf, yt, src  = pairs_done.get(pair_key, (None, None, None))
     out_rows.append({
-        "make":       row.get("make"),
-        "model":      row.get("model"),
-        "year_from":  yf,
-        "year_to":    yt,
-        "year_source": src,
+        "make":         row.get("make"),
+        "model":        row.get("model"),
+        "model_number": model_number if has_mn else None,
+        "year_from":    yf,
+        "year_to":      yt,
+        "year_source":  src,
     })
 
 out_df = pd.DataFrame(out_rows)
