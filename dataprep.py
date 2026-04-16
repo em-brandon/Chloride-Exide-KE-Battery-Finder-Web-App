@@ -97,6 +97,9 @@ for idx, (_, row) in enumerate(df.iterrows(), start=1):
     # Skip completely empty rows
     if not record.get("make") or record["make"].lower() == "nan":
         continue
+    # Skip electric vehicles
+    if record.get("fuel", "").lower() == "electric":
+        continue
     rows.append(record)
 
     if idx % LOG_EVERY_N_ROWS == 0 or idx == total_rows:
