@@ -25,7 +25,6 @@ This project processes raw vehicle data from an Excel source file, cleans and no
 |---|---|
 | `make` | Vehicle manufacturer (e.g. AUDI, TOYOTA) |
 | `model` | Vehicle model name and variant |
-| `model_number` | Manufacturer chassis / model code |
 | `engine_capacity` | Engine displacement in cc or kWh (electric vehicles) |
 | `fuel` | Fuel type (GASOLINE, DIESEL, ELECTRIC, etc.) |
 
