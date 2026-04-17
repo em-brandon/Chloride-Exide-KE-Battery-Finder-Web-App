@@ -14,6 +14,7 @@ OUTPUT_CSV         = "vehicle_years.csv"
 OUTPUT_EXCEL       = "vehicle_years.xlsx"
 UNMATCHED_CSV      = "unmatched_models.csv"
 CACHE_FILE         = "year_cache.json"
+CURRENT_YEAR       = 2026
 REQUEST_DELAY      = 0.5   # seconds between API calls
 MATCH_SCORE_THRESHOLD = 45 # minimum fuzzy score (0-100) to accept a match
 
@@ -204,9 +205,15 @@ except FileNotFoundError:
     cache = {}
     print("No cache found - starting fresh")
 
-for key in ("nhtsa", "carapi", "years"):
+for key in ("nhtsa", "carapi"):
     if key not in cache:
         cache[key] = {}
+
+# Always reset years cache — we store individual years now, not ranges
+cache["years"] = {}
+with open(CACHE_FILE, "w", encoding="utf-8") as f:
+    json.dump(cache, f)
+print("Years cache cleared (will re-fetch all year data)")
 
 # =========================
 # LOAD DATASET
@@ -301,38 +308,61 @@ for row_num, (_, row) in enumerate(df.iterrows(), start=1):
         print(f"  Row {row_num}/{total} ({pct:.1f}%) | Pairs resolved: {matched_so_far}/{len(pairs_done)}")
 
 # =========================
-# BUILD OUTPUT DATAFRAME
+# BUILD OUTPUT — one row per production year
 # =========================
-out_rows = []
+# year_from/year_to are only used internally to expand; they are NOT written to output.
+expanded_rows = []
+unmatched_pairs = set()
+
 for _, row in df.iterrows():
     make     = str(row.get("make", "")).strip().upper()
     model    = str(row.get("model", "")).strip()
     pair_key = f"{make}||{model}"
-    yf, yt, src = pairs_done.get(pair_key, (None, None, None))
-    out_rows.append({
-        "make":        row.get("make"),
-        "model":       row.get("model"),
-        "year_from":   yf,
-        "year_to":     yt,
-        "year_source": src,
-    })
+    yf, yt, _src = pairs_done.get(pair_key, (None, None, None))
 
-out_df = pd.DataFrame(out_rows)
+    if yf is None:
+        unmatched_pairs.add((row.get("make"), row.get("model")))
+        continue  # skip rows with no year data
+
+    yf = int(yf)
+    yt = int(yt) if yt is not None else CURRENT_YEAR
+    yt = min(yt, CURRENT_YEAR)  # clamp — no future years
+
+    for yr in range(yf, yt + 1):
+        expanded_rows.append({
+            "make":             row.get("make"),
+            "model":            row.get("model"),
+            "year":             yr,
+            "engine_capacity":  row.get("engine_capacity"),
+            "fuel":             row.get("fuel"),
+        })
+
+out_df = pd.DataFrame(expanded_rows, columns=["make", "model", "year", "engine_capacity", "fuel"])
 
 # =========================
 # REPORT
 # =========================
-filled     = out_df["year_from"].notna().sum()
-not_filled = out_df["year_from"].isna().sum()
+total_in  = len(df)
+total_out = len(out_df)
+n_unmatched = len(unmatched_pairs)
+n_matched   = total_in - sum(
+    1 for _, row in df.iterrows()
+    if f"{str(row.get('make','')).strip().upper()}||{str(row.get('model','')).strip()}"
+    in {f"{str(r[0]).strip().upper()}||{str(r[1]).strip()}" for r in unmatched_pairs}
+)
 print("\n--- Year Enrichment Summary ---")
-print(f"Total rows    : {total}")
-print(f"Years matched : {filled}  ({filled/total*100:.1f}%)")
-print(f"Not matched   : {not_filled}  ({not_filled/total*100:.1f}%)")
+print(f"Input rows        : {total_in}")
+print(f"Rows with years   : {total_in - n_unmatched}")
+print(f"Rows without years: {n_unmatched}  (excluded from output)")
+print(f"Output rows       : {total_out}  (one per production year)")
 
-src_counts = out_df["year_source"].value_counts(dropna=True)
-if len(src_counts):
+src_counts = {}
+for pair_key, (yf, yt, src) in pairs_done.items():
+    if src:
+        src_counts[src] = src_counts.get(src, 0) + 1
+if src_counts:
     print("\nMatches by source:")
-    for src, cnt in src_counts.items():
+    for src, cnt in sorted(src_counts.items(), key=lambda x: -x[1]):
         print(f"  {src}: {cnt}")
 
 # =========================
@@ -344,6 +374,6 @@ print(f"\nCSV saved:   {OUTPUT_CSV}")
 out_df.to_excel(OUTPUT_EXCEL, index=False)
 print(f"Excel saved: {OUTPUT_EXCEL}")
 
-unmatched = out_df[out_df["year_from"].isna()][["make", "model"]].drop_duplicates()
-unmatched.to_csv(UNMATCHED_CSV, index=False)
-print(f"Unmatched:   {UNMATCHED_CSV} ({len(unmatched)} unique pairs)")
+unmatched_df = pd.DataFrame(list(unmatched_pairs), columns=["make", "model"])
+unmatched_df.to_csv(UNMATCHED_CSV, index=False)
+print(f"Unmatched:   {UNMATCHED_CSV}  ({len(unmatched_df)} unique pairs)")

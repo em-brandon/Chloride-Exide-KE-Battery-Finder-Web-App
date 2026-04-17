@@ -4,7 +4,7 @@ A data pipeline and analysis toolkit for building a vehicle battery lookup datas
 
 ## Overview
 
-This project processes raw vehicle data from an Excel source file, cleans and normalises it, produces a structured lookup dataset, and enriches it with production year ranges sourced from multiple public APIs.
+This project processes raw vehicle data from an Excel source file, cleans and normalises it, produces a structured lookup dataset, and enriches it with individual production years sourced from multiple public APIs. Each output row represents one specific model year, ready for direct rule-based battery matching.
 
 ## Project Structure
 
@@ -14,9 +14,9 @@ This project processes raw vehicle data from an Excel source file, cleans and no
 ├── analysis.ipynb                 # Jupyter notebook for exploratory analysis
 ├── battery_lookup_dataset.csv     # Cleaned output dataset (CSV)
 ├── battery_lookup_dataset.xlsx    # Cleaned output dataset (Excel)
-├── vehicle_years.csv              # Year-enriched dataset (CSV)
-├── vehicle_years.xlsx             # Year-enriched dataset (Excel)
-├── unmatched_models.csv           # Rows where no year range was found
+├── vehicle_years.csv              # Year-enriched dataset — one row per production year (CSV)
+├── vehicle_years.xlsx             # Year-enriched dataset — one row per production year (Excel)
+├── unmatched_models.csv           # Make/model pairs where no year data was found
 ├── year_cache.json                # API response cache (auto-generated)
 ├── requirements.txt               # Python dependencies
 └── README.md
@@ -37,13 +37,17 @@ This project processes raw vehicle data from an Excel source file, cleans and no
 
 ### `vehicle_years.csv`
 
+Each row represents a single make + model + production year combination. This flat structure enables direct lookup for rule-based battery matching (e.g. user inputs `Toyota Corolla 2012` → one exact row match).
+
 | Column | Description |
 |---|---|
 | `make` | Vehicle manufacturer |
 | `model` | Vehicle model name and variant |
-| `year_from` | First production year |
-| `year_to` | Last production year (blank if still in production) |
-| `year_source` | API source that provided the year data (`carapi`, `wikipedia`, `wikidata`) |
+| `year` | Individual production year (one row per year) |
+| `engine_capacity` | Engine displacement in cc |
+| `fuel` | Fuel type (GASOLINE, DIESEL, etc.) |
+
+> Rows where no year data could be found are excluded from this file and written to `unmatched_models.csv` instead.
 
 ## Getting Started
 
@@ -81,14 +85,24 @@ python enrich_years.py
 
 The script will:
 1. Load `battery_lookup_dataset.csv`
-2. Fetch model lists from NHTSA VPIC and CarAPI (cached to `year_cache.json`)
-3. Look up production year ranges in three stages:
+2. Reset the years cache (see [Caching](#caching) below)
+3. Fetch model lists from NHTSA VPIC and CarAPI (cached to `year_cache.json`)
+4. Look up production years in three stages:
    - **Stage 1** — NHTSA VPIC model list per make (used for fuzzy name matching)
-   - **Stage 2** — CarAPI model list per make (includes year ranges)
+   - **Stage 2** — CarAPI model list per make (includes year data)
    - **Stage 3** — Year lookup per unique make+model using the NHTSA fuzzy-matched name (falls back to raw model name)
-4. Save `vehicle_years.csv`, `vehicle_years.xlsx`, and `unmatched_models.csv`
+5. Expand each matched model into individual year rows, clamped to 2026
+6. Save `vehicle_years.csv`, `vehicle_years.xlsx`, and `unmatched_models.csv`
 
-API results are cached in `year_cache.json` to avoid redundant requests on re-runs.
+#### Caching
+
+`year_cache.json` has three sections:
+
+| Section | Behaviour |
+|---|---|
+| `nhtsa` | Persisted across runs — model lists are reused |
+| `carapi` | Persisted across runs — model lists are reused |
+| `years` | **Cleared on every run** — always re-fetched to avoid stale year-range data |
 
 #### Year Lookup Search Priority
 
