@@ -18,6 +18,7 @@ This project processes raw vehicle data from an Excel source file, cleans and no
 ├── vehicle_years.xlsx             # Year-enriched dataset — one row per production year (Excel)
 ├── unmatched_models.csv           # Make/model pairs where no year data was found
 ├── year_cache.json                # API response cache (auto-generated)
+├── fueleconomy_vehicles.csv       # Local cache of fueleconomy.gov bulk CSV (auto-generated)
 ├── requirements.txt               # Python dependencies
 └── README.md
 ```
@@ -87,12 +88,12 @@ The script will:
 1. Load `battery_lookup_dataset.csv`
 2. Reset the years cache (see [Caching](#caching) below)
 3. Fetch model lists from NHTSA VPIC and CarAPI (cached to `year_cache.json`)
-4. Look up production years in three stages:
-   - **Stage 1** — NHTSA VPIC model list per make (used for fuzzy name matching)
-   - **Stage 2** — CarAPI model list per make (includes year data)
-   - **Stage 3** — Year lookup per unique make+model using the NHTSA fuzzy-matched name (falls back to raw model name)
-5. Expand each matched model into individual year rows, clamped to 2026
-6. Save `vehicle_years.csv`, `vehicle_years.xlsx`, and `unmatched_models.csv`
+4. Look up production years in four stages:
+   - **Stage 1** — Download the fueleconomy.gov bulk CSV (cached locally as `fueleconomy_vehicles.csv`)
+   - **Stage 2** — NHTSA VPIC model list per make (used for fuzzy name matching)
+   - **Stage 3** — CarAPI model list per make (includes year-range data)
+   - **Stage 4** — Year lookup per unique make+model using the NHTSA fuzzy-matched name (falls back to raw model name)
+5. Save `vehicle_years.csv`, `vehicle_years.xlsx`, and `unmatched_models.csv`
 
 #### Caching
 
@@ -102,7 +103,9 @@ The script will:
 |---|---|
 | `nhtsa` | Persisted across runs — model lists are reused |
 | `carapi` | Persisted across runs — model lists are reused |
-| `years` | **Cleared on every run** — always re-fetched to avoid stale year-range data |
+| `years` | **Cleared on every run** — always re-fetched to avoid stale data |
+
+`fueleconomy_vehicles.csv` is downloaded once from the US DOE/EPA and reused on subsequent runs. Delete the file to force a fresh download.
 
 #### Year Lookup Search Priority
 
@@ -113,12 +116,18 @@ The script will:
 
 #### Supported API Sources
 
-| Source | Purpose |
-|---|---|
-| [NHTSA VPIC](https://vpic.nhtsa.dot.gov/api/) | US government vehicle model reference list |
-| [CarAPI](https://carapi.app/) | Community car database with year ranges |
-| [Wikipedia API](https://en.wikipedia.org/w/api.php) | Page extracts for year range parsing |
-| [Wikidata SPARQL](https://query.wikidata.org/) | Structured production year data |
+Sources are tried in priority order. fueleconomy.gov provides exact per-year records and is the highest-quality source for US-market vehicles.
+
+| Priority | Source | Coverage | Data type |
+|---|---|---|---|
+| 1 | [fueleconomy.gov](https://www.fueleconomy.gov/feg/epadata/vehicles.csv) (US DOE/EPA bulk CSV) | US-market, 1984–present | Exact years |
+| 2 | [CarAPI](https://carapi.app/) | Global, community-sourced | Year range (expanded) |
+| 3 | [Wikipedia API](https://en.wikipedia.org/w/api.php) | Global, best-effort | Year range (expanded) |
+| 4 | [Wikidata SPARQL](https://query.wikidata.org/) | Global, structured | Year range (expanded) |
+
+Non-US makes (Great Wall, SAIC, Maruti Suzuki, Peugeot, Citroën, Renault, Haval, Iveco, Mitsubishi Fuso) are automatically skipped for fueleconomy.gov and fall through to CarAPI / Wikipedia / Wikidata.
+
+*NHTSA VPIC is used only for fuzzy model-name matching — it does not provide year data.*
 
 ### Run the Analysis Notebook
 
