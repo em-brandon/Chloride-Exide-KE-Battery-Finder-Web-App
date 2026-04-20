@@ -22,7 +22,8 @@ CACHE_FILE            = "year_cache.json"
 FUELECONOMY_CSV_URL   = "https://www.fueleconomy.gov/feg/epadata/vehicles.csv"
 FUELECONOMY_CSV       = "fueleconomy_vehicles.csv"
 CURRENT_YEAR          = 2026
-REQUEST_DELAY         = 0.5   # seconds between API calls
+REQUEST_DELAY         = 1.0   # seconds between API calls
+WIKI_SKIP_UNTIL       = 0     # epoch time — skip Wikipedia until this time (set after repeated 429s)
 MATCH_SCORE_THRESHOLD = 45    # minimum fuzzy score (0-100) to accept a match
 
 # ── Source URLs ────────────────────────────────────────────────
@@ -42,7 +43,8 @@ CARAPI_MODELS_URL  = "https://carapi.app/api/models?make={make}&verbose=yes&limi
 # Single HTTPS session — disables SSL verification to handle corporate proxy certificates
 SESSION = requests.Session()
 SESSION.verify = False
-SESSION.headers["User-Agent"] = "BatteryFinderBot/1.0 (research project)"
+# Wikipedia requires a descriptive User-Agent with contact info to avoid throttling
+SESSION.headers["User-Agent"] = "BatteryFinderBot/1.0 (battery-finder research; contact: battery-finder-bot@example.com)"
 
 # =========================
 # MAKE NAME MAP
@@ -83,6 +85,12 @@ def fetch_nhtsa_models(make):
 # SOURCE 2 — WIKIPEDIA API
 # =========================
 def get_years_from_wikipedia(make, model_name):
+    global WIKI_SKIP_UNTIL
+    if time.time() < WIKI_SKIP_UNTIL:
+        remaining = int(WIKI_SKIP_UNTIL - time.time())
+        print(f"    [Wiki] Skipping (cooling down for {remaining}s more)", flush=True)
+        return None, None
+
     query = f"{make} {model_name} automobile"
     params = {"action": "query", "list": "search", "srsearch": query,
               "srlimit": 1, "format": "json", "utf8": 1}
@@ -90,9 +98,12 @@ def get_years_from_wikipedia(make, model_name):
         try:
             r = SESSION.get(WIKI_SEARCH_URL, params=params, timeout=10)
             if r.status_code == 429:
-                wait = 10 * (attempt + 1)
+                wait = 30 * (attempt + 1)  # 30s, 60s, 90s
                 print(f"    [Wiki] 429 rate-limit, waiting {wait}s...", flush=True)
                 time.sleep(wait)
+                if attempt == 2:  # 3 strikes — pause Wikipedia for 5 minutes
+                    WIKI_SKIP_UNTIL = time.time() + 300
+                    print("    [Wiki] Repeated 429s — pausing Wikipedia for 5 minutes", flush=True)
                 continue
             r.raise_for_status()
             results = r.json().get("query", {}).get("search", [])
@@ -103,9 +114,12 @@ def get_years_from_wikipedia(make, model_name):
                        "titles": page_title, "format": "json", "utf8": 1}
             r2 = SESSION.get(WIKI_SEARCH_URL, params=params2, timeout=10)
             if r2.status_code == 429:
-                wait = 10 * (attempt + 1)
+                wait = 30 * (attempt + 1)
                 print(f"    [Wiki] 429 rate-limit, waiting {wait}s...", flush=True)
                 time.sleep(wait)
+                if attempt == 2:
+                    WIKI_SKIP_UNTIL = time.time() + 300
+                    print("    [Wiki] Repeated 429s — pausing Wikipedia for 5 minutes", flush=True)
                 continue
             r2.raise_for_status()
             pages = r2.json().get("query", {}).get("pages", {})
