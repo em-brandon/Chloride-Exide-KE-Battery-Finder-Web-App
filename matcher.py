@@ -25,6 +25,47 @@ from rapidfuzz import process, fuzz
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------------------------
+# Region / battery-standard detection
+# ---------------------------------------------------------------------------
+
+# NS/JIS standard — Japanese, Korean, Chinese makes
+_NS_MAKES: frozenset[str] = frozenset({
+    "DAIHATSU", "HONDA", "HINO", "ISUZU", "LEXUS",
+    "MARUTI SUZUKI", "MAZDA", "MITSUBISHI", "MITSUBISHI FUSO",
+    "NISSAN", "NISSAN DIESEL/UD", "SUBARU", "SUZUKI", "TOYOTA",
+    # Korean
+    "HYUNDAI", "KIA",
+    # Chinese
+    "CHERY", "DONGFENG", "FAW", "FOTON", "GREAT WALL", "HAVAL", "SAIC MOTORS",
+})
+
+# Everything else (European, American, Indian) defaults to DIN
+_DIN_MAKES: frozenset[str] = frozenset({
+    "AUDI", "BENTLEY", "BMW", "BRABUS", "CADILLAC", "CHEVROLET",
+    "CHRYSLER", "CITROEN", "DODGE", "EICHER", "FERRARI", "FIAT",
+    "FORD", "JAGUAR", "JEEP", "LANDROVER", "MAN", "MERCEDES",
+    "MERCEDES-BENZ", "MINI", "OPEL", "PEUGEOT", "PORSCHE", "RENAULT",
+    "ROLLS-ROYCE", "SCANIA", "SKODA", "TATA", "VAUXHALL",
+    "VOLKSWAGEN", "VOLVO",
+})
+
+
+def _make_region(make: str) -> str:
+    """Return 'NS' or 'DIN' based on the vehicle make."""
+    key = make.upper().strip()
+    if key in _NS_MAKES:
+        return "NS"
+    return "DIN"  # default for European / American / unknown makes
+
+
+def _battery_region(model_key: str) -> str:
+    """Return 'DIN' or 'NS' from a battery Model Key string."""
+    if not model_key or not isinstance(model_key, str):
+        return "NS"
+    return "DIN" if model_key.strip().upper().startswith("DIN") else "NS"
+
+
+# ---------------------------------------------------------------------------
 # Fuel-type normalisation
 # ---------------------------------------------------------------------------
 
@@ -84,10 +125,14 @@ def _target_ah(engine_cc: int, fuel: str) -> int:
 _TECH_PRIORITY = ["EFB", "AGM", "MF", "SB (Flooded)"]
 
 
-def _preferred_tech(engine_cc: int, fuel: str) -> str:
+def _preferred_tech(engine_cc: int, fuel: str, stop_start: bool = False) -> str:
     """Return the preferred battery technology given engine size and fuel."""
     if fuel == "EV":
         return "MF"
+    if stop_start:
+        if fuel == "DIESEL" or engine_cc >= 2500:
+            return "AGM"
+        return "EFB"  # stop-start petrol/hybrid of any size → EFB minimum
     if fuel in ("HYBRID",) or (fuel == "PETROL" and 1600 < engine_cc <= 2000):
         return "EFB"
     if fuel == "DIESEL" or engine_cc >= 2500:
@@ -129,6 +174,7 @@ def _batteries() -> pd.DataFrame:
 def _select_batteries(
     target_ah: int,
     preferred_tech: str,
+    region: str = "NS",
 ) -> tuple[dict, list[dict]]:
     """
     Return (primary, alternatives) from battery_specs_output.
@@ -214,6 +260,7 @@ def recommend(
     year: int,
     engine_cc: Optional[int] = None,
     fuel_type: Optional[str] = None,
+    has_stop_start: bool = False,
 ) -> dict:
     df = _vehicles()
     make_n  = make.upper().strip()
@@ -282,7 +329,7 @@ def recommend(
 
     # ── Step 4: compute target Ah + technology preference ──────────────
     target_ah    = _target_ah(resolved_cc, resolved_fuel)
-    pref_tech    = _preferred_tech(resolved_cc, resolved_fuel)
+    pref_tech    = _preferred_tech(resolved_cc, resolved_fuel, has_stop_start)
     primary, alternatives = _select_batteries(target_ah, pref_tech)
 
     return {
@@ -291,6 +338,7 @@ def recommend(
         "year":           year,
         "engine_cc":      resolved_cc,
         "fuel_type":      resolved_fuel,
+        "has_stop_start": has_stop_start,
         "recommended_ah": target_ah,
         "preferred_tech": pref_tech,
         "confidence":     confidence,

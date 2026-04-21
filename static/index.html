@@ -304,6 +304,117 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Stop-start toggle ── */
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .toggle-input { display: none; }
+
+    .toggle-track {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      background: #2e2e2e;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .toggle-input:checked + .toggle-track { background: #4a0000; border-color: var(--red); }
+    .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: var(--red); }
+
+    .field-hint { font-size: 0.74rem; color: var(--muted2); margin-top: 0.35rem; }
+
+    /* ── Technology badges ── */
+    .tech-efb { background: #2e1500; color: #fb923c; border: 1px solid #7c2d12; }
+    .tech-agm { background: #1a1030; color: #a5b4fc; border: 1px solid #3730a3; }
+    .tech-mf  { background: #1a1a1a; color: #9ca3af; border: 1px solid #374151; }
+    .tech-sb  { background: #0a1929; color: #60a5fa; border: 1px solid #1e3a5f; }
+
+    /* ── Primary battery card ── */
+    .primary-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-red);
+      border-radius: 0.55rem;
+      padding: 1rem 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .primary-spec { text-align: center; min-width: 60px; }
+    .primary-spec .value { font-size: 1.5rem; font-weight: 800; color: var(--red); }
+    .primary-spec .unit  { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+
+    .primary-name { flex: 1; min-width: 140px; }
+    .primary-name .battery-code { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .primary-name .model-key    { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* ── Alternatives section ── */
+    .alt-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.65rem;
+    }
+
+    .alt-header span {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+
+    .alt-toggle-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+
+    .alt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.6rem;
+    }
+
+    .alt-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.45rem;
+      padding: 0.75rem 0.9rem;
+    }
+
+    .alt-card .ac-code  { font-size: 0.88rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
+    .alt-card .ac-specs { font-size: 0.74rem; color: var(--muted); }
+
     footer {
       margin-top: 2.5rem;
       font-size: 0.72rem;
@@ -385,6 +496,15 @@
         <input type="number" id="engine_cc" placeholder="e.g. 1500" min="500" max="8000" />
       </div>
 
+      <div class="form-group full">
+        <label class="toggle-label">
+          <input type="checkbox" id="stop_start" class="toggle-input">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span>Vehicle has Stop-Start / i-Stop system</span>
+        </label>
+        <div class="field-hint">e.g. Mazda i-Stop, BMW Auto Start-Stop, Ford Auto-Start-Stop. Requires EFB or AGM battery.</div>
+      </div>
+
     </div>
 
     <button class="btn" type="submit" id="submit-btn">Find Battery</button>
@@ -394,24 +514,29 @@
 
   <div class="result" id="result">
     <div class="result-header">
-      <h2 id="res-battery"></h2>
+      <h2>Primary Recommendation</h2>
       <span class="badge" id="res-badge"></span>
     </div>
 
-    <div class="specs">
-      <div class="spec-box">
+    <div class="primary-card" id="res-primary-card">
+      <div class="primary-spec">
         <div class="value" id="res-ah"></div>
-        <div class="unit">Amp-hours (Ah)</div>
+        <div class="unit">Ah</div>
       </div>
-      <div class="spec-box">
+      <div class="primary-spec">
         <div class="value" id="res-cca"></div>
-        <div class="unit">Cold Cranking Amps</div>
+        <div class="unit">CCA (EN)</div>
+      </div>
+      <span class="badge" id="res-tech-badge" style="font-size:0.72rem;"></span>
+      <div class="primary-name">
+        <div class="battery-code" id="res-battery"></div>
+        <div class="model-key" id="res-model-key"></div>
       </div>
     </div>
 
     <div class="confidence-bar">
       <div class="label">
-        <span>Confidence</span>
+        <span>Match Confidence</span>
         <span id="res-confidence-pct"></span>
       </div>
       <div class="bar-track">
@@ -420,6 +545,14 @@
     </div>
 
     <div class="matched-info" id="res-matched"></div>
+
+    <div id="res-alt-section" style="margin-top:1.25rem; display:none;">
+      <div class="alt-header">
+        <span id="res-alt-label">Alternative Options</span>
+        <button class="alt-toggle-btn" id="res-alt-toggle">hide</button>
+      </div>
+      <div class="alt-grid" id="res-alt-grid"></div>
+    </div>
   </div>
 </div>
 
@@ -429,6 +562,7 @@
   const yearEl       = document.getElementById("year");
   const fuelEl       = document.getElementById("fuel_type");
   const engineEl     = document.getElementById("engine_cc");
+  const stopStartEl  = document.getElementById("stop_start");
   const form         = document.getElementById("finder-form");
   const submitBtn    = document.getElementById("submit-btn");
   const resultEl     = document.getElementById("result");
@@ -496,11 +630,12 @@
     submitBtn.innerHTML = '<span class="spinner"></span>Finding...';
 
     const payload = {
-      make:       makeEl.value,
-      model:      modelEl.value,
-      year:       parseInt(yearEl.value),
-      fuel_type:  fuelEl.value || null,
-      engine_cc:  engineEl.value ? parseInt(engineEl.value) : null,
+      make:           makeEl.value,
+      model:          modelEl.value,
+      year:           parseInt(yearEl.value),
+      fuel_type:      fuelEl.value || null,
+      engine_cc:      engineEl.value ? parseInt(engineEl.value) : null,
+      has_stop_start: stopStartEl.checked,
     };
 
     try {
@@ -526,10 +661,27 @@
     }
   });
 
+  function techBadgeClass(tech) {
+    if (!tech) return "tech-mf";
+    const t = tech.toUpperCase();
+    if (t.includes("EFB")) return "tech-efb";
+    if (t.includes("AGM")) return "tech-agm";
+    if (t.includes("SB") || t.includes("FLOODED")) return "tech-sb";
+    return "tech-mf";
+  }
+
   function showResult(data) {
-    document.getElementById("res-battery").textContent = data.battery;
-    document.getElementById("res-ah").textContent      = data.ah;
-    document.getElementById("res-cca").textContent     = data.cca;
+    const p = data.primary;
+
+    document.getElementById("res-battery").textContent   = p.battery_code || "—";
+    document.getElementById("res-model-key").textContent = p.model_key    || "";
+    document.getElementById("res-ah").textContent        = p.ah           != null ? p.ah  : "—";
+    document.getElementById("res-cca").textContent       = p.cca_en       != null ? p.cca_en : "—";
+
+    // Tech badge on primary card
+    const techBadge = document.getElementById("res-tech-badge");
+    techBadge.textContent  = p.technology || "MF";
+    techBadge.className    = "badge " + techBadgeClass(p.technology);
 
     const pct = data.confidence;
     document.getElementById("res-confidence-pct").textContent = pct + "%";
@@ -552,14 +704,49 @@
 
     const matchedInfo = document.getElementById("res-matched");
     if (data.matched_make) {
+      const cc   = data.engine_cc  ? ` · ${data.engine_cc}cc` : "";
+      const fuel = data.fuel_type  ? ` ${data.fuel_type}`     : "";
       matchedInfo.textContent =
-        `Matched: ${data.matched_make} ${data.matched_model} (${data.matched_year})`;
+        `Matched: ${data.matched_make} ${data.matched_model} (${data.matched_year})${cc}${fuel}`;
     } else {
       matchedInfo.textContent = "No exact vehicle match — recommendation based on engine rules";
     }
 
+    // Alternatives
+    const altSection = document.getElementById("res-alt-section");
+    const altGrid    = document.getElementById("res-alt-grid");
+    const altLabel   = document.getElementById("res-alt-label");
+    altGrid.innerHTML = "";
+
+    if (data.alternatives && data.alternatives.length > 0) {
+      altLabel.textContent = `Alternative Options (${data.alternatives.length})`;
+      data.alternatives.forEach(alt => {
+        const card = document.createElement("div");
+        card.className = "alt-card";
+        const cca = alt.cca_en != null ? ` · ${alt.cca_en} CCA` : "";
+        card.innerHTML = `
+          <div class="ac-code">${alt.battery_code || "—"}</div>
+          <div class="ac-specs">${alt.ah != null ? alt.ah + " Ah" : ""}${cca}</div>
+          <span class="badge ${techBadgeClass(alt.technology)}" style="font-size:0.68rem;margin-top:0.4rem;display:inline-block;">${alt.technology || "MF"}</span>
+        `;
+        altGrid.appendChild(card);
+      });
+      altSection.style.display = "block";
+    } else {
+      altSection.style.display = "none";
+    }
+
     resultEl.classList.add("visible");
   }
+
+  // Alternatives collapse toggle
+  let altVisible = true;
+  document.getElementById("res-alt-toggle").addEventListener("click", () => {
+    const grid = document.getElementById("res-alt-grid");
+    altVisible = !altVisible;
+    grid.style.display = altVisible ? "grid" : "none";
+    document.getElementById("res-alt-toggle").textContent = altVisible ? "hide" : "show";
+  });
 
   function hideResult() { resultEl.classList.remove("visible"); }
 
