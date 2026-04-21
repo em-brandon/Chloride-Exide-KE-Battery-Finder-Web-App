@@ -84,21 +84,11 @@ def _target_ah(engine_cc: int, fuel: str) -> int:
 _TECH_PRIORITY = ["EFB", "AGM", "MF", "SB (Flooded)"]
 
 
-def _preferred_tech(engine_cc: int, fuel: str, stop_start: bool = False) -> str:
-    """Return the preferred battery technology given engine size, fuel, and stop-start.
-
-    Stop-start (i-Stop) forces a minimum of EFB. Diesel stop-start or large
-    displacement stop-start requires AGM for the extra cycle durability.
-    """
+def _preferred_tech(engine_cc: int, fuel: str) -> str:
+    """Return the preferred battery technology given engine size and fuel."""
     if fuel == "EV":
         return "MF"
-    if stop_start:
-        # Diesel stop-start or large-engine stop-start → AGM mandatory
-        if fuel == "DIESEL" or engine_cc >= 2500:
-            return "AGM"
-        # Petrol / hybrid stop-start → EFB minimum
-        return "EFB"
-    if fuel == "HYBRID" or (fuel == "PETROL" and 1600 < engine_cc <= 2000):
+    if fuel in ("HYBRID",) or (fuel == "PETROL" and 1600 < engine_cc <= 2000):
         return "EFB"
     if fuel == "DIESEL" or engine_cc >= 2500:
         return "AGM"
@@ -224,7 +214,6 @@ def recommend(
     year: int,
     engine_cc: Optional[int] = None,
     fuel_type: Optional[str] = None,
-    has_stop_start: bool = False,
 ) -> dict:
     df = _vehicles()
     make_n  = make.upper().strip()
@@ -293,7 +282,7 @@ def recommend(
 
     # ── Step 4: compute target Ah + technology preference ──────────────
     target_ah    = _target_ah(resolved_cc, resolved_fuel)
-    pref_tech    = _preferred_tech(resolved_cc, resolved_fuel, stop_start=has_stop_start)
+    pref_tech    = _preferred_tech(resolved_cc, resolved_fuel)
     primary, alternatives = _select_batteries(target_ah, pref_tech)
 
     return {
@@ -302,7 +291,6 @@ def recommend(
         "year":           year,
         "engine_cc":      resolved_cc,
         "fuel_type":      resolved_fuel,
-        "has_stop_start": has_stop_start,
         "recommended_ah": target_ah,
         "preferred_tech": pref_tech,
         "confidence":     confidence,
