@@ -179,11 +179,15 @@ def _select_batteries(
     """
     Return (primary, alternatives) from battery_specs_output.
 
-    Primary   — best technology match at target_ah.
+    Primary   — best technology match at target_ah within the given region.
     Alternatives — remaining at target_ah + nearest Ah tier above/below,
                    deduplicated by Battery Code, capped at 6.
+    Region    — 'NS' (Japanese/Korean/Chinese) or 'DIN' (European/American).
     """
     batt = _batteries()
+
+    # Filter to the correct regional standard first
+    batt = batt[batt["Model Key"].apply(lambda k: _battery_region(str(k)) == region)]
 
     def _row_to_dict(row: pd.Series) -> dict:
         return {
@@ -328,9 +332,10 @@ def recommend(
                     resolved_fuel = _norm_fuel(str(nearest["fuel"])) if pd.notna(nearest.get("fuel")) else resolved_fuel
 
     # ── Step 4: compute target Ah + technology preference ──────────────
+    region       = _make_region(make)
     target_ah    = _target_ah(resolved_cc, resolved_fuel)
     pref_tech    = _preferred_tech(resolved_cc, resolved_fuel, has_stop_start)
-    primary, alternatives = _select_batteries(target_ah, pref_tech)
+    primary, alternatives = _select_batteries(target_ah, pref_tech, region)
 
     return {
         "make":           make_n,
@@ -339,6 +344,7 @@ def recommend(
         "engine_cc":      resolved_cc,
         "fuel_type":      resolved_fuel,
         "has_stop_start": has_stop_start,
+        "battery_region": region,
         "recommended_ah": target_ah,
         "preferred_tech": pref_tech,
         "confidence":     confidence,
