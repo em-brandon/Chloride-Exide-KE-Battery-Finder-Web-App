@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chloride Exide Battery Finder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:        #CC0000;
+      --red-dark:   #990000;
+      --red-hover:  #E60000;
+      --bg:         #111111;
+      --card-bg:    #1c1c1c;
+      --card-bg2:   #111111;
+      --border:     #2e2e2e;
+      --border-red: #4a0000;
+      --text:       #f0f0f0;
+      --muted:      #888888;
+      --muted2:     #555555;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .battery-icon {
+      width: 56px;
+      height: 56px;
+    }
+
+    .brand {
+      text-align: left;
+    }
+
+    .brand-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .brand-name span {
+      color: var(--red);
+    }
+
+    .brand-sub {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    header p {
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin-top: 0.6rem;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--red);
+      border-radius: 0.75rem;
+      padding: 2rem;
+      width: 100%;
+      max-width: 540px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .form-group.full {
+      grid-column: span 2;
+    }
+
+    label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+
+    label span.optional {
+      font-weight: 400;
+      text-transform: none;
+      color: var(--muted2);
+      font-size: 0.74rem;
+    }
+
+    select, input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.45rem;
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 0.6rem 0.75rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+      appearance: none;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--red);
+    }
+
+    select:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .btn {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--red);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      text-transform: uppercase;
+    }
+
+    .btn:hover  { background: var(--red-hover); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { background: #2e2e2e; color: var(--muted2); cursor: not-allowed; }
+
+    /* ── Result card ── */
+    .result {
+      margin-top: 1.5rem;
+      background: var(--card-bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--red);
+      border-radius: 0.6rem;
+      padding: 1.5rem;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .result.visible { display: block; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
+    }
+
+    .result-header h2 {
+      font-size: 1.3rem;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .badge.exact    { background: #0a2e1a; color: #34d399; border: 1px solid #15532e; }
+    .badge.close    { background: #2e1500; color: #fb923c; border: 1px solid #7c2d12; }
+    .badge.fallback { background: #1a1030; color: #a5b4fc; border: 1px solid #3730a3; }
+
+    .specs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .spec-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      text-align: center;
+    }
+
+    .spec-box .value {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: var(--red);
+    }
+
+    .spec-box .unit {
+      font-size: 0.73rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    .confidence-bar {
+      margin-top: 0.5rem;
+    }
+
+    .confidence-bar .label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .bar-track {
+      background: #2a2a2a;
+      border-radius: 999px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease;
+    }
+
+    .bar-fill.high   { background: #34d399; }
+    .bar-fill.medium { background: #fb923c; }
+    .bar-fill.low    { background: #a5b4fc; }
+
+    .matched-info {
+      font-size: 0.78rem;
+      color: var(--muted2);
+      margin-top: 0.75rem;
+      text-align: center;
+    }
+
+    .error-msg {
+      margin-top: 1rem;
+      background: #2a0000;
+      border: 1px solid var(--red-dark);
+      color: #fca5a5;
+      border-radius: 0.45rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.88rem;
+      display: none;
+    }
+
+    .error-msg.visible { display: block; }
+
+    .spinner {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      border: 2px solid #fff4;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer {
+      margin-top: 2.5rem;
+      font-size: 0.72rem;
+      color: var(--muted2);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <!-- Automotive car battery SVG -->
+    <svg class="battery-icon" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- Battery body -->
+      <rect x="4" y="18" width="48" height="28" rx="3" fill="#CC0000"/>
+      <rect x="5" y="19" width="46" height="26" rx="2" fill="#1c1c1c" stroke="#CC0000" stroke-width="1"/>
+      <!-- Top terminals -->
+      <rect x="11" y="12" width="8" height="7" rx="1.5" fill="#CC0000"/>
+      <rect x="37" y="12" width="8" height="7" rx="1.5" fill="#888888"/>
+      <!-- + symbol on red terminal -->
+      <text x="15" y="18.5" text-anchor="middle" font-size="6" font-weight="bold" fill="#fff">+</text>
+      <!-- – symbol on grey terminal -->
+      <text x="41" y="18.5" text-anchor="middle" font-size="7" font-weight="bold" fill="#fff">−</text>
+      <!-- Cell dividers -->
+      <line x1="18" y1="21" x2="18" y2="43" stroke="#CC0000" stroke-width="1.2" opacity="0.5"/>
+      <line x1="28" y1="21" x2="28" y2="43" stroke="#CC0000" stroke-width="1.2" opacity="0.5"/>
+      <line x1="38" y1="21" x2="38" y2="43" stroke="#CC0000" stroke-width="1.2" opacity="0.5"/>
+      <!-- Ventilation dots -->
+      <circle cx="13" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
+      <circle cx="23" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
+      <circle cx="33" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
+      <circle cx="43" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
+    </svg>
+    <div class="brand">
+      <div class="brand-name">CHLORIDE <span>EXIDE</span></div>
+      <div class="brand-sub">Battery Finder</div>
+    </div>
+  </div>
+  <p>Enter your vehicle details to get the right battery recommendation</p>
+</header>
+
+<div class="card">
+  <form id="finder-form">
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label for="make">Car Make</label>
+        <select id="make" required>
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="model">Model</label>
+        <select id="model" required disabled>
+          <option value="">Select make first</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="year">Year</label>
+        <select id="year" required>
+          <option value="">Select year</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="fuel_type">Fuel Type <span class="optional">(optional)</span></label>
+        <select id="fuel_type">
+          <option value="">Unknown</option>
+          <option value="Petrol">Petrol</option>
+          <option value="Diesel">Diesel</option>
+        </select>
+      </div>
+
+      <div class="form-group full">
+        <label for="engine_cc">Engine Size (CC) <span class="optional">(optional)</span></label>
+        <input type="number" id="engine_cc" placeholder="e.g. 1500" min="500" max="8000" />
+      </div>
+
+    </div>
+
+    <button class="btn" type="submit" id="submit-btn">Find Battery</button>
+  </form>
+
+  <div class="error-msg" id="error-msg"></div>
+
+  <div class="result" id="result">
+    <div class="result-header">
+      <h2 id="res-battery"></h2>
+      <span class="badge" id="res-badge"></span>
+    </div>
+
+    <div class="specs">
+      <div class="spec-box">
+        <div class="value" id="res-ah"></div>
+        <div class="unit">Amp-hours (Ah)</div>
+      </div>
+      <div class="spec-box">
+        <div class="value" id="res-cca"></div>
+        <div class="unit">Cold Cranking Amps</div>
+      </div>
+    </div>
+
+    <div class="confidence-bar">
+      <div class="label">
+        <span>Confidence</span>
+        <span id="res-confidence-pct"></span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="res-bar"></div>
+      </div>
+    </div>
+
+    <div class="matched-info" id="res-matched"></div>
+  </div>
+</div>
+
+<script>
+  const makeEl       = document.getElementById("make");
+  const modelEl      = document.getElementById("model");
+  const yearEl       = document.getElementById("year");
+  const fuelEl       = document.getElementById("fuel_type");
+  const engineEl     = document.getElementById("engine_cc");
+  const form         = document.getElementById("finder-form");
+  const submitBtn    = document.getElementById("submit-btn");
+  const resultEl     = document.getElementById("result");
+  const errorEl      = document.getElementById("error-msg");
+
+  // Populate years 2025 → 2000
+  for (let y = 2025; y >= 2000; y--) {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = y;
+    yearEl.appendChild(opt);
+  }
+
+  // Load makes on page load
+  fetch("/api/makes")
+    .then(r => r.json())
+    .then(data => {
+      makeEl.innerHTML = '<option value="">Select make</option>';
+      data.makes.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        makeEl.appendChild(opt);
+      });
+    })
+    .catch(() => {
+      makeEl.innerHTML = '<option value="">Failed to load</option>';
+    });
+
+  // Load models when make changes
+  makeEl.addEventListener("change", () => {
+    const make = makeEl.value;
+    modelEl.innerHTML = '<option value="">Loading...</option>';
+    modelEl.disabled = true;
+
+    if (!make) {
+      modelEl.innerHTML = '<option value="">Select make first</option>';
+      return;
+    }
+
+    fetch(`/api/models/${encodeURIComponent(make)}`)
+      .then(r => r.json())
+      .then(data => {
+        modelEl.innerHTML = '<option value="">Select model</option>';
+        data.models.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = m;
+          modelEl.appendChild(opt);
+        });
+        modelEl.disabled = false;
+      })
+      .catch(() => {
+        modelEl.innerHTML = '<option value="">Failed to load</option>';
+      });
+  });
+
+  // Submit
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideResult();
+    hideError();
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span>Finding...';
+
+    const payload = {
+      make:       makeEl.value,
+      model:      modelEl.value,
+      year:       parseInt(yearEl.value),
+      fuel_type:  fuelEl.value || null,
+      engine_cc:  engineEl.value ? parseInt(engineEl.value) : null,
+    };
+
+    try {
+      const res = await fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        showError(err.detail || "Something went wrong.");
+        return;
+      }
+
+      const data = await res.json();
+      showResult(data);
+    } catch (err) {
+      showError("Could not reach the server. Is it running?");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = "Find Battery";
+    }
+  });
+
+  function showResult(data) {
+    document.getElementById("res-battery").textContent = data.battery;
+    document.getElementById("res-ah").textContent      = data.ah;
+    document.getElementById("res-cca").textContent     = data.cca;
+
+    const pct = data.confidence;
+    document.getElementById("res-confidence-pct").textContent = pct + "%";
+
+    const bar   = document.getElementById("res-bar");
+    const badge = document.getElementById("res-badge");
+    bar.style.width = pct + "%";
+
+    if (pct === 100) {
+      bar.className   = "bar-fill high";
+      badge.className = "badge exact";
+    } else if (pct >= 60) {
+      bar.className   = "bar-fill medium";
+      badge.className = "badge close";
+    } else {
+      bar.className   = "bar-fill low";
+      badge.className = "badge fallback";
+    }
+    badge.textContent = data.match_type;
+
+    const matchedInfo = document.getElementById("res-matched");
+    if (data.matched_make) {
+      matchedInfo.textContent =
+        `Matched: ${data.matched_make} ${data.matched_model} (${data.matched_year})`;
+    } else {
+      matchedInfo.textContent = "No exact vehicle match — recommendation based on engine rules";
+    }
+
+    resultEl.classList.add("visible");
+  }
+
+  function hideResult() { resultEl.classList.remove("visible"); }
+
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.classList.add("visible");
+  }
+
+  function hideError() { errorEl.classList.remove("visible"); }
+</script>
+
+<footer>
+  &copy; 2026 Chloride Exide &mdash; Powering East Africa
+</footer>
+
+</body>
+</html>
