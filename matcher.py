@@ -258,6 +258,14 @@ def get_models(make: str) -> list[str]:
     return sorted(subset["model"].dropna().unique().tolist())
 
 
+def get_years(make: str, model: str) -> list[int]:
+    df = _vehicles()
+    make_n  = make.upper().strip()
+    model_n = model.upper().strip()
+    subset = df[(df["make_n"] == make_n) & (df["model_n"] == model_n)]
+    return sorted(subset["year"].dropna().unique().astype(int).tolist(), reverse=True)
+
+
 def recommend(
     make: str,
     model: str,
