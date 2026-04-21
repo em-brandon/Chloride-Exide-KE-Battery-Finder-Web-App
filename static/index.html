@@ -7,6 +7,57 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Full-page loader ── */
+    #page-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #111111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      transition: opacity 0.5s ease;
+    }
+    #page-loader.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loader-battery {
+      width: 64px;
+      height: 64px;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .loader-bar-track {
+      width: 180px;
+      height: 4px;
+      background: #2e2e2e;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .loader-bar-fill {
+      height: 100%;
+      width: 40%;
+      background: #CC0000;
+      border-radius: 99px;
+      animation: slide 1.2s ease-in-out infinite;
+    }
+    .loader-text {
+      font-size: 0.85rem;
+      color: #888888;
+      letter-spacing: 0.05em;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1);   opacity: 1;   }
+      50%       { transform: scale(1.08); opacity: 0.7; }
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      50%  { transform: translateX(160%); }
+      100% { transform: translateX(-100%); }
+    }
+
     :root {
       --red:        #CC0000;
       --red-dark:   #990000;
@@ -425,6 +476,18 @@
 </head>
 <body>
 
+  <!-- Full-page loader -->
+  <div id="page-loader">
+    <svg class="loader-battery" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="14" width="52" height="36" rx="4" stroke="#CC0000" stroke-width="3"/>
+      <rect x="20" y="8" width="8" height="6" rx="1" fill="#CC0000"/>
+      <rect x="36" y="8" width="8" height="6" rx="1" fill="#CC0000"/>
+      <path d="M28 26 L24 34 H30 L26 42 L38 28 H32 L36 20Z" fill="#CC0000"/>
+    </svg>
+    <div class="loader-bar-track"><div class="loader-bar-fill"></div></div>
+    <span class="loader-text">Loading Battery Finder…</span>
+  </div>
+
 <header>
   <div class="logo-wrap">
     <!-- Automotive car battery SVG -->
@@ -568,7 +631,16 @@
   const resultEl     = document.getElementById("result");
   const errorEl      = document.getElementById("error-msg");
 
+  // Dismiss the full-page loader
+  function hideLoader() {
+    const loader = document.getElementById("page-loader");
+    loader.classList.add("hide");
+    setTimeout(() => loader.remove(), 500);
+  }
+
   // Load makes on page load
+  const minLoadMs = 1200; // loader shows for at least this long
+  const loadStart = Date.now();
   fetch("/api/makes")
     .then(r => r.json())
     .then(data => {
@@ -579,9 +651,12 @@
         opt.textContent = m;
         makeEl.appendChild(opt);
       });
+      const elapsed = Date.now() - loadStart;
+      setTimeout(hideLoader, Math.max(0, minLoadMs - elapsed));
     })
     .catch(() => {
       makeEl.innerHTML = '<option value="">Failed to load</option>';
+      hideLoader();
     });
 
   // Load models when make changes
@@ -655,10 +730,18 @@
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span>Finding...';
 
+    const parsedYear = parseInt(yearEl.value);
+    if (!makeEl.value || !modelEl.value || isNaN(parsedYear)) {
+      showError("Please select a make, model, and year before searching.");
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = "Find Battery";
+      return;
+    }
+
     const payload = {
       make:           makeEl.value,
       model:          modelEl.value,
-      year:           parseInt(yearEl.value),
+      year:           parsedYear,
       fuel_type:      fuelEl.value || null,
       engine_cc:      engineEl.value ? parseInt(engineEl.value) : null,
       has_stop_start: stopStartEl.checked,
