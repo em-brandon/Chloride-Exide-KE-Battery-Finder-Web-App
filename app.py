@@ -61,6 +61,16 @@ def list_models(request: Request, make: str):
     return {"models": models}
 
 
+@app.get("/api/years/{make}/{model}", summary="List available years for a given make and model")
+@limiter.limit("20/minute")
+def list_years(request: Request, make: str, model: str):
+    assert request  # consumed by slowapi rate limiter
+    years = matcher.get_years(make, model)
+    if not years:
+        raise HTTPException(status_code=404, detail=f"No years found for {make} {model}")
+    return {"years": years}
+
+
 @app.post("/api/recommend", summary="Get a battery recommendation")
 @limiter.limit("10/minute")
 def recommend(request: Request, req: RecommendRequest):

@@ -477,8 +477,8 @@
 
       <div class="form-group">
         <label for="year">Year</label>
-        <select id="year" required>
-          <option value="">Select year</option>
+        <select id="year" required disabled>
+          <option value="">Select model first</option>
         </select>
       </div>
 
@@ -568,14 +568,6 @@
   const resultEl     = document.getElementById("result");
   const errorEl      = document.getElementById("error-msg");
 
-  // Populate years 2025 → 2000
-  for (let y = 2025; y >= 2000; y--) {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
-    yearEl.appendChild(opt);
-  }
-
   // Load makes on page load
   fetch("/api/makes")
     .then(r => r.json())
@@ -597,6 +589,7 @@
     const make = makeEl.value;
     modelEl.innerHTML = '<option value="">Loading...</option>';
     modelEl.disabled = true;
+    resetYear();
 
     if (!make) {
       modelEl.innerHTML = '<option value="">Select make first</option>';
@@ -619,6 +612,39 @@
         modelEl.innerHTML = '<option value="">Failed to load</option>';
       });
   });
+
+  // Load years when model changes
+  modelEl.addEventListener("change", () => {
+    const make  = makeEl.value;
+    const model = modelEl.value;
+    resetYear();
+
+    if (!model) return;
+
+    yearEl.innerHTML = '<option value="">Loading...</option>';
+    yearEl.disabled = true;
+
+    fetch(`/api/years/${encodeURIComponent(make)}/${encodeURIComponent(model)}`)
+      .then(r => r.json())
+      .then(data => {
+        yearEl.innerHTML = '<option value="">Select year</option>';
+        data.years.forEach(y => {
+          const opt = document.createElement("option");
+          opt.value = y;
+          opt.textContent = y;
+          yearEl.appendChild(opt);
+        });
+        yearEl.disabled = false;
+      })
+      .catch(() => {
+        yearEl.innerHTML = '<option value="">Failed to load</option>';
+      });
+  });
+
+  function resetYear() {
+    yearEl.innerHTML = '<option value="">Select model first</option>';
+    yearEl.disabled = true;
+  }
 
   // Submit
   form.addEventListener("submit", async (e) => {
