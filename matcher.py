@@ -227,9 +227,17 @@ def _select_batteries(
     # Pad alternatives from adjacent Ah tiers if fewer than 3
     if len(alternatives) < 3:
         all_ahs = sorted(batt["Ah"].dropna().unique().tolist())
-        idx = all_ahs.index(target_ah) if target_ah in all_ahs else -1
-        for neighbour_ah in ([all_ahs[idx + 1]] if idx < len(all_ahs) - 1 else []) + \
-                            ([all_ahs[idx - 1]] if idx > 0 else []):
+        # Find the insertion point so we always get true neighbours even when
+        # target_ah itself is not in the list (avoids idx=-1 wraparound bug)
+        import bisect
+        pos = bisect.bisect_left(all_ahs, target_ah)
+        neighbour_ahs = []
+        if pos < len(all_ahs):
+            neighbour_ahs.append(all_ahs[pos] if all_ahs[pos] != target_ah else None)
+        if pos > 0:
+            neighbour_ahs.append(all_ahs[pos - 1])
+        neighbour_ahs = [a for a in neighbour_ahs if a is not None and a != target_ah]
+        for neighbour_ah in neighbour_ahs:
             nbr = batt[batt["Ah"] == neighbour_ah]
             for _, r in nbr.iterrows():
                 entry = _row_to_dict(r)
