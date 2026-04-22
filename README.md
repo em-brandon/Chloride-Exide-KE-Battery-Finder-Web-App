@@ -71,10 +71,11 @@ python dataprep.py
 
 The script will:
 1. Load `New-CRSP---July-2025.xlsx`
-2. Clean and normalise column names
-3. Filter out electric vehicles
-4. Deduplicate records
-5. Save `battery_lookup_dataset.csv` and `battery_lookup_dataset.xlsx`
+2. Clean and normalise column names , remove model number collumn
+3. 
+4. Filter out electric vehicles
+5. Deduplicate records
+6. Save `battery_lookup_dataset.csv` and `battery_lookup_dataset.xlsx`
 
 Progress is logged to the console every 500 rows (configurable via `LOG_EVERY_N_ROWS` in `dataprep.py`).
 
