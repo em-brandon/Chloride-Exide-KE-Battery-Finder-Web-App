@@ -1,5 +1,57 @@
 # Battery Finder Project — CSRP Data Set 2025
 
+flowchart TD
+    subgraph Offline["Offline / Data Preparation"]
+        XLSX["New-CRSP---July-2025.xlsx\n(source data)"]
+        DP["dataprep.py\nETL + normalisation"]
+        CSV["battery_lookup_dataset.csv\n4,567 rows"]
+        EY["enrich_years.py\n5-source enrichment pipeline"]
+        VY["vehicle_years.csv\n75,052 rows"]
+        UM["unmatched_models.csv\n490 pairs"]
+        YC["year_cache.json\nAPI result cache"]
+        SPECS["battery_specs_output.xlsx\n64 batteries (NS + DIN)"]
+
+        subgraph ExternalAPIs["External APIs"]
+            NHTSA["NHTSA VPIC"]
+            WIKI["Wikipedia"]
+            WIKIDATA["Wikidata SPARQL"]
+            CARAPI["CarAPI"]
+            FUELGOV["fueleconomy.gov"]
+        end
+
+        XLSX --> DP --> CSV
+        CSV --> EY
+        EY <--> YC
+        EY --> VY
+        EY --> UM
+        EY <--> NHTSA
+        EY <--> WIKI
+        EY <--> WIKIDATA
+        EY <--> CARAPI
+        EY <--> FUELGOV
+    end
+
+    subgraph Runtime["Runtime / API Server"]
+        APP["app.py\nFastAPI + slowapi"]
+        MATCHER["matcher.py\nRule-based engine\n+ rapidfuzz matching"]
+        FRONTEND["static/index.html\nBrowser UI"]
+
+        VY -->|loaded at startup| MATCHER
+        SPECS -->|loaded at startup| MATCHER
+        MATCHER -->|lru_cache| MATCHER
+        APP --> MATCHER
+        FRONTEND -->|HTTP GET/POST| APP
+    end
+
+    subgraph MatchingLayers["Matching Layers (matcher.py)"]
+        L1["Layer 1 — Exact\nmake + model ≥90 + exact year\nconfidence 100"]
+        L2["Layer 2 — Soft\nmake + model ≥60 + year ±3\nconfidence 60–89"]
+        L3["Layer 3 — Rule\nengine_cc + fuel → Ah bracket\nconfidence 40"]
+        L1 -->|no match| L2 -->|no match| L3
+    end
+
+    MATCHER --- MatchingLayers
+
 A data pipeline and analysis toolkit for building a vehicle battery lookup dataset from the CRSP (July 2025) source data.
 
 ## Overview
