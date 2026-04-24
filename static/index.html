@@ -50,18 +50,55 @@
     #page-loader.hide { opacity: 0; pointer-events: none; }
     .loader-battery { width: 56px; height: 56px; animation: pulse 1.2s ease-in-out infinite; }
     .loader-bar-track {
-      width: 160px; height: 3px;
-      background: #e5e7eb; border-radius: 99px; overflow: hidden;
+      width: 180px;
+      height: 4px;
+      background: #2e2e2e;
+      border-radius: 99px;
+      overflow: hidden;
     }
     .loader-bar-fill {
       height: 100%; width: 45%; background: var(--red);
       border-radius: 99px; animation: slide 1.2s ease-in-out infinite;
     }
-    .loader-text { font-size: 0.8rem; color: var(--muted); letter-spacing: 0.04em; }
-    @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.07);opacity:.75} }
-    @keyframes slide { 0%{transform:translateX(-120%)} 50%{transform:translateX(200%)} 100%{transform:translateX(-120%)} }
-    @keyframes spin  { to{transform:rotate(360deg)} }
-    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .loader-text {
+      font-size: 0.85rem;
+      color: #888888;
+      letter-spacing: 0.05em;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1);   opacity: 1;   }
+      50%       { transform: scale(1.08); opacity: 0.7; }
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      50%  { transform: translateX(160%); }
+      100% { transform: translateX(-100%); }
+    }
+
+    :root {
+      --red:        #CC0000;
+      --red-dark:   #990000;
+      --red-hover:  #E60000;
+      --bg:         #111111;
+      --card-bg:    #1c1c1c;
+      --card-bg2:   #111111;
+      --border:     #2e2e2e;
+      --border-red: #4a0000;
+      --text:       #f0f0f0;
+      --muted:      #888888;
+      --muted2:     #555555;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
 
     /* ── Header ── */
     header {
@@ -102,8 +139,8 @@
       border-radius: 1rem;
       padding: 1.75rem;
       width: 100%;
-      max-width: 560px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+      max-width: 540px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
     }
 
     /* ── Form ── */
@@ -137,8 +174,8 @@
     }
     .required-star { color: var(--red); margin-left: 0.1rem; font-size: 0.78rem; }
 
-    select, input[type="text"], input[type="number"] {
-      background: var(--surface2);
+    select, input {
+      background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 0.55rem;
       color: var(--text);
@@ -147,50 +184,50 @@
       padding: 0.6rem 0.8rem;
       width: 100%;
       outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.2s;
       appearance: none;
       -webkit-appearance: none;
     }
     select:focus, input:focus {
       border-color: var(--red);
-      box-shadow: 0 0 0 3px rgba(204,0,0,0.1);
-      background: #fff;
     }
-    select:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Custom select arrow */
-    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2.2rem; }
+    select:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
 
-    /* Mode tabs */
-    .mode-tabs { display: flex; gap: 0.18rem; }
-    .mode-tab {
-      font-size: 0.58rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.05em;
-      padding: 0.12rem 0.48rem;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--muted2);
+    .btn {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--red);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border: none;
+      border-radius: 0.5rem;
       cursor: pointer;
       transition: all 0.15s;
       line-height: 1.8;
       font-family: inherit;
     }
-    .mode-tab.active { background: var(--red); color: #fff; border-color: var(--red); }
-    .mode-tab:hover:not(.active):not(:disabled) { border-color: var(--muted); color: var(--muted); }
-    .mode-tab:disabled { opacity: 0.25; cursor: not-allowed; }
 
-    /* Stop-start toggle */
-    .toggle-label {
-      display: flex; align-items: center; gap: 0.7rem;
-      cursor: pointer; font-size: 0.88rem;
-      color: var(--text); font-weight: 500;
-    }
-    .toggle-input { display: none; }
-    .toggle-track {
-      position: relative; width: 38px; height: 21px;
-      background: #d1d5db; border-radius: 999px;
-      flex-shrink: 0; transition: background 0.2s;
+    .btn:hover  { background: var(--red-hover); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { background: #2e2e2e; color: var(--muted2); cursor: not-allowed; }
+
+    /* ── Result card ── */
+    .result {
+      margin-top: 1.5rem;
+      background: var(--card-bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--red);
+      border-radius: 0.6rem;
+      padding: 1.5rem;
+      display: none;
+      animation: slideIn 0.3s ease;
     }
     .toggle-thumb {
       position: absolute; top: 3px; left: 3px;
@@ -199,48 +236,48 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.2);
       transition: transform 0.2s;
     }
-    .toggle-input:checked + .toggle-track { background: var(--red); }
-    .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(17px); }
-    .field-hint { font-size: 0.72rem; color: var(--muted2); margin-top: 0.3rem; line-height: 1.45; }
 
-    /* Submit button */
-    .btn {
-      margin-top: 1.25rem; width: 100%;
-      padding: 0.8rem; background: var(--red);
-      color: #fff; font-size: 0.95rem; font-weight: 700;
-      font-family: inherit; letter-spacing: 0.03em;
-      border: none; border-radius: 0.6rem;
-      cursor: pointer; transition: background 0.15s, transform 0.1s;
-    }
-    .btn:hover  { background: var(--red-hover); }
-    .btn:active { transform: scale(0.99); }
-    .btn:disabled { background: #d1d5db; color: var(--muted); cursor: not-allowed; }
-
-    /* Error */
-    .error-msg {
-      margin-top: 0.9rem;
-      background: #fff1f2; border: 1px solid #fecdd3;
-      color: #be123c; border-radius: 0.5rem;
-      padding: 0.7rem 0.9rem; font-size: 0.85rem;
-      display: none;
-    }
-    .error-msg.visible { display: block; }
-
-    /* Spinner */
-    .spinner {
-      display: inline-block; width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.35);
-      border-top-color: #fff; border-radius: 50%;
-      animation: spin 0.65s linear infinite;
-      vertical-align: middle; margin-right: 6px;
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
     }
 
-    /* Manual-entry hint */
-    .manual-hint {
-      display: none; grid-column: span 2;
-      background: #eff6ff; border: 1px solid #bfdbfe;
-      border-radius: 0.5rem; padding: 0.6rem 0.85rem;
-      font-size: 0.78rem; color: #1e40af; line-height: 1.5;
+    .result-header h2 {
+      font-size: 1.3rem;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .badge.exact    { background: #0a2e1a; color: #34d399; border: 1px solid #15532e; }
+    .badge.close    { background: #2e1500; color: #fb923c; border: 1px solid #7c2d12; }
+    .badge.fallback { background: #1a1030; color: #a5b4fc; border: 1px solid #3730a3; }
+
+    .specs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .spec-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      text-align: center;
     }
     .manual-hint.visible { display: block; }
     .cc-hint {
@@ -270,25 +307,111 @@
       justify-content: space-between;
       margin-bottom: 0.9rem;
     }
-    .result-header h2 {
-      font-size: 0.95rem; font-weight: 700; color: var(--text);
+
+    .bar-track {
+      background: #2a2a2a;
+      border-radius: 999px;
+      height: 6px;
+      overflow: hidden;
     }
 
-    .badge {
-      font-size: 0.68rem; font-weight: 700;
-      padding: 0.22rem 0.65rem; border-radius: 999px;
-      text-transform: uppercase; letter-spacing: 0.05em;
-      white-space: nowrap; border: 1px solid transparent;
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease;
     }
-    .badge.exact    { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
-    .badge.close    { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
-    .badge.fallback { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
+
+    .bar-fill.high   { background: #34d399; }
+    .bar-fill.medium { background: #fb923c; }
+    .bar-fill.low    { background: #a5b4fc; }
+
+    .matched-info {
+      font-size: 0.78rem;
+      color: var(--muted2);
+      margin-top: 0.75rem;
+      text-align: center;
+    }
+
+    .error-msg {
+      margin-top: 1rem;
+      background: #2a0000;
+      border: 1px solid var(--red-dark);
+      color: #fca5a5;
+      border-radius: 0.45rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.88rem;
+      display: none;
+    }
+
+    .error-msg.visible { display: block; }
+
+    .spinner {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      border: 2px solid #fff4;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Stop-start toggle ── */
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .toggle-input { display: none; }
+
+    .toggle-track {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      background: #2e2e2e;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .toggle-input:checked + .toggle-track { background: #4a0000; border-color: var(--red); }
+    .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: var(--red); }
+
+    .field-hint { font-size: 0.74rem; color: var(--muted2); margin-top: 0.35rem; }
+
+    /* ── Technology badges ── */
+    .tech-efb { background: #2e1500; color: #fb923c; border: 1px solid #7c2d12; }
+    .tech-agm { background: #1a1030; color: #a5b4fc; border: 1px solid #3730a3; }
+    .tech-mf  { background: #1a1a1a; color: #9ca3af; border: 1px solid #374151; }
+    .tech-sb  { background: #0a1929; color: #60a5fa; border: 1px solid #1e3a5f; }
 
     /* Primary battery card */
     .primary-card {
-      background: #fff8f8;
-      border: 1px solid #fce8e8;
-      border-radius: 0.7rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border-red);
+      border-radius: 0.55rem;
       padding: 1rem 1.1rem;
       display: flex;
       align-items: center;
@@ -349,11 +472,67 @@
       gap: 0.55rem;
     }
     .alt-card {
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 0.55rem; padding: 0.7rem 0.85rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.45rem;
+      padding: 0.75rem 0.9rem;
     }
-    .alt-card .ac-code  { font-size: 0.88rem; font-weight: 700; color: var(--text); margin-bottom: 0.25rem; }
-    .alt-card .ac-specs { font-size: 0.73rem; color: var(--muted); }
+
+    .alt-card .ac-code  { font-size: 0.88rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
+    .alt-card .ac-specs { font-size: 0.74rem; color: var(--muted); }
+
+    /* ── Select / Type toggle tabs ─────────────────────────────────── */
+    .field-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .field-header label { margin-bottom: 0; }
+    .mode-tabs { display: flex; gap: 0.25rem; }
+    .mode-tab {
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.13rem 0.52rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted2);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      line-height: 1.7;
+    }
+    .mode-tab.active { background: var(--red); color: #fff; border-color: var(--red); }
+    .mode-tab:hover:not(.active):not(:disabled) { border-color: var(--muted); color: var(--muted); }
+    .mode-tab:disabled { opacity: 0.28; cursor: not-allowed; }
+
+    /* Manual-entry required fields banner */
+    .manual-hint {
+      display: none;
+      grid-column: span 2;
+      background: rgba(55, 48, 163, 0.15);
+      border: 1px solid #3730a3;
+      border-radius: 0.45rem;
+      padding: 0.6rem 0.85rem;
+      font-size: 0.78rem;
+      color: #a5b4fc;
+      line-height: 1.5;
+    }
+    .manual-hint.visible { display: block; }
+
+    /* Engine CC helper */
+    .cc-hint {
+      display: none;
+      font-size: 0.72rem;
+      color: var(--muted2);
+      margin-top: 0.3rem;
+      line-height: 1.4;
+    }
+    .cc-hint.visible { display: block; }
+
+    /* Required star / optional span on labels */
+    .required-star { color: var(--red); margin-left: 0.15rem; }
 
     footer {
       margin-top: 2.5rem;
@@ -383,7 +562,7 @@
     <svg class="battery-icon" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <!-- Battery body -->
       <rect x="4" y="18" width="48" height="28" rx="3" fill="#CC0000"/>
-      <rect x="5" y="19" width="46" height="26" rx="2" fill="#f0f0f0" stroke="#CC0000" stroke-width="1"/>
+      <rect x="5" y="19" width="46" height="26" rx="2" fill="#1c1c1c" stroke="#CC0000" stroke-width="1"/>
       <!-- Top terminals -->
       <rect x="11" y="12" width="8" height="7" rx="1.5" fill="#CC0000"/>
       <rect x="37" y="12" width="8" height="7" rx="1.5" fill="#888888"/>
@@ -412,17 +591,11 @@
 </header>
 
 <div class="card">
-  <form id="finder-form">
+  <form id="finder-form" novalidate>
     <div class="form-grid">
 
       <div class="form-group">
-        <div class="field-header">
-          <label for="make">Car Make</label>
-          <div class="mode-tabs" role="group" aria-label="Make input mode">
-            <button type="button" class="mode-tab active" id="make-tab-select">Select</button>
-            <button type="button" class="mode-tab" id="make-tab-type">Type</button>
-          </div>
-        </div>
+        <label for="make">Car Make</label>
         <select id="make" required>
           <option value="">Loading...</option>
         </select>
@@ -430,13 +603,7 @@
       </div>
 
       <div class="form-group">
-        <div class="field-header">
-          <label for="model">Model</label>
-          <div class="mode-tabs" role="group" aria-label="Model input mode">
-            <button type="button" class="mode-tab active" id="model-tab-select">Select</button>
-            <button type="button" class="mode-tab" id="model-tab-type">Type</button>
-          </div>
-        </div>
+        <label for="model">Model</label>
         <select id="model" required disabled>
           <option value="">Select make first</option>
         </select>
@@ -444,13 +611,7 @@
       </div>
 
       <div class="form-group">
-        <div class="field-header">
-          <label for="year">Year</label>
-          <div class="mode-tabs" role="group" aria-label="Year input mode">
-            <button type="button" class="mode-tab active" id="year-tab-select">Select</button>
-            <button type="button" class="mode-tab" id="year-tab-type">Type</button>
-          </div>
-        </div>
+        <label for="year">Year</label>
         <select id="year" required disabled>
           <option value="">Select model first</option>
         </select>
@@ -482,8 +643,6 @@
         </label>
         <div class="field-hint">e.g. Mazda i-Stop, BMW Auto Start-Stop, Ford Auto-Start-Stop. Requires EFB or AGM battery.</div>
       </div>
-
-      <div class="manual-hint" id="manual-hint">Engine CC and Fuel Type are <strong>required</strong> when entering your vehicle manually — they ensure an accurate recommendation when your vehicle isn&rsquo;t in the database.</div>
 
     </div>
 
@@ -537,128 +696,26 @@
 </div>
 
 <script>
-  // ── Element refs ───────────────────────────────────────────────────────────
-  const makeEl      = document.getElementById("make");
-  const makeTextEl  = document.getElementById("make-text");
-  const modelEl     = document.getElementById("model");
-  const modelTextEl = document.getElementById("model-text");
-  const yearEl      = document.getElementById("year");
-  const yearTextEl  = document.getElementById("year-text");
-  const fuelEl      = document.getElementById("fuel_type");
-  const engineEl    = document.getElementById("engine_cc");
-  const stopStartEl = document.getElementById("stop_start");
-  const form        = document.getElementById("finder-form");
-  const submitBtn   = document.getElementById("submit-btn");
-  const resultEl    = document.getElementById("result");
-  const errorEl     = document.getElementById("error-msg");
+  const makeEl       = document.getElementById("make");
+  const modelEl      = document.getElementById("model");
+  const yearEl       = document.getElementById("year");
+  const fuelEl       = document.getElementById("fuel_type");
+  const engineEl     = document.getElementById("engine_cc");
+  const stopStartEl  = document.getElementById("stop_start");
+  const form         = document.getElementById("finder-form");
+  const submitBtn    = document.getElementById("submit-btn");
+  const resultEl     = document.getElementById("result");
+  const errorEl      = document.getElementById("error-msg");
 
-  // ── Field mode state: "select" | "type" ────────────────────────────────────
-  const modes = { make: "select", model: "select", year: "select" };
-
-  // Apply mode to DOM for one field only — no cascade logic
-  function applyFieldMode(field, mode) {
-    modes[field] = mode;
-    const sel    = document.getElementById(field);
-    const txt    = document.getElementById(field + "-text");
-    const tabSel = document.getElementById(field + "-tab-select");
-    const tabTyp = document.getElementById(field + "-tab-type");
-    if (mode === "type") {
-      sel.style.display = "none";
-      txt.style.display = "block";
-      tabSel.classList.remove("active");
-      tabTyp.classList.add("active");
-    } else {
-      sel.style.display = "";
-      txt.style.display = "none";
-      txt.value = "";
-      tabSel.classList.add("active");
-      tabTyp.classList.remove("active");
-    }
-  }
-
-  // Set mode with cascade constraints
-  function setFieldMode(field, mode) {
-    applyFieldMode(field, mode);
-    const modelTabSel = document.getElementById("model-tab-select");
-    const yearTabSel  = document.getElementById("year-tab-select");
-
-    if (field === "make") {
-      if (mode === "type") {
-        // Force downstream to type; lock their Select tabs
-        applyFieldMode("model", "type");
-        applyFieldMode("year",  "type");
-        modelTabSel.disabled = true;
-        yearTabSel.disabled  = true;
-      } else {
-        // Restore downstream to select and reset dropdowns
-        applyFieldMode("model", "select");
-        applyFieldMode("year",  "select");
-        modelEl.innerHTML = '<option value="">Select make first</option>';
-        modelEl.disabled  = true;
-        resetYear();
-        modelTabSel.disabled = false;
-        yearTabSel.disabled  = false;
-      }
-    }
-
-    if (field === "model") {
-      if (mode === "type") {
-        applyFieldMode("year", "type");
-        yearTabSel.disabled = true;
-      } else {
-        applyFieldMode("year", "select");
-        resetYear();
-        yearTabSel.disabled = (modes.make === "type");
-      }
-    }
-
-    updateManualHint();
-  }
-
-  // Wire up tab buttons
-  ["make", "model", "year"].forEach(field => {
-    document.getElementById(field + "-tab-select")
-      .addEventListener("click", () => { if (modes[field] !== "select") setFieldMode(field, "select"); });
-    document.getElementById(field + "-tab-type")
-      .addEventListener("click", () => { if (modes[field] !== "type")   setFieldMode(field, "type");   });
-  });
-
-  // ── Manual mode hint + required state ─────────────────────────────────────
-  function updateManualHint() {
-    const inManual = Object.values(modes).some(m => m === "type");
-    document.getElementById("manual-hint").classList.toggle("visible", inManual);
-    document.getElementById("cc-hint").classList.toggle("visible", inManual);
-    engineEl.required = inManual;
-    fuelEl.required   = inManual;
-    setRequiredState("engine-label", inManual);
-    setRequiredState("fuel-label",   inManual);
-  }
-
-  function setRequiredState(labelId, required) {
-    const lbl = document.getElementById(labelId);
-    if (!lbl) return;
-    lbl.querySelector(".optional")?.remove();
-    lbl.querySelector(".required-star")?.remove();
-    const span = document.createElement("span");
-    if (required) {
-      span.className   = "required-star";
-      span.textContent = " *";
-    } else {
-      span.className   = "optional";
-      span.textContent = "(optional)";
-    }
-    lbl.appendChild(span);
-  }
-
-  // ── Loader ─────────────────────────────────────────────────────────────────
+  // Dismiss the full-page loader
   function hideLoader() {
     const loader = document.getElementById("page-loader");
     loader.classList.add("hide");
     setTimeout(() => loader.remove(), 500);
   }
 
-  // ── Load makes on page load ────────────────────────────────────────────────
-  const minLoadMs = 1200;
+  // Load makes on page load
+  const minLoadMs = 1200; // loader shows for at least this long
   const loadStart = Date.now();
   fetch("/api/makes")
     .then(r => r.json())
@@ -671,12 +728,9 @@
       });
       setTimeout(hideLoader, Math.max(0, minLoadMs - (Date.now() - loadStart)));
     })
-    .catch(() => {
-      makeEl.innerHTML = '<option value="">Failed to load</option>';
-      hideLoader();
-    });
+    .catch(() => { makeEl.innerHTML = '<option value="">Failed to load</option>'; hideLoader(); });
 
-  // ── Cascading dropdowns (Select mode only) ─────────────────────────────────
+  // Load models when make changes
   makeEl.addEventListener("change", () => {
     const make = makeEl.value;
     modelEl.innerHTML = '<option value="">Loading...</option>';
@@ -702,8 +756,7 @@
     resetYear();
     if (!model) return;
     yearEl.innerHTML = '<option value="">Loading...</option>';
-    yearEl.disabled = true;
-
+    yearEl.disabled  = true;
     fetch(`/api/years?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`)
       .then(r => r.json())
       .then(data => {
@@ -723,14 +776,7 @@
     yearEl.disabled  = true;
   }
 
-  // ── Read value from whichever input mode is active ─────────────────────────
-  function fieldValue(field) {
-    return modes[field] === "type"
-      ? document.getElementById(field + "-text").value.trim()
-      : document.getElementById(field).value;
-  }
-
-  // ── Form submit ─────────────────────────────────────────────────────────────
+  // Submit
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     hideResult();
@@ -745,23 +791,6 @@
       showError("Please fill in Make, Model, and Year before searching.");
       return;
     }
-    if (modes.year === "type" && (parsedYear < 1990 || parsedYear > 2030)) {
-      showError("Please enter a valid year between 1990 and 2030.");
-      return;
-    }
-    if (Object.values(modes).some(m => m === "type")) {
-      if (!fuelEl.value) {
-        showError("Fuel Type is required when entering your vehicle manually.");
-        return;
-      }
-      if (!engineEl.value) {
-        showError("Engine CC is required when entering your vehicle manually.");
-        return;
-      }
-    }
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span>Finding...';
 
     const payload = {
       make:           makeVal,
@@ -792,7 +821,6 @@
     }
   });
 
-  // ── Result rendering ────────────────────────────────────────────────────────
   function techBadgeClass(tech) {
     if (!tech) return "tech-mf";
     const t = tech.toUpperCase();
@@ -868,7 +896,6 @@
     resultEl.classList.add("visible");
   }
 
-  // Alternatives collapse toggle
   let altVisible = true;
   document.getElementById("res-alt-toggle").addEventListener("click", () => {
     const grid = document.getElementById("res-alt-grid");
