@@ -864,8 +864,9 @@
     resetYear();
     if (!model) return;
     yearEl.innerHTML = '<option value="">Loading...</option>';
-    yearEl.disabled  = true;
-    fetch(`/api/years/${encodeURIComponent(make)}/${encodeURIComponent(model)}`)
+    yearEl.disabled = true;
+
+    fetch(`/api/years?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`)
       .then(r => r.json())
       .then(data => {
         yearEl.innerHTML = '<option value="">Select year</option>';

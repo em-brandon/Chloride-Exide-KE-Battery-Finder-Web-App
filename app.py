@@ -61,7 +61,7 @@ def list_models(request: Request, make: str):
     return {"models": models}
 
 
-@app.get("/api/years/{make}/{model}", summary="List available years for a given make and model")
+@app.get("/api/years", summary="List available years for a given make and model")
 @limiter.limit("20/minute")
 def list_years(request: Request, make: str, model: str):
     assert request  # consumed by slowapi rate limiter
