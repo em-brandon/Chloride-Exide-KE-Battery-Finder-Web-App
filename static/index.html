@@ -470,59 +470,6 @@
     .alt-card .ac-code  { font-size: 0.88rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
     .alt-card .ac-specs { font-size: 0.74rem; color: var(--muted); }
 
-    /* ── Select / Type toggle tabs ── */
-    .field-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .field-header label { margin-bottom: 0; }
-    .mode-tabs { display: flex; gap: 0.2rem; }
-    .mode-tab {
-      font-size: 0.6rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 0.1rem 0.45rem;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #f3f4f6;
-      color: var(--muted);
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
-      line-height: 1.8;
-    }
-    .mode-tab.active { background: var(--red); color: #fff; border-color: var(--red); }
-    .mode-tab:hover:not(.active):not(:disabled) { background: #e5e7eb; border-color: #d1d5db; color: var(--text); }
-    .mode-tab:disabled { opacity: 0.3; cursor: not-allowed; }
-
-    /* Manual-entry info banner */
-    .manual-hint {
-      display: none;
-      grid-column: span 2;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: 0.45rem;
-      padding: 0.6rem 0.85rem;
-      font-size: 0.78rem;
-      color: #1e40af;
-      line-height: 1.5;
-    }
-    .manual-hint.visible { display: block; }
-
-    /* Engine CC contextual helper */
-    .cc-hint {
-      display: none;
-      font-size: 0.72rem;
-      color: var(--muted);
-      margin-top: 0.3rem;
-      line-height: 1.4;
-    }
-    .cc-hint.visible { display: block; }
-
-    /* Required star */
-    .required-star { color: var(--red); margin-left: 0.1rem; }
-
     footer {
       margin-top: 2.5rem;
       font-size: 0.72rem;
@@ -582,13 +529,7 @@
     <div class="form-grid">
 
       <div class="form-group">
-        <div class="field-header">
-          <label for="make">Car Make</label>
-          <div class="mode-tabs" role="group" aria-label="Make entry mode">
-            <button type="button" class="mode-tab active" id="make-tab-select">Select</button>
-            <button type="button" class="mode-tab"        id="make-tab-type">Type</button>
-          </div>
-        </div>
+        <label for="make">Car Make</label>
         <select id="make" required>
           <option value="">Loading...</option>
         </select>
@@ -596,13 +537,7 @@
       </div>
 
       <div class="form-group">
-        <div class="field-header">
-          <label for="model">Model</label>
-          <div class="mode-tabs" role="group" aria-label="Model entry mode">
-            <button type="button" class="mode-tab active" id="model-tab-select">Select</button>
-            <button type="button" class="mode-tab"        id="model-tab-type">Type</button>
-          </div>
-        </div>
+        <label for="model">Model</label>
         <select id="model" required disabled>
           <option value="">Select make first</option>
         </select>
@@ -610,13 +545,7 @@
       </div>
 
       <div class="form-group">
-        <div class="field-header">
-          <label for="year">Year</label>
-          <div class="mode-tabs" role="group" aria-label="Year entry mode">
-            <button type="button" class="mode-tab active" id="year-tab-select">Select</button>
-            <button type="button" class="mode-tab"        id="year-tab-type">Type</button>
-          </div>
-        </div>
+        <label for="year">Year</label>
         <select id="year" required disabled>
           <option value="">Select model first</option>
         </select>
@@ -647,10 +576,6 @@
           <span>Vehicle has Stop-Start / i-Stop system</span>
         </label>
         <div class="field-hint">e.g. Mazda i-Stop, BMW Auto Start-Stop, Ford Auto-Start-Stop. Requires EFB or AGM battery.</div>
-      </div>
-
-      <div class="manual-hint" id="manual-hint">
-        Engine CC and Fuel Type are <strong>required</strong> when entering your vehicle manually &mdash; they ensure an accurate recommendation when your vehicle isn&rsquo;t in the database.
       </div>
 
     </div>
@@ -705,120 +630,26 @@
 </div>
 
 <script>
-  // ── Element refs ────────────────────────────────────────────────────────
-  const makeEl      = document.getElementById("make");
-  const makeTextEl  = document.getElementById("make-text");
-  const modelEl     = document.getElementById("model");
-  const modelTextEl = document.getElementById("model-text");
-  const yearEl      = document.getElementById("year");
-  const yearTextEl  = document.getElementById("year-text");
-  const fuelEl      = document.getElementById("fuel_type");
-  const engineEl    = document.getElementById("engine_cc");
-  const stopStartEl = document.getElementById("stop_start");
-  const form        = document.getElementById("finder-form");
-  const submitBtn   = document.getElementById("submit-btn");
-  const resultEl    = document.getElementById("result");
-  const errorEl     = document.getElementById("error-msg");
+  const makeEl       = document.getElementById("make");
+  const modelEl      = document.getElementById("model");
+  const yearEl       = document.getElementById("year");
+  const fuelEl       = document.getElementById("fuel_type");
+  const engineEl     = document.getElementById("engine_cc");
+  const stopStartEl  = document.getElementById("stop_start");
+  const form         = document.getElementById("finder-form");
+  const submitBtn    = document.getElementById("submit-btn");
+  const resultEl     = document.getElementById("result");
+  const errorEl      = document.getElementById("error-msg");
 
-  // ── Field mode state ────────────────────────────────────────────────────
-  const modes = { make: "select", model: "select", year: "select" };
-
-  function applyFieldMode(field, mode) {
-    modes[field] = mode;
-    const sel    = document.getElementById(field);
-    const txt    = document.getElementById(field + "-text");
-    const tabSel = document.getElementById(field + "-tab-select");
-    const tabTyp = document.getElementById(field + "-tab-type");
-    if (mode === "type") {
-      sel.style.display = "none";
-      txt.style.display = "";
-      tabSel.classList.remove("active");
-      tabTyp.classList.add("active");
-    } else {
-      sel.style.display = "";
-      txt.style.display = "none";
-      txt.value = "";
-      tabSel.classList.add("active");
-      tabTyp.classList.remove("active");
-    }
-  }
-
-  function setFieldMode(field, mode) {
-    applyFieldMode(field, mode);
-    const modelTabSel = document.getElementById("model-tab-select");
-    const yearTabSel  = document.getElementById("year-tab-select");
-    if (field === "make") {
-      if (mode === "type") {
-        applyFieldMode("model", "type");
-        applyFieldMode("year",  "type");
-        modelTabSel.disabled = true;
-        yearTabSel.disabled  = true;
-      } else {
-        applyFieldMode("model", "select");
-        applyFieldMode("year",  "select");
-        modelEl.innerHTML = '<option value="">Select make first</option>';
-        modelEl.disabled  = true;
-        resetYear();
-        modelTabSel.disabled = false;
-        yearTabSel.disabled  = false;
-      }
-    }
-    if (field === "model") {
-      if (mode === "type") {
-        applyFieldMode("year", "type");
-        yearTabSel.disabled = true;
-      } else {
-        applyFieldMode("year", "select");
-        resetYear();
-        yearTabSel.disabled = (modes.make === "type");
-      }
-    }
-    updateManualHint();
-  }
-
-  ["make", "model", "year"].forEach(field => {
-    document.getElementById(field + "-tab-select")
-      .addEventListener("click", () => { if (modes[field] !== "select") setFieldMode(field, "select"); });
-    document.getElementById(field + "-tab-type")
-      .addEventListener("click", () => { if (modes[field] !== "type")   setFieldMode(field, "type"); });
-  });
-
-  // ── Manual-mode hint + required promotion ───────────────────────────────
-  function updateManualHint() {
-    const inManual = Object.values(modes).some(m => m === "type");
-    document.getElementById("manual-hint").classList.toggle("visible", inManual);
-    document.getElementById("cc-hint").classList.toggle("visible", inManual);
-    engineEl.required = inManual;
-    fuelEl.required   = inManual;
-    setLabelRequired("engine-label", inManual);
-    setLabelRequired("fuel-label",   inManual);
-  }
-
-  function setLabelRequired(labelId, required) {
-    const lbl = document.getElementById(labelId);
-    if (!lbl) return;
-    lbl.querySelector(".optional")?.remove();
-    lbl.querySelector(".required-star")?.remove();
-    const span = document.createElement("span");
-    if (required) {
-      span.className   = "required-star";
-      span.textContent = " *";
-    } else {
-      span.className   = "optional";
-      span.textContent = "(optional)";
-    }
-    lbl.appendChild(span);
-  }
-
-  // ── Loader ──────────────────────────────────────────────────────────────
+  // Dismiss the full-page loader
   function hideLoader() {
     const loader = document.getElementById("page-loader");
     loader.classList.add("hide");
     setTimeout(() => loader.remove(), 500);
   }
 
-  // ── Load makes on page load ─────────────────────────────────────────────
-  const minLoadMs = 1200;
+  // Load makes on page load
+  const minLoadMs = 1200; // loader shows for at least this long
   const loadStart = Date.now();
   fetch("/api/makes")
     .then(r => r.json())
@@ -833,7 +664,7 @@
     })
     .catch(() => { makeEl.innerHTML = '<option value="">Failed to load</option>'; hideLoader(); });
 
-  // ── Cascading dropdowns (Select mode only) ──────────────────────────────
+  // Load models when make changes
   makeEl.addEventListener("change", () => {
     const make = makeEl.value;
     modelEl.innerHTML = '<option value="">Loading...</option>';
@@ -879,14 +710,7 @@
     yearEl.disabled  = true;
   }
 
-  // ── Read active input value ─────────────────────────────────────────────
-  function fieldValue(field) {
-    return modes[field] === "type"
-      ? document.getElementById(field + "-text").value.trim()
-      : document.getElementById(field).value;
-  }
-
-  // ── Form submit ─────────────────────────────────────────────────────────
+  // Submit
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     hideResult();
@@ -901,18 +725,6 @@
       showError("Please fill in Make, Model, and Year before searching.");
       return;
     }
-    if (modes.year === "type" && (parsedYear < 1990 || parsedYear > 2030)) {
-      showError("Please enter a valid year between 1990 and 2030.");
-      return;
-    }
-    const inManual = Object.values(modes).some(m => m === "type");
-    if (inManual) {
-      if (!fuelEl.value)   { showError("Fuel Type is required when entering your vehicle manually.");  return; }
-      if (!engineEl.value) { showError("Engine CC is required when entering your vehicle manually.");   return; }
-    }
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span>Finding...';
 
     const payload = {
       make:           makeVal,
@@ -943,7 +755,6 @@
     }
   });
 
-  // ── Result rendering ────────────────────────────────────────────────────
   function techBadgeClass(tech) {
     if (!tech) return "tech-mf";
     const t = tech.toUpperCase();

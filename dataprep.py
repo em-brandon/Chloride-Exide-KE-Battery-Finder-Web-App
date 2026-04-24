@@ -86,7 +86,7 @@ end_section(start, "Validating required columns")
 # =========================
 start = log_section("Preparing dataset")
 
-output_cols = ["make", "model", "engine_capacity", "fuel"]
+output_cols = ["make", "model", "model_number", "engine_capacity", "fuel"]
 present_cols = [c for c in output_cols if c in df.columns]
 
 rows = []
