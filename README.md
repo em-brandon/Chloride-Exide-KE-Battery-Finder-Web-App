@@ -1,22 +1,24 @@
-# Battery Finder Project — CSRP Data Set 2025
+# Battery Finder — CRSP Dataset 2025
 
+A data pipeline, rule-based matching engine, and web application for recommending the correct car battery for a given vehicle.
 
-A data pipeline and analysis toolkit for building a vehicle battery lookup dataset from the CRSP (July 2025) source data.
+The project has two phases:
 
-## Overview
-
-This project processes raw vehicle data from an Excel source file, cleans and normalises it, produces a structured lookup dataset, and enriches it with individual production years sourced from multiple public APIs. Each output row represents one specific model year, ready for direct rule-based battery matching.
+1. **Data pipeline** — cleans and normalises raw CRSP vehicle data, enriches it with individual production years from multiple public APIs, and produces a structured lookup dataset.
+2. **Battery Finder web app** — a FastAPI backend with a vanilla-JS single-page frontend that lets users look up the right battery by Make / Model / Year, with optional Engine CC, Fuel Type, and Stop-Start information.
 
 ## Project Structure
 
 ```
+├── app.py                         # FastAPI web server (serves API + frontend)
+├── matcher.py                     # Rule-based battery matching engine (3-layer)
+├── static/
+│   └── index.html                 # Single-page battery finder UI
 ├── dataprep.py                    # Data preparation pipeline script
 ├── enrich_years.py                # Year enrichment script (multi-source API lookup)
 ├── analysis.ipynb                 # Jupyter notebook for exploratory analysis
 ├── battery_lookup_dataset.csv     # Cleaned output dataset (CSV)
-├── battery_lookup_dataset.xlsx    # Cleaned output dataset (Excel)
 ├── vehicle_years.csv              # Year-enriched dataset — one row per production year (CSV)
-├── vehicle_years.xlsx             # Year-enriched dataset — one row per production year (Excel)
 ├── unmatched_models.csv           # Make/model pairs where no year data was found
 ├── year_cache.json                # API response cache (auto-generated)
 ├── fueleconomy_vehicles.csv       # Local cache of fueleconomy.gov bulk CSV (auto-generated)
@@ -26,7 +28,88 @@ This project processes raw vehicle data from an Excel source file, cleans and no
 
 > **Note:** The source file `New-CRSP---July-2025.xlsx` is required to run `dataprep.py` but is not included in the repository.
 
-## Dataset Columns
+---
+
+## Battery Finder Web App
+
+### Running the App
+
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
+The app starts on **http://localhost:8000**.
+
+### How It Works
+
+Users select (or manually type) their vehicle's **Make**, **Model**, and **Year**. The UI cascades — selecting a make populates the model list, selecting a model populates the year list. If a vehicle isn't in the database, each field has a **Select / Type** toggle that lets the user enter the details manually.
+
+Optional fields — **Engine CC**, **Fuel Type**, and **Stop-Start system** — improve recommendation accuracy. When any field is in manual (Type) mode, Engine CC and Fuel Type become required.
+
+### Matching Engine (`matcher.py`)
+
+The matching engine applies a **3-layer rule hierarchy**:
+
+| Layer | Trigger | Confidence |
+|---|---|---|
+| **Exact match** | Make + Model + Year found in `vehicle_years.csv` | 100% |
+| **Close match** | Make + Model found, year within ±2 years | 60–85% |
+| **Fallback** | Engine CC + Fuel Type rules only | 30–50% |
+
+The engine returns a primary recommendation and up to three alternative batteries, with a `match_type` label and `confidence` percentage.
+
+Stop-Start vehicles (`has_stop_start: true`) are always recommended EFB or AGM technology regardless of engine size.
+
+### API Endpoints
+
+All endpoints are rate-limited (20 req/min for lookups, 10 req/min for recommendations).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/makes` | List all available makes |
+| `GET` | `/api/models/{make}` | List models for a given make |
+| `GET` | `/api/years?make=&model=` | List available years for a make + model |
+| `POST` | `/api/recommend` | Get a battery recommendation |
+
+#### `POST /api/recommend` — Request Body
+
+```json
+{
+  "make": "TOYOTA",
+  "model": "Corolla",
+  "year": 2015,
+  "engine_cc": 1500,
+  "fuel_type": "Petrol",
+  "has_stop_start": false
+}
+```
+
+#### Response
+
+```json
+{
+  "match_type": "exact",
+  "confidence": 100,
+  "matched_make": "TOYOTA",
+  "matched_model": "Corolla",
+  "matched_year": 2015,
+  "engine_cc": 1500,
+  "fuel_type": "Petrol",
+  "primary": {
+    "battery_code": "NS60",
+    "model_key": "...",
+    "ah": 45,
+    "cca_en": 390,
+    "technology": "MF"
+  },
+  "alternatives": [ ... ]
+}
+```
+
+---
+
+## Dataset
 
 ### `battery_lookup_dataset.csv`
 
@@ -56,13 +139,21 @@ Each row represents a single make + model + production year combination. This fl
 ### Prerequisites
 
 - Python 3.10 or later
-- The source Excel file: `New-CRSP---July-2025.xlsx` placed in the project folder
+- The source Excel file: `New-CRSP---July-2025.xlsx` placed in the project folder (only needed to re-run the data pipeline)
 
 ### Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
+
+### Run the Battery Finder Web App
+
+```bash
+python app.py
+```
+
+Open **http://localhost:8000** in your browser.
 
 ### Run the Data Preparation Pipeline
 
@@ -139,17 +230,21 @@ jupyter notebook analysis.ipynb
 
 ## Dependencies
 
-| Package | Version |
-|---|---|
-| pandas | ≥ 2.2.0 |
-| numpy | ≥ 1.26.0 |
-| openpyxl | ≥ 3.1.0 |
-| xlrd | ≥ 2.0.1 |
-| matplotlib | ≥ 3.8.0 |
-| seaborn | ≥ 0.13.0 |
-| jupyter | ≥ 1.0.0 |
-| ipykernel | ≥ 6.29.0 |
-| requests | ≥ 2.31.0 |
-| rapidfuzz | ≥ 3.6.0 |
-| pandas-stubs | latest |
-| types-requests | latest |
+| Package | Version | Purpose |
+|---|---|---|
+| fastapi | ≥ 0.110.0 | Web API framework |
+| uvicorn | ≥ 0.29.0 | ASGI server |
+| slowapi | ≥ 0.1.9 | Rate limiting |
+| pydantic | ≥ 2.0.0 | Request validation |
+| pandas | ≥ 2.2.0 | Data processing |
+| numpy | ≥ 1.26.0 | Numerical operations |
+| openpyxl | ≥ 3.1.0 | Excel read/write |
+| xlrd | ≥ 2.0.1 | Legacy Excel read |
+| matplotlib | ≥ 3.8.0 | Analysis charts |
+| seaborn | ≥ 0.13.0 | Analysis charts |
+| jupyter | ≥ 1.0.0 | Notebook support |
+| ipykernel | ≥ 6.29.0 | Notebook kernel |
+| requests | ≥ 2.31.0 | HTTP client (year enrichment) |
+| rapidfuzz | ≥ 3.6.0 | Fuzzy model-name matching |
+| pandas-stubs | latest | Type stubs |
+| types-requests | latest | Type stubs |
