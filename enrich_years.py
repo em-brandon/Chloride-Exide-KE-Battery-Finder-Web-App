@@ -460,7 +460,20 @@ for row_num, (_, row) in enumerate(df.iterrows(), start=1):
         ca_models    = cache["carapi"].get(make, [])
 
         matched_name, score = best_model_match(model, nhtsa_models)
-        lookup_name = matched_name if matched_name else model
+
+        # If full model name didn't match NHTSA, retry with the base model
+        # (strips trim noise — e.g. "N-WGN CUSTOM G" → "N-WGN")
+        if not matched_name:
+            base_model = extract_base_model(make, model)
+            if base_model.upper() != model.upper():
+                matched_name, score = best_model_match(base_model, nhtsa_models)
+
+        # Use the NHTSA-matched name if found; otherwise fall back to the
+        # base model so Wikipedia/Wikidata get a clean search term too
+        if matched_name:
+            lookup_name = matched_name
+        else:
+            lookup_name = extract_base_model(make, model)
 
         year_key = f"{make}|{lookup_name}"
         if year_key in cache["years"]:

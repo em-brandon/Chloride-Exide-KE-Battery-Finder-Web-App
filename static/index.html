@@ -7,69 +7,18 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Full-page loader ── */
-    #page-loader {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: #111111;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1.25rem;
-      transition: opacity 0.5s ease;
-    }
-    #page-loader.hide {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .loader-battery {
-      width: 64px;
-      height: 64px;
-      animation: pulse 1.2s ease-in-out infinite;
-    }
-    .loader-bar-track {
-      width: 180px;
-      height: 4px;
-      background: #2e2e2e;
-      border-radius: 99px;
-      overflow: hidden;
-    }
-    .loader-bar-fill {
-      height: 100%;
-      width: 40%;
-      background: #CC0000;
-      border-radius: 99px;
-      animation: slide 1.2s ease-in-out infinite;
-    }
-    .loader-text {
-      font-size: 0.85rem;
-      color: #888888;
-      letter-spacing: 0.05em;
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1);   opacity: 1;   }
-      50%       { transform: scale(1.08); opacity: 0.7; }
-    }
-    @keyframes slide {
-      0%   { transform: translateX(-100%); }
-      50%  { transform: translateX(160%); }
-      100% { transform: translateX(-100%); }
-    }
-
     :root {
       --red:        #CC0000;
       --red-dark:   #990000;
-      --red-hover:  #E60000;
-      --bg:         #111111;
-      --card-bg:    #1c1c1c;
-      --card-bg2:   #111111;
-      --border:     #2e2e2e;
-      --border-red: #4a0000;
-      --text:       #f0f0f0;
-      --muted:      #888888;
-      --muted2:     #555555;
+      --red-hover:  #b30000;
+      --bg:         #f4f5f7;
+      --card-bg:    #ffffff;
+      --card-bg2:   #f9fafb;
+      --border:     #e2e4e9;
+      --border-red: #f5c6c6;
+      --text:       #111827;
+      --muted:      #6b7280;
+      --muted2:     #9ca3af;
     }
 
     body {
@@ -81,6 +30,7 @@
       flex-direction: column;
       align-items: center;
       padding: 2rem 1rem;
+      background-image: linear-gradient(160deg, #f4f5f7 0%, #eef0f4 100%);
     }
 
     /* ── Header ── */
@@ -142,7 +92,7 @@
       padding: 2rem;
       width: 100%;
       max-width: 540px;
-      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
     }
 
     .form-grid {
@@ -177,7 +127,7 @@
     }
 
     select, input {
-      background: var(--bg);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 0.45rem;
       color: var(--text);
@@ -185,12 +135,13 @@
       padding: 0.6rem 0.75rem;
       width: 100%;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
       appearance: none;
     }
 
     select:focus, input:focus {
       border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(204,0,0,0.1);
     }
 
     select:disabled {
@@ -216,7 +167,7 @@
 
     .btn:hover  { background: var(--red-hover); }
     .btn:active { transform: scale(0.98); }
-    .btn:disabled { background: #2e2e2e; color: var(--muted2); cursor: not-allowed; }
+    .btn:disabled { background: #d1d5db; color: #9ca3af; cursor: not-allowed; }
 
     /* ── Result card ── */
     .result {
@@ -228,6 +179,7 @@
       padding: 1.5rem;
       display: none;
       animation: slideIn 0.3s ease;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
 
     .result.visible { display: block; }
@@ -247,7 +199,7 @@
 
     .result-header h2 {
       font-size: 1.3rem;
-      color: #ffffff;
+      color: var(--text);
       font-weight: 700;
     }
 
@@ -261,9 +213,9 @@
       white-space: nowrap;
     }
 
-    .badge.exact    { background: #0a2e1a; color: #34d399; border: 1px solid #15532e; }
-    .badge.close    { background: #2e1500; color: #fb923c; border: 1px solid #7c2d12; }
-    .badge.fallback { background: #1a1030; color: #a5b4fc; border: 1px solid #3730a3; }
+    .badge.exact    { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge.close    { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .badge.fallback { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
 
     .specs {
       display: grid;
@@ -273,7 +225,7 @@
     }
 
     .spec-box {
-      background: var(--card-bg);
+      background: #fafafa;
       border: 1px solid var(--border);
       border-radius: 0.5rem;
       padding: 0.75rem 1rem;
@@ -305,7 +257,7 @@
     }
 
     .bar-track {
-      background: #2a2a2a;
+      background: #e5e7eb;
       border-radius: 999px;
       height: 6px;
       overflow: hidden;
@@ -323,16 +275,16 @@
 
     .matched-info {
       font-size: 0.78rem;
-      color: var(--muted2);
+      color: var(--muted);
       margin-top: 0.75rem;
       text-align: center;
     }
 
     .error-msg {
       margin-top: 1rem;
-      background: #2a0000;
-      border: 1px solid var(--red-dark);
-      color: #fca5a5;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #be123c;
       border-radius: 0.45rem;
       padding: 0.75rem 1rem;
       font-size: 0.88rem;
@@ -374,9 +326,9 @@
       position: relative;
       width: 40px;
       height: 22px;
-      background: #2e2e2e;
+      background: #d1d5db;
       border-radius: 999px;
-      border: 1px solid var(--border);
+      border: 1px solid #d1d5db;
       flex-shrink: 0;
       transition: background 0.2s, border-color 0.2s;
     }
@@ -387,26 +339,27 @@
       left: 3px;
       width: 14px;
       height: 14px;
-      background: var(--muted);
+      background: #ffffff;
       border-radius: 50%;
       transition: transform 0.2s, background 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
 
-    .toggle-input:checked + .toggle-track { background: #4a0000; border-color: var(--red); }
-    .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: var(--red); }
+    .toggle-input:checked + .toggle-track { background: var(--red); border-color: var(--red); }
+    .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: #ffffff; }
 
     .field-hint { font-size: 0.74rem; color: var(--muted2); margin-top: 0.35rem; }
 
     /* ── Technology badges ── */
-    .tech-efb { background: #2e1500; color: #fb923c; border: 1px solid #7c2d12; }
-    .tech-agm { background: #1a1030; color: #a5b4fc; border: 1px solid #3730a3; }
-    .tech-mf  { background: #1a1a1a; color: #9ca3af; border: 1px solid #374151; }
-    .tech-sb  { background: #0a1929; color: #60a5fa; border: 1px solid #1e3a5f; }
+    .tech-efb { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .tech-agm { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+    .tech-mf  { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+    .tech-sb  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
 
     /* ── Primary battery card ── */
     .primary-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border-red);
+      background: #fff8f8;
+      border: 1px solid #fce8e8;
       border-radius: 0.55rem;
       padding: 1rem 1.1rem;
       display: flex;
@@ -457,7 +410,7 @@
     }
 
     .alt-card {
-      background: var(--card-bg);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 0.45rem;
       padding: 0.75rem 0.9rem;
@@ -494,7 +447,7 @@
     <svg class="battery-icon" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <!-- Battery body -->
       <rect x="4" y="18" width="48" height="28" rx="3" fill="#CC0000"/>
-      <rect x="5" y="19" width="46" height="26" rx="2" fill="#1c1c1c" stroke="#CC0000" stroke-width="1"/>
+      <rect x="5" y="19" width="46" height="26" rx="2" fill="#f3f3f3" stroke="#CC0000" stroke-width="1"/>
       <!-- Top terminals -->
       <rect x="11" y="12" width="8" height="7" rx="1.5" fill="#CC0000"/>
       <rect x="37" y="12" width="8" height="7" rx="1.5" fill="#888888"/>
@@ -521,7 +474,7 @@
 </header>
 
 <div class="card">
-  <form id="finder-form">
+  <form id="finder-form" novalidate>
     <div class="form-grid">
 
       <div class="form-group">
@@ -529,6 +482,7 @@
         <select id="make" required>
           <option value="">Loading...</option>
         </select>
+        <input type="text" id="make-text" style="display:none" placeholder="e.g. Toyota" autocomplete="off" />
       </div>
 
       <div class="form-group">
@@ -536,6 +490,7 @@
         <select id="model" required disabled>
           <option value="">Select make first</option>
         </select>
+        <input type="text" id="model-text" style="display:none" placeholder="e.g. Corolla" autocomplete="off" />
       </div>
 
       <div class="form-group">
@@ -543,20 +498,24 @@
         <select id="year" required disabled>
           <option value="">Select model first</option>
         </select>
+        <input type="number" id="year-text" style="display:none" placeholder="e.g. 2019" min="1990" max="2030" />
       </div>
 
       <div class="form-group">
-        <label for="fuel_type">Fuel Type <span class="optional">(optional)</span></label>
+        <label for="fuel_type" id="fuel-label">Fuel Type <span class="optional">(optional)</span></label>
         <select id="fuel_type">
-          <option value="">Unknown</option>
+          <option value="">Unknown / Not sure</option>
           <option value="Petrol">Petrol</option>
           <option value="Diesel">Diesel</option>
+          <option value="Hybrid">Hybrid</option>
+          <option value="Electric">Electric / EV</option>
         </select>
       </div>
 
       <div class="form-group full">
-        <label for="engine_cc">Engine Size (CC) <span class="optional">(optional)</span></label>
+        <label for="engine_cc" id="engine-label">Engine Size (CC) <span class="optional">(optional)</span></label>
         <input type="number" id="engine_cc" placeholder="e.g. 1500" min="500" max="8000" />
+        <div class="cc-hint" id="cc-hint">Check your registration document or dashboard sticker — common sizes: 1000, 1300, 1500, 1800, 2000, 2500, 3000 cc.</div>
       </div>
 
       <div class="form-group full">
@@ -647,78 +606,58 @@
       makeEl.innerHTML = '<option value="">Select make</option>';
       data.makes.forEach(m => {
         const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
+        opt.value = m; opt.textContent = m;
         makeEl.appendChild(opt);
       });
-      const elapsed = Date.now() - loadStart;
-      setTimeout(hideLoader, Math.max(0, minLoadMs - elapsed));
     })
     .catch(() => {
       makeEl.innerHTML = '<option value="">Failed to load</option>';
-      hideLoader();
     });
 
   // Load models when make changes
   makeEl.addEventListener("change", () => {
     const make = makeEl.value;
     modelEl.innerHTML = '<option value="">Loading...</option>';
-    modelEl.disabled = true;
+    modelEl.disabled  = true;
     resetYear();
-
-    if (!make) {
-      modelEl.innerHTML = '<option value="">Select make first</option>';
-      return;
-    }
-
+    if (!make) { modelEl.innerHTML = '<option value="">Select make first</option>'; return; }
     fetch(`/api/models/${encodeURIComponent(make)}`)
       .then(r => r.json())
       .then(data => {
         modelEl.innerHTML = '<option value="">Select model</option>';
         data.models.forEach(m => {
           const opt = document.createElement("option");
-          opt.value = m;
-          opt.textContent = m;
+          opt.value = m; opt.textContent = m;
           modelEl.appendChild(opt);
         });
         modelEl.disabled = false;
       })
-      .catch(() => {
-        modelEl.innerHTML = '<option value="">Failed to load</option>';
-      });
+      .catch(() => { modelEl.innerHTML = '<option value="">Failed to load</option>'; });
   });
 
-  // Load years when model changes
   modelEl.addEventListener("change", () => {
-    const make  = makeEl.value;
-    const model = modelEl.value;
+    const make = makeEl.value, model = modelEl.value;
     resetYear();
-
     if (!model) return;
-
     yearEl.innerHTML = '<option value="">Loading...</option>';
-    yearEl.disabled = true;
-
-    fetch(`/api/years/${encodeURIComponent(make)}/${encodeURIComponent(model)}`)
+    yearEl.disabled  = true;
+    fetch(`/api/years?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`)
       .then(r => r.json())
       .then(data => {
         yearEl.innerHTML = '<option value="">Select year</option>';
         data.years.forEach(y => {
           const opt = document.createElement("option");
-          opt.value = y;
-          opt.textContent = y;
+          opt.value = y; opt.textContent = y;
           yearEl.appendChild(opt);
         });
         yearEl.disabled = false;
       })
-      .catch(() => {
-        yearEl.innerHTML = '<option value="">Failed to load</option>';
-      });
+      .catch(() => { yearEl.innerHTML = '<option value="">Failed to load</option>'; });
   });
 
   function resetYear() {
     yearEl.innerHTML = '<option value="">Select model first</option>';
-    yearEl.disabled = true;
+    yearEl.disabled  = true;
   }
 
   // Submit
@@ -730,39 +669,28 @@
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span>Finding...';
 
-    const parsedYear = parseInt(yearEl.value);
-    if (!makeEl.value || !modelEl.value || isNaN(parsedYear)) {
-      showError("Please select a make, model, and year before searching.");
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = "Find Battery";
-      return;
-    }
-
     const payload = {
       make:           makeEl.value,
       model:          modelEl.value,
-      year:           parsedYear,
+      year:           parseInt(yearEl.value),
       fuel_type:      fuelEl.value || null,
-      engine_cc:      engineEl.value ? parseInt(engineEl.value) : null,
+      engine_cc:      engineEl.value ? parseInt(engineEl.value, 10) : null,
       has_stop_start: stopStartEl.checked,
     };
 
     try {
       const res = await fetch("/api/recommend", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body:    JSON.stringify(payload),
       });
-
       if (!res.ok) {
         const err = await res.json();
         showError(err.detail || "Something went wrong.");
         return;
       }
-
-      const data = await res.json();
-      showResult(data);
-    } catch (err) {
+      showResult(await res.json());
+    } catch {
       showError("Could not reach the server. Is it running?");
     } finally {
       submitBtn.disabled = false;
@@ -781,22 +709,19 @@
 
   function showResult(data) {
     const p = data.primary;
-
     document.getElementById("res-battery").textContent   = p.battery_code || "—";
     document.getElementById("res-model-key").textContent = p.model_key    || "";
-    document.getElementById("res-ah").textContent        = p.ah           != null ? p.ah  : "—";
-    document.getElementById("res-cca").textContent       = p.cca_en       != null ? p.cca_en : "—";
+    document.getElementById("res-ah").textContent        = p.ah     != null ? p.ah     : "—";
+    document.getElementById("res-cca").textContent       = p.cca_en != null ? p.cca_en : "—";
 
-    // Tech badge on primary card
     const techBadge = document.getElementById("res-tech-badge");
-    techBadge.textContent  = p.technology || "MF";
-    techBadge.className    = "badge " + techBadgeClass(p.technology);
+    techBadge.textContent = p.technology || "MF";
+    techBadge.className   = "badge " + techBadgeClass(p.technology);
 
-    const pct = data.confidence;
-    document.getElementById("res-confidence-pct").textContent = pct + "%";
-
+    const pct   = data.confidence;
     const bar   = document.getElementById("res-bar");
     const badge = document.getElementById("res-badge");
+    document.getElementById("res-confidence-pct").textContent = pct + "%";
     bar.style.width = pct + "%";
 
     if (pct === 100) {
@@ -813,15 +738,15 @@
 
     const matchedInfo = document.getElementById("res-matched");
     if (data.matched_make) {
-      const cc   = data.engine_cc  ? ` · ${data.engine_cc}cc` : "";
-      const fuel = data.fuel_type  ? ` ${data.fuel_type}`     : "";
+      const cc   = data.engine_cc ? ` · ${data.engine_cc}cc` : "";
+      const fuel = data.fuel_type ? ` ${data.fuel_type}`     : "";
       matchedInfo.textContent =
-        `Matched: ${data.matched_make} ${data.matched_model} (${data.matched_year})${cc}${fuel}`;
+        `Matched to: ${data.matched_make} ${data.matched_model} (${data.matched_year})${cc}${fuel}`;
     } else {
-      matchedInfo.textContent = "No exact vehicle match — recommendation based on engine rules";
+      matchedInfo.textContent =
+        "No model match found — result based on engine size and fuel type only";
     }
 
-    // Alternatives
     const altSection = document.getElementById("res-alt-section");
     const altGrid    = document.getElementById("res-alt-grid");
     const altLabel   = document.getElementById("res-alt-label");
@@ -848,7 +773,6 @@
     resultEl.classList.add("visible");
   }
 
-  // Alternatives collapse toggle
   let altVisible = true;
   document.getElementById("res-alt-toggle").addEventListener("click", () => {
     const grid = document.getElementById("res-alt-grid");
@@ -858,12 +782,7 @@
   });
 
   function hideResult() { resultEl.classList.remove("visible"); }
-
-  function showError(msg) {
-    errorEl.textContent = msg;
-    errorEl.classList.add("visible");
-  }
-
+  function showError(msg) { errorEl.textContent = msg; errorEl.classList.add("visible"); }
   function hideError() { errorEl.classList.remove("visible"); }
 </script>
 
