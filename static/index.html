@@ -309,6 +309,17 @@
 
     .field-hint { font-size: 0.74rem; color: var(--muted2); margin-top: 0.35rem; }
 
+    .hint-box {
+      margin-top: 0.5rem;
+      background: var(--card-bg2);
+      border: 1px solid var(--border);
+      border-radius: 0.55rem;
+      padding: 0.75rem 0.85rem;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
     /* ── Technology badges ── */
     .tech-efb { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
     .tech-agm { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
@@ -440,12 +451,18 @@
   <form id="finder-form" novalidate>
     <div class="form-grid">
 
+      <div class="form-group full">
+        <label for="mode-toggle">Make / Model / Year Input</label>
+        <div style="display:flex; justify-content:flex-end;">
+          <button type="button" id="mode-toggle" class="btn-mode">Type</button>
+        </div>
+      </div>
+
       <div class="form-group">
         <label for="make">Car Make</label>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <select id="make" required style="flex:1;"><option value="">Loading...</option></select>
           <input type="text" id="make-text" style="display:none; flex:1;" placeholder="e.g. Toyota" autocomplete="off" />
-          <button type="button" id="make-toggle" class="btn-mode" tabindex="-1">Type</button>
         </div>
       </div>
 
@@ -454,7 +471,6 @@
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <select id="model" required disabled style="flex:1;"><option value="">Select make first</option></select>
           <input type="text" id="model-text" style="display:none; flex:1;" placeholder="e.g. Corolla" autocomplete="off" />
-          <button type="button" id="model-toggle" class="btn-mode" tabindex="-1">Type</button>
         </div>
       </div>
 
@@ -463,7 +479,6 @@
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <select id="year" required disabled style="flex:1;"><option value="">Select model first</option></select>
           <input type="number" id="year-text" style="display:none; flex:1;" placeholder="e.g. 2019" min="1990" max="2030" />
-          <button type="button" id="year-toggle" class="btn-mode" tabindex="-1">Type</button>
         </div>
       </div>
 
@@ -482,7 +497,7 @@
       <div class="form-group full">
         <label for="engine_cc" id="engine-label">Engine Size (CC) <span class="optional" id="cc-optional">(optional)</span></label>
         <input type="number" id="engine_cc" placeholder="e.g. 1500" min="500" max="8000" />
-        <div class="cc-hint" id="cc-hint">Check your registration document or dashboard sticker — common sizes: 1000, 1300, 1500, 1800, 2000, 2500, 3000 cc.</div>
+        <div class="hint-box" id="cc-hint">Check your registration document or dashboard sticker — common sizes: 1000, 1300, 1500, 1800, 2000, 2500, 3000 cc.</div>
         <div class="cc-required-hint" id="cc-required-hint" style="display:none; color:#be123c; font-size:0.85em; margin-top:0.3em;">Required when Make, Model, or Year is typed.</div>
         <style>
           .btn-mode {
@@ -571,13 +586,11 @@
 <script>
   const makeEl       = document.getElementById("make");
   const makeTextEl   = document.getElementById("make-text");
-  const makeToggle   = document.getElementById("make-toggle");
   const modelEl      = document.getElementById("model");
   const modelTextEl  = document.getElementById("model-text");
-  const modelToggle  = document.getElementById("model-toggle");
   const yearEl       = document.getElementById("year");
   const yearTextEl   = document.getElementById("year-text");
-  const yearToggle   = document.getElementById("year-toggle");
+  const modeToggle   = document.getElementById("mode-toggle");
   const fuelEl       = document.getElementById("fuel_type");
   const engineEl     = document.getElementById("engine_cc");
   const form         = document.getElementById("finder-form");
@@ -596,12 +609,10 @@
   let allTypeMode = false;
   let altVisible = true;
 
-  function setFieldMode(selectEl, textEl, toggleEl, textMode) {
+  function setFieldMode(selectEl, textEl, textMode) {
     selectEl.style.display = textMode ? "none" : "block";
     textEl.style.display = textMode ? "block" : "none";
     selectEl.disabled = textMode;
-    toggleEl.classList.toggle("active", textMode);
-    toggleEl.textContent = textMode ? "Select" : "Type";
   }
 
   function updateConfidencePreview() {
@@ -642,9 +653,13 @@
   function updateTypeModeUI() {
     const isType = allTypeMode;
 
-    setFieldMode(makeEl, makeTextEl, makeToggle, isType);
-    setFieldMode(modelEl, modelTextEl, modelToggle, isType);
-    setFieldMode(yearEl, yearTextEl, yearToggle, isType);
+    setFieldMode(makeEl, makeTextEl, isType);
+    setFieldMode(modelEl, modelTextEl, isType);
+    setFieldMode(yearEl, yearTextEl, isType);
+
+    modeToggle.classList.toggle("active", isType);
+    modeToggle.textContent = isType ? "Select" : "Type";
+    modeToggle.setAttribute("aria-pressed", String(isType));
 
     engineEl.required = isType;
     fuelEl.required = isType;
@@ -664,9 +679,7 @@
     updateTypeModeUI();
   }
 
-  makeToggle.addEventListener("click", () => setAllTypeMode(!allTypeMode));
-  modelToggle.addEventListener("click", () => setAllTypeMode(!allTypeMode));
-  yearToggle.addEventListener("click", () => setAllTypeMode(!allTypeMode));
+  modeToggle.addEventListener("click", () => setAllTypeMode(!allTypeMode));
 
   [makeTextEl, modelTextEl, yearTextEl, engineEl, fuelEl].forEach(el => {
     el.addEventListener("input", updateConfidencePreview);
