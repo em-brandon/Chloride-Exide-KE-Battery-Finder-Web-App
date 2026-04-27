@@ -428,19 +428,6 @@
   </style>
 </head>
 <body>
-
-  <!-- Full-page loader -->
-  <div id="page-loader">
-    <svg class="loader-battery" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="4" y="14" width="52" height="36" rx="4" stroke="#CC0000" stroke-width="3"/>
-      <rect x="20" y="8" width="8" height="6" rx="1" fill="#CC0000"/>
-      <rect x="36" y="8" width="8" height="6" rx="1" fill="#CC0000"/>
-      <path d="M28 26 L24 34 H30 L26 42 L38 28 H32 L36 20Z" fill="#CC0000"/>
-    </svg>
-    <div class="loader-bar-track"><div class="loader-bar-fill"></div></div>
-    <span class="loader-text">Loading Battery Finder…</span>
-  </div>
-
 <header>
   <div class="logo-wrap">
     <!-- Automotive car battery SVG -->
@@ -474,48 +461,101 @@
 </header>
 
 <div class="card">
+  <div id="manual-banner" style="display:none; margin-bottom:1rem; padding:0.85rem 1rem; background:#fff7ed; border:1px solid #fed7aa; border-left:4px solid #fb923c; border-radius:0.5rem;">
+    <div style="margin-bottom:0.25rem;">
+      <span class="badge close" style="font-size:0.7rem;">Manual Mode Active</span>
+    </div>
+    <div style="font-size:0.82rem; color:#7c2d12;">
+      You are entering vehicle details manually. If the database cannot find an exact match, matching will rely more heavily on engine size and fuel type.
+    </div>
+  </div>
+
+  <div id="confidence-preview" style="display:none; margin-bottom:1rem; padding:0.85rem 1rem; background:#f9fafb; border:1px solid #e2e4e9; border-radius:0.5rem;">
+    <div style="font-size:0.75rem; font-weight:700; color:#6b7280; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:0.4rem;">Estimated Match Confidence</div>
+    <div class="bar-track" style="margin-bottom:0.45rem;">
+      <div class="bar-fill" id="cp-fill" style="width:0%;"></div>
+    </div>
+    <div style="font-size:0.78rem; color:#6b7280;" id="cp-label"></div>
+  </div>
+
   <form id="finder-form" novalidate>
     <div class="form-grid">
 
       <div class="form-group">
         <label for="make">Car Make</label>
-        <select id="make" required>
-          <option value="">Loading...</option>
-        </select>
-        <input type="text" id="make-text" style="display:none" placeholder="e.g. Toyota" autocomplete="off" />
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <select id="make" required style="flex:1;"><option value="">Loading...</option></select>
+          <input type="text" id="make-text" style="display:none; flex:1;" placeholder="e.g. Toyota" autocomplete="off" />
+          <button type="button" id="make-toggle" class="btn-mode" tabindex="-1">Type</button>
+        </div>
       </div>
 
       <div class="form-group">
         <label for="model">Model</label>
-        <select id="model" required disabled>
-          <option value="">Select make first</option>
-        </select>
-        <input type="text" id="model-text" style="display:none" placeholder="e.g. Corolla" autocomplete="off" />
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <select id="model" required disabled style="flex:1;"><option value="">Select make first</option></select>
+          <input type="text" id="model-text" style="display:none; flex:1;" placeholder="e.g. Corolla" autocomplete="off" />
+          <button type="button" id="model-toggle" class="btn-mode" tabindex="-1">Type</button>
+        </div>
       </div>
 
       <div class="form-group">
         <label for="year">Year</label>
-        <select id="year" required disabled>
-          <option value="">Select model first</option>
-        </select>
-        <input type="number" id="year-text" style="display:none" placeholder="e.g. 2019" min="1990" max="2030" />
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <select id="year" required disabled style="flex:1;"><option value="">Select model first</option></select>
+          <input type="number" id="year-text" style="display:none; flex:1;" placeholder="e.g. 2019" min="1990" max="2030" />
+          <button type="button" id="year-toggle" class="btn-mode" tabindex="-1">Type</button>
+        </div>
       </div>
 
       <div class="form-group">
-        <label for="fuel_type" id="fuel-label">Fuel Type <span class="optional">(optional)</span></label>
+        <label for="fuel_type" id="fuel-label">Fuel Type <span class="optional" id="fuel-optional">(optional)</span></label>
         <select id="fuel_type">
-          <option value="">Unknown / Not sure</option>
+          <option value="">Select fuel type</option>
           <option value="Petrol">Petrol</option>
           <option value="Diesel">Diesel</option>
           <option value="Hybrid">Hybrid</option>
-          <option value="Electric">Electric / EV</option>
+          <option value="Electric">Electric</option>
         </select>
+        <div class="fuel-required-hint" id="fuel-required-hint" style="display:none; color:#be123c; font-size:0.85em; margin-top:0.3em;">Required when Make, Model, or Year is typed.</div>
       </div>
 
       <div class="form-group full">
-        <label for="engine_cc" id="engine-label">Engine Size (CC) <span class="optional">(optional)</span></label>
+        <label for="engine_cc" id="engine-label">Engine Size (CC) <span class="optional" id="cc-optional">(optional)</span></label>
         <input type="number" id="engine_cc" placeholder="e.g. 1500" min="500" max="8000" />
         <div class="cc-hint" id="cc-hint">Check your registration document or dashboard sticker — common sizes: 1000, 1300, 1500, 1800, 2000, 2500, 3000 cc.</div>
+        <div class="cc-required-hint" id="cc-required-hint" style="display:none; color:#be123c; font-size:0.85em; margin-top:0.3em;">Required when Make, Model, or Year is typed.</div>
+        <style>
+          .btn-mode {
+            background: linear-gradient(90deg, #fff 0%, #f3f4f6 100%);
+            border: 2px solid #d1d5db;
+            color: var(--red-dark);
+            border-radius: 1.5rem;
+            font-size: 0.92rem;
+            font-weight: 700;
+            padding: 0.32rem 1.2rem;
+            cursor: pointer;
+            margin-left: 0.2rem;
+            box-shadow: 0 2px 8px rgba(204,0,0,0.06);
+            letter-spacing: 0.04em;
+            outline: none;
+            transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
+            border-bottom: 3px solid #e2e4e9;
+            position: relative;
+            z-index: 1;
+          }
+          .btn-mode.active {
+            background: linear-gradient(90deg, #cc0000 0%, #b30000 100%);
+            color: #fff;
+            border-color: var(--red);
+            box-shadow: 0 4px 16px rgba(204,0,0,0.13);
+            border-bottom: 3px solid #b30000;
+          }
+          .btn-mode:focus {
+            border-color: #b30000;
+            box-shadow: 0 0 0 2px #cc000033;
+          }
+        </style>
       </div>
 
       <div class="form-group full">
@@ -580,8 +620,14 @@
 
 <script>
   const makeEl       = document.getElementById("make");
+  const makeTextEl   = document.getElementById("make-text");
+  const makeToggle   = document.getElementById("make-toggle");
   const modelEl      = document.getElementById("model");
+  const modelTextEl  = document.getElementById("model-text");
+  const modelToggle  = document.getElementById("model-toggle");
   const yearEl       = document.getElementById("year");
+  const yearTextEl   = document.getElementById("year-text");
+  const yearToggle   = document.getElementById("year-toggle");
   const fuelEl       = document.getElementById("fuel_type");
   const engineEl     = document.getElementById("engine_cc");
   const stopStartEl  = document.getElementById("stop_start");
@@ -589,17 +635,98 @@
   const submitBtn    = document.getElementById("submit-btn");
   const resultEl     = document.getElementById("result");
   const errorEl      = document.getElementById("error-msg");
+  const ccOptional   = document.getElementById("cc-optional");
+  const ccRequiredHint = document.getElementById("cc-required-hint");
+  const fuelOptional = document.getElementById("fuel-optional");
+  const fuelRequiredHint = document.getElementById("fuel-required-hint");
+  const manualBanner = document.getElementById("manual-banner");
+  const confidencePreview = document.getElementById("confidence-preview");
+  const cpFill = document.getElementById("cp-fill");
+  const cpLabel = document.getElementById("cp-label");
 
-  // Dismiss the full-page loader
-  function hideLoader() {
-    const loader = document.getElementById("page-loader");
-    loader.classList.add("hide");
-    setTimeout(() => loader.remove(), 500);
+  let allTypeMode = false;
+  let altVisible = true;
+
+  function setFieldMode(selectEl, textEl, toggleEl, textMode) {
+    selectEl.style.display = textMode ? "none" : "block";
+    textEl.style.display = textMode ? "block" : "none";
+    selectEl.disabled = textMode;
+    toggleEl.classList.toggle("active", textMode);
+    toggleEl.textContent = textMode ? "Select" : "Type";
   }
 
+  function updateConfidencePreview() {
+    if (!allTypeMode) {
+      confidencePreview.style.display = "none";
+      return;
+    }
+
+    confidencePreview.style.display = "block";
+
+    const make = makeTextEl.value.trim();
+    const model = modelTextEl.value.trim();
+    const year = yearTextEl.value.trim();
+    const cc = engineEl.value.trim();
+    const fuel = fuelEl.value;
+
+    let confidence = 40;
+    let label = "Rule-based match — engine size and fuel will carry more weight";
+    let level = "low";
+
+    if (make && model && year) {
+      confidence = 70;
+      label = "Close match likely — typed make/model/year improves the search";
+      level = "medium";
+    }
+
+    if (make && model && year && cc && fuel) {
+      confidence = 85;
+      label = "High probability match — complete manual input";
+      level = "high";
+    }
+
+    cpFill.style.width = confidence + "%";
+    cpFill.className = "bar-fill " + level;
+    cpLabel.textContent = confidence + "% - " + label;
+  }
+
+  function updateTypeModeUI() {
+    const isType = allTypeMode;
+
+    setFieldMode(makeEl, makeTextEl, makeToggle, isType);
+    setFieldMode(modelEl, modelTextEl, modelToggle, isType);
+    setFieldMode(yearEl, yearTextEl, yearToggle, isType);
+
+    engineEl.required = isType;
+    fuelEl.required = isType;
+
+    ccOptional.style.display = isType ? "none" : "inline";
+    ccRequiredHint.style.display = isType ? "block" : "none";
+    fuelOptional.style.display = isType ? "none" : "inline";
+    fuelRequiredHint.style.display = isType ? "block" : "none";
+
+    manualBanner.style.display = isType ? "block" : "none";
+
+    updateConfidencePreview();
+  }
+
+  function setAllTypeMode(on) {
+    allTypeMode = on;
+    updateTypeModeUI();
+  }
+
+  makeToggle.addEventListener("click", () => setAllTypeMode(!allTypeMode));
+  modelToggle.addEventListener("click", () => setAllTypeMode(!allTypeMode));
+  yearToggle.addEventListener("click", () => setAllTypeMode(!allTypeMode));
+
+  [makeTextEl, modelTextEl, yearTextEl, engineEl, fuelEl].forEach(el => {
+    el.addEventListener("input", updateConfidencePreview);
+    el.addEventListener("change", updateConfidencePreview);
+  });
+
+  updateTypeModeUI();
+
   // Load makes on page load
-  const minLoadMs = 1200; // loader shows for at least this long
-  const loadStart = Date.now();
   fetch("/api/makes")
     .then(r => r.json())
     .then(data => {
@@ -616,6 +743,7 @@
 
   // Load models when make changes
   makeEl.addEventListener("change", () => {
+    if (allTypeMode) return;
     const make = makeEl.value;
     modelEl.innerHTML = '<option value="">Loading...</option>';
     modelEl.disabled  = true;
@@ -636,6 +764,7 @@
   });
 
   modelEl.addEventListener("change", () => {
+    if (allTypeMode) return;
     const make = makeEl.value, model = modelEl.value;
     resetYear();
     if (!model) return;
@@ -666,13 +795,32 @@
     hideResult();
     hideError();
 
+    if (allTypeMode) {
+      const y = yearTextEl.value.trim();
+      if (!/^(19|20)\d{2}$/.test(y) || +y < 1990 || +y > 2030) {
+        showError("Please enter a valid year between 1990 and 2030.");
+        yearTextEl.focus();
+        return;
+      }
+      if (!engineEl.value) {
+        showError("Engine CC is required when Make, Model, or Year is typed.");
+        engineEl.focus();
+        return;
+      }
+      if (!fuelEl.value) {
+        showError("Fuel Type is required when Make, Model, or Year is typed.");
+        fuelEl.focus();
+        return;
+      }
+    }
+
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span>Finding...';
 
     const payload = {
-      make:           makeEl.value,
-      model:          modelEl.value,
-      year:           parseInt(yearEl.value),
+      make:   allTypeMode ? makeTextEl.value.trim() : makeEl.value,
+      model:  allTypeMode ? modelTextEl.value.trim() : modelEl.value,
+      year:   allTypeMode ? parseInt(yearTextEl.value, 10) : parseInt(yearEl.value, 10),
       fuel_type:      fuelEl.value || null,
       engine_cc:      engineEl.value ? parseInt(engineEl.value, 10) : null,
       has_stop_start: stopStartEl.checked,
@@ -773,7 +921,6 @@
     resultEl.classList.add("visible");
   }
 
-  let altVisible = true;
   document.getElementById("res-alt-toggle").addEventListener("click", () => {
     const grid = document.getElementById("res-alt-grid");
     altVisible = !altVisible;
