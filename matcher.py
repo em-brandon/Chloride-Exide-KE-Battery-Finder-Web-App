@@ -130,9 +130,7 @@ def _preferred_tech(engine_cc: int, fuel: str, stop_start: bool = False) -> str:
     if fuel == "EV":
         return "MF"
     if stop_start:
-        if fuel == "DIESEL" or engine_cc >= 2500:
-            return "AGM"
-        return "EFB"  # stop-start petrol/hybrid of any size → EFB minimum
+        return "EFB"  # all stop-start vehicles → EFB regardless of fuel type
     if fuel in ("HYBRID",) or (fuel == "PETROL" and 1600 < engine_cc <= 2000):
         return "EFB"
     if fuel == "DIESEL" or engine_cc >= 2500:
