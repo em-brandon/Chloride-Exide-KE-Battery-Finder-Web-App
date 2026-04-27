@@ -237,6 +237,32 @@ def _batteries() -> pd.DataFrame:
     return df
 
 
+@lru_cache(maxsize=1)
+def _model_aliases() -> pd.DataFrame:
+    """
+    Optional alias table mapping international model names to JDM model names
+    stored in vehicle_years.csv.
+
+    Columns: make, international_model, jdm_model
+    """
+    path = os.path.join(_BASE, "model_aliases.csv")
+    if not os.path.exists(path):
+        return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n"])
+
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip().str.lower()
+    for col in ("make", "international_model", "jdm_model"):
+        if col not in df.columns:
+            return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n"])
+
+    out = pd.DataFrame()
+    out["make_n"] = df["make"].astype(str).str.upper().str.strip()
+    out["intl_model_n"] = df["international_model"].astype(str).str.upper().str.strip()
+    out["jdm_model_n"] = df["jdm_model"].astype(str).str.upper().str.strip()
+    out = out[(out["make_n"] != "") & (out["intl_model_n"] != "") & (out["jdm_model_n"] != "")]
+    return out.drop_duplicates()
+
+
 # ---------------------------------------------------------------------------
 # Battery selector
 # ---------------------------------------------------------------------------
@@ -350,6 +376,7 @@ def recommend(
     year: int,
     engine_cc: Optional[int] = None,
     fuel_type: Optional[str] = None,
+    enable_aliases: bool = True,
 ) -> dict:
     df = _vehicles()
     make_n  = make.upper().strip()
@@ -421,6 +448,90 @@ def recommend(
                         resolved_cc = int(nearest["engine_capacity"]) if pd.notna(nearest["engine_capacity"]) else resolved_cc
                     if not user_provided_fuel:
                         resolved_fuel = _norm_fuel(str(nearest["fuel"])) if pd.notna(nearest.get("fuel")) else resolved_fuel
+
+        if enable_aliases and matched_year is None:
+            # International model aliases -> JDM model names in the dataset.
+            alias_df = _model_aliases()
+            make_aliases = alias_df[alias_df["make_n"] == make_n]
+            intl_choices = make_aliases["intl_model_n"].dropna().unique().tolist()
+            best_alias = process.extractOne(model_n, intl_choices, scorer=fuzz.WRatio) if intl_choices else None
+
+            if best_alias and best_alias[1] >= 75:
+                alias_key = best_alias[0]
+                alias_score = int(best_alias[1])
+                jdm_aliases = (
+                    make_aliases[make_aliases["intl_model_n"] == alias_key]["jdm_model_n"]
+                    .dropna()
+                    .unique()
+                    .tolist()
+                )
+
+                # Resolve each JDM alias to a real dataset model via fuzzy match.
+                resolved_candidates: list[tuple[str, int]] = []
+                for jdm in jdm_aliases:
+                    best_jdm = process.extractOne(jdm, model_choices, scorer=fuzz.WRatio)
+                    if best_jdm and best_jdm[1] >= 75:
+                        resolved_candidates.append((best_jdm[0], int(best_jdm[1])))
+
+                # Pick the best candidate by year proximity (exact year first),
+                # then smallest delta, then highest JDM-model similarity.
+                best_pick: tuple[int, int, int, str] | None = None  # (is_exact, -year_delta, jdm_score, model_n)
+                for cand_model_n, jdm_score in sorted(set(resolved_candidates)):
+                    cand_df = make_df[make_df["model_n"] == cand_model_n]
+                    exact_df = cand_df[cand_df["year"] == year]
+                    if not exact_df.empty:
+                        pick = (1, 0, jdm_score, cand_model_n)
+                        if best_pick is None or pick > best_pick:
+                            best_pick = pick
+                        continue
+
+                    nearby_df = cand_df[
+                        (cand_df["year"] >= year - 3) &
+                        (cand_df["year"] <= year + 3)
+                    ]
+                    if nearby_df.empty:
+                        continue
+                    year_delta = int((nearby_df["year"] - year).abs().min())
+                    pick = (0, -year_delta, jdm_score, cand_model_n)
+                    if best_pick is None or pick > best_pick:
+                        best_pick = pick
+
+                if best_pick is not None:
+                    matched_model_n = best_pick[3]
+                    model_score = alias_score
+                    model_df = make_df[make_df["model_n"] == matched_model_n]
+
+                    exact_year_df = model_df[model_df["year"] == year]
+                    if not exact_year_df.empty:
+                        row = exact_year_df.iloc[0]
+                        confidence = 100 if model_score >= 90 else int(model_score)
+                        match_type = "Exact Match" if model_score >= 90 else "Close Match"
+                        matched_make = str(row["make"])
+                        matched_model = str(row["model"])
+                        matched_year = int(row["year"])
+                        if not user_provided_cc:
+                            resolved_cc = int(row["engine_capacity"]) if pd.notna(row["engine_capacity"]) else resolved_cc
+                        if not user_provided_fuel:
+                            resolved_fuel = _norm_fuel(str(row["fuel"])) if pd.notna(row.get("fuel")) else resolved_fuel
+                    else:
+                        nearby_df = model_df[
+                            (model_df["year"] >= year - 3) &
+                            (model_df["year"] <= year + 3)
+                        ]
+                        if not nearby_df.empty:
+                            nearest = nearby_df.iloc[
+                                (nearby_df["year"] - year).abs().argsort().iloc[0]
+                            ]
+                            year_delta = abs(int(nearest["year"]) - year)
+                            confidence = max(60, int(model_score) - year_delta * 3)
+                            match_type = "Close Match"
+                            matched_make = str(nearest["make"])
+                            matched_model = str(nearest["model"])
+                            matched_year = int(nearest["year"])
+                            if not user_provided_cc:
+                                resolved_cc = int(nearest["engine_capacity"]) if pd.notna(nearest["engine_capacity"]) else resolved_cc
+                            if not user_provided_fuel:
+                                resolved_fuel = _norm_fuel(str(nearest["fuel"])) if pd.notna(nearest.get("fuel")) else resolved_fuel
 
     # ── Step 4: compute target Ah + technology preference ──────────────
     effective_year = int(matched_year) if matched_year is not None else int(year)
