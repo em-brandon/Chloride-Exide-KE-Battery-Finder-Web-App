@@ -5,7 +5,7 @@ A data pipeline, rule-based matching engine, and web application for recommendin
 The project has two phases:
 
 1. **Data pipeline** — cleans and normalises raw CRSP vehicle data, enriches it with individual production years from multiple public APIs, and produces a structured lookup dataset.
-2. **Battery Finder web app** — a FastAPI backend with a vanilla-JS single-page frontend that lets users look up the right battery by Make / Model / Year, with optional Engine CC, Fuel Type, and Stop-Start information.
+2. **Battery Finder web app** — a FastAPI backend with a vanilla-JS single-page frontend that lets users look up the right battery by Make / Model / Year, with optional Engine CC and Fuel Type information.
 
 ## Project Structure
 
@@ -45,7 +45,7 @@ The app starts on **http://localhost:8000**.
 
 Users select (or manually type) their vehicle's **Make**, **Model**, and **Year**. The UI cascades — selecting a make populates the model list, selecting a model populates the year list. If a vehicle isn't in the database, each field has a **Select / Type** toggle that lets the user enter the details manually.
 
-Optional fields — **Engine CC**, **Fuel Type**, and **Stop-Start system** — improve recommendation accuracy. When any field is in manual (Type) mode, Engine CC and Fuel Type become required.
+Optional fields — **Engine CC** and **Fuel Type** — improve recommendation accuracy. When any field is in manual (Type) mode, Engine CC and Fuel Type become required.
 
 ### Matching Engine (`matcher.py`)
 
@@ -59,7 +59,7 @@ The matching engine applies a **3-layer rule hierarchy**:
 
 The engine returns a primary recommendation and up to three alternative batteries, with a `match_type` label and `confidence` percentage.
 
-Stop-Start vehicles (`has_stop_start: true`) are always recommended EFB or AGM technology regardless of engine size.
+Stop-start capability is inferred from make + year.
 
 ### API Endpoints
 
@@ -80,8 +80,7 @@ All endpoints are rate-limited (20 req/min for lookups, 10 req/min for recommend
   "model": "Corolla",
   "year": 2015,
   "engine_cc": 1500,
-  "fuel_type": "Petrol",
-  "has_stop_start": false
+  "fuel_type": "Petrol"
 }
 ```
 
