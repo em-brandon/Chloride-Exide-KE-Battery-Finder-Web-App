@@ -169,6 +169,38 @@
     .btn:active { transform: scale(0.98); }
     .btn:disabled { background: #d1d5db; color: #9ca3af; cursor: not-allowed; }
 
+    .btn-mode {
+      background: linear-gradient(90deg, #fff 0%, #f3f4f6 100%);
+      border: 2px solid #d1d5db;
+      color: var(--red-dark);
+      border-radius: 1.5rem;
+      font-size: 0.92rem;
+      font-weight: 700;
+      padding: 0.32rem 1.2rem;
+      cursor: pointer;
+      margin-left: 0.2rem;
+      box-shadow: 0 2px 8px rgba(204,0,0,0.06);
+      letter-spacing: 0.04em;
+      outline: none;
+      transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
+      border-bottom: 3px solid #e2e4e9;
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn-mode.active {
+      background: linear-gradient(90deg, #cc0000 0%, #b30000 100%);
+      color: #fff;
+      border-color: var(--red);
+      box-shadow: 0 4px 16px rgba(204,0,0,0.13);
+      border-bottom: 3px solid #b30000;
+    }
+
+    .btn-mode:focus {
+      border-color: #b30000;
+      box-shadow: 0 0 0 2px #cc000033;
+    }
+
     /* ── Result card ── */
     .result {
       margin-top: 1.5rem;
@@ -499,37 +531,6 @@
         <input type="number" id="engine_cc" placeholder="e.g. 1500" min="500" max="8000" />
         <div class="hint-box" id="cc-hint">Check your registration document or dashboard sticker — common sizes: 1000, 1300, 1500, 1800, 2000, 2500, 3000 cc.</div>
         <div class="cc-required-hint" id="cc-required-hint" style="display:none; color:#be123c; font-size:0.85em; margin-top:0.3em;">Required when Make, Model, or Year is typed.</div>
-        <style>
-          .btn-mode {
-            background: linear-gradient(90deg, #fff 0%, #f3f4f6 100%);
-            border: 2px solid #d1d5db;
-            color: var(--red-dark);
-            border-radius: 1.5rem;
-            font-size: 0.92rem;
-            font-weight: 700;
-            padding: 0.32rem 1.2rem;
-            cursor: pointer;
-            margin-left: 0.2rem;
-            box-shadow: 0 2px 8px rgba(204,0,0,0.06);
-            letter-spacing: 0.04em;
-            outline: none;
-            transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
-            border-bottom: 3px solid #e2e4e9;
-            position: relative;
-            z-index: 1;
-          }
-          .btn-mode.active {
-            background: linear-gradient(90deg, #cc0000 0%, #b30000 100%);
-            color: #fff;
-            border-color: var(--red);
-            box-shadow: 0 4px 16px rgba(204,0,0,0.13);
-            border-bottom: 3px solid #b30000;
-          }
-          .btn-mode:focus {
-            border-color: #b30000;
-            box-shadow: 0 0 0 2px #cc000033;
-          }
-        </style>
       </div>
 
     </div>
@@ -847,10 +848,8 @@
 
     const matchedInfo = document.getElementById("res-matched");
     if (data.matched_make) {
-      const cc   = data.engine_cc ? ` · ${data.engine_cc}cc` : "";
-      const fuel = data.fuel_type ? ` ${data.fuel_type}`     : "";
       matchedInfo.textContent =
-        `Matched to: ${data.matched_make} ${data.matched_model} (${data.matched_year})${cc}${fuel}`;
+        `Matched to: ${data.matched_make} ${data.matched_model} (${data.matched_year})`;
     } else {
       matchedInfo.textContent =
         "No model match found — result based on engine size and fuel type only";
