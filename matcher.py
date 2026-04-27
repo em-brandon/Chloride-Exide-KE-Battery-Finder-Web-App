@@ -17,12 +17,139 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Optional
+from typing import Optional, cast
 
 import pandas as pd
 from rapidfuzz import process, fuzz
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _fuzzy_model_score(query: str, choices: list[str]) -> tuple[str, float] | None:
+    """
+    Ranked multi-scorer model matching.
+
+    Tries, in order:
+    1) partial_ratio     — catches prefix inputs ("COROLLA" → "COROLLA AXIO G")
+    2) token_set_ratio   — catches variant-token inputs ("MARCH ACTIVE" → "MARCH G")
+    3) WRatio fallback   — preserves previous behaviour
+
+    Returns (best_match, best_score) or None if no match passes thresholds.
+
+    Notes:
+    - Guard partial_ratio with len(query) >= 4 to reduce false positives on very
+      short inputs (e.g. "C" matching "C CLASS").
+    """
+    if not query or not isinstance(query, str) or not choices:
+        return None
+
+    q = query.strip().upper()
+    if not q:
+        return None
+
+    if len(q) >= 4:
+        p_result = process.extractOne(q, choices, scorer=fuzz.partial_ratio)
+        if p_result and p_result[1] >= 80:
+            return p_result[0], float(p_result[1])
+
+    t_result = process.extractOne(q, choices, scorer=fuzz.token_set_ratio)
+    if t_result and t_result[1] >= 72:
+        return t_result[0], float(t_result[1])
+
+    w_result = process.extractOne(q, choices, scorer=fuzz.WRatio)
+    if w_result and w_result[1] >= 60:
+        return w_result[0], float(w_result[1])
+
+    return None
+
+
+def _fuzzy_model_score_for_year(
+    query: str,
+    make_df: pd.DataFrame,
+    year: int,
+) -> tuple[str, float] | None:
+    """Like `_fuzzy_model_score`, but prefers candidates that exist near `year`.
+
+    This avoids token-set tie pitfalls where many trims score 100 against a short
+    base model name (e.g. "FIT" matches many "FIT ..." trims), by selecting a
+    candidate model that has an exact (or ±3-year) row in `vehicle_years.csv`.
+    """
+    if make_df is None or make_df.empty:
+        return None
+
+    model_choices = make_df["model_n"].dropna().unique().tolist()
+    if not model_choices:
+        return None
+
+    q = (query or "").strip().upper()
+    if not q:
+        return None
+
+    q_first = q.split()[0] if q.split() else ""
+
+    def _starts_with_query(candidate: str) -> bool:
+        cand = (candidate or "").strip().upper()
+        if not cand:
+            return False
+        if cand.startswith(q):
+            return True
+        if q_first and (cand.startswith(q_first) or cand.replace("-", " ").startswith(q_first)):
+            return True
+        return False
+
+    def _pick_best(results: list[tuple[str, float, int]]):
+        # Prefer semantic prefix matches (candidate starts with user query / first token),
+        # then year proximity, then score.
+        best_pick: tuple[int, int, int, float, str] | None = None  # (starts_with, is_exact, -year_delta, score, model_n)
+        for cand_model_n, score, _ in results:
+            cand_df = make_df[make_df["model_n"] == cand_model_n]
+            if cand_df.empty:
+                continue
+
+            starts_with = 1 if _starts_with_query(cand_model_n) else 0
+
+            exact_df = cand_df[cand_df["year"] == year]
+            if not exact_df.empty:
+                pick = (starts_with, 1, 0, float(score), cand_model_n)
+            else:
+                nearby_df = cand_df[
+                    (cand_df["year"] >= year - 3) &
+                    (cand_df["year"] <= year + 3)
+                ]
+                if nearby_df.empty:
+                    continue
+                year_delta = int((nearby_df["year"] - year).abs().min())
+                pick = (starts_with, 0, -year_delta, float(score), cand_model_n)
+
+            if best_pick is None or pick > best_pick:
+                best_pick = pick
+
+        if best_pick is None:
+            return None
+        return best_pick[4], best_pick[3]
+
+    if len(q) >= 4:
+        p_results = process.extract(q, model_choices, scorer=fuzz.partial_ratio, limit=60)
+        p_results = [r for r in p_results if r[1] >= 80]
+        picked = _pick_best(p_results)
+        if picked is not None:
+            return picked
+
+    t_results = process.extract(q, model_choices, scorer=fuzz.token_set_ratio, limit=80)
+    t_results = [r for r in t_results if r[1] >= 72]
+    picked = _pick_best(t_results)
+    if picked is not None:
+        return picked
+
+    w_results = process.extract(q, model_choices, scorer=fuzz.WRatio, limit=60)
+    w_results = [r for r in w_results if r[1] >= 60]
+    picked = _pick_best(w_results)
+    if picked is not None:
+        return picked
+
+    # Fall back to score-only selection to preserve legacy behaviour when no
+    # candidate exists within the year window.
+    return _fuzzy_model_score(q, model_choices)
 
 # ---------------------------------------------------------------------------
 # Region / battery-standard detection
@@ -244,6 +371,9 @@ def _model_aliases() -> pd.DataFrame:
     stored in vehicle_years.csv.
 
     Columns: make, international_model, jdm_model
+
+    Optional columns:
+    - priority (int): lower number = more preferred when multiple aliases are viable
     """
     path = os.path.join(_BASE, "model_aliases.csv")
     if not os.path.exists(path):
@@ -259,6 +389,10 @@ def _model_aliases() -> pd.DataFrame:
     out["make_n"] = df["make"].astype(str).str.upper().str.strip()
     out["intl_model_n"] = df["international_model"].astype(str).str.upper().str.strip()
     out["jdm_model_n"] = df["jdm_model"].astype(str).str.upper().str.strip()
+    if "priority" in df.columns:
+        out["priority"] = pd.to_numeric(df["priority"], errors="coerce").fillna(999).astype(int)
+    else:
+        out["priority"] = 999
     out = out[(out["make_n"] != "") & (out["intl_model_n"] != "") & (out["jdm_model_n"] != "")]
     return out.drop_duplicates()
 
@@ -314,7 +448,7 @@ def _select_batteries(
     else:
         # No battery at this Ah — find nearest
         nearest_idx = (batt["Ah"] - target_ah).abs().idxmin()
-        primary_row = batt.loc[nearest_idx]
+        primary_row = cast(pd.Series, batt.loc[[nearest_idx]].iloc[0])
 
     primary = _row_to_dict(primary_row)
 
@@ -406,11 +540,10 @@ def recommend(
     # ── Step 2: fuzzy-match the model ──────────────────────────────────
     if not make_df.empty:
         model_choices = make_df["model_n"].unique().tolist()
-        best_model = process.extractOne(model_n, model_choices, scorer=fuzz.WRatio)
+        best_model = _fuzzy_model_score_for_year(model_n, make_df, int(year))
 
-        if best_model and best_model[1] >= 60:
-            matched_model_n = best_model[0]
-            model_score     = best_model[1]
+        if best_model is not None:
+            matched_model_n, model_score = best_model
             model_df = make_df[make_df["model_n"] == matched_model_n]
 
             # ── Step 3a: exact year within matched model ────────────────
@@ -460,27 +593,29 @@ def recommend(
                 alias_key = best_alias[0]
                 alias_score = int(best_alias[1])
                 jdm_aliases = (
-                    make_aliases[make_aliases["intl_model_n"] == alias_key]["jdm_model_n"]
-                    .dropna()
-                    .unique()
-                    .tolist()
+                    make_aliases[make_aliases["intl_model_n"] == alias_key][["jdm_model_n", "priority"]]
+                    .dropna(subset=["jdm_model_n"])
+                    .drop_duplicates()
+                    .sort_values(["priority", "jdm_model_n"], ascending=[True, True])
                 )
 
                 # Resolve each JDM alias to a real dataset model via fuzzy match.
-                resolved_candidates: list[tuple[str, int]] = []
-                for jdm in jdm_aliases:
+                resolved_candidates: list[tuple[str, int, int]] = []  # (model_n, jdm_score, alias_priority)
+                for _, alias_row in jdm_aliases.iterrows():
+                    jdm = str(alias_row["jdm_model_n"])
+                    alias_priority = int(alias_row.get("priority", 999))
                     best_jdm = process.extractOne(jdm, model_choices, scorer=fuzz.WRatio)
                     if best_jdm and best_jdm[1] >= 75:
-                        resolved_candidates.append((best_jdm[0], int(best_jdm[1])))
+                        resolved_candidates.append((best_jdm[0], int(best_jdm[1]), alias_priority))
 
                 # Pick the best candidate by year proximity (exact year first),
                 # then smallest delta, then highest JDM-model similarity.
-                best_pick: tuple[int, int, int, str] | None = None  # (is_exact, -year_delta, jdm_score, model_n)
-                for cand_model_n, jdm_score in sorted(set(resolved_candidates)):
+                best_pick: tuple[int, int, int, int, str] | None = None  # (is_exact, -year_delta, -alias_priority, jdm_score, model_n)
+                for cand_model_n, jdm_score, alias_priority in sorted(set(resolved_candidates)):
                     cand_df = make_df[make_df["model_n"] == cand_model_n]
                     exact_df = cand_df[cand_df["year"] == year]
                     if not exact_df.empty:
-                        pick = (1, 0, jdm_score, cand_model_n)
+                        pick = (1, 0, -int(alias_priority), jdm_score, cand_model_n)
                         if best_pick is None or pick > best_pick:
                             best_pick = pick
                         continue
@@ -492,12 +627,12 @@ def recommend(
                     if nearby_df.empty:
                         continue
                     year_delta = int((nearby_df["year"] - year).abs().min())
-                    pick = (0, -year_delta, jdm_score, cand_model_n)
+                    pick = (0, -year_delta, -int(alias_priority), jdm_score, cand_model_n)
                     if best_pick is None or pick > best_pick:
                         best_pick = pick
 
                 if best_pick is not None:
-                    matched_model_n = best_pick[3]
+                    matched_model_n = best_pick[4]
                     model_score = alias_score
                     model_df = make_df[make_df["model_n"] == matched_model_n]
 
