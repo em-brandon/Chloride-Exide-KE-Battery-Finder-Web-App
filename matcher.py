@@ -49,6 +49,25 @@ _DIN_MAKES: frozenset[str] = frozenset({
     "VOLKSWAGEN", "VOLVO",
 })
 
+# Subset used for year-based stop-start inference. DIN includes US/Indian makes,
+# so this stays conservative to avoid misclassifying non-European vehicles.
+_EU_MAKES: frozenset[str] = frozenset({
+    "AUDI", "BENTLEY", "BMW", "BRABUS", "CITROEN", "FERRARI", "FIAT",
+    "JAGUAR", "LANDROVER", "MERCEDES", "MERCEDES-BENZ", "MINI", "OPEL",
+    "PEUGEOT", "PORSCHE", "RENAULT", "ROLLS-ROYCE", "SCANIA", "SKODA",
+    "VAUXHALL", "VOLKSWAGEN", "VOLVO",
+})
+
+_KOREAN_MAKES: frozenset[str] = frozenset({"HYUNDAI", "KIA"})
+
+
+def _is_european_make(make: str) -> bool:
+    return make.upper().strip() in _EU_MAKES
+
+
+def _is_korean_make(make: str) -> bool:
+    return make.upper().strip() in _KOREAN_MAKES
+
 
 def _make_region(make: str) -> str:
     """Return 'NS' or 'DIN' based on the vehicle make."""
@@ -78,6 +97,7 @@ _FUEL_MAP: dict[str, str] = {
     "HYBRID":         "HYBRID",
     "PLUG-IN HYBRID": "HYBRID",
     "PLUG-IN-HYBRID": "HYBRID",
+    "EV":             "EV",
     "ELECTRIC(EV)":   "EV",
     "ELECCTRIC":      "EV",              # typo in source data
     "ELECTRIC":       "EV",
@@ -105,16 +125,36 @@ _AH_RULES: list[tuple[int, int, int, int]] = [
     (9999, 100, 120, 100),
 ]
 
+def _year_ah_modifier(year: int) -> int:
+    if year >= 2018:
+        return 10  # modern electronics era
+    if year >= 2012:
+        return 5  # early ADAS era
+    if year < 2000:
+        return -5  # pre-OBD2, minimal load
+    return 0
 
-def _target_ah(engine_cc: int, fuel: str) -> int:
-    for max_cc, p_ah, d_ah, h_ah in _AH_RULES:
-        if engine_cc <= max_cc:
-            if fuel == "DIESEL":
-                return d_ah
-            if fuel == "HYBRID":
-                return h_ah
-            return p_ah
-    return 100
+
+def _target_ah(engine_cc: int, fuel: str, year: Optional[int] = None) -> int:
+    if fuel == "EV":
+        base = 45  # 12V auxiliary battery sizing is not correlated with traction motor size
+    else:
+        for max_cc, p_ah, d_ah, h_ah in _AH_RULES:
+            if engine_cc <= max_cc:
+                if fuel == "DIESEL":
+                    base = d_ah
+                    break
+                if fuel == "HYBRID":
+                    base = h_ah
+                    break
+                base = p_ah
+                break
+        else:
+            base = 100
+
+    if year is not None:
+        base += _year_ah_modifier(int(year))
+    return base
 
 
 # ---------------------------------------------------------------------------
@@ -125,12 +165,38 @@ def _target_ah(engine_cc: int, fuel: str) -> int:
 _TECH_PRIORITY = ["EFB", "AGM", "MF", "SB (Flooded)"]
 
 
-def _preferred_tech(engine_cc: int, fuel: str, stop_start: bool = False) -> str:
+def _preferred_tech(
+    engine_cc: int,
+    fuel: str,
+    year: Optional[int],
+    make: str,
+    stop_start: bool = False,
+) -> str:
     """Return the preferred battery technology given engine size and fuel."""
     if fuel == "EV":
         return "MF"
     if stop_start:
-        return "EFB"  # all stop-start vehicles → EFB regardless of fuel type
+        return "EFB"  # all stop-start vehicles -> EFB regardless of fuel type
+
+    # Year + make stop-start inference (used to partially recover when the user
+    # does not tick the stop-start checkbox).
+    if year is not None:
+        y = int(year)
+        make_u = make.upper().strip()
+        is_eu = make_u in _EU_MAKES
+        is_kr = make_u in _KOREAN_MAKES
+
+        # Highest priority: late-model European makes skew AGM due to 48V / high loads.
+        # Keep this narrow to avoid upgrading small petrol engines unnecessarily.
+        if is_eu and y >= 2018 and engine_cc > 2000:
+            return "AGM"
+        if (is_eu or is_kr) and fuel == "DIESEL" and y >= 2008:
+            return "AGM"
+        if (is_eu or is_kr) and y >= 2016 and engine_cc <= 2000:
+            return "EFB"
+        # Conservative: avoid blanket EU-petrol upgrades for high-volume models.
+        if is_eu and make_u != "VOLKSWAGEN" and fuel == "PETROL" and y >= 2012:
+            return "EFB"
     if fuel in ("HYBRID",) or (fuel == "PETROL" and 1600 < engine_cc <= 2000):
         return "EFB"
     if fuel == "DIESEL" or engine_cc >= 2500:
@@ -286,6 +352,8 @@ def recommend(
 
     resolved_cc:   int  = engine_cc or 1500
     resolved_fuel: str  = _norm_fuel(fuel_type)
+    user_provided_cc = engine_cc is not None
+    user_provided_fuel = fuel_type is not None and str(fuel_type).strip() != ""
     matched_make:  str | None  = None
     matched_model: str | None  = None
     matched_year:  int | None  = None
@@ -322,8 +390,10 @@ def recommend(
                 matched_make  = str(row["make"])
                 matched_model = str(row["model"])
                 matched_year  = int(row["year"])
-                resolved_cc   = int(row["engine_capacity"]) if pd.notna(row["engine_capacity"]) else resolved_cc
-                resolved_fuel = _norm_fuel(str(row["fuel"])) if pd.notna(row.get("fuel")) else resolved_fuel
+                if not user_provided_cc:
+                    resolved_cc = int(row["engine_capacity"]) if pd.notna(row["engine_capacity"]) else resolved_cc
+                if not user_provided_fuel:
+                    resolved_fuel = _norm_fuel(str(row["fuel"])) if pd.notna(row.get("fuel")) else resolved_fuel
 
             # ── Step 3b: soft year match (±3) ──────────────────────────
             else:
@@ -342,13 +412,22 @@ def recommend(
                     matched_make  = str(nearest["make"])
                     matched_model = str(nearest["model"])
                     matched_year  = int(nearest["year"])
-                    resolved_cc   = int(nearest["engine_capacity"]) if pd.notna(nearest["engine_capacity"]) else resolved_cc
-                    resolved_fuel = _norm_fuel(str(nearest["fuel"])) if pd.notna(nearest.get("fuel")) else resolved_fuel
+                    if not user_provided_cc:
+                        resolved_cc = int(nearest["engine_capacity"]) if pd.notna(nearest["engine_capacity"]) else resolved_cc
+                    if not user_provided_fuel:
+                        resolved_fuel = _norm_fuel(str(nearest["fuel"])) if pd.notna(nearest.get("fuel")) else resolved_fuel
 
     # ── Step 4: compute target Ah + technology preference ──────────────
-    region       = _make_region(make)
-    target_ah    = _target_ah(resolved_cc, resolved_fuel)
-    pref_tech    = _preferred_tech(resolved_cc, resolved_fuel, has_stop_start)
+    effective_year = int(matched_year) if matched_year is not None else int(year)
+
+    # Guard against erroneous pre-2000 HYBRID labels in the dataset.
+    if resolved_fuel == "HYBRID" and effective_year < 2000:
+        resolved_fuel = "PETROL"
+
+    rule_based = confidence == 40
+    region = _make_region(make_n)
+    target_ah = _target_ah(resolved_cc, resolved_fuel, effective_year if rule_based else None)
+    pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_year, make_n, has_stop_start)
     primary, alternatives = _select_batteries(target_ah, pref_tech, region)
 
     return {
