@@ -1,14 +1,18 @@
 import os
+import logging
 from typing import Optional
 
 import matcher
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+logger = logging.getLogger("battery_finder")
 
 app = FastAPI(title="Battery Finder API", version="1.0.0")
 
@@ -18,7 +22,19 @@ app = FastAPI(title="Battery Finder API", version="1.0.0")
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
-@app.exception_handler(RateLimitExceeded)
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    logger.warning("Validation error on %s: %s", request.url.path, errors)
+    readable = "; ".join(
+        f"{' -> '.join(str(l) for l in e['loc'])}: {e['msg']}" for e in errors
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": readable},
+    )
+
+
 async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
@@ -35,7 +51,7 @@ async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
 class RecommendRequest(BaseModel):
     make: str = Field(..., json_schema_extra={"example": "TOYOTA"})
     model: str = Field(..., json_schema_extra={"example": "Corolla"})
-    year: int = Field(..., ge=1990, le=2030, json_schema_extra={"example": 2015})
+    year: int = Field(..., ge=2000, le=2025, json_schema_extra={"example": 2015})
     engine_cc: Optional[int] = Field(None, ge=500, le=8000, json_schema_extra={"example": 1500})
     fuel_type: Optional[str] = Field(None, json_schema_extra={"example": "Petrol"})
     has_stop_start: bool = Field(False, json_schema_extra={"example": False})
