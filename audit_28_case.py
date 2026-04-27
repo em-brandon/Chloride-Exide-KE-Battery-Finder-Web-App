@@ -31,14 +31,11 @@ def main() -> int:
             continue
 
         fuel = row.get("Fuel")
-        stop_start = bool(row.get("Stop-Start")) if "Stop-Start" in row else False
-
         rec = matcher.recommend(
             str(make),
             str(model),
             int(year),
             fuel_type=None if pd.isna(fuel) else str(fuel),
-            has_stop_start=stop_start,
         )
 
         expected_tech = row.get("Expected Tech")

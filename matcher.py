@@ -69,6 +69,31 @@ def _is_korean_make(make: str) -> bool:
     return make.upper().strip() in _KOREAN_MAKES
 
 
+def _infer_stop_start(make: str, year: Optional[int], fuel: str) -> bool:
+    """
+    Infer whether a vehicle is likely stop-start equipped based on make + year.
+    This is only used when the user does not explicitly tick the stop-start box.
+    """
+    if fuel == "HYBRID":
+        return True  # hybrids always have engine on/off cycling
+    if year is None:
+        return False
+
+    y = int(year)
+    make_u = make.upper().strip()
+
+    if make_u in {"HONDA", "MAZDA"} and y >= 2012:
+        return True
+    if make_u in {"BMW", "MERCEDES", "MERCEDES-BENZ", "AUDI", "VOLKSWAGEN"} and y >= 2011:
+        return True
+    if make_u in {"FORD", "PEUGEOT", "RENAULT", "CITROEN"} and y >= 2013:
+        return True
+    if make_u in {"TOYOTA", "NISSAN"} and fuel == "PETROL" and y >= 2014:
+        return True
+
+    return False
+
+
 def _make_region(make: str) -> str:
     """Return 'NS' or 'DIN' based on the vehicle make."""
     key = make.upper().strip()
@@ -175,28 +200,9 @@ def _preferred_tech(
     """Return the preferred battery technology given engine size and fuel."""
     if fuel == "EV":
         return "MF"
-    if stop_start:
-        return "EFB"  # all stop-start vehicles -> EFB regardless of fuel type
-
-    # Year + make stop-start inference (used to partially recover when the user
-    # does not tick the stop-start checkbox).
-    if year is not None:
-        y = int(year)
-        make_u = make.upper().strip()
-        is_eu = make_u in _EU_MAKES
-        is_kr = make_u in _KOREAN_MAKES
-
-        # Highest priority: late-model European makes skew AGM due to 48V / high loads.
-        # Keep this narrow to avoid upgrading small petrol engines unnecessarily.
-        if is_eu and y >= 2018 and engine_cc > 2000:
-            return "AGM"
-        if (is_eu or is_kr) and fuel == "DIESEL" and y >= 2008:
-            return "AGM"
-        if (is_eu or is_kr) and y >= 2016 and engine_cc <= 2000:
-            return "EFB"
-        # Conservative: avoid blanket EU-petrol upgrades for high-volume models.
-        if is_eu and make_u != "VOLKSWAGEN" and fuel == "PETROL" and y >= 2012:
-            return "EFB"
+    inferred_stop_start = (not stop_start) and _infer_stop_start(make, year, fuel)
+    if stop_start or inferred_stop_start:
+        return "AGM"
     if fuel in ("HYBRID",) or (fuel == "PETROL" and 1600 < engine_cc <= 2000):
         return "EFB"
     if fuel == "DIESEL" or engine_cc >= 2500:
@@ -344,7 +350,6 @@ def recommend(
     year: int,
     engine_cc: Optional[int] = None,
     fuel_type: Optional[str] = None,
-    has_stop_start: bool = False,
 ) -> dict:
     df = _vehicles()
     make_n  = make.upper().strip()
@@ -427,7 +432,7 @@ def recommend(
     rule_based = confidence == 40
     region = _make_region(make_n)
     target_ah = _target_ah(resolved_cc, resolved_fuel, effective_year if rule_based else None)
-    pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_year, make_n, has_stop_start)
+    pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_year, make_n, False)
     primary, alternatives = _select_batteries(target_ah, pref_tech, region)
 
     return {
@@ -436,7 +441,6 @@ def recommend(
         "year":           year,
         "engine_cc":      resolved_cc,
         "fuel_type":      resolved_fuel,
-        "has_stop_start": has_stop_start,
         "battery_region": region,
         "recommended_ah": target_ah,
         "preferred_tech": pref_tech,

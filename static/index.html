@@ -307,47 +307,6 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Stop-start toggle ── */
-    .toggle-label {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      cursor: pointer;
-      font-size: 0.9rem;
-      color: var(--text);
-      font-weight: 500;
-      text-transform: none;
-      letter-spacing: 0;
-    }
-
-    .toggle-input { display: none; }
-
-    .toggle-track {
-      position: relative;
-      width: 40px;
-      height: 22px;
-      background: #d1d5db;
-      border-radius: 999px;
-      border: 1px solid #d1d5db;
-      flex-shrink: 0;
-      transition: background 0.2s, border-color 0.2s;
-    }
-
-    .toggle-thumb {
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 14px;
-      height: 14px;
-      background: #ffffff;
-      border-radius: 50%;
-      transition: transform 0.2s, background 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-
-    .toggle-input:checked + .toggle-track { background: var(--red); border-color: var(--red); }
-    .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: #ffffff; }
-
     .field-hint { font-size: 0.74rem; color: var(--muted2); margin-top: 0.35rem; }
 
     /* ── Technology badges ── */
@@ -558,15 +517,6 @@
         </style>
       </div>
 
-      <div class="form-group full">
-        <label class="toggle-label">
-          <input type="checkbox" id="stop_start" class="toggle-input">
-          <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span>Vehicle has Stop-Start / i-Stop system</span>
-        </label>
-        <div class="field-hint">e.g. Mazda i-Stop, BMW Auto Start-Stop, Ford Auto-Start-Stop. Requires EFB or AGM battery.</div>
-      </div>
-
     </div>
 
     <button class="btn" type="submit" id="submit-btn">Find Battery</button>
@@ -630,7 +580,6 @@
   const yearToggle   = document.getElementById("year-toggle");
   const fuelEl       = document.getElementById("fuel_type");
   const engineEl     = document.getElementById("engine_cc");
-  const stopStartEl  = document.getElementById("stop_start");
   const form         = document.getElementById("finder-form");
   const submitBtn    = document.getElementById("submit-btn");
   const resultEl     = document.getElementById("result");
@@ -823,7 +772,6 @@
       year:   allTypeMode ? parseInt(yearTextEl.value, 10) : parseInt(yearEl.value, 10),
       fuel_type:      fuelEl.value || null,
       engine_cc:      engineEl.value ? parseInt(engineEl.value, 10) : null,
-      has_stop_start: stopStartEl.checked,
     };
 
     try {
