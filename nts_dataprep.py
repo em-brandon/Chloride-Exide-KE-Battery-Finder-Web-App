@@ -86,6 +86,7 @@ def main() -> None:
     # Drop invalid rows
     before = len(df)
     df = df[(df["make"] != "") & (df["model"] != "") & (df["year"].notna())]
+    df["year"] = df["year"].astype(int)
     after = len(df)
     print(f"Rows kept after basic validation: {after}/{before}")
 
