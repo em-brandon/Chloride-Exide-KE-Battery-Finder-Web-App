@@ -234,18 +234,26 @@ Outputs:
 
 - Primary source is fueleconomy.gov (US market coverage). Fallbacks include CarQuery/Wikidata/Wikipedia when enabled.
 - Engine CC is always stored as an integer in `engine_capacity`.
+- `cc_cache.json` caches lookups; if you change/improve the enrichment logic and want to re-try previously cached “not found” keys, delete `cc_cache.json` (or run after a cache-version bump).
 
 #### Optional runtime controls
 
 For quick dry-runs / to control fallbacks, set environment variables:
 
 - `LIMIT_KEYS=100` — only process first N unique make+model+year keys
-- `ENABLE_CARQUERY=0` / `ENABLE_WIKIDATA=0` / `ENABLE_WIKIPEDIA=0` — disable fallbacks
+- `ENABLE_MODEL_TEXT=0` — disable parsing CC directly from the model/variant text (e.g. strings like `2.8GD6`)
+- `ENABLE_CARAPI=0` / `ENABLE_CARQUERY=0` / `ENABLE_WIKIDATA=0` / `ENABLE_WIKIPEDIA=0` — disable fallbacks
+
+CarAPI authentication (optional):
+
+- `CARAPI_JWT` — provide an existing JWT (preferred)
+- or `CARAPI_API_TOKEN` + `CARAPI_API_SECRET` — script will request a JWT via `/api/auth/login`
 
 Example (Windows CMD):
 
 ```bat
 set LIMIT_KEYS=100
+set ENABLE_CARAPI=0
 set ENABLE_CARQUERY=0
 python allocate_cc.py
 ```
