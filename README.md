@@ -199,6 +199,57 @@ The script will:
 
 `fueleconomy_vehicles.csv` is downloaded once from the US DOE/EPA and reused on subsequent runs. Delete the file to force a fresh download.
 
+---
+
+## NTS Vehicles 2024 — Allocate Engine CC
+
+This pipeline cleans the NTS registration workbook and then enriches it with `engine_capacity` (cc) using public sources.
+
+### 1) Clean / standardize the NTS workbook
+
+Input: `NTSA Vehicles Registered 2024.xlsx` (sheet: `Table1`)
+
+```bash
+python nts_dataprep.py
+```
+
+Outputs:
+
+- `nts_vehicles_clean.csv` (minimal: `make`, `model`, `year`)
+- `nts_vehicles_clean.xlsx`
+
+### 2) Allocate CC (engine displacement)
+
+```bash
+python allocate_cc.py
+```
+
+Outputs:
+
+- `nts_vehicles_with_cc.csv` (minimal: `make`, `model`, `year`, `engine_capacity`)
+- `nts_unmatched_cc.csv` (rows where cc could not be resolved)
+- `cc_cache.json` (lookup cache)
+
+#### Notes
+
+- Primary source is fueleconomy.gov (US market coverage). Fallbacks include CarQuery/Wikidata/Wikipedia when enabled.
+- Engine CC is always stored as an integer in `engine_capacity`.
+
+#### Optional runtime controls
+
+For quick dry-runs / to control fallbacks, set environment variables:
+
+- `LIMIT_KEYS=100` — only process first N unique make+model+year keys
+- `ENABLE_CARQUERY=0` / `ENABLE_WIKIDATA=0` / `ENABLE_WIKIPEDIA=0` — disable fallbacks
+
+Example (Windows CMD):
+
+```bat
+set LIMIT_KEYS=100
+set ENABLE_CARQUERY=0
+python allocate_cc.py
+```
+
 #### Year Lookup Search Priority
 
 | Priority | Search term used |
