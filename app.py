@@ -103,8 +103,14 @@ def recommend(request: Request, req: RecommendRequest):
 # ------------------------------------------------------------------
 # Serve frontend — mount last so API routes take priority
 # ------------------------------------------------------------------
+dist_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 static_dir = os.path.join(os.path.dirname(__file__), "static")
-app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+
+if os.path.isdir(dist_dir):
+    app.mount("/", StaticFiles(directory=dist_dir, html=True), name="static")
+else:
+    # Fallback to legacy static/ during development
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 
 if __name__ == "__main__":
