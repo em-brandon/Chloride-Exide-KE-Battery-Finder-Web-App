@@ -5,15 +5,61 @@ A data pipeline, rule-based matching engine, and web application for recommendin
 The project has two phases:
 
 1. **Data pipeline** — cleans and normalises raw CRSP vehicle data, enriches it with individual production years from multiple public APIs, and produces a structured lookup dataset.
-2. **Battery Finder web app** — a FastAPI backend with a vanilla-JS single-page frontend that lets users look up the right battery by Make / Model / Year, with optional Engine CC and Fuel Type information.
+2. **Battery Finder web app** — a FastAPI backend with a React + TypeScript frontend that lets users look up the right battery by Make / Model / Year, with optional Engine CC and Fuel Type information.
 
-## Project Structure
+---
+
+## Tech Stack
+
+### Backend
+| Layer | Technology |
+|---|---|
+| Language | Python 3.10+ |
+| Web framework | [FastAPI](https://fastapi.tiangolo.com/) |
+| Server | Uvicorn (ASGI) |
+| Rate limiting | `slowapi` |
+| Data | Pandas — CSV lookup dataset |
+
+### Frontend
+| Layer | Technology |
+|---|---|
+| Framework | [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
+| Build tool | [Vite 8](https://vite.dev/) |
+| Package manager | [Bun](https://bun.sh/) |
+| Styling | [Tailwind CSS v4](https://tailwindcss.com/) |
+| UI primitives | [Radix UI](https://www.radix-ui.com/) |
+| Icons | [Lucide React](https://lucide.dev/) |
+
+### Data Pipeline
+| Tool | Purpose |
+|---|---|
+| Pandas | Data cleaning and normalisation |
+| NHTSA VPIC API | Vehicle make/model lookup + fuzzy matching |
+| CarAPI | Year-range data per model |
+| fueleconomy.gov | US DOE/EPA bulk vehicle dataset (local cache) |
+
+---
 
 ```
-├── app.py                         # FastAPI web server (serves API + frontend)
+├── app.py                         # FastAPI web server (serves API + frontend dist)
 ├── matcher.py                     # Rule-based battery matching engine (3-layer)
+├── frontend/                      # React + TypeScript frontend (Vite + Bun)
+│   ├── src/
+│   │   ├── App.tsx                # Root layout — navbar, dark mode, page structure
+│   │   ├── index.css              # Global styles + CSS custom properties
+│   │   ├── components/
+│   │   │   ├── VehicleFinderForm.tsx  # Main form with Select/Type toggle
+│   │   │   ├── PageLoader.tsx         # Battery SVG splash screen
+│   │   │   └── Notification.tsx       # Toast notification system
+│   │   ├── lib/
+│   │   │   └── api.ts             # Typed fetch wrappers for all API endpoints
+│   │   └── types/
+│   │       └── battery.ts         # TypeScript interfaces for API responses
+│   ├── vite.config.ts
+│   ├── package.json
+│   └── tsconfig.app.json
 ├── static/
-│   └── index.html                 # Single-page battery finder UI
+│   └── index.html                 # Legacy vanilla-JS frontend (reference design)
 ├── dataprep.py                    # Data preparation pipeline script
 ├── enrich_years.py                # Year enrichment script (multi-source API lookup)
 ├── analysis.ipynb                 # Jupyter notebook for exploratory analysis
@@ -34,12 +80,25 @@ The project has two phases:
 
 ### Running the App
 
+**Production (built frontend):**
 ```bash
 pip install -r requirements.txt
-python app.py
+cd frontend && bun install && bun run build && cd ..
+uvicorn app:app --reload
 ```
 
 The app starts on **http://localhost:8000**.
+
+**Development (hot reload):**
+```bash
+# Terminal 1 — backend
+uvicorn app:app --reload
+
+# Terminal 2 — frontend dev server (proxies /api to port 8000)
+cd frontend && bun run dev
+```
+
+Frontend dev server runs on **http://localhost:5173**.
 
 ### How It Works
 
