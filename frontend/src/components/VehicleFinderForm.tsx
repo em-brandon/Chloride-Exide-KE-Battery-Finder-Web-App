@@ -33,7 +33,20 @@ function matchClass(matchType: string) {
 function ResultPanel({ data, darkMode }: { data: RecommendationResult; darkMode?: boolean }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
+  const [matchPopover, setMatchPopover] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
+  const matchPopoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!matchPopover) return
+    function handleClick(e: MouseEvent) {
+      if (matchPopoverRef.current && !matchPopoverRef.current.contains(e.target as Node)) {
+        setMatchPopover(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [matchPopover])
 
   // Animate confidence bar on mount
   useEffect(() => {
@@ -53,7 +66,26 @@ function ResultPanel({ data, darkMode }: { data: RecommendationResult; darkMode?
     <div className="result-card">
       <div className="result-header">
         <h2 className="result-title">Primary Recommendation</h2>
-        <span className={matchClass(data.match_type)}>{data.match_type}</span>
+        <div className="match-type-row" ref={matchPopoverRef}>
+          <span className={matchClass(data.match_type)}>{data.match_type}</span>
+          <button
+            className="conf-info-btn"
+            onClick={() => setMatchPopover(v => !v)}
+            aria-label="What does match type mean?"
+          >?</button>
+          {matchPopover && (
+            <div className="conf-popover match-type-popover">
+              <strong>What does Match Type mean?</strong>
+              <p>This tells you how closely the battery recommendation matches your vehicle's specifications.</p>
+              <ul>
+                <li><span className="match-dot exact" />Exact Match — Your vehicle was found precisely in our dataset.</li>
+                <li><span className="match-dot close" />Close Match — A very similar vehicle was used as the basis.</li>
+                <li><span className="match-dot fallback" />Fallback — Matched on engine size and fuel type only, no model found.</li>
+              </ul>
+              <p className="match-gigo-note">⚠️ The quality of your result depends on the details you enter — the more accurate and complete, the better the recommendation.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="primary-card">
