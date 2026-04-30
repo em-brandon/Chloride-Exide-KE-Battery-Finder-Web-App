@@ -276,15 +276,97 @@ body {
   border-color: rgba(204,0,0,0.4);
   color: #ff6b6b;
 }
+@keyframes navConfSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
 .nav-conf {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  animation: navConfSlideIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .nav-conf-bar {
   width: 90px;
   height: 5px;
 }
+.nav-conf-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  position: relative;
+}
+.nav-conf-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.conf-info-btn {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+.conf-info-btn:hover { border-color: var(--red); color: var(--red); }
+@keyframes popoverSlideIn {
+  from { opacity: 0; transform: translateX(calc(-50% - 18px)); }
+  to   { opacity: 1; transform: translateX(-50%); }
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.conf-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  z-index: 200;
+  font-size: 0.72rem;
+  color: var(--text);
+  line-height: 1.5;
+  animation: popoverSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.conf-popover strong {
+  display: block; margin-bottom: 0.4rem; font-size: 0.75rem;
+  animation: fadeSlideIn 0.2s ease-out 0.07s both;
+}
+.conf-popover p {
+  margin-bottom: 0.5rem;
+  animation: fadeSlideIn 0.2s ease-out 0.13s both;
+}
+.conf-popover ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.conf-popover li { display: flex; align-items: center; gap: 0.4rem; }
+.conf-popover li:nth-child(1) { animation: fadeSlideIn 0.2s ease-out 0.18s both; }
+.conf-popover li:nth-child(2) { animation: fadeSlideIn 0.2s ease-out 0.23s both; }
+.conf-popover li:nth-child(3) { animation: fadeSlideIn 0.2s ease-out 0.28s both; }
+.conf-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.conf-dot.high   { background: #34d399; }
+.conf-dot.medium { background: #fb923c; }
+.conf-dot.low    { background: #CC0000; }
+.page-dark .conf-popover { background: #252836; border-color: #2a2d3a; color: rgba(229,231,235,0.9); }
 .nav-conf-pct {
   font-size: 0.7rem;
   color: var(--muted);
