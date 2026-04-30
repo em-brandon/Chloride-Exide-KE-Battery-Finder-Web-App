@@ -95,7 +95,7 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
             </button>
           </div>
           {altVisible && (
-            <div className="alt-grid">
+            <div className={`alt-grid ${data.alternatives.length > 5 ? 'alt-grid--condensed' : ''}`}>
               {data.alternatives.map(alt => (
                 <div key={alt.battery_code} className="alt-card">
                   <div className="ac-code">{alt.battery_code}</div>
@@ -275,11 +275,13 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderF
     ? !!makeText.trim() && !!modelText.trim() && !!yearText.trim()
     : !!make && !!model && !!year
 
-  const sideBySize = !!result && !typeMode
+  const sideBySize = !!result
 
   return (
     <div className={`finder-layout${sideBySize ? ' has-result' : ''}`}>
       <Toaster items={toasts} onDismiss={dismissToast} />
+
+      {/* (results will render after the form so they appear on the right) */}
 
       {/* Form column */}
       <div className="finder-card">
@@ -478,13 +480,10 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderF
           <div className="error-block">{errorMsg}</div>
         )}
       </form>
-
-      {/* In type mode: result below form */}
-      {result && typeMode && <ResultPanel data={result} />}
       </div>
 
-      {/* In select mode: result on the right */}
-      {result && !typeMode && (
+      {/* Result column on the right */}
+      {result && (
         <div className="result-side-card">
           <ResultPanel data={result} />
         </div>
