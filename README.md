@@ -58,8 +58,7 @@ The project has two phases:
 │   ├── vite.config.ts
 │   ├── package.json
 │   └── tsconfig.app.json
-├── static/
-│   └── index.html                 # Legacy vanilla-JS frontend (reference design)
+
 ├── dataprep.py                    # Data preparation pipeline script
 ├── enrich_years.py                # Year enrichment script (multi-source API lookup)
 ├── analysis.ipynb                 # Jupyter notebook for exploratory analysis
