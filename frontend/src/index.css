@@ -75,6 +75,11 @@ body {
 }
 
 /* Night mode pill button in nav — icon only */
+.nav-right-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 .nav-dark-btn {
   display: flex;
   align-items: center;
@@ -88,7 +93,7 @@ body {
   color: var(--muted);
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
-.nav-dark-btn:hover { background: var(--bg); color: var(--text); }
+.nav-dark-btn:hover { background: var(--bg); color: var(--red); border-color: var(--red); }
 .nav-dark-btn.active {
   background: #1e2028;
   border-color: #3a3f55;
@@ -127,7 +132,7 @@ body {
   border-color: #3a3f55;
   color: rgba(229,231,235,0.7);
 }
-.page-dark .nav-dark-btn:hover { background: #252836; color: rgba(229,231,235,0.9); }
+.page-dark .nav-dark-btn:hover { background: #252836; color: var(--red); border-color: var(--red); }
 
 /* Card goes grey in dark mode */
 .page-dark .finder-card,
@@ -553,8 +558,40 @@ body {
   margin-bottom: 0.5rem;
   gap: 0.5rem;
 }
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
 .result-title { font-size: 0.95rem; color: var(--text); font-weight: 700; }
-
+.match-type-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  position: relative;
+}
+.match-type-popover {
+  right: 0;
+  left: auto;
+  transform: none;
+  width: 280px;
+}
+.match-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.match-dot.exact   { background: #34d399; }
+.match-dot.close   { background: #fb923c; }
+.match-dot.fallback { background: #94a3b8; }
+.match-gigo-note {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0 !important;
+  font-size: 0.68rem;
+  color: var(--red) !important;
+  border-top: 1px solid var(--border);
+  padding-top: 0.4rem;
+}
 .primary-card {
   background: #fff8f8;
   border: 1px solid #fce8e8;

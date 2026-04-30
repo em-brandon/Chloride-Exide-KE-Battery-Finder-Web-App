@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
-import { Moon, Sun } from 'lucide-react'
+import { Moon, Sun, House } from 'lucide-react'
 
 function App() {
   const [loaderVisible, setLoaderVisible] = useState(true)
@@ -105,16 +105,27 @@ function App() {
             </div>
           )}
 
-          {/* Right: Night mode toggle */}
-          <button
-            className={`nav-dark-btn${darkMode ? ' active' : ''}`}
-            onClick={toggleDark}
-            aria-label={darkMode ? 'Switch to day mode' : 'Switch to night mode'}
-          >
-            {darkMode
-              ? <Sun size={16} strokeWidth={2} />
-              : <Moon size={16} strokeWidth={2} />}
-          </button>
+          {/* Right: Night mode toggle + Home */}
+          <div className="nav-right-btns">
+            <button
+              className={`nav-dark-btn${darkMode ? ' active' : ''}`}
+              onClick={toggleDark}
+              aria-label={darkMode ? 'Switch to day mode' : 'Switch to night mode'}
+            >
+              {darkMode
+                ? <Sun size={16} strokeWidth={2} />
+                : <Moon size={16} strokeWidth={2} />}
+            </button>
+            <a
+              href="https://www.chlorideexide.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nav-dark-btn"
+              aria-label="Go to Chloride Exide website"
+            >
+              <House size={16} strokeWidth={1.5} fill="currentColor" />
+            </a>
+          </div>
         </nav>
 
         {/* ── Finder card (owns its own card layout) ── */}
