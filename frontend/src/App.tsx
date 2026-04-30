@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
 import { Moon, Sun } from 'lucide-react'
@@ -8,6 +8,19 @@ function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [typeMode, setTypeMode] = useState(false)
   const [navEstConf, setNavEstConf] = useState<{ pct: number; label: string; cls: string } | null>(null)
+  const [confPopover, setConfPopover] = useState(false)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!confPopover) return
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setConfPopover(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [confPopover])
 
   const handleMakesLoaded = useCallback(() => {
     setLoaderVisible(false)
@@ -64,6 +77,25 @@ function App() {
               <span className="badge nav-manual-badge">Manual Mode Active</span>
               {navEstConf && navEstConf.pct > 0 && (
                 <div className="nav-conf">
+                  <div className="nav-conf-label-row" ref={popoverRef}>
+                    <span className="nav-conf-label">Match Confidence</span>
+                    <button
+                      className="conf-info-btn"
+                      onClick={() => setConfPopover(v => !v)}
+                      aria-label="What is match confidence?"
+                    >?</button>
+                    {confPopover && (
+                      <div className="conf-popover">
+                        <strong>What is Match Confidence?</strong>
+                        <p>This score estimates how accurately we can recommend a battery based on the details you've entered. The more information provided — model, year, fuel type and engine size — the higher and more reliable the score.</p>
+                        <ul>
+                          <li><span className="conf-dot high" />85%+ — All details provided</li>
+                          <li><span className="conf-dot medium" />55–70% — Partial details</li>
+                          <li><span className="conf-dot low" />40% — Make only</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                   <div className="bar-track nav-conf-bar">
                     <div className={navEstConf.cls} style={{ width: `${navEstConf.pct}%`, transition: 'width 0.5s ease' }} />
                   </div>
