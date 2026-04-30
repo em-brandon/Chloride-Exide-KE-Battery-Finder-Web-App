@@ -12,7 +12,7 @@ interface ResultCardProps {
 function AltCard({ alt }: { alt: BatteryEntry }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
-      <div className="font-bold text-sm text-card-foreground">{alt.battery_code}</div>
+      <div className="font-bold text-sm" style={{ color: '#ffffff' }}>{alt.battery_code}</div>
       <div className="text-xs text-muted-foreground">
         {alt.ah != null ? `${alt.ah} Ah` : ''}
         {alt.cca_en != null ? ` · ${alt.cca_en} CCA` : ''}
@@ -32,7 +32,7 @@ export function ResultCard({ data }: ResultCardProps) {
     <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 border-l-[#cc0000] bg-card shadow-md p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold text-card-foreground">Primary Recommendation</h2>
+        <h2 className="text-lg font-bold" style={{ color: '#ffffff' }}>Primary Recommendation</h2>
         <Badge variant={matchVariant(data.match_type)}>{data.match_type}</Badge>
       </div>
 
@@ -44,7 +44,7 @@ export function ResultCard({ data }: ResultCardProps) {
           {p.technology ?? 'MF'}
         </Badge>
         <div className="flex-1 min-w-[140px]">
-          <div className="font-bold text-base text-card-foreground">{p.battery_code}</div>
+          <div className="font-bold text-base" style={{ color: '#ffffff' }}>{p.battery_code}</div>
           {p.model_key && (
             <div className="text-xs text-muted-foreground mt-0.5">{p.model_key}</div>
           )}

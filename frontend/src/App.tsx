@@ -6,6 +6,8 @@ import { Moon, Sun } from 'lucide-react'
 function App() {
   const [loaderVisible, setLoaderVisible] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
+  const [typeMode, setTypeMode] = useState(false)
+  const [navEstConf, setNavEstConf] = useState<{ pct: number; label: string; cls: string } | null>(null)
 
   const handleMakesLoaded = useCallback(() => {
     setLoaderVisible(false)
@@ -13,6 +15,15 @@ function App() {
 
   const toggleDark = useCallback(() => {
     setDarkMode(d => !d)
+  }, [])
+
+  const handleTypeModeChange = useCallback(() => {
+    setTypeMode(t => !t)
+    setNavEstConf(null)
+  }, [])
+
+  const handleEstConfChange = useCallback((conf: { pct: number; label: string; cls: string } | null) => {
+    setNavEstConf(conf)
   }, [])
 
   return (
@@ -47,6 +58,21 @@ function App() {
             </div>
           </div>
 
+          {/* Center: manual mode badges */}
+          {typeMode && (
+            <div className="nav-type-mode">
+              <span className="badge nav-manual-badge">Manual Mode Active</span>
+              {navEstConf && navEstConf.pct > 0 && (
+                <div className="nav-conf">
+                  <div className="bar-track nav-conf-bar">
+                    <div className={navEstConf.cls} style={{ width: `${navEstConf.pct}%`, transition: 'width 0.5s ease' }} />
+                  </div>
+                  <span className="nav-conf-pct">{navEstConf.pct}% &mdash; {navEstConf.label}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Right: Night mode toggle */}
           <button
             className={`nav-dark-btn${darkMode ? ' active' : ''}`}
@@ -59,19 +85,18 @@ function App() {
           </button>
         </nav>
 
-        {/* ── Tagline ── */}
-        <p className="page-tagline">
-          Enter your vehicle details to get the right battery recommendation
-        </p>
-
         {/* ── Finder card (owns its own card layout) ── */}
         <VehicleFinderForm
           onMakesLoaded={handleMakesLoaded}
+          typeMode={typeMode}
+          onTypeModeChange={handleTypeModeChange}
+          onEstConfChange={handleEstConfChange}
+          darkMode={darkMode}
         />
 
         {/* ── Footer — no separator ── */}
         <footer className="page-footer">
-          Chloride Exide Battery Finder &mdash; Data sourced from CRSP dataset
+          &copy; 2026 Chloride Exide Battery Finder
         </footer>
       </div>
     </>

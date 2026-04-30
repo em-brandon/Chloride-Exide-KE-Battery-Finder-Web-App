@@ -7,6 +7,10 @@ import { Search } from 'lucide-react'
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
   onFormReady?: () => void
+  typeMode: boolean
+  onTypeModeChange: () => void
+  onEstConfChange: (conf: { pct: number; label: string; cls: string } | null) => void
+  darkMode?: boolean
 }
 
 function techClass(tech?: string) {
@@ -26,7 +30,7 @@ function matchClass(matchType: string) {
 }
 
 // ── Result card ───────────────────────────────────────────────────
-function ResultPanel({ data }: { data: RecommendationResult }) {
+function ResultPanel({ data, darkMode }: { data: RecommendationResult; darkMode?: boolean }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const barRef = useRef<HTMLDivElement>(null)
@@ -65,7 +69,7 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
           {p.technology ?? 'MF'}
         </span>
         <div className="primary-name">
-          <div className="battery-code">{p.battery_code || '—'}</div>
+          <div className="battery-code" style={{ color: darkMode ? '#ffffff' : '#111827' }}>{p.battery_code || '—'}</div>
           {p.model_key && <div className="model-key">{p.model_key}</div>}
         </div>
       </div>
@@ -87,7 +91,7 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
       </div>
 
       {data.alternatives.length > 0 && (
-        <div style={{ marginTop: '1.25rem' }}>
+        <div style={{ marginTop: '0.5rem' }}>
           <div className="alt-header">
             <span>Alternative Options ({data.alternatives.length})</span>
             <button className="alt-toggle-btn" onClick={() => setAltVisible(v => !v)}>
@@ -98,7 +102,7 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
             <div className={`alt-grid ${data.alternatives.length > 5 ? 'alt-grid--condensed' : ''}`}>
               {data.alternatives.map(alt => (
                 <div key={alt.battery_code} className="alt-card">
-                  <div className="ac-code">{alt.battery_code}</div>
+                  <div className="ac-code" style={{ color: darkMode ? '#ffffff' : '#111827' }}>{alt.battery_code}</div>
                   <div className="ac-specs">
                     {alt.ah != null ? `${alt.ah} Ah` : ''}
                     {alt.cca_en != null ? ` · ${alt.cca_en} CCA` : ''}
@@ -117,7 +121,7 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
 }
 
 // ── Main form ─────────────────────────────────────────────────────
-export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderFormProps) {
+export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange, darkMode }: VehicleFinderFormProps) {
   const { toasts, push: pushToast, dismiss: dismissToast } = useToast()
 
   // Data
@@ -140,7 +144,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderF
   const [yearText, setYearText]   = useState('')
 
   // UI state
-  const [typeMode, setTypeMode] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [loadingMakes, setLoadingMakes]   = useState(true)
   const [loadingModels, setLoadingModels] = useState(false)
   const [loadingYears, setLoadingYears]   = useState(false)
@@ -207,22 +211,45 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderF
 
   // Toggle type mode
   const handleModeToggle = () => {
-    setTypeMode(t => !t)
+    onTypeModeChange()
     setMake(''); setModel(''); setYear('')
     setMakeText(''); setModelText(''); setYearText('')
     setModels([]); setYears([])
     setResult(null); setErrorMsg('')
+    setSubmitted(false)
   }
 
-  // Estimated confidence preview in type mode
+  // Reset all fields
+  const handleReset = () => {
+    setMake(''); setModel(''); setYear('')
+    setMakeText(''); setModelText(''); setYearText('')
+    setFuelType(''); setEngineCc('')
+    setModels([]); setYears([])
+    setResult(null); setErrorMsg('')
+    setSubmitted(false)
+  }
+
+  // Estimated confidence — 0 until make has input, hides after submit until all cleared
   const estimatedConf = (() => {
     if (!typeMode) return null
-    const hasAll = makeText.trim() && modelText.trim() && yearText.trim()
-    const hasFull = hasAll && engineCc && fuelType
-    if (hasFull) return { pct: 85, label: 'High probability match — complete manual input', cls: 'bar-fill high' }
-    if (hasAll)  return { pct: 70, label: 'Close match likely — typed make/model/year improves search', cls: 'bar-fill medium' }
-    return { pct: 40, label: 'Rule-based match — engine size and fuel carry more weight', cls: 'bar-fill low' }
+    // Hide after submit; reappear only when all text fields are empty again
+    const anyFilled = makeText.trim() || modelText.trim() || yearText.trim() || engineCc || fuelType
+    if (submitted && anyFilled) return null
+    if (!makeText.trim()) return { pct: 0, label: 'Enter your vehicle make to begin', cls: 'bar-fill low', step: 0 }
+    const hasModel = !!modelText.trim()
+    const hasYear  = !!yearText.trim()
+    const hasFuel  = !!fuelType
+    const hasCC    = !!engineCc
+    if (hasModel && hasYear && hasFuel && hasCC) return { pct: 85, label: 'High — all details provided', cls: 'bar-fill high', step: 4 }
+    if (hasModel && hasYear) return { pct: 70, label: 'Good — add fuel type & engine size to improve', cls: 'bar-fill medium', step: 3 }
+    if (hasModel) return { pct: 55, label: 'Fair — add year, fuel type & engine size', cls: 'bar-fill medium', step: 2 }
+    return { pct: 40, label: 'Low — only make entered', cls: 'bar-fill low', step: 1 }
   })()
+
+  // Report conf changes to parent (for nav badge)
+  useEffect(() => {
+    onEstConfChange(estimatedConf)
+  }, [typeMode, makeText, modelText, yearText, engineCc, fuelType, submitted])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -256,6 +283,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderF
         engine_cc: engineCc ? parseInt(engineCc, 10) : null,
       })
       setResult(data)
+      setSubmitted(true)
       pushToast(
         'success',
         'Battery found!',
@@ -278,55 +306,33 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderF
   const sideBySize = !!result
 
   return (
-    <div className={`finder-layout${sideBySize ? ' has-result' : ''}`}>
+    <div className="finder-wrapper">
       <Toaster items={toasts} onDismiss={dismissToast} />
 
-      {/* (results will render after the form so they appear on the right) */}
-
+      <div className={`finder-layout${sideBySize ? ' has-result' : ''}`}>
       {/* Form column */}
       <div className="finder-card">
       <form onSubmit={handleSubmit} noValidate>
-        {/* Manual mode banner */}
-        {typeMode && (
-          <div className="manual-banner">
-            <span className="badge close" style={{ fontSize: '0.7rem', alignSelf: 'flex-start' }}>
-              Manual Mode Active
-            </span>
-            <span>You are entering vehicle details manually. Matching will rely more on engine size and fuel type.</span>
+        <div className="form-card-heading">
+          <p className="form-tagline">Enter your vehicle details to get the right battery recommendation</p>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {result && (
+              <button type="button" className="btn-mode" onClick={handleReset}>
+                Reset
+              </button>
+            )}
+            <button
+              type="button"
+              className={`btn-mode${typeMode ? ' active' : ''}`}
+              onClick={handleModeToggle}
+              aria-pressed={typeMode}
+            >
+              {typeMode ? 'Select' : 'Type'}
+            </button>
           </div>
-        )}
-
-        {/* Confidence preview in type mode */}
-        {typeMode && estimatedConf && (
-          <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', background: '#f9fafb', border: '1px solid #e2e4e9', borderRadius: '0.5rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-              Estimated Match Confidence
-            </div>
-            <div className="bar-track" style={{ marginBottom: '0.45rem' }}>
-              <div className={estimatedConf.cls} style={{ width: `${estimatedConf.pct}%` }} />
-            </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
-              {estimatedConf.pct}% — {estimatedConf.label}
-            </div>
-          </div>
-        )}
+        </div>
 
         <div className="form-grid">
-          {/* Mode toggle row */}
-          <div className="form-group full">
-            <label className="form-label">Make / Model / Year Input</label>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                className={`btn-mode${typeMode ? ' active' : ''}`}
-                onClick={handleModeToggle}
-                aria-pressed={typeMode}
-              >
-                {typeMode ? 'Select' : 'Type'}
-              </button>
-            </div>
-          </div>
-
           {/* Make */}
           <div className="form-group">
             <label className="form-label" htmlFor="make-select">Car Make</label>
@@ -485,9 +491,10 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady }: VehicleFinderF
       {/* Result column on the right */}
       {result && (
         <div className="result-side-card">
-          <ResultPanel data={result} />
+          <ResultPanel data={result} darkMode={darkMode} />
         </div>
       )}
+      </div> {/* end finder-layout */}
     </div>
   )
 }
