@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
-import { Moon, Sun, House } from 'lucide-react'
+import { Moon, Sun, House, Settings } from 'lucide-react'
 
 function App() {
   const [loaderVisible, setLoaderVisible] = useState(true)
@@ -74,7 +74,7 @@ function App() {
           {/* Center: manual mode badges */}
           {typeMode && (
             <div className="nav-type-mode">
-              <span className="badge nav-manual-badge">Manual Mode Active</span>
+              <span className="badge nav-manual-badge"><Settings size={13} strokeWidth={1.75} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Manual Mode Active</span>
               {navEstConf && navEstConf.pct > 0 && (
                 <div className="nav-conf">
                   <div className="nav-conf-label-row" ref={popoverRef}>
@@ -123,7 +123,7 @@ function App() {
               className="nav-dark-btn"
               aria-label="Go to Chloride Exide website"
             >
-              <House size={16} strokeWidth={1.5} fill="currentColor" />
+              <House size={16} strokeWidth={1.75} />
             </a>
           </div>
         </nav>
