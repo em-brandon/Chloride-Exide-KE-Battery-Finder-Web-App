@@ -5,6 +5,38 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+const MATCH_DESCRIPTIONS: Record<string, { color: string; label: string; desc: string }> = {
+  exact:    { color: 'text-emerald-600 dark:text-emerald-400', label: 'Exact Match',      desc: 'Your vehicle\'s make, model, and year were found directly in our dataset. Highest confidence result.' },
+  close:    { color: 'text-orange-500 dark:text-orange-400',   label: 'Close Match',      desc: 'Your vehicle\'s model was matched approximately using similarity scoring. Verify specs before purchasing.' },
+  fallback: { color: 'text-violet-600 dark:text-violet-400',   label: 'Rule-Based Match', desc: 'No exact model found — battery selected using engine size and fuel type rules. Cross-check with your manual.' },
+}
+
+function getMatchInfo(matchType: string) {
+  const key = matchType.toLowerCase().includes('exact') ? 'exact'
+            : matchType.toLowerCase().includes('close') ? 'close'
+            : 'fallback'
+  return MATCH_DESCRIPTIONS[key]
+}
+
+function MatchTooltip({ matchType }: { matchType: string }) {
+  const info = getMatchInfo(matchType)
+  return (
+    <span className="relative group inline-flex items-center">
+      <button
+        type="button"
+        aria-label="Match type explanation"
+        className="w-4 h-4 rounded-full border border-muted-foreground/40 text-muted-foreground hover:border-foreground hover:text-foreground transition-colors text-[0.6rem] font-bold leading-none flex items-center justify-center"
+      >
+        ?
+      </button>
+      <span className="pointer-events-none absolute bottom-full right-0 mb-2 w-60 rounded-lg border border-border bg-popover px-3 py-2.5 shadow-lg text-xs text-popover-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-50">
+        <span className={cn('font-bold block mb-0.5', info.color)}>{info.label}</span>
+        {info.desc}
+      </span>
+    </span>
+  )
+}
+
 interface ResultCardProps {
   data: RecommendationResult
 }
@@ -12,7 +44,7 @@ interface ResultCardProps {
 function AltCard({ alt }: { alt: BatteryEntry }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
-      <div className="font-bold text-sm" style={{ color: '#ffffff' }}>{alt.battery_code}</div>
+      <div className="font-bold text-sm text-card-foreground">{alt.battery_code}</div>
       <div className="text-xs text-muted-foreground">
         {alt.ah != null ? `${alt.ah} Ah` : ''}
         {alt.cca_en != null ? ` · ${alt.cca_en} CCA` : ''}
@@ -32,8 +64,11 @@ export function ResultCard({ data }: ResultCardProps) {
     <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 border-l-[#cc0000] bg-card shadow-md p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold" style={{ color: '#ffffff' }}>Primary Recommendation</h2>
-        <Badge variant={matchVariant(data.match_type)}>{data.match_type}</Badge>
+        <h2 className="text-lg font-bold text-card-foreground">Primary Recommendation</h2>
+        <div className="flex items-center gap-1.5">
+          <Badge variant={matchVariant(data.match_type)}>{data.match_type}</Badge>
+          <MatchTooltip matchType={data.match_type} />
+        </div>
       </div>
 
       {/* Primary battery */}
@@ -44,7 +79,7 @@ export function ResultCard({ data }: ResultCardProps) {
           {p.technology ?? 'MF'}
         </Badge>
         <div className="flex-1 min-w-[140px]">
-          <div className="font-bold text-base" style={{ color: '#ffffff' }}>{p.battery_code}</div>
+          <div className="font-bold text-base text-card-foreground">{p.battery_code}</div>
           {p.model_key && (
             <div className="text-xs text-muted-foreground mt-0.5">{p.model_key}</div>
           )}

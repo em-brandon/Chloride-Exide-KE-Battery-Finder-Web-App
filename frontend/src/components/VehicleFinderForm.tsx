@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { useToast, Toaster } from '@/components/Notification'
-import { Search } from 'lucide-react'
+import { Search, MousePointerClick, Keyboard } from 'lucide-react'
 
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
@@ -30,13 +30,14 @@ function matchClass(matchType: string) {
 }
 
 // ── Result card ───────────────────────────────────────────────────
-function ResultPanel({ data, darkMode }: { data: RecommendationResult; darkMode?: boolean }) {
+function ResultPanel({ data }: { data: RecommendationResult }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const [matchPopover, setMatchPopover] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
   const matchPopoverRef = useRef<HTMLDivElement>(null)
 
+  // Close popover on outside click
   useEffect(() => {
     if (!matchPopover) return
     function handleClick(e: MouseEvent) {
@@ -101,7 +102,7 @@ function ResultPanel({ data, darkMode }: { data: RecommendationResult; darkMode?
           {p.technology ?? 'MF'}
         </span>
         <div className="primary-name">
-          <div className="battery-code" style={{ color: darkMode ? '#ffffff' : '#111827' }}>{p.battery_code || '—'}</div>
+          <div className="battery-code">{p.battery_code || '—'}</div>
           {p.model_key && <div className="model-key">{p.model_key}</div>}
         </div>
       </div>
@@ -134,7 +135,7 @@ function ResultPanel({ data, darkMode }: { data: RecommendationResult; darkMode?
             <div className={`alt-grid ${data.alternatives.length > 5 ? 'alt-grid--condensed' : ''}`}>
               {data.alternatives.map(alt => (
                 <div key={alt.battery_code} className="alt-card">
-                  <div className="ac-code" style={{ color: darkMode ? '#ffffff' : '#111827' }}>{alt.battery_code}</div>
+                  <div className="ac-code">{alt.battery_code}</div>
                   <div className="ac-specs">
                     {alt.ah != null ? `${alt.ah} Ah` : ''}
                     {alt.cca_en != null ? ` · ${alt.cca_en} CCA` : ''}
@@ -153,7 +154,7 @@ function ResultPanel({ data, darkMode }: { data: RecommendationResult; darkMode?
 }
 
 // ── Main form ─────────────────────────────────────────────────────
-export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange, darkMode }: VehicleFinderFormProps) {
+export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange }: VehicleFinderFormProps) {
   const { toasts, push: pushToast, dismiss: dismissToast } = useToast()
 
   // Data
@@ -359,7 +360,11 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
               onClick={handleModeToggle}
               aria-pressed={typeMode}
             >
-              {typeMode ? 'Select' : 'Type'}
+              {typeMode ? (
+                <><Keyboard size={15} strokeWidth={1.75} style={{ marginRight: '5px' }} />Type</>
+              ) : (
+                <><MousePointerClick size={15} strokeWidth={2.0} style={{ marginRight: '5px' }} />Select</>
+              )}
             </button>
           </div>
         </div>
@@ -523,7 +528,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       {/* Result column on the right */}
       {result && (
         <div className="result-side-card">
-          <ResultPanel data={result} darkMode={darkMode} />
+          <ResultPanel data={result} />
         </div>
       )}
       </div> {/* end finder-layout */}
