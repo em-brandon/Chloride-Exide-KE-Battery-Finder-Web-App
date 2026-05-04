@@ -276,33 +276,69 @@ Outputs:
 - `nts_vehicles_clean.csv` (minimal: `make`, `model`, `year`)
 - `nts_vehicles_clean.xlsx`
 
-### 2) Allocate CC (engine displacement)
+### 2) Enrich with Engine CC and Fuel Type
 
 ```bash
-python allocate_cc.py
+python allocate_cc_fuel.py
 ```
+
+This script replaces the previous `allocate_cc.py`. It simultaneously resolves both **engine displacement (CC)** and **fuel type** for every vehicle so the final dataset is complete for `matcher.py`.
 
 Outputs:
 
-- `nts_vehicles_with_cc.csv` (minimal: `make`, `model`, `year`, `engine_capacity`)
-- `nts_unmatched_cc.csv` (rows where cc could not be resolved)
-- `cc_cache.json` (lookup cache)
+- `nts_vehicles_enriched.csv` — full enriched dataset: `make`, `model`, `year`, `engine_capacity`, `fuel_type`
+- `nts_vehicles_enriched.xlsx` — same data as Excel
+- `nts_unmatched_enriched.csv` — rows where either CC **or** fuel type could not be resolved (for manual review)
+- `enrichment_cache.json` — lookup cache for both CC and fuel type
+
+#### What changed from `allocate_cc.py`
+
+| | `allocate_cc.py` (old) | `allocate_cc_fuel.py` (new) |
+|---|---|---|
+| Columns produced | `engine_capacity` only | `engine_capacity` + `fuel_type` |
+| Cache file | `cc_cache.json` | `enrichment_cache.json` |
+| Output CSV | `nts_vehicles_with_cc.csv` | `nts_vehicles_enriched.csv` |
+| fueleconomy.gov columns | `displ` only | `displ`, `fuelType1`, `atvType` |
+| Year tolerance | `0` (exact year only) | `±1 year` — improves hit rate for older vehicles |
+| CarQuery | CC only | CC + `model_engine_fuel` |
+| CarAPI | CC only | CC + fuel type fields |
+| Wikipedia | CC only | CC + `fuel_type`/`fuel_system` infobox fields |
+
+#### Fuel type values
+
+Fuel type is normalized across all sources to one of:
+
+`PETROL` · `DIESEL` · `ELECTRIC` · `HYBRID` · `PLUG-IN HYBRID` · `CNG` · `LPG` · `HYDROGEN`
+
+#### How CC and fuel type are resolved
+
+Each value is looked up **independently** — finding CC from one source does not prevent fuel type from being filled by a different source. Sources are tried in this order:
+
+| Priority | Source | CC | Fuel type |
+|---|---|---|---|
+| 1 | Model text parsing (free, no network) | ✓ | ✓ (keyword scan) |
+| 2 | [fueleconomy.gov](https://www.fueleconomy.gov/feg/epadata/vehicles.csv) bulk CSV | ✓ | ✓ (`fuelType1` / `atvType`) |
+| 3 | [CarAPI](https://carapi.app/) | ✓ | ✓ |
+| 4 | [CarQuery](https://www.carqueryapi.com/) | ✓ | ✓ |
+| 5 | [Wikidata SPARQL](https://query.wikidata.org/) | ✓ | — |
+| 6 | [Wikipedia API](https://en.wikipedia.org/w/api.php) | ✓ | ✓ |
+
+Non-US makes (Great Wall, SAIC, Maruti Suzuki, Peugeot, Citroën, Renault, Haval, Iveco, Mitsubishi Fuso) are automatically skipped for fueleconomy.gov and fall through to the remaining sources.
 
 #### Notes
 
-- Primary source is fueleconomy.gov (US market coverage). Fallbacks include CarQuery/Wikidata/Wikipedia when enabled.
 - Engine CC is always stored as an integer in `engine_capacity`.
-- `cc_cache.json` caches lookups; if you change/improve the enrichment logic and want to re-try previously cached “not found” keys, delete `cc_cache.json` (or run after a cache-version bump).
+- `enrichment_cache.json` caches both CC and fuel type per `make||model||year` key. Delete the file to force a full re-fetch.
 
 #### Optional runtime controls
 
-For quick dry-runs / to control fallbacks, set environment variables:
+Set environment variables before running:
 
-- `LIMIT_KEYS=100` — only process first N unique make+model+year keys
-- `ENABLE_MODEL_TEXT=0` — disable parsing CC directly from the model/variant text (e.g. strings like `2.8GD6`)
-- `ENABLE_CARAPI=0` / `ENABLE_CARQUERY=0` / `ENABLE_WIKIDATA=0` / `ENABLE_WIKIPEDIA=0` — disable fallbacks
+- `LIMIT_KEYS=100` — only process the first N unique make+model+year keys (useful for dry-runs)
+- `ENABLE_MODEL_TEXT=0` — disable parsing from the model string itself
+- `ENABLE_CARAPI=0` / `ENABLE_CARQUERY=0` / `ENABLE_WIKIDATA=0` / `ENABLE_WIKIPEDIA=0` — disable individual fallback sources
 
-CarAPI authentication (optional):
+CarAPI authentication (optional, unlocks full year range):
 
 - `CARAPI_JWT` — provide an existing JWT (preferred)
 - or `CARAPI_API_TOKEN` + `CARAPI_API_SECRET` — script will request a JWT via `/api/auth/login`
@@ -313,30 +349,8 @@ Example (Windows CMD):
 set LIMIT_KEYS=100
 set ENABLE_CARAPI=0
 set ENABLE_CARQUERY=0
-python allocate_cc.py
+python allocate_cc_fuel.py
 ```
-
-#### Year Lookup Search Priority
-
-| Priority | Search term used |
-|---|---|
-| 1st | NHTSA fuzzy-matched model name — if score ≥ 45 |
-| 2nd | Raw model name from the dataset |
-
-#### Supported API Sources
-
-Sources are tried in priority order. fueleconomy.gov provides exact per-year records and is the highest-quality source for US-market vehicles.
-
-| Priority | Source | Coverage | Data type |
-|---|---|---|---|
-| 1 | [fueleconomy.gov](https://www.fueleconomy.gov/feg/epadata/vehicles.csv) (US DOE/EPA bulk CSV) | US-market, 1984–present | Exact years |
-| 2 | [CarAPI](https://carapi.app/) | Global, community-sourced | Year range (expanded) |
-| 3 | [Wikipedia API](https://en.wikipedia.org/w/api.php) | Global, best-effort | Year range (expanded) |
-| 4 | [Wikidata SPARQL](https://query.wikidata.org/) | Global, structured | Year range (expanded) |
-
-Non-US makes (Great Wall, SAIC, Maruti Suzuki, Peugeot, Citroën, Renault, Haval, Iveco, Mitsubishi Fuso) are automatically skipped for fueleconomy.gov and fall through to CarAPI / Wikipedia / Wikidata.
-
-*NHTSA VPIC is used only for fuzzy model-name matching — it does not provide year data.*
 
 ### Run the Analysis Notebook
 
