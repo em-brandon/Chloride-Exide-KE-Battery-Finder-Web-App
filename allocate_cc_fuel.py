@@ -471,7 +471,15 @@ def lookup_cc_from_model_text(model: str) -> Optional[int]:
     candidates: list[int] = []
     candidates.extend(_extract_cc_candidates(s))
 
-    # Inline liters without explicit unit, e.g. "2.8GD6"
+    # Inline liters without explicit unit, e.g. "2.8GD6", "2.0TDI".
+    # Be conservative: avoid mis-parsing drivetrain badges like "4MATIC" / "4WD".
+    _bad_suffixes = {
+        "matic", "quattro", "xdrive", "motion",
+        "awd", "fwd", "rwd", "wd",
+        "4wd", "4x4",
+        "cvt",
+        "sport", "plus", "premium",
+    }
     for num_s, suffix in _MODEL_LITERS_INLINE_RE.findall(s):
         try:
             liters = float(num_s)
@@ -481,6 +489,13 @@ def lookup_cc_from_model_text(model: str) -> Optional[int]:
             continue
         suf = (suffix or "").lower()
         if suf in {"x", "xr", "x4"}:
+            continue
+        if suf in _bad_suffixes:
+            continue
+
+        # Require either a decimal point ("2.0T") OR digits in suffix ("2.8GD6").
+        # This filters common false positives like "4MATIC" and "4WD".
+        if ("." not in num_s) and (not any(ch.isdigit() for ch in suf)):
             continue
         candidates.append(int(round(liters * 1000)))
 
@@ -961,15 +976,12 @@ def lookup_cc_fuel(
     fuel_src: Optional[str] = None
 
     # --- Step 1: Model text (free, no network) ---
+    # Treat as a low-confidence fallback so it doesn't block better sources.
+    model_text_cc: Optional[int] = None
+    model_text_fuel: Optional[str] = None
     if ENABLE_MODEL_TEXT:
-        if cc is None:
-            cc = lookup_cc_from_model_text(model)
-            if cc is not None:
-                cc_src = "model_text"
-        if fuel is None:
-            fuel = lookup_fuel_from_model_text(model)
-            if fuel is not None:
-                fuel_src = "model_text"
+        model_text_cc = lookup_cc_from_model_text(model)
+        model_text_fuel = lookup_fuel_from_model_text(model)
 
     # --- Step 2: fueleconomy.gov (single fuzzy match returns both) ---
     fe_cc, fe_fuel = lookup_cc_fuel_fueleconomy(make, model, year, fe_df)
@@ -1029,6 +1041,14 @@ def lookup_cc_fuel(
         if wiki_fuel is not None and fuel is None:
             fuel = wiki_fuel
             fuel_src = "wikipedia"
+
+    # Final fallback: model-text inference (very low confidence)
+    if cc is None and model_text_cc is not None:
+        cc = model_text_cc
+        cc_src = "model_text"
+    if fuel is None and model_text_fuel is not None:
+        fuel = model_text_fuel
+        fuel_src = "model_text"
 
     return cc, cc_src, fuel, fuel_src
 
