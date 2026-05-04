@@ -26,8 +26,9 @@ body {
 
 /* ── Page wrapper ───────────────────────────────────────────────── */
 .page-wrapper {
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -228,7 +229,6 @@ body {
   border-radius: 0.75rem;
   padding: 0.85rem 1rem;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
-  overflow-y: auto;
   height: fit-content;
 }
 
@@ -240,7 +240,6 @@ body {
   padding: 1.25rem 1.5rem;
   width: 100%;
   box-shadow: 0 4px 24px rgba(102, 192, 29, 0.08), 0 1px 4px rgba(0,0,0,0.04);
-  overflow-y: auto;
   height: fit-content;
 }
 
