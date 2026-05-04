@@ -16,6 +16,7 @@ Matching layers
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from typing import Optional, cast
 
@@ -348,8 +349,9 @@ def _vehicles() -> pd.DataFrame:
     df.columns = df.columns.str.strip().str.lower()
     df["engine_capacity"] = pd.to_numeric(df["engine_capacity"], errors="coerce")
     df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
-    df["make_n"]  = df["make"].str.upper().str.strip()
-    df["model_n"] = df["model"].str.upper().str.strip()
+    # Normalize keys for robust matching: case-insensitive, trim, and collapse internal whitespace.
+    df["make_n"]  = df["make"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    df["model_n"] = df["model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
     df["fuel_n"]  = df["fuel"].apply(_norm_fuel)
     return df
 
@@ -386,9 +388,9 @@ def _model_aliases() -> pd.DataFrame:
             return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n"])
 
     out = pd.DataFrame()
-    out["make_n"] = df["make"].astype(str).str.upper().str.strip()
-    out["intl_model_n"] = df["international_model"].astype(str).str.upper().str.strip()
-    out["jdm_model_n"] = df["jdm_model"].astype(str).str.upper().str.strip()
+    out["make_n"] = df["make"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    out["intl_model_n"] = df["international_model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    out["jdm_model_n"] = df["jdm_model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
     if "priority" in df.columns:
         out["priority"] = pd.to_numeric(df["priority"], errors="coerce").fillna(999).astype(int)
     else:
@@ -515,6 +517,7 @@ def recommend(
     df = _vehicles()
     make_n  = make.upper().strip()
     model_n = model.upper().strip()
+    model_n = re.sub(r"\s+", " ", model_n)
 
     resolved_cc:   int  = engine_cc or 1500
     resolved_fuel: str  = _norm_fuel(fuel_type)
@@ -539,8 +542,14 @@ def recommend(
 
     # ── Step 2: fuzzy-match the model ──────────────────────────────────
     if not make_df.empty:
-        model_choices = make_df["model_n"].unique().tolist()
-        best_model = _fuzzy_model_score_for_year(model_n, make_df, int(year))
+        model_choices = make_df["model_n"].dropna().unique().tolist()
+
+        # Prefer exact model-key hits over fuzzy selection. This prevents
+        # trim-variant drift where a longer candidate can tie at score=100.
+        if model_n in model_choices:
+            best_model = (model_n, 100.0)
+        else:
+            best_model = _fuzzy_model_score_for_year(model_n, make_df, int(year))
 
         if best_model is not None:
             matched_model_n, model_score = best_model
@@ -555,10 +564,11 @@ def recommend(
                 matched_make  = str(row["make"])
                 matched_model = str(row["model"])
                 matched_year  = int(row["year"])
-                if not user_provided_cc:
-                    resolved_cc = int(row["engine_capacity"]) if pd.notna(row["engine_capacity"]) else resolved_cc
-                if not user_provided_fuel:
-                    resolved_fuel = _norm_fuel(str(row["fuel"])) if pd.notna(row.get("fuel")) else resolved_fuel
+                # On dataset matches, the dataset is authoritative for cc/fuel when present.
+                if pd.notna(row.get("engine_capacity")):
+                    resolved_cc = int(row["engine_capacity"])
+                if pd.notna(row.get("fuel")):
+                    resolved_fuel = _norm_fuel(str(row["fuel"]))
 
             # ── Step 3b: soft year match (±3) ──────────────────────────
             else:
@@ -577,10 +587,10 @@ def recommend(
                     matched_make  = str(nearest["make"])
                     matched_model = str(nearest["model"])
                     matched_year  = int(nearest["year"])
-                    if not user_provided_cc:
-                        resolved_cc = int(nearest["engine_capacity"]) if pd.notna(nearest["engine_capacity"]) else resolved_cc
-                    if not user_provided_fuel:
-                        resolved_fuel = _norm_fuel(str(nearest["fuel"])) if pd.notna(nearest.get("fuel")) else resolved_fuel
+                    if pd.notna(nearest.get("engine_capacity")):
+                        resolved_cc = int(nearest["engine_capacity"])
+                    if pd.notna(nearest.get("fuel")):
+                        resolved_fuel = _norm_fuel(str(nearest["fuel"]))
 
         if enable_aliases and matched_year is None:
             # International model aliases -> JDM model names in the dataset.
@@ -644,10 +654,10 @@ def recommend(
                         matched_make = str(row["make"])
                         matched_model = str(row["model"])
                         matched_year = int(row["year"])
-                        if not user_provided_cc:
-                            resolved_cc = int(row["engine_capacity"]) if pd.notna(row["engine_capacity"]) else resolved_cc
-                        if not user_provided_fuel:
-                            resolved_fuel = _norm_fuel(str(row["fuel"])) if pd.notna(row.get("fuel")) else resolved_fuel
+                        if pd.notna(row.get("engine_capacity")):
+                            resolved_cc = int(row["engine_capacity"])
+                        if pd.notna(row.get("fuel")):
+                            resolved_fuel = _norm_fuel(str(row["fuel"]))
                     else:
                         nearby_df = model_df[
                             (model_df["year"] >= year - 3) &
@@ -663,10 +673,10 @@ def recommend(
                             matched_make = str(nearest["make"])
                             matched_model = str(nearest["model"])
                             matched_year = int(nearest["year"])
-                            if not user_provided_cc:
-                                resolved_cc = int(nearest["engine_capacity"]) if pd.notna(nearest["engine_capacity"]) else resolved_cc
-                            if not user_provided_fuel:
-                                resolved_fuel = _norm_fuel(str(nearest["fuel"])) if pd.notna(nearest.get("fuel")) else resolved_fuel
+                            if pd.notna(nearest.get("engine_capacity")):
+                                resolved_cc = int(nearest["engine_capacity"])
+                            if pd.notna(nearest.get("fuel")):
+                                resolved_fuel = _norm_fuel(str(nearest["fuel"]))
 
     # ── Step 4: compute target Ah + technology preference ──────────────
     effective_year = int(matched_year) if matched_year is not None else int(year)
