@@ -1,8 +1,10 @@
-import os
 import logging
+import os
+from contextlib import asynccontextmanager
 from typing import Optional
 
 import matcher
+from db import engine
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -11,10 +13,26 @@ from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 logger = logging.getLogger("battery_finder")
 
-app = FastAPI(title="Battery Finder API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Verify DB connectivity and warm the matcher cache on startup."""
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    logger.info("Database connection verified.")
+    # Warm the in-process caches so the first request is not cold.
+    matcher._vehicles()
+    matcher._batteries()
+    matcher._model_aliases()
+    logger.info("Matcher caches warmed.")
+    yield
+
+
+app = FastAPI(title="Battery Finder API", version="1.0.0", lifespan=lifespan)
 
 # ------------------------------------------------------------------
 # Rate limiting setup

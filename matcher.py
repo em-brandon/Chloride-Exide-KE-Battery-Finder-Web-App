@@ -23,8 +23,6 @@ from typing import Optional, cast
 import pandas as pd
 from rapidfuzz import process, fuzz
 
-_BASE = os.path.dirname(os.path.abspath(__file__))
-
 
 def _fuzzy_model_score(query: str, choices: list[str]) -> tuple[str, float] | None:
     """
@@ -344,9 +342,11 @@ def _preferred_tech(
 
 @lru_cache(maxsize=1)
 def _vehicles() -> pd.DataFrame:
-    path = os.path.join(_BASE, "vehicle_years.csv")
-    df = pd.read_csv(path)
-    df.columns = df.columns.str.strip().str.lower()
+    from db import engine
+    df = pd.read_sql(
+        "SELECT make, model, year, engine_capacity, fuel FROM vehicle_years",
+        engine,
+    )
     df["engine_capacity"] = pd.to_numeric(df["engine_capacity"], errors="coerce")
     df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
     # Normalize keys for robust matching: case-insensitive, trim, and collapse internal whitespace.
@@ -358,9 +358,19 @@ def _vehicles() -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def _batteries() -> pd.DataFrame:
-    path = os.path.join(_BASE, "battery_specs_output.xlsx")
-    df = pd.read_excel(path)
-    df.columns = df.columns.str.strip()
+    from db import engine
+    df = pd.read_sql(
+        "SELECT battery_code, model_key, ah, cca_en, technology FROM battery_specs",
+        engine,
+    )
+    # Rename DB column names back to the Excel names the rest of the code expects.
+    df = df.rename(columns={
+        "battery_code": "Battery Code",
+        "model_key":    "Model Key",
+        "ah":           "Ah",
+        "cca_en":       "CCA (A EN)",
+        "technology":   "Technology",
+    })
     df["Ah"] = pd.to_numeric(df["Ah"], errors="coerce")
     df["CCA (A EN)"] = pd.to_numeric(df["CCA (A EN)"], errors="coerce")
     return df
@@ -369,32 +379,30 @@ def _batteries() -> pd.DataFrame:
 @lru_cache(maxsize=1)
 def _model_aliases() -> pd.DataFrame:
     """
-    Optional alias table mapping international model names to JDM model names
-    stored in vehicle_years.csv.
+    Alias table mapping international model names to JDM model names
+    stored in vehicle_years.
 
-    Columns: make, international_model, jdm_model
-
-    Optional columns:
-    - priority (int): lower number = more preferred when multiple aliases are viable
+    Loaded once from the model_aliases table in PostgreSQL.
+    Returns an empty DataFrame (with the expected columns) if the table is
+    empty or cannot be queried.
     """
-    path = os.path.join(_BASE, "model_aliases.csv")
-    if not os.path.exists(path):
-        return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n"])
+    from db import engine
+    try:
+        df = pd.read_sql(
+            "SELECT make, international_model, jdm_model, priority FROM model_aliases",
+            engine,
+        )
+    except Exception:
+        return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n", "priority"])
 
-    df = pd.read_csv(path)
-    df.columns = df.columns.str.strip().str.lower()
-    for col in ("make", "international_model", "jdm_model"):
-        if col not in df.columns:
-            return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n"])
+    if df.empty:
+        return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n", "priority"])
 
     out = pd.DataFrame()
-    out["make_n"] = df["make"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    out["make_n"]       = df["make"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
     out["intl_model_n"] = df["international_model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
-    out["jdm_model_n"] = df["jdm_model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
-    if "priority" in df.columns:
-        out["priority"] = pd.to_numeric(df["priority"], errors="coerce").fillna(999).astype(int)
-    else:
-        out["priority"] = 999
+    out["jdm_model_n"]  = df["jdm_model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    out["priority"]     = pd.to_numeric(df["priority"], errors="coerce").fillna(999).astype(int)
     out = out[(out["make_n"] != "") & (out["intl_model_n"] != "") & (out["jdm_model_n"] != "")]
     return out.drop_duplicates()
 
