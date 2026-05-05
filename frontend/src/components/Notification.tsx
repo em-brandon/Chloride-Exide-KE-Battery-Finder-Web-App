@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, XCircle, X } from 'lucide-react'
+import { CheckCircleIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/20/solid'
 
 export interface ToastItem {
   id: number
@@ -31,8 +31,8 @@ function Toast({ item, onDismiss }: ToastProps) {
     <div className={`toast ${item.type}${out ? ' out' : ''}`} role="alert">
       <span className="toast-icon">
         {item.type === 'success'
-          ? <CheckCircle2 size={18} />
-          : <XCircle size={18} />}
+          ? <CheckCircleIcon style={{ width: 18, height: 18 }} />
+          : <XCircleIcon style={{ width: 18, height: 18 }} />}
       </span>
       <div className="toast-body">
         <div className="toast-title">{item.title}</div>
@@ -41,7 +41,7 @@ function Toast({ item, onDismiss }: ToastProps) {
         )}
       </div>
       <button className="toast-close" onClick={handleClose} aria-label="Dismiss">
-        <X size={14} />
+        <XMarkIcon style={{ width: 14, height: 14 }} />
       </button>
     </div>
   )
