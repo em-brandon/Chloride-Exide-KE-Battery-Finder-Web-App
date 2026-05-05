@@ -4,11 +4,12 @@ import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
 import { Moon, Sun, House, Settings } from 'lucide-react'
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute'
-import AdminLogin     from '@/pages/admin/AdminLogin'
-import AdminDashboard from '@/pages/admin/AdminDashboard'
-import AdminBatteries from '@/pages/admin/AdminBatteries'
-import AdminAuditLog  from '@/pages/admin/AdminAuditLog'
-import AdminSessions  from '@/pages/admin/AdminSessions'
+import AdminLogin        from '@/pages/admin/AdminLogin'
+import AdminDashboard   from '@/pages/admin/AdminDashboard'
+import AdminBatteries   from '@/pages/admin/AdminBatteries'
+import AdminAuditLog    from '@/pages/admin/AdminAuditLog'
+import AdminSessions    from '@/pages/admin/AdminSessions'
+import AdminDataPipeline from '@/pages/admin/AdminDataPipeline'
 
 // ---------------------------------------------------------------------------
 // Public finder page — extracted so App() stays clean
@@ -203,6 +204,7 @@ function App() {
       <Route path="/admin/batteries" element={<ProtectedRoute><AdminBatteries /></ProtectedRoute>} />
       <Route path="/admin/audit"     element={<ProtectedRoute><AdminAuditLog  /></ProtectedRoute>} />
       <Route path="/admin/sessions"  element={<ProtectedRoute><AdminSessions  /></ProtectedRoute>} />
+      <Route path="/admin/pipeline"  element={<ProtectedRoute><AdminDataPipeline /></ProtectedRoute>} />
     </Routes>
   )
 }

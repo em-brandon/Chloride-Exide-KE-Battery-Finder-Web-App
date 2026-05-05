@@ -6,6 +6,7 @@ import {
   SignalIcon,
   BookOpenIcon,
   ShieldCheckIcon,
+  FunnelIcon,
   ArrowRightStartOnRectangleIcon,
   ArrowPathIcon,
   ArrowDownTrayIcon,
@@ -283,6 +284,7 @@ export default function AdminDashboard() {
           <NavPill to="/admin/batteries" icon={<BoltIcon style={{ width: 13, height: 13 }} />}>Batteries</NavPill>
           <NavPill to="/admin/audit"     icon={<ClipboardDocumentListIcon style={{ width: 13, height: 13 }} />}>Audit Log</NavPill>
           <NavPill to="/admin/sessions"  icon={<ShieldCheckIcon style={{ width: 13, height: 13 }} />}>Sessions</NavPill>
+          <NavPill to="/admin/pipeline"  icon={<FunnelIcon style={{ width: 13, height: 13 }} />}>Data Pipeline</NavPill>
           <button
             onClick={handleLogout}
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#fff', background: R, padding: '0.35rem 0.9rem', borderRadius: '99px', border: 'none', cursor: 'pointer', marginLeft: '0.5rem', transition: 'background 0.15s' }}
@@ -357,6 +359,12 @@ export default function AdminDashboard() {
               label="View Audit Log"
               desc="Browse change history and field-level diffs"
               href="/admin/audit"
+            />
+            <ActionCard
+              icon={<FunnelIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
+              label="Data Pipeline"
+              desc="Clean and normalise CRSP and NTSA vehicle datasets"
+              href="/admin/pipeline"
             />
           </div>
 
