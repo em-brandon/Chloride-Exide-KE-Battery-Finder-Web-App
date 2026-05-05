@@ -1,14 +1,18 @@
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Optional
 
 import matcher
-from db import engine
+from admin_router import router as admin_router
+from db import SessionLocal, engine
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from models import AdminStats
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -18,9 +22,47 @@ from sqlalchemy import text
 logger = logging.getLogger("battery_finder")
 
 
+# ------------------------------------------------------------------
+# Read counter — in-memory accumulator flushed to DB every 60 seconds
+# ------------------------------------------------------------------
+_read_counter_lock = threading.Lock()
+_read_counter_pending: int = 0
+_READ_FLUSH_INTERVAL: int = 60  # seconds
+
+
+def _flush_read_counter() -> None:
+    """Write accumulated read count to admin_stats and reschedule."""
+    global _read_counter_pending
+    with _read_counter_lock:
+        delta = _read_counter_pending
+        _read_counter_pending = 0
+
+    if delta > 0:
+        try:
+            db = SessionLocal()
+            row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
+            if row:
+                row.stat_value += delta
+                row.updated_at = datetime.now(timezone.utc)
+            else:
+                db.add(AdminStats(
+                    stat_key="db_reads",
+                    stat_value=delta,
+                    updated_at=datetime.now(timezone.utc),
+                ))
+            db.commit()
+        except Exception as exc:
+            logger.warning("Failed to flush read counter: %s", exc)
+        finally:
+            db.close()
+
+    # Reschedule
+    threading.Timer(_READ_FLUSH_INTERVAL, _flush_read_counter).start()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Verify DB connectivity and warm the matcher cache on startup."""
+    """Verify DB connectivity, warm matcher cache, and start read counter flush timer."""
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
     logger.info("Database connection verified.")
@@ -29,10 +71,18 @@ async def lifespan(_app: FastAPI):
     matcher._batteries()
     matcher._model_aliases()
     logger.info("Matcher caches warmed.")
+    # Start the background read-counter flush timer
+    threading.Timer(_READ_FLUSH_INTERVAL, _flush_read_counter).start()
+    logger.info("Read counter flush timer started (every %ds).", _READ_FLUSH_INTERVAL)
     yield
 
 
 app = FastAPI(title="Battery Finder API", version="1.0.0", lifespan=lifespan)
+
+# ------------------------------------------------------------------
+# Admin router
+# ------------------------------------------------------------------
+app.include_router(admin_router)
 
 # ------------------------------------------------------------------
 # Rate limiting setup
@@ -61,6 +111,25 @@ async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
             "retry_after": exc.args[0].replace("rate limit exceeded: ", ""),
         }
     )
+
+
+# ------------------------------------------------------------------
+# Read counter middleware
+# ------------------------------------------------------------------
+@app.middleware("http")
+async def count_reads_middleware(request: Request, call_next):
+    """Increment the in-memory read counter for client-side GET /api/* requests only.
+    Admin requests (/api/admin/*) are excluded so the counter reflects end-user traffic."""
+    global _read_counter_pending
+    response = await call_next(request)
+    if (
+        request.method == "GET"
+        and request.url.path.startswith("/api/")
+        and not request.url.path.startswith("/api/admin")
+    ):
+        with _read_counter_lock:
+            _read_counter_pending += 1
+    return response
 
 
 # ------------------------------------------------------------------

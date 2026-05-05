@@ -1,44 +1,46 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
 import { Moon, Sun, House, Settings } from 'lucide-react'
+import { ProtectedRoute } from '@/components/admin/ProtectedRoute'
+import AdminLogin     from '@/pages/admin/AdminLogin'
+import AdminDashboard from '@/pages/admin/AdminDashboard'
+import AdminBatteries from '@/pages/admin/AdminBatteries'
+import AdminAuditLog  from '@/pages/admin/AdminAuditLog'
+import AdminSessions  from '@/pages/admin/AdminSessions'
 
-function App() {
-  const [loaderVisible, setLoaderVisible] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
-  const [typeMode, setTypeMode] = useState(false)
-  const [navEstConf, setNavEstConf] = useState<{ pct: number; label: string; cls: string } | null>(null)
-  const [confPopover, setConfPopover] = useState(false)
-  const popoverRef = useRef<HTMLDivElement>(null)
+// ---------------------------------------------------------------------------
+// Public finder page — extracted so App() stays clean
+// ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    if (!confPopover) return
-    function handleClick(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setConfPopover(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [confPopover])
+interface PublicAppProps {
+  loaderVisible: boolean
+  darkMode: boolean
+  typeMode: boolean
+  navEstConf: { pct: number; label: string; cls: string } | null
+  confPopover: boolean
+  popoverRef: React.RefObject<HTMLDivElement | null>
+  onMakesLoaded: () => void
+  onToggleDark: () => void
+  onTypeModeChange: () => void
+  onEstConfChange: (conf: { pct: number; label: string; cls: string } | null) => void
+  onSetConfPopover: (v: (prev: boolean) => boolean) => void
+}
 
-  const handleMakesLoaded = useCallback(() => {
-    setLoaderVisible(false)
-  }, [])
-
-  const toggleDark = useCallback(() => {
-    setDarkMode(d => !d)
-  }, [])
-
-  const handleTypeModeChange = useCallback(() => {
-    setTypeMode(t => !t)
-    setNavEstConf(null)
-  }, [])
-
-  const handleEstConfChange = useCallback((conf: { pct: number; label: string; cls: string } | null) => {
-    setNavEstConf(conf)
-  }, [])
-
+function PublicApp({
+  loaderVisible,
+  darkMode,
+  typeMode,
+  navEstConf,
+  confPopover,
+  popoverRef,
+  onMakesLoaded,
+  onToggleDark,
+  onTypeModeChange,
+  onEstConfChange,
+  onSetConfPopover,
+}: PublicAppProps) {
   return (
     <>
       <PageLoader visible={loaderVisible} />
@@ -81,7 +83,7 @@ function App() {
                     <span className="nav-conf-label">Match Confidence</span>
                     <button
                       className="conf-info-btn"
-                      onClick={() => setConfPopover(v => !v)}
+                      onClick={() => onSetConfPopover(v => !v)}
                       aria-label="What is match confidence?"
                     >?</button>
                     {confPopover && (
@@ -109,7 +111,7 @@ function App() {
           <div className="nav-right-btns">
             <button
               className={`nav-dark-btn${darkMode ? ' active' : ''}`}
-              onClick={toggleDark}
+              onClick={onToggleDark}
               aria-label={darkMode ? 'Switch to day mode' : 'Switch to night mode'}
             >
               {darkMode
@@ -130,10 +132,10 @@ function App() {
 
         {/* ── Finder card (owns its own card layout) ── */}
         <VehicleFinderForm
-          onMakesLoaded={handleMakesLoaded}
+          onMakesLoaded={onMakesLoaded}
           typeMode={typeMode}
-          onTypeModeChange={handleTypeModeChange}
-          onEstConfChange={handleEstConfChange}
+          onTypeModeChange={onTypeModeChange}
+          onEstConfChange={onEstConfChange}
           darkMode={darkMode}
         />
 
@@ -143,6 +145,65 @@ function App() {
         </footer>
       </div>
     </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Root app — owns shared state and router
+// ---------------------------------------------------------------------------
+
+function App() {
+  const [loaderVisible, setLoaderVisible] = useState(true)
+  const [darkMode, setDarkMode] = useState(false)
+  const [typeMode, setTypeMode] = useState(false)
+  const [navEstConf, setNavEstConf] = useState<{ pct: number; label: string; cls: string } | null>(null)
+  const [confPopover, setConfPopover] = useState(false)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!confPopover) return
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setConfPopover(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [confPopover])
+
+  const handleMakesLoaded = useCallback(() => { setLoaderVisible(false) }, [])
+  const toggleDark        = useCallback(() => { setDarkMode(d => !d) }, [])
+  const handleTypeModeChange = useCallback(() => { setTypeMode(t => !t); setNavEstConf(null) }, [])
+  const handleEstConfChange  = useCallback((conf: { pct: number; label: string; cls: string } | null) => {
+    setNavEstConf(conf)
+  }, [])
+
+  return (
+    <Routes>
+      {/* ── Public finder ── */}
+      <Route path="/" element={
+        <PublicApp
+          loaderVisible={loaderVisible}
+          darkMode={darkMode}
+          typeMode={typeMode}
+          navEstConf={navEstConf}
+          confPopover={confPopover}
+          popoverRef={popoverRef}
+          onMakesLoaded={handleMakesLoaded}
+          onToggleDark={toggleDark}
+          onTypeModeChange={handleTypeModeChange}
+          onEstConfChange={handleEstConfChange}
+          onSetConfPopover={setConfPopover}
+        />
+      } />
+
+      {/* ── Admin ── */}
+      <Route path="/admin/login"     element={<AdminLogin />} />
+      <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/batteries" element={<ProtectedRoute><AdminBatteries /></ProtectedRoute>} />
+      <Route path="/admin/audit"     element={<ProtectedRoute><AdminAuditLog  /></ProtectedRoute>} />
+      <Route path="/admin/sessions"  element={<ProtectedRoute><AdminSessions  /></ProtectedRoute>} />
+    </Routes>
   )
 }
 

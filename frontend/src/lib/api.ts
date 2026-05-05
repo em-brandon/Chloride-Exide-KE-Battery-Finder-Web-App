@@ -9,9 +9,15 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export async function fetchMakes(): Promise<string[]> {
-  const res = await fetch('/api/makes')
-  const data = await handleResponse<{ makes: string[] }>(res)
-  return data.makes
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8000)
+  try {
+    const res = await fetch('/api/makes', { signal: controller.signal })
+    const data = await handleResponse<{ makes: string[] }>(res)
+    return data.makes
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export async function fetchModels(make: string): Promise<string[]> {
