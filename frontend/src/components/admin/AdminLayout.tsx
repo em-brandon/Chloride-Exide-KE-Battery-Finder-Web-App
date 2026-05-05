@@ -13,7 +13,7 @@ import { adminLogout } from '@/lib/adminApi'
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const R  = '#CC0000'
 const BG = 'linear-gradient(160deg, #f4f5f7 0%, #eef0f4 100%)'
-const SIDEBAR_W = 220
+const SIDEBAR_W = 180
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard',     Icon: Squares2X2Icon },

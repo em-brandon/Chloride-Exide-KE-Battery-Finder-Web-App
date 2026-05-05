@@ -220,14 +220,14 @@ function ExcelDropzone({ onDone }: { onDone: () => void }) {
       {result && (
         <div style={{ background: '#f8f9fb', border: '1px solid #e2e4e9', borderRadius: '10px', padding: '1rem', fontSize: '0.82rem' }}>
           <p style={{ fontWeight: 700, color: 'rgba(17,24,39,0.85)', marginBottom: '0.6rem' }}>Upload complete</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
             {[
               { label: `Inserted: ${result.inserted}`,          bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
               { label: `Updated: ${result.updated}`,            bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
               { label: `Unchanged: ${result.skipped_unchanged}`,bg: '#f8f9fb', color: 'rgba(107,114,128,0.8)', border: '#e2e4e9' },
               { label: `Rejected: ${result.rejected}`,          bg: '#fff5f5', color: R,          border: '#f5c6c6' },
             ].map(c => (
-              <div key={c.label} style={{ borderRadius: '7px', background: c.bg, border: `1px solid ${c.border}`, padding: '0.4rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, color: c.color }}>{c.label}</div>
+              <div key={c.label} style={{ borderRadius: '7px', background: c.bg, border: `1px solid ${c.border}`, padding: '0.4rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, color: c.color, whiteSpace: 'nowrap' }}>{c.label}</div>
             ))}
           </div>
           {result.errors.length > 0 && (
