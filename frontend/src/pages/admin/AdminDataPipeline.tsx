@@ -1,11 +1,6 @@
 import { useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import {
-  BoltIcon,
   ClipboardDocumentListIcon,
-  ShieldCheckIcon,
-  ArrowRightStartOnRectangleIcon,
-  ArrowLeftIcon,
   CloudArrowUpIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -19,12 +14,11 @@ import {
   TrashIcon,
   InformationCircleIcon,
 } from '@heroicons/react/20/solid'
-import { adminLogout } from '@/lib/adminApi'
+import AdminLayout from '@/components/admin/AdminLayout'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const R  = '#CC0000'
 const RD = '#990000'
-const BG = 'linear-gradient(160deg, #f4f5f7 0%, #eef0f4 100%)'
 const CARD: React.CSSProperties = {
   background: '#ffffff',
   borderRadius: '14px',
@@ -164,37 +158,6 @@ function ArrowSpinner() {
       <circle cx="8" cy="8" r="6" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"
         strokeDasharray="28" strokeDashoffset="10" />
     </svg>
-  )
-}
-
-// ── BatteryIcon ───────────────────────────────────────────────────────────────
-function BatteryIcon() {
-  return (
-    <svg width="38" height="38" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="4" y="18" width="48" height="28" rx="3" fill={R}/>
-      <rect x="5" y="19" width="46" height="26" rx="2" fill="#f3f3f3" stroke={R} strokeWidth="1"/>
-      <rect x="11" y="12" width="8" height="7" rx="1.5" fill={R}/>
-      <rect x="37" y="12" width="8" height="7" rx="1.5" fill="#888"/>
-      <text x="15" y="18.5" textAnchor="middle" fontSize="6" fontWeight="bold" fill="#fff">+</text>
-      <text x="41" y="18.5" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#fff">−</text>
-      <line x1="18" y1="21" x2="18" y2="43" stroke={R} strokeWidth="1.2" opacity="0.5"/>
-      <line x1="28" y1="21" x2="28" y2="43" stroke={R} strokeWidth="1.2" opacity="0.5"/>
-      <line x1="38" y1="21" x2="38" y2="43" stroke={R} strokeWidth="1.2" opacity="0.5"/>
-    </svg>
-  )
-}
-
-// ── NavPill ───────────────────────────────────────────────────────────────────
-function NavPill({ to, icon, children }: { to: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <Link
-      to={to}
-      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: 'rgba(17,24,39,0.65)', padding: '0.35rem 0.85rem', borderRadius: '99px', border: '1px solid #e2e4e9', textDecoration: 'none', transition: 'all 0.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.background = R; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = R }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(17,24,39,0.65)'; e.currentTarget.style.borderColor = '#e2e4e9' }}
-    >
-      {icon}{children}
-    </Link>
   )
 }
 
@@ -560,13 +523,7 @@ function stageDemoLog(stageId: string, dataset: 'CRSP' | 'NTSA'): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminDataPipeline() {
-  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<DatasetTab>('crsp')
-
-  async function handleLogout() {
-    await adminLogout()
-    navigate('/admin/login', { replace: true })
-  }
 
   function tabStyle(tab: DatasetTab): React.CSSProperties {
     const active = activeTab === tab
@@ -582,37 +539,7 @@ export default function AdminDataPipeline() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-
-      {/* ── Top nav ── */}
-      <header style={{ background: '#fff', borderBottom: '1px solid #e2e4e9', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <BatteryIcon />
-          <div>
-            <div style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '0.02em', color: 'rgba(17,24,39,0.88)', lineHeight: 1 }}>
-              CHLORIDE <span style={{ color: R }}>EXIDE</span>
-            </div>
-            <div style={{ fontSize: '0.6rem', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.9)', marginTop: '0.15rem' }}>
-              Data Pipeline
-            </div>
-          </div>
-        </div>
-
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <NavPill to="/admin/dashboard" icon={<ArrowLeftIcon style={{ width: 13, height: 13 }} />}>Dashboard</NavPill>
-          <NavPill to="/admin/batteries" icon={<BoltIcon style={{ width: 13, height: 13 }} />}>Batteries</NavPill>
-          <NavPill to="/admin/audit"     icon={<ClipboardDocumentListIcon style={{ width: 13, height: 13 }} />}>Audit Log</NavPill>
-          <NavPill to="/admin/sessions"  icon={<ShieldCheckIcon style={{ width: 13, height: 13 }} />}>Sessions</NavPill>
-          <button
-            onClick={handleLogout}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#fff', background: R, padding: '0.35rem 0.9rem', borderRadius: '99px', border: 'none', cursor: 'pointer', marginLeft: '0.5rem', transition: 'background 0.15s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = RD)}
-            onMouseLeave={e => (e.currentTarget.style.background = R)}
-          >
-            <ArrowRightStartOnRectangleIcon style={{ width: 13, height: 13 }} /> Sign out
-          </button>
-        </nav>
-      </header>
+    <AdminLayout>
 
       <main style={{ maxWidth: '960px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -663,10 +590,6 @@ export default function AdminDataPipeline() {
         </div>
 
       </main>
-
-      <footer style={{ textAlign: 'center', padding: '1.5rem', fontSize: '0.7rem', color: 'rgba(107,114,128,0.6)' }}>
-        © 2026 Chloride Exide · Battery Finder Admin
-      </footer>
-    </div>
+    </AdminLayout>
   )
 }

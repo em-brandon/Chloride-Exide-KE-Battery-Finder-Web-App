@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type DragEvent, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { BoltIcon, MagnifyingGlassIcon, ArrowUpTrayIcon, ArrowDownTrayIcon, PlusIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid'
 import {
   fetchBatteries,
@@ -12,11 +12,11 @@ import {
   type BatteryPayload,
   type UploadResult,
 } from '@/lib/adminApi'
+import AdminLayout from '@/components/admin/AdminLayout'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const R   = '#CC0000'
 const RD  = '#990000'
-const BG  = 'linear-gradient(160deg, #f4f5f7 0%, #eef0f4 100%)'
 const CARD: React.CSSProperties = {
   background: '#ffffff',
   borderRadius: '14px',
@@ -326,12 +326,10 @@ export default function AdminBatteries() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <AdminLayout>
 
       {/* Nav */}
       <header style={{ background: '#fff', borderBottom: '1px solid #e2e4e9', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
-        <Link to="/admin/dashboard" style={{ fontSize: '0.82rem', color: 'rgba(107,114,128,0.8)', textDecoration: 'none' }}>← Dashboard</Link>
-        <div style={{ width: 1, height: 20, background: '#e2e4e9' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <BoltIcon style={{ width: 16, height: 16, color: R }} />
           <span style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>Battery Specs</span>
@@ -537,10 +535,6 @@ export default function AdminBatteries() {
           </div>
         )}
       </main>
-
-      <footer style={{ textAlign: 'center', padding: '1.5rem', fontSize: '0.7rem', color: 'rgba(107,114,128,0.5)' }}>
-        © 2026 Chloride Exide · Battery Finder Admin
-      </footer>
-    </div>
+    </AdminLayout>
   )
 }
