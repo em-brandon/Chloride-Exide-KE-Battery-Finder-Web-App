@@ -260,3 +260,4 @@ class AdminStats(Base):
 
     def __repr__(self) -> str:
         return f"<AdminStats {self.stat_key}={self.stat_value}>"
+
