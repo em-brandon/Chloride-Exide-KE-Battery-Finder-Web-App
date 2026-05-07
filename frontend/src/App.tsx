@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
-import { Moon, Sun, House, Settings } from 'lucide-react'
+import { Moon, Sun, Settings } from 'lucide-react'
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute'
 import AdminLogin        from '@/pages/admin/AdminLogin'
 import AdminDashboard   from '@/pages/admin/AdminDashboard'
@@ -126,7 +126,9 @@ function PublicApp({
               className="nav-dark-btn"
               aria-label="Go to Chloride Exide website"
             >
-              <House size={16} strokeWidth={1.75} />
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
+                <path fillRule="evenodd" d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clipRule="evenodd" />
+              </svg>
             </a>
           </div>
         </nav>
