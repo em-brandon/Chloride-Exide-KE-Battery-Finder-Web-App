@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from 'react'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { useToast, Toaster } from '@/components/Notification'
+import { FeedbackModal } from '@/components/FeedbackModal'
 import { Search, MousePointerClick, Keyboard } from 'lucide-react'
+import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
 
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
@@ -34,6 +36,10 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const [matchPopover, setMatchPopover] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const vehicleLabel = data.matched_make
+    ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
+    : `${data.make} ${data.model} ${data.year}`
   const barRef = useRef<HTMLDivElement>(null)
   const matchPopoverRef = useRef<HTMLDivElement>(null)
 
@@ -149,6 +155,32 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
           )}
         </div>
       )}
+
+      {/* Feedback trigger */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+        <button
+          type="button"
+          onClick={() => setFeedbackOpen(true)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+            background: 'none', border: '1px solid var(--border, #d1d5db)',
+            borderRadius: '0.5rem', padding: '0.375rem 0.75rem',
+            fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer',
+            color: 'var(--muted-foreground, #6b7280)',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--foreground, #111827)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted-foreground, #6b7280)')}
+        >
+          <ChatBubbleLeftEllipsisIcon style={{ width: '1rem', height: '1rem' }} />
+          Rate this result
+        </button>
+      </div>
+
+      <FeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        vehicleLabel={vehicleLabel}
+      />
     </div>
   )
 }

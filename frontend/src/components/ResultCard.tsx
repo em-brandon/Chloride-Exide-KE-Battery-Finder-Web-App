@@ -1,8 +1,10 @@
 import type { RecommendationResult, BatteryEntry } from '@/types/battery'
 import { Badge, techVariant, matchVariant } from '@/components/ui/Badge'
 import { ConfidenceBar } from '@/components/ConfidenceBar'
+import { FeedbackModal } from '@/components/FeedbackModal'
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 
 const MATCH_DESCRIPTIONS: Record<string, { color: string; label: string; desc: string }> = {
@@ -58,7 +60,11 @@ function AltCard({ alt }: { alt: BatteryEntry }) {
 
 export function ResultCard({ data }: ResultCardProps) {
   const [altsVisible, setAltsVisible] = useState(true)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const p = data.primary
+  const vehicleLabel = data.matched_make
+    ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
+    : `${data.make} ${data.model} ${data.year}`
 
   return (
     <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 border-l-[#cc0000] bg-card shadow-md p-5 space-y-4">
@@ -122,6 +128,24 @@ export function ResultCard({ data }: ResultCardProps) {
           </div>
         </div>
       )}
+
+      {/* Feedback trigger */}
+      <div className="flex justify-end pt-1">
+        <button
+          type="button"
+          onClick={() => setFeedbackOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <ChatBubbleLeftEllipsisIcon className="w-4 h-4" />
+          Rate this result
+        </button>
+      </div>
+
+      <FeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        vehicleLabel={vehicleLabel}
+      />
     </div>
   )
 }
