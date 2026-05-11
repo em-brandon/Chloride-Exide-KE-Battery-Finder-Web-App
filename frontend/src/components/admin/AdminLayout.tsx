@@ -62,11 +62,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     })
   }
 
-  // Auto-collapse on pages that need more space, unless the user has
-  // already expressed a preference by clicking the toggle button.
+  // When navigating to a page that needs more space (e.g. Feedback):
+  // - If sidebar is expanded → collapse it
+  // - If sidebar is already collapsed → leave it (no change)
+  // This always fires regardless of the manual-toggle preference.
   useEffect(() => {
-    const manuallyToggled = localStorage.getItem('sidebar_manually_toggled') === 'true'
-    if (!manuallyToggled && AUTO_COLLAPSE_PATHS.includes(pathname)) {
+    if (AUTO_COLLAPSE_PATHS.includes(pathname)) {
       setCollapsed(true)
     }
   }, [pathname])

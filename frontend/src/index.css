@@ -794,7 +794,7 @@ body {
 .toast-wrap {
   position: fixed;
   bottom: 1.25rem;
-  left: 1.25rem;
+  right: 1.25rem;
   z-index: 8000;
   display: flex;
   flex-direction: column;
