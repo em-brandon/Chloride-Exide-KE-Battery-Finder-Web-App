@@ -141,7 +141,7 @@ async def count_reads_middleware(request: Request, call_next):
 class RecommendRequest(BaseModel):
     make: str = Field(..., json_schema_extra={"example": "TOYOTA"})
     model: str = Field(..., json_schema_extra={"example": "Corolla"})
-    year: int = Field(..., ge=2000, le=2025, json_schema_extra={"example": 2015})
+    year: int = Field(..., ge=1960, le=2030, json_schema_extra={"example": 2015})
     engine_cc: Optional[int] = Field(None, ge=500, le=8000, json_schema_extra={"example": 1500})
     fuel_type: Optional[str] = Field(None, json_schema_extra={"example": "Petrol"})
 
@@ -156,6 +156,7 @@ class FeedbackRequest(BaseModel):
     input_type: Optional[str] = Field(None, pattern=r"^(select|type)$")
     match_confidence: Optional[int] = Field(None, ge=0, le=100)
     match_type: Optional[str] = Field(None, max_length=50)
+    recommended_battery: Optional[str] = Field(None, max_length=100)
 
 
 # ── Test-user auth schemas ────────────────────────────────────────────────────
@@ -278,6 +279,7 @@ def submit_feedback(request: Request, req: FeedbackRequest):
             input_type=req.input_type or None,
             match_confidence=req.match_confidence,
             match_type=req.match_type or None,
+            recommended_battery=req.recommended_battery or None,
         )
         db.add(row)
         db.commit()

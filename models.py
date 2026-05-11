@@ -285,6 +285,7 @@ class UserFeedback(Base):
     input_type       = Column(String(20),           nullable=True)           # select|type
     match_confidence = Column(Integer,              nullable=True)           # 0-100 from recommendation
     match_type       = Column(String(50),           nullable=True)           # exact_match|close_match|fallback etc.
+    recommended_battery = Column(String(100),       nullable=True)           # primary battery code returned
 
     __table_args__ = (
         Index("ix_user_feedback_submitted_at", "submitted_at"),

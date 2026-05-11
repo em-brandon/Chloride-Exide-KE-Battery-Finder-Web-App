@@ -55,6 +55,7 @@ export interface FeedbackPayload {
   input_type?: string
   match_confidence?: number
   match_type?: string
+  recommended_battery?: string
 }
 
 export async function submitFeedback(payload: FeedbackPayload): Promise<void> {

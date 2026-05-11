@@ -183,6 +183,7 @@ function ResultPanel({ data, inputType }: { data: RecommendationResult; inputTyp
         inputType={inputType}
         matchConfidence={data.confidence}
         matchType={data.match_type}
+        recommendedBattery={data.primary?.battery_code ?? undefined}
       />
     </div>
   )
@@ -327,8 +328,8 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
     // Validation in type mode
     if (typeMode) {
       const y = parseInt(yearText, 10)
-      if (!yearText.trim() || isNaN(y) || y < 1990 || y > 2030) {
-        pushToast('error', 'Invalid year', 'Please enter a valid year between 1990 and 2030.')
+      if (!yearText.trim() || isNaN(y) || y < 1960 || y > 2030) {
+        pushToast('error', 'Invalid year', 'Please enter a valid year between 1960 and 2030.')
         return
       }
       if (!engineCc) {

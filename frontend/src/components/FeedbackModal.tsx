@@ -34,6 +34,7 @@ interface FeedbackModalProps {
   inputType?: string            // 'select' | 'type'
   matchConfidence?: number      // 0-100
   matchType?: string            // e.g. 'exact_match'
+  recommendedBattery?: string   // primary battery code returned
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ const BLANK_WRONG: WrongPart = {
   other:        false,
 }
 
-export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchConfidence, matchType }: FeedbackModalProps) {
+export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchConfidence, matchType, recommendedBattery }: FeedbackModalProps) {
   const { user } = useTestUser()
   const [satisfaction, setSatisfaction] = useState(0)
   const [accuracy, setAccuracy]         = useState<Accuracy>('')
@@ -183,6 +184,7 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
         input_type: inputType,
         match_confidence: matchConfidence,
         match_type: matchType,
+        recommended_battery: recommendedBattery,
       })
       setSubmitted(true)
     } catch {
