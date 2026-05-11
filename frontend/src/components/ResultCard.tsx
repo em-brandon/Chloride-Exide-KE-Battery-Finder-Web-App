@@ -183,6 +183,10 @@ export function ResultCard({ data }: ResultCardProps) {
         open={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
         vehicleLabel={vehicleLabel}
+        inputType="dropdown"
+        matchConfidence={data.confidence}
+        matchType={data.match_type}
+        recommendedBattery={data.primary?.battery_code ?? undefined}
       />
     </div>
   )

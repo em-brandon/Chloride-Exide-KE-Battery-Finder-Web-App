@@ -125,6 +125,7 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
   const [satisfaction, setSatisfaction] = useState(0)
   const [accuracy, setAccuracy]         = useState<Accuracy>('')
   const [wrongParts, setWrongParts]     = useState<WrongPart>(BLANK_WRONG)
+  const [wrongPartsError, setWrongPartsError] = useState(false)
   const [comments, setComments]         = useState('')
   const [submitted, setSubmitted]       = useState(false)
   const [submitting, setSubmitting]     = useState(false)
@@ -136,6 +137,7 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
       setSatisfaction(0)
       setAccuracy('')
       setWrongParts(BLANK_WRONG)
+      setWrongPartsError(false)
       setComments('')
       setSubmitted(false)
       setSubmitting(false)
@@ -152,7 +154,11 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
   }, [open, onClose])
 
   function toggleWrongPart(key: keyof WrongPart) {
-    setWrongParts(prev => ({ ...prev, [key]: !prev[key] }))
+    setWrongParts(prev => {
+      const next = { ...prev, [key]: !prev[key] }
+      if (Object.values(next).some(Boolean)) setWrongPartsError(false)
+      return next
+    })
   }
 
   async function handleSubmit() {
@@ -167,7 +173,8 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
     if (accuracy === 'wrong' || accuracy === 'close') {
       const anyChecked = Object.values(wrongParts).some(Boolean)
       if (!anyChecked) {
-        setError('Please select at least one incorrect part before submitting.')
+        setWrongPartsError(true)
+        setError('Please select at least one incorrect part (Q3) before submitting.')
         return
       }
     }
@@ -269,9 +276,13 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
 
           {/* Q3 — Which part wrong (conditional) */}
           {(accuracy === 'close' || accuracy === 'wrong') && (
-            <fieldset className="fb-fieldset">
+            <fieldset
+              className="fb-fieldset"
+              style={wrongPartsError ? { border: '1px solid #dc2626', borderRadius: 8, padding: '0.5rem', background: '#fef2f2' } : undefined}
+            >
               <legend className="form-label" style={{ marginBottom: '0.5rem' }}>
                 3. Which part was incorrect?{' '}
+                <span style={{ color: '#dc2626', fontWeight: 700 }}>*</span>{' '}
                 <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--muted2)', fontSize: '0.74rem' }}>
                   (select all that apply)
                 </span>

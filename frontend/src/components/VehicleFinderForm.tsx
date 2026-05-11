@@ -32,14 +32,16 @@ function matchClass(matchType: string) {
 }
 
 // ── Result card ───────────────────────────────────────────────────
-function ResultPanel({ data, inputType }: { data: RecommendationResult; inputType: string }) {
+function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResult; inputType: string; typedLabel?: string }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const [matchPopover, setMatchPopover] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
-  const vehicleLabel = data.matched_make
-    ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
-    : `${data.make} ${data.model} ${data.year}`
+  const vehicleLabel = inputType === 'type' && typedLabel
+    ? typedLabel
+    : data.matched_make
+      ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
+      : `${data.make} ${data.model} ${data.year}`
   const barRef = useRef<HTMLDivElement>(null)
   const matchPopoverRef = useRef<HTMLDivElement>(null)
 
@@ -578,7 +580,11 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       {/* Result column on the right */}
       {result && (
         <div className="result-side-card">
-          <ResultPanel data={result} inputType={typeMode ? 'type' : 'select'} />
+          <ResultPanel
+            data={result}
+            inputType={typeMode ? 'type' : 'select'}
+            typedLabel={typeMode ? `${makeText.trim()} ${modelText.trim()} ${yearText.trim()}`.trim() : undefined}
+          />
         </div>
       )}
       </div> {/* end finder-layout */}
