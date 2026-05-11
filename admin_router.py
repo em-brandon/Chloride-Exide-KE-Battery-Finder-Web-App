@@ -793,7 +793,7 @@ def export_feedback_pdf(
     story.append(Spacer(1, 0.4*cm))
 
     # Main data table
-    col_headers = ["#", "Vehicle", "Rating", "Accuracy", "Wrong parts flagged", "Comments", "Submitted at"]
+    col_headers = ["#", "Vehicle", "Battery Returned", "Accuracy", "Wrong parts flagged", "Comments", "Submitted at"]
     table_data = [col_headers]
     for idx, r in enumerate(rows, 1):
         wrong = ""
@@ -807,7 +807,7 @@ def export_feedback_pdf(
         table_data.append([
             str(idx),
             Paragraph(r.vehicle_label or "", cell_style),
-            stars(r.satisfaction),
+            Paragraph(r.recommended_battery or "—", cell_style),
             accuracy_label.get(r.accuracy or "", r.accuracy or "—"),
             Paragraph(wrong or "—", cell_style),
             Paragraph((r.comments or "—")[:300], cell_style),
@@ -815,7 +815,7 @@ def export_feedback_pdf(
         ])
 
     page_w = landscape(A4)[0] - 3*cm   # total usable width
-    col_widths = [0.7*cm, 4.5*cm, 1.8*cm, 2.2*cm, 4*cm, None, 3.2*cm]
+    col_widths = [0.7*cm, 4.5*cm, 3*cm, 2.2*cm, 4*cm, None, 3.2*cm]
     # let "comments" fill remaining space
     fixed = sum(w for w in col_widths if w is not None)
     col_widths[5] = page_w - fixed
@@ -829,7 +829,6 @@ def export_feedback_pdf(
         ("FONTSIZE",      (0, 1), (-1, -1), 7.5),
         ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
         ("ALIGN",         (0, 0), (0, -1), "CENTER"),   # # col
-        ("ALIGN",         (2, 0), (2, -1), "CENTER"),   # Rating col
         ("VALIGN",        (0, 0), (-1, -1), "TOP"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_GREY]),
         ("GRID",          (0, 0), (-1, -1), 0.4, colors.HexColor("#e2e4e9")),
@@ -874,7 +873,7 @@ def export_feedback_csv(
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([
-        "ID", "User", "Vehicle", "Rating", "Accuracy", "Input Type",
+        "ID", "User", "Vehicle", "Battery Returned", "Accuracy", "Input Type",
         "Match Confidence", "Match Type", "Wrong Parts Flagged", "Comments",
         "IP Address", "Submitted At",
     ])
@@ -891,7 +890,7 @@ def export_feedback_csv(
             r.UserFeedback.id,
             r.username or "anonymous",
             r.UserFeedback.vehicle_label or "",
-            r.UserFeedback.satisfaction,
+            r.UserFeedback.recommended_battery or "",
             r.UserFeedback.accuracy or "",
             r.UserFeedback.input_type or "",
             r.UserFeedback.match_confidence if r.UserFeedback.match_confidence is not None else "",
