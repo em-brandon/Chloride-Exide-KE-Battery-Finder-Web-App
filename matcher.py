@@ -461,12 +461,16 @@ def _select_batteries(
         primary_row = cast(pd.Series, batt.loc[[nearest_idx]].iloc[0])
 
     primary = _row_to_dict(primary_row)
+    primary_tech = primary_row["Technology"]
 
-    # Alternatives: everything else at target Ah
-    alt_rows = exact_sorted[exact_sorted["Battery Code"] != primary_row["Battery Code"]]
+    # Alternatives: same technology as primary, different battery at target Ah
+    alt_rows = exact_sorted[
+        (exact_sorted["Battery Code"] != primary_row["Battery Code"]) &
+        (exact_sorted["Technology"] == primary_tech)
+    ]
     alternatives = [_row_to_dict(r) for _, r in alt_rows.iterrows()]
 
-    # Pad alternatives from adjacent Ah tiers if fewer than 3
+    # Pad alternatives from adjacent Ah tiers if fewer than 3 (same technology only)
     if len(alternatives) < 3:
         all_ahs = sorted(batt["Ah"].dropna().unique().tolist())
         # Find the insertion point so we always get true neighbours even when
@@ -480,7 +484,7 @@ def _select_batteries(
             neighbour_ahs.append(all_ahs[pos - 1])
         neighbour_ahs = [a for a in neighbour_ahs if a is not None and a != target_ah]
         for neighbour_ah in neighbour_ahs:
-            nbr = batt[batt["Ah"] == neighbour_ah]
+            nbr = batt[(batt["Ah"] == neighbour_ah) & (batt["Technology"] == primary_tech)]
             for _, r in nbr.iterrows():
                 entry = _row_to_dict(r)
                 if entry["battery_code"] != primary["battery_code"] and \
