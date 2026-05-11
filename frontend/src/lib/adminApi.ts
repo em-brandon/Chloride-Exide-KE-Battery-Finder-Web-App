@@ -270,6 +270,7 @@ export interface FeedbackEntry {
   input_type: string | null
   match_confidence: number | null
   match_type: string | null
+  recommended_battery: string | null
 }
 
 export interface FeedbackListResponse {

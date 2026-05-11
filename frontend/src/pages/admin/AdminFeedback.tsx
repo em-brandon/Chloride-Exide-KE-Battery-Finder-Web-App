@@ -336,17 +336,17 @@ export default function AdminFeedback() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e4e9', background: '#f9fafb' }}>
-                  {['User', 'Vehicle', 'Input', 'Rating', 'Confidence', 'Match Type', 'Accuracy', 'Wrong parts flagged', 'Comments', 'Submitted'].map(h => (
+                  {['User', 'Vehicle', 'Battery Returned', 'Input', 'Rating', 'Confidence', 'Match Type', 'Accuracy', 'Wrong parts flagged', 'Comments', 'Submitted'].map(h => (
                     <th key={h} style={{ padding: '0.7rem 1rem', textAlign: 'left', fontWeight: 700, fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6b7280', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td colSpan={10} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>
+                  <tr><td colSpan={11} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>
                 )}
                 {!loading && items.length === 0 && (
-                  <tr><td colSpan={10} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>No feedback entries found.</td></tr>
+                  <tr><td colSpan={11} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>No feedback entries found.</td></tr>
                 )}
                 {!loading && items.map((row, i) => (
                   <tr key={row.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
@@ -363,6 +363,19 @@ export default function AdminFeedback() {
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.vehicle_label}>
                         {row.vehicle_label}
                       </div>
+                    </td>
+                    <td style={{ padding: '0.7rem 1rem', whiteSpace: 'nowrap' }}>
+                      {row.recommended_battery
+                        ? <span style={{
+                            display: 'inline-block', padding: '0.12rem 0.55rem', borderRadius: '6px',
+                            fontSize: '0.75rem', fontWeight: 700,
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                            fontFamily: 'monospace',
+                          }}>{row.recommended_battery}</span>
+                        : <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>—</span>
+                      }
                     </td>
                     <td style={{ padding: '0.7rem 1rem', whiteSpace: 'nowrap' }}>
                       {row.input_type

@@ -644,6 +644,7 @@ def list_feedback(
             "input_type":      r.UserFeedback.input_type,
             "match_confidence": r.UserFeedback.match_confidence,
             "match_type":      r.UserFeedback.match_type,
+            "recommended_battery": r.UserFeedback.recommended_battery,
         }
         for r in rows
     ]
