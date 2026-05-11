@@ -317,6 +317,23 @@ export async function downloadFeedbackPdf(accuracy?: string): Promise<void> {
   URL.revokeObjectURL(link.href)
 }
 
+export async function downloadFeedbackCsv(accuracy?: string): Promise<void> {
+  const params = new URLSearchParams()
+  if (accuracy) params.set('accuracy', accuracy)
+  const url = `/api/admin/feedback/export-csv${params.toString() ? `?${params}` : ''}`
+  const res = await fetch(url, { credentials: 'include' })
+  if (res.status === 401) throw new AdminAuthError()
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const blob = await res.blob()
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = disposition.match(/filename="([^"]+)"/)
+  link.download = match ? match[1] : 'feedback_report.csv'
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
 // ---------------------------------------------------------------------------
 // Test-user sessions (admin view)
 // ---------------------------------------------------------------------------

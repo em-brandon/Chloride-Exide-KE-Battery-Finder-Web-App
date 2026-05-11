@@ -3,6 +3,7 @@ import {
   fetchFeedback,
   fetchFeedbackSummary,
   downloadFeedbackPdf,
+  downloadFeedbackCsv,
   type FeedbackEntry,
   type FeedbackSummary,
 } from '@/lib/adminApi'
@@ -178,9 +179,10 @@ export default function AdminFeedback() {
   const [page, setPage]            = useState(1)
   const [accuracy, setAccuracy]    = useState('')
   const [summary, setSummary]      = useState<FeedbackSummary | null>(null)
-  const [loading, setLoading]      = useState(true)
-  const [error, setError]          = useState('')
-  const [exporting, setExporting]  = useState(false)
+  const [loading, setLoading]        = useState(true)
+  const [error, setError]            = useState('')
+  const [exporting, setExporting]    = useState(false)
+  const [exportingCsv, setExportingCsv] = useState(false)
 
   const PAGE_SIZE = 25
 
@@ -217,6 +219,17 @@ export default function AdminFeedback() {
       setError(e instanceof Error ? e.message : 'PDF export failed')
     } finally {
       setExporting(false)
+    }
+  }
+
+  async function handleExportCsv() {
+    setExportingCsv(true)
+    try {
+      await downloadFeedbackCsv(accuracy || undefined)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'CSV export failed')
+    } finally {
+      setExportingCsv(false)
     }
   }
 
@@ -259,6 +272,29 @@ export default function AdminFeedback() {
                 <XMarkIcon style={{ width: '1rem', height: '1rem' }} />
               </button>
             )}
+
+            {/* Export CSV */}
+            <button
+              onClick={handleExportCsv}
+              disabled={exportingCsv || total === 0}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.4rem 0.85rem',
+                borderRadius: '8px',
+                border: '1px solid #16a34a',
+                background: exportingCsv || total === 0 ? '#f9fafb' : '#16a34a',
+                color: exportingCsv || total === 0 ? '#9ca3af' : '#fff',
+                cursor: exportingCsv || total === 0 ? 'default' : 'pointer',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                fontFamily: 'inherit',
+                transition: 'opacity 0.15s',
+              }}
+              title={accuracy ? `Export filtered (${accuracy}) as CSV` : 'Export all feedback as CSV'}
+            >
+              <ArrowDownTrayIcon style={{ width: '0.9rem', height: '0.9rem' }} />
+              {exportingCsv ? 'Exporting…' : 'Export CSV'}
+            </button>
 
             {/* Export PDF */}
             <button

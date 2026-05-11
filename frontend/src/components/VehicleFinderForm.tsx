@@ -352,11 +352,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       })
       setResult(data)
       setSubmitted(true)
-      pushToast(
-        'success',
-        'Battery found!',
-        `${data.primary.battery_code} — ${data.primary.ah} Ah · ${data.confidence}% confidence`
-      )
+      pushToast('success', 'Battery found!')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong.'
       setErrorMsg(msg)

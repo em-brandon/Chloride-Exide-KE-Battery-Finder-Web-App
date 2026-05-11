@@ -849,6 +849,67 @@ def export_feedback_pdf(
     )
 
 
+@router.get("/feedback/export-csv", summary="Export full feedback report as CSV")
+def export_feedback_csv(
+    accuracy: Optional[str] = None,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    import csv
+    import io
+    import json as _json
+    from datetime import date
+
+    q = db.query(UserFeedback)
+    if accuracy:
+        q = q.filter(UserFeedback.accuracy == accuracy)
+    rows = (
+        q.outerjoin(TestUser, UserFeedback.test_user_id == TestUser.id)
+        .add_columns(TestUser.username)
+        .order_by(UserFeedback.submitted_at.desc())
+        .all()
+    )
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "ID", "User", "Vehicle", "Rating", "Accuracy", "Input Type",
+        "Match Confidence", "Match Type", "Wrong Parts Flagged", "Comments",
+        "IP Address", "Submitted At",
+    ])
+    for r in rows:
+        wrong = ""
+        if r.UserFeedback.wrong_parts:
+            try:
+                wp = _json.loads(r.UserFeedback.wrong_parts)
+                flagged = [k.replace("_", " ").title() for k, v in wp.items() if v]
+                wrong = ", ".join(flagged)
+            except Exception:
+                wrong = ""
+        writer.writerow([
+            r.UserFeedback.id,
+            r.username or "anonymous",
+            r.UserFeedback.vehicle_label or "",
+            r.UserFeedback.satisfaction,
+            r.UserFeedback.accuracy or "",
+            r.UserFeedback.input_type or "",
+            r.UserFeedback.match_confidence if r.UserFeedback.match_confidence is not None else "",
+            r.UserFeedback.match_type or "",
+            wrong,
+            r.UserFeedback.comments or "",
+            r.UserFeedback.ip_address or "",
+            r.UserFeedback.submitted_at.strftime("%Y-%m-%d %H:%M:%S") if r.UserFeedback.submitted_at else "",
+        ])
+
+    buf.seek(0)
+    filename = f"feedback_report_{date.today().isoformat()}.csv"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ---------------------------------------------------------------------------
 # Test-user session management (admin view)
 # ---------------------------------------------------------------------------
