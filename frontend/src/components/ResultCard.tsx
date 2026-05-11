@@ -45,7 +45,7 @@ interface ResultCardProps {
 
 function AltCard({ alt }: { alt: BatteryEntry }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+    <div className="shrink-0 w-44 rounded-lg border border-border bg-card p-3 space-y-1.5">
       <div className="font-bold text-sm text-card-foreground">{alt.battery_code}</div>
       <div className="text-xs text-muted-foreground">
         {alt.ah != null ? `${alt.ah} Ah` : ''}
@@ -66,11 +66,16 @@ export function ResultCard({ data }: ResultCardProps) {
     ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
     : `${data.make} ${data.model} ${data.year}`
 
+  // Only show alternatives of the same technology as the primary battery
+  const sameTeachAlts = data.alternatives.filter(
+    alt => (alt.technology ?? 'MF') === (p.technology ?? 'MF')
+  )
+
   return (
-    <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 border-l-[#cc0000] bg-card shadow-md p-5 space-y-4">
+    <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 border-l-brand bg-card shadow-md p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold text-card-foreground">Primary Recommendation</h2>
+        <h2 className="text-base font-bold text-card-foreground">Primary Recommendation</h2>
         <div className="flex items-center gap-1.5">
           <Badge variant={matchVariant(data.match_type)}>{data.match_type}</Badge>
           <MatchTooltip matchType={data.match_type} />
@@ -78,13 +83,13 @@ export function ResultCard({ data }: ResultCardProps) {
       </div>
 
       {/* Primary battery */}
-      <div className="rounded-lg border border-red-100 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 p-4 flex items-center gap-4 flex-wrap">
+      <div className="rounded-lg border border-red-100 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 p-3 flex items-center gap-3 flex-wrap">
         <Stat label="Ah"       value={p.ah}     />
         <Stat label="CCA (EN)" value={p.cca_en} />
         <Badge variant={techVariant(p.technology)} className="self-start mt-0.5">
           {p.technology ?? 'MF'}
         </Badge>
-        <div className="flex-1 min-w-[140px]">
+        <div className="flex-1 min-w-35">
           <div className="font-bold text-base text-card-foreground">{p.battery_code}</div>
           {p.model_key && (
             <div className="text-xs text-muted-foreground mt-0.5">{p.model_key}</div>
@@ -102,12 +107,12 @@ export function ResultCard({ data }: ResultCardProps) {
           : 'No model match — result based on engine size and fuel type only'}
       </p>
 
-      {/* Alternatives */}
-      {data.alternatives.length > 0 && (
+      {/* Alternatives — same technology only, horizontal scrolling row */}
+      {sameTeachAlts.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Alternative Options ({data.alternatives.length})
+              Same-Technology Alternatives ({sameTeachAlts.length})
             </span>
             <button
               onClick={() => setAltsVisible(v => !v)}
@@ -117,28 +122,61 @@ export function ResultCard({ data }: ResultCardProps) {
               {altsVisible ? 'hide' : 'show'}
             </button>
           </div>
-          <div className={cn(
-            'grid gap-2',
-            'grid-cols-[repeat(auto-fill,minmax(170px,1fr))]',
-            !altsVisible && 'hidden'
-          )}>
-            {data.alternatives.map(alt => (
-              <AltCard key={alt.battery_code} alt={alt} />
-            ))}
-          </div>
+          {altsVisible && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {sameTeachAlts.map(alt => (
+                <AltCard key={alt.battery_code} alt={alt} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Feedback trigger */}
-      <div className="flex justify-end pt-1">
-        <button
-          type="button"
-          onClick={() => setFeedbackOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          <ChatBubbleLeftEllipsisIcon className="w-4 h-4" />
-          Rate this result
-        </button>
+      <div className="flex justify-center pt-2 pb-1">
+        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Pulse ring */}
+          <span style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '999px',
+            background: 'rgba(204,0,0,0.18)',
+            animation: 'ratePulse 1.8s ease-out infinite',
+            pointerEvents: 'none',
+          }} />
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            className="group inline-flex items-center gap-2 text-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            style={{
+              position: 'relative',
+              background: '#CC0000',
+              boxShadow: '0 3px 12px rgba(204,0,0,0.45)',
+              borderRadius: '999px',
+              padding: '0.6rem 1.5rem',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              letterSpacing: '0.01em',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 0.15s, box-shadow 0.15s, transform 0.1s',
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget as HTMLButtonElement
+              b.style.background = '#990000'
+              b.style.boxShadow = '0 6px 20px rgba(204,0,0,0.55)'
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget as HTMLButtonElement
+              b.style.background = '#CC0000'
+              b.style.boxShadow = '0 3px 12px rgba(204,0,0,0.45)'
+            }}
+          >
+            <ChatBubbleLeftEllipsisIcon className="w-5 h-5 transition-transform duration-150 group-hover:scale-110" />
+            Rate this result
+          </button>
+        </div>
       </div>
 
       <FeedbackModal
@@ -152,8 +190,8 @@ export function ResultCard({ data }: ResultCardProps) {
 
 function Stat({ label, value }: { label: string; value: number | null | undefined }) {
   return (
-    <div className="text-center min-w-[56px]">
-      <div className="text-2xl font-extrabold text-[#cc0000]">
+    <div className="text-center min-w-14">
+      <div className="text-2xl font-extrabold text-brand">
         {value != null ? value : '—'}
       </div>
       <div className="text-[0.65rem] text-muted-foreground mt-0.5">{label}</div>

@@ -18,7 +18,7 @@ function Toast({ item, onDismiss }: ToastProps) {
 
   useEffect(() => {
     const dismiss = () => { setOut(true); setTimeout(() => onDismiss(item.id), 300) }
-    const t = setTimeout(dismiss, 4500)
+    const t = setTimeout(dismiss, 2000)
     return () => clearTimeout(t)
   }, [item.id, onDismiss])
 

@@ -32,7 +32,7 @@ function matchClass(matchType: string) {
 }
 
 // ── Result card ───────────────────────────────────────────────────
-function ResultPanel({ data }: { data: RecommendationResult }) {
+function ResultPanel({ data, inputType }: { data: RecommendationResult; inputType: string }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const [matchPopover, setMatchPopover] = useState(false)
@@ -180,6 +180,9 @@ function ResultPanel({ data }: { data: RecommendationResult }) {
         open={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
         vehicleLabel={vehicleLabel}
+        inputType={inputType}
+        matchConfidence={data.confidence}
+        matchType={data.match_type}
       />
     </div>
   )
@@ -578,7 +581,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       {/* Result column on the right */}
       {result && (
         <div className="result-side-card">
-          <ResultPanel data={result} />
+          <ResultPanel data={result} inputType={typeMode ? 'type' : 'select'} />
         </div>
       )}
       </div> {/* end finder-layout */}

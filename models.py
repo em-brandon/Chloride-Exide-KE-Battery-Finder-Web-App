@@ -261,3 +261,96 @@ class AdminStats(Base):
     def __repr__(self) -> str:
         return f"<AdminStats {self.stat_key}={self.stat_value}>"
 
+
+class UserFeedback(Base):
+    """
+    Stores user feedback submitted via the FeedbackModal after a battery recommendation.
+
+    One row per submission.
+    Written by: POST /api/feedback (public endpoint in app.py).
+    Read by:    GET /api/admin/feedback (admin endpoint in admin_router.py).
+    """
+
+    __tablename__ = "user_feedback"
+
+    id               = Column(Integer,              primary_key=True, autoincrement=True)
+    vehicle_label    = Column(String(300),          nullable=False)          # e.g. "Toyota Camry 2020"
+    satisfaction     = Column(Integer,              nullable=False)          # 1-5 stars
+    accuracy         = Column(String(20),           nullable=True)           # exact|close|wrong|unsure
+    wrong_parts      = Column(Text,                 nullable=True)           # JSON object
+    comments         = Column(Text,                 nullable=True)
+    submitted_at     = Column(DateTime(timezone=True), nullable=False)
+    ip_address       = Column(String(45),           nullable=True)
+    test_user_id     = Column(Integer,              ForeignKey("test_users.id", ondelete="SET NULL"), nullable=True)
+    input_type       = Column(String(20),           nullable=True)           # select|type
+    match_confidence = Column(Integer,              nullable=True)           # 0-100 from recommendation
+    match_type       = Column(String(50),           nullable=True)           # exact_match|close_match|fallback etc.
+
+    __table_args__ = (
+        Index("ix_user_feedback_submitted_at", "submitted_at"),
+        Index("ix_user_feedback_accuracy",     "accuracy"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserFeedback vehicle={self.vehicle_label!r} satisfaction={self.satisfaction}>"
+
+
+# ---------------------------------------------------------------------------
+# Test-user tables (for controlled tester sessions)
+# ---------------------------------------------------------------------------
+
+class TestUser(Base):
+    """
+    A registered test user who can log in via /login on the public finder.
+
+    Passwords stored as bcrypt hashes.
+    Written by: POST /api/auth/register.
+    Read by:    POST /api/auth/login, GET /api/auth/me.
+    """
+
+    __tablename__ = "test_users"
+
+    id            = Column(Integer,              primary_key=True, autoincrement=True)
+    username      = Column(String(100),          nullable=False, unique=True)
+    email         = Column(String(255),          nullable=True,  unique=True)
+    password_hash = Column(String(255),          nullable=False)
+    created_at    = Column(DateTime(timezone=True), nullable=False)
+    is_active     = Column(Integer,              nullable=False, default=1)  # 1=active, 0=suspended
+
+    __table_args__ = (
+        Index("ix_test_users_username", "username", unique=True),
+    )
+
+    def __repr__(self) -> str:
+        return f"<TestUser {self.username}>"
+
+
+class TestUserSession(Base):
+    """
+    Bearer-token session for test users.
+
+    Token is stored in the client's localStorage.
+    Expires after 24 hours. Revocable by admin.
+    Written/read by: app.py auth endpoints.
+    Read by:         admin_router.py /api/admin/test-sessions.
+    """
+
+    __tablename__ = "test_user_sessions"
+
+    id            = Column(Integer,              primary_key=True, autoincrement=True)
+    session_token = Column(String(64),           nullable=False, unique=True)
+    user_id       = Column(Integer,              ForeignKey("test_users.id", ondelete="CASCADE"), nullable=False)
+    created_at    = Column(DateTime(timezone=True), nullable=False)
+    expires_at    = Column(DateTime(timezone=True), nullable=False)
+    ip_address    = Column(String(45),           nullable=True)
+    user_agent    = Column(String(300),          nullable=True)
+    last_seen_at  = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_test_user_sessions_token",   "session_token", unique=True),
+        Index("ix_test_user_sessions_user_id", "user_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<TestUserSession user_id={self.user_id} expires={self.expires_at}>"
+

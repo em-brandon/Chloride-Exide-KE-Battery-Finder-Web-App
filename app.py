@@ -1,8 +1,9 @@
 import logging
 import os
+import secrets
 import threading
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import matcher
@@ -12,12 +13,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from models import AdminStats
+from models import AdminStats, TestUser, TestUserSession, UserFeedback
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
+
+import bcrypt
 
 logger = logging.getLogger("battery_finder")
 
@@ -143,8 +146,260 @@ class RecommendRequest(BaseModel):
     fuel_type: Optional[str] = Field(None, json_schema_extra={"example": "Petrol"})
 
 
+class FeedbackRequest(BaseModel):
+    vehicle_label: str = Field(..., max_length=300)
+    satisfaction: int = Field(..., ge=1, le=5)
+    accuracy: Optional[str] = Field(None, pattern=r"^(exact|close|wrong|unsure)$")
+    wrong_parts: Optional[dict] = Field(None)
+    comments: Optional[str] = Field(None, max_length=400)
+    submitted_at: str = Field(...)   # ISO-8601 string from client
+    input_type: Optional[str] = Field(None, pattern=r"^(select|type)$")
+    match_confidence: Optional[int] = Field(None, ge=0, le=100)
+    match_type: Optional[str] = Field(None, max_length=50)
+
+
+# ── Test-user auth schemas ────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
+    password: str = Field(..., min_length=6, max_length=100)
+    email: Optional[str] = Field(None, max_length=255)
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(..., max_length=100)
+    password: str = Field(..., max_length=100)
+
+
+# ── Test-user auth helpers ────────────────────────────────────────────────────
+
+_TEST_SESSION_TTL_HOURS = 24
+
+
+def _get_test_user_from_token(token: str | None, db) -> Optional[TestUser]:
+    """Resolve a Bearer token to a TestUser, updating last_seen_at.  Returns None if invalid/expired."""
+    if not token:
+        return None
+    session = (
+        db.query(TestUserSession)
+        .filter(TestUserSession.session_token == token)
+        .first()
+    )
+    if not session:
+        return None
+    if session.expires_at < datetime.now(timezone.utc):
+        return None
+    session.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
+    user = db.query(TestUser).filter(TestUser.id == session.user_id).first()
+    if not user or not user.is_active:
+        return None
+    return user
+
+
 # ------------------------------------------------------------------
 # API routes
+# ------------------------------------------------------------------
+@app.get("/api/makes", summary="List all car makes")
+@limiter.limit("20/minute")
+def list_makes(request: Request):
+    assert request  # consumed by slowapi rate limiter
+    return {"makes": matcher.get_makes()}
+
+
+@app.get("/api/models/{make}", summary="List models for a given make")
+@limiter.limit("20/minute")
+def list_models(request: Request, make: str):
+    assert request  # consumed by slowapi rate limiter
+    models = matcher.get_models(make)
+    if not models:
+        raise HTTPException(status_code=404, detail=f"No models found for make: {make}")
+    return {"models": models}
+
+
+@app.get("/api/years", summary="List available years for a given make and model")
+@limiter.limit("20/minute")
+def list_years(request: Request, make: str, model: str):
+    assert request  # consumed by slowapi rate limiter
+    years = matcher.get_years(make, model)
+    if not years:
+        raise HTTPException(status_code=404, detail=f"No years found for {make} {model}")
+    return {"years": years}
+
+
+@app.post("/api/recommend", summary="Get a battery recommendation")
+@limiter.limit("10/minute")
+def recommend(request: Request, req: RecommendRequest):
+    assert request  # consumed by slowapi rate limiter
+    result = matcher.recommend(
+        req.make,
+        req.model,
+        req.year,
+        req.engine_cc,
+        req.fuel_type,
+    )
+    return result
+
+
+@app.post("/api/feedback", summary="Submit user feedback on a battery recommendation", status_code=201)
+@limiter.limit("5/minute")
+def submit_feedback(request: Request, req: FeedbackRequest):
+    assert request  # consumed by slowapi rate limiter
+    import json as _json
+    ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
+    if ip:
+        ip = ip.split(",")[0].strip()[:45]
+    try:
+        submitted_at = datetime.fromisoformat(req.submitted_at.replace("Z", "+00:00"))
+    except ValueError:
+        submitted_at = datetime.now(timezone.utc)
+
+    # Resolve test user from Bearer token if present
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip() or None
+
+    db = SessionLocal()
+    try:
+        test_user_id: Optional[int] = None
+        if token:
+            user = _get_test_user_from_token(token, db)
+            if user:
+                test_user_id = user.id
+
+        row = UserFeedback(
+            vehicle_label=req.vehicle_label,
+            satisfaction=req.satisfaction,
+            accuracy=req.accuracy or None,
+            wrong_parts=_json.dumps(req.wrong_parts) if req.wrong_parts else None,
+            comments=req.comments or None,
+            submitted_at=submitted_at,
+            ip_address=ip,
+            test_user_id=test_user_id,
+            input_type=req.input_type or None,
+            match_confidence=req.match_confidence,
+            match_type=req.match_type or None,
+        )
+        db.add(row)
+        db.commit()
+    finally:
+        db.close()
+    return {"status": "ok"}
+
+
+# ------------------------------------------------------------------
+# Test-user auth routes
+# ------------------------------------------------------------------
+
+@app.post("/api/auth/register", summary="Register a new test user", status_code=201)
+@limiter.limit("5/minute")
+def register_test_user(request: Request, req: RegisterRequest):
+    assert request
+    db = SessionLocal()
+    try:
+        existing = db.query(TestUser).filter(TestUser.username == req.username).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Username already taken.")
+        if req.email:
+            existing_email = db.query(TestUser).filter(TestUser.email == req.email).first()
+            if existing_email:
+                raise HTTPException(status_code=409, detail="Email already registered.")
+        hashed = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt(rounds=12)).decode()
+        user = TestUser(
+            username=req.username,
+            email=req.email or None,
+            password_hash=hashed,
+            created_at=datetime.now(timezone.utc),
+            is_active=1,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return {"status": "ok", "user_id": user.id, "username": user.username}
+    finally:
+        db.close()
+
+
+@app.post("/api/auth/login", summary="Log in as a test user")
+@limiter.limit("10/minute")
+def login_test_user(request: Request, req: LoginRequest):
+    assert request
+    ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
+    if ip:
+        ip = ip.split(",")[0].strip()[:45]
+    user_agent = request.headers.get("User-Agent", "")[:300]
+
+    db = SessionLocal()
+    try:
+        user = db.query(TestUser).filter(TestUser.username == req.username).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid username or password.")
+        try:
+            ok = bcrypt.checkpw(req.password.encode(), user.password_hash.encode())
+        except Exception:
+            ok = False
+        if not ok:
+            raise HTTPException(status_code=401, detail="Invalid username or password.")
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Account suspended.")
+
+        token = secrets.token_hex(32)
+        now = datetime.now(timezone.utc)
+        session = TestUserSession(
+            session_token=token,
+            user_id=user.id,
+            created_at=now,
+            expires_at=now + timedelta(hours=_TEST_SESSION_TTL_HOURS),
+            ip_address=ip,
+            user_agent=user_agent,
+            last_seen_at=now,
+        )
+        db.add(session)
+        db.commit()
+        return {
+            "token": token,
+            "username": user.username,
+            "user_id": user.id,
+            "expires_at": session.expires_at.isoformat(),
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/auth/logout", summary="Log out a test user")
+def logout_test_user(request: Request):
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip() or None
+    if not token:
+        return {"status": "ok"}
+    db = SessionLocal()
+    try:
+        session = db.query(TestUserSession).filter(TestUserSession.session_token == token).first()
+        if session:
+            db.delete(session)
+            db.commit()
+    finally:
+        db.close()
+    return {"status": "ok"}
+
+
+@app.get("/api/auth/me", summary="Get current test user info")
+def me_test_user(request: Request):
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip() or None
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    db = SessionLocal()
+    try:
+        user = _get_test_user_from_token(token, db)
+        if not user:
+            raise HTTPException(status_code=401, detail="Session expired or invalid.")
+        return {"user_id": user.id, "username": user.username, "email": user.email}
+    finally:
+        db.close()
+
+
+# ------------------------------------------------------------------
+# Serve frontend — mount last so API routes take priority
 # ------------------------------------------------------------------
 @app.get("/api/makes", summary="List all car makes")
 @limiter.limit("20/minute")
