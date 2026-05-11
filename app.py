@@ -448,11 +448,23 @@ def recommend(request: Request, req: RecommendRequest):
 dist_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 
-if os.path.isdir(dist_dir):
-    app.mount("/", StaticFiles(directory=dist_dir, html=True), name="static")
-else:
-    # Fallback to legacy static/ during development
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+_frontend_dir = dist_dir if os.path.isdir(dist_dir) else static_dir
+
+# Catch-all: serve index.html for any non-API path (React Router SPA)
+from fastapi.responses import FileResponse
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    index = os.path.join(_frontend_dir, "index.html")
+    file_path = os.path.join(_frontend_dir, full_path)
+    # Serve the actual file if it exists (JS, CSS, assets, etc.)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    # Otherwise fall back to index.html for client-side routing
+    return FileResponse(index)
+
+if os.path.isdir(_frontend_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_dir, "assets")), name="assets")
 
 
 if __name__ == "__main__":
