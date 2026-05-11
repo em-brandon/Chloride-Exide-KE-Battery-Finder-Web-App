@@ -44,3 +44,30 @@ export async function fetchRecommendation(
   })
   return handleResponse<RecommendationResult>(res)
 }
+
+export interface FeedbackPayload {
+  vehicle_label: string
+  satisfaction: number
+  accuracy: string
+  wrong_parts: { [key: string]: boolean }
+  comments: string
+  submitted_at: string
+  input_type?: string
+  match_confidence?: number
+  match_type?: string
+}
+
+export async function submitFeedback(payload: FeedbackPayload): Promise<void> {
+  const token = localStorage.getItem('test_user_token')
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch('/api/feedback', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`)
+  }
+}

@@ -794,10 +794,10 @@ body {
 .toast-wrap {
   position: fixed;
   bottom: 1.25rem;
-  right: 1.25rem;
+  left: 1.25rem;
   z-index: 8000;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   gap: 0.5rem;
   pointer-events: none;
 }
@@ -826,6 +826,16 @@ body {
 .toast-close:hover { opacity: 1; }
 
 /* ── Animations ─────────────────────────────────────────────────── */
+@keyframes ratePulse {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  70%  { transform: scale(1.55); opacity: 0; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+@keyframes loaderPulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.88); }
+}
+
 /* ── Feedback drawer (left-side slide-in) ──────────────────────── */
 @keyframes fbSlideIn  { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes fbSlideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-100%); opacity: 0; } }

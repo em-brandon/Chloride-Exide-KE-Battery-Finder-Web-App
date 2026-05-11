@@ -20,3 +20,4 @@ python-dotenv>=1.0.0
 # Admin dashboard deps
 bcrypt>=4.1.0
 python-multipart>=0.0.9
+reportlab>=4.0.0

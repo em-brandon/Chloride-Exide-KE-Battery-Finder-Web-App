@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const LOADER_MIN_MS = 800
+const LOADER_MIN_MS = 2500
 const startMs = performance.now()
 
 interface PageLoaderProps {
@@ -29,15 +29,12 @@ export function PageLoader({ visible }: PageLoaderProps) {
       <svg
         className="loader-battery-svg"
         width="64" height="64"
-        viewBox="0 0 64 64"
-        fill="none"
+        viewBox="0 0 24 24"
+        fill="#CC0000"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <rect x="4" y="14" width="52" height="36" rx="4" stroke="#CC0000" strokeWidth="3"/>
-        <rect x="20" y="8" width="8" height="6" rx="1" fill="#CC0000"/>
-        <rect x="36" y="8" width="8" height="6" rx="1" fill="#CC0000"/>
-        <path d="M28 26 L24 34 H30 L26 42 L38 28 H32 L36 20Z" fill="#CC0000"/>
+        <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
       </svg>
       <div className="loader-bar-track">
         <div className="loader-bar-fill" />

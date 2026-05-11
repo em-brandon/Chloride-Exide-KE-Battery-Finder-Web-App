@@ -28,20 +28,8 @@ export default function AdminLogin() {
 
       {/* Brand header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-        <svg width="48" height="48" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="4" y="18" width="48" height="28" rx="3" fill="#CC0000"/>
-          <rect x="5" y="19" width="46" height="26" rx="2" fill="#f3f3f3" stroke="#CC0000" strokeWidth="1"/>
-          <rect x="11" y="12" width="8" height="7" rx="1.5" fill="#CC0000"/>
-          <rect x="37" y="12" width="8" height="7" rx="1.5" fill="#888888"/>
-          <text x="15" y="18.5" textAnchor="middle" fontSize="6" fontWeight="bold" fill="#fff">+</text>
-          <text x="41" y="18.5" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#fff">−</text>
-          <line x1="18" y1="21" x2="18" y2="43" stroke="#CC0000" strokeWidth="1.2" opacity="0.5"/>
-          <line x1="28" y1="21" x2="28" y2="43" stroke="#CC0000" strokeWidth="1.2" opacity="0.5"/>
-          <line x1="38" y1="21" x2="38" y2="43" stroke="#CC0000" strokeWidth="1.2" opacity="0.5"/>
-          <circle cx="13" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
-          <circle cx="23" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
-          <circle cx="33" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
-          <circle cx="43" cy="33" r="1.8" fill="#CC0000" opacity="0.4"/>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="#CC0000" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
         </svg>
         <div>
           <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.02em', color: 'rgba(17,24,39,0.88)', lineHeight: 1 }}>

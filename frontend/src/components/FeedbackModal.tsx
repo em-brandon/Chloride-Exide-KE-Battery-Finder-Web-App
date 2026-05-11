@@ -2,10 +2,12 @@
  * FeedbackModal.tsx
  *
  * Left-side slide-in feedback panel styled with the app's CSS variable system.
- * Submits are logged to console only — no backend required.
+ * Submits user feedback to POST /api/feedback.
  */
 
 import { useState, useEffect } from 'react'
+import { submitFeedback } from '@/lib/api'
+import { useTestUser } from '@/lib/TestUserContext'
 import {
   StarIcon,
   XMarkIcon,
@@ -25,18 +27,13 @@ interface WrongPart {
   other: boolean
 }
 
-interface FeedbackPayload {
-  satisfaction: number          // 1-5 stars
-  accuracy: Accuracy
-  wrong_parts: WrongPart
-  comments: string
-  submitted_at: string
-}
-
 interface FeedbackModalProps {
   open: boolean
   onClose: () => void
   vehicleLabel: string          // e.g. "Toyota Camry 2020"
+  inputType?: string            // 'select' | 'type'
+  matchConfidence?: number      // 0-100
+  matchType?: string            // e.g. 'exact_match'
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -122,12 +119,14 @@ const BLANK_WRONG: WrongPart = {
   other:        false,
 }
 
-export function FeedbackModal({ open, onClose, vehicleLabel }: FeedbackModalProps) {
+export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchConfidence, matchType }: FeedbackModalProps) {
+  const { user } = useTestUser()
   const [satisfaction, setSatisfaction] = useState(0)
   const [accuracy, setAccuracy]         = useState<Accuracy>('')
   const [wrongParts, setWrongParts]     = useState<WrongPart>(BLANK_WRONG)
   const [comments, setComments]         = useState('')
   const [submitted, setSubmitted]       = useState(false)
+  const [submitting, setSubmitting]     = useState(false)
   const [error, setError]               = useState('')
 
   // Reset state when panel reopens
@@ -138,6 +137,7 @@ export function FeedbackModal({ open, onClose, vehicleLabel }: FeedbackModalProp
       setWrongParts(BLANK_WRONG)
       setComments('')
       setSubmitted(false)
+      setSubmitting(false)
       setError('')
     }
   }, [open])
@@ -154,21 +154,42 @@ export function FeedbackModal({ open, onClose, vehicleLabel }: FeedbackModalProp
     setWrongParts(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (satisfaction === 0) {
-      setError('Please select a star rating before submitting.')
+      setError('Please rate your satisfaction before submitting.')
       return
     }
-    const payload: FeedbackPayload = {
-      satisfaction,
-      accuracy,
-      wrong_parts: wrongParts,
-      comments: comments.trim(),
-      submitted_at: new Date().toISOString(),
+    if (!accuracy) {
+      setError('Please select an accuracy option before submitting.')
+      return
     }
-    // No backend — log only. Safe to replace with a real fetch() later.
-    console.log('[Feedback]', vehicleLabel, payload)
-    setSubmitted(true)
+    if (accuracy === 'wrong' || accuracy === 'close') {
+      const anyChecked = Object.values(wrongParts).some(Boolean)
+      if (!anyChecked) {
+        setError('Please select at least one incorrect part before submitting.')
+        return
+      }
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      await submitFeedback({
+        vehicle_label: vehicleLabel,
+        satisfaction,
+        accuracy,
+        wrong_parts: wrongParts as unknown as { [key: string]: boolean },
+        comments: comments.trim(),
+        submitted_at: new Date().toISOString(),
+        input_type: inputType,
+        match_confidence: matchConfidence,
+        match_type: matchType,
+      })
+      setSubmitted(true)
+    } catch {
+      setError('Failed to submit feedback. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const commentQ = (accuracy === 'close' || accuracy === 'wrong') ? '4.' : '3.'
@@ -190,6 +211,21 @@ export function FeedbackModal({ open, onClose, vehicleLabel }: FeedbackModalProp
           <p className="fb-vehicle-label">
             Feedback for: <strong>{vehicleLabel}</strong>
           </p>
+
+          {/* Identity badge */}
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.35rem 0.7rem', marginBottom: '0.25rem' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg>
+              Submitting as <strong style={{ marginLeft: 2 }}>{user.username}</strong>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#6b7280', background: '#f9fafb', border: '1px solid #e2e4e9', borderRadius: 8, padding: '0.35rem 0.7rem', marginBottom: '0.25rem' }}>
+              Submitting anonymously —{' '}
+              <a href="/login" target="_blank" rel="noopener noreferrer" style={{ color: '#CC0000', fontWeight: 600, textDecoration: 'none' }}>
+                Sign in
+              </a>{' '}to link your feedback
+            </div>
+          )}
 
           {/* Q1 — Star rating */}
           <fieldset className="fb-fieldset">
@@ -284,9 +320,9 @@ export function FeedbackModal({ open, onClose, vehicleLabel }: FeedbackModalProp
 
           {/* Actions */}
           <div className="fb-actions">
-            <button type="button" onClick={onClose} className="fb-cancel-btn">Cancel</button>
-            <button type="button" onClick={handleSubmit} className="btn-submit" style={{ marginTop: 0, width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>
-              Submit feedback
+            <button type="button" onClick={onClose} className="fb-cancel-btn" disabled={submitting}>Cancel</button>
+            <button type="button" onClick={handleSubmit} className="btn-submit" disabled={submitting} style={{ marginTop: 0, width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>
+              {submitting ? 'Submitting…' : 'Submit feedback'}
             </button>
           </div>
         </div>

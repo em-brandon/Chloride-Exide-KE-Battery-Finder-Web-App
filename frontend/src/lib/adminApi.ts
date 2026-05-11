@@ -252,3 +252,104 @@ export async function fetchSessions(): Promise<{ sessions: SessionEntry[] }> {
 export async function revokeSession(id: number): Promise<void> {
   await adminFetch(`/api/admin/sessions/${id}`, { method: 'DELETE' })
 }
+
+// ---------------------------------------------------------------------------
+// Feedback
+// ---------------------------------------------------------------------------
+
+export interface FeedbackEntry {
+  id: number
+  vehicle_label: string
+  satisfaction: number
+  accuracy: 'exact' | 'close' | 'wrong' | 'unsure' | null
+  wrong_parts: Record<string, boolean> | null
+  comments: string | null
+  submitted_at: string
+  ip_address: string | null
+  test_username: string | null
+  input_type: string | null
+  match_confidence: number | null
+  match_type: string | null
+}
+
+export interface FeedbackListResponse {
+  total: number
+  page: number
+  page_size: number
+  items: FeedbackEntry[]
+}
+
+export interface FeedbackSummary {
+  total: number
+  avg_satisfaction: number | null
+  accuracy_breakdown: Record<string, number>
+  star_breakdown: Record<string, number>
+}
+
+export async function fetchFeedback(
+  page = 1,
+  page_size = 25,
+  accuracy?: string,
+): Promise<FeedbackListResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(page_size) })
+  if (accuracy) params.set('accuracy', accuracy)
+  return adminFetch(`/api/admin/feedback?${params}`)
+}
+
+export async function fetchFeedbackSummary(): Promise<FeedbackSummary> {
+  return adminFetch('/api/admin/feedback/summary')
+}
+
+export async function downloadFeedbackPdf(accuracy?: string): Promise<void> {
+  const params = new URLSearchParams()
+  if (accuracy) params.set('accuracy', accuracy)
+  const url = `/api/admin/feedback/export-pdf${params.toString() ? `?${params}` : ''}`
+  const res = await fetch(url, { credentials: 'include' })
+  if (res.status === 401) throw new AdminAuthError()
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const blob = await res.blob()
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = disposition.match(/filename="([^"]+)"/)
+  link.download = match ? match[1] : 'feedback_report.pdf'
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+// ---------------------------------------------------------------------------
+// Test-user sessions (admin view)
+// ---------------------------------------------------------------------------
+
+export interface TestSessionEntry {
+  id:           number
+  username:     string
+  user_id:      number
+  created_at:   string
+  expires_at:   string
+  last_seen_at: string | null
+  ip_address:   string | null
+  user_agent:   string | null
+  expired:      boolean
+}
+
+export interface TestUserEntry {
+  id:              number
+  username:        string
+  email:           string | null
+  created_at:      string
+  is_active:       boolean
+  active_sessions: number
+}
+
+export async function fetchTestSessions(): Promise<{ sessions: TestSessionEntry[] }> {
+  return adminFetch('/api/admin/test-sessions')
+}
+
+export async function revokeTestSession(id: number): Promise<void> {
+  await adminFetch(`/api/admin/test-sessions/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchTestUsers(): Promise<{ users: TestUserEntry[] }> {
+  return adminFetch('/api/admin/test-users')
+}
