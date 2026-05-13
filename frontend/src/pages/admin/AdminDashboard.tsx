@@ -203,7 +203,25 @@ export default function AdminDashboard() {
   useEffect(() => {
     load()
     const t = setInterval(load, 30_000)
-    return () => clearInterval(t)
+
+    // Force a full reload at midnight to reset daily counters
+    const now = new Date()
+    const nextMidnight = new Date(now)
+    nextMidnight.setHours(24, 0, 0, 0)
+    const msUntilMidnight = nextMidnight.getTime() - now.getTime()
+
+    let midnightInterval: ReturnType<typeof setInterval>
+    const midnightTimeout = setTimeout(() => {
+      load()
+      // Then reload every 24 h from that point
+      midnightInterval = setInterval(load, 24 * 60 * 60 * 1_000)
+    }, msUntilMidnight)
+
+    return () => {
+      clearInterval(t)
+      clearTimeout(midnightTimeout)
+      clearInterval(midnightInterval)
+    }
   }, [load])
 
   async function handleCacheRefresh() {
