@@ -1,11 +1,31 @@
-# Battery Finder — CRSP Dataset 2025
+# Chloride Exide KE — Battery Finder
 
-A data pipeline, rule-based matching engine, and web application for recommending the correct car battery for a given vehicle.
+A full-stack production web application that recommends the correct car battery for Kenyan vehicles, built on a cleaned and enriched CRSP dataset.
 
-The project has two phases:
+The project is organized into three distinct layers:
 
-1. **Data pipeline** — cleans and normalises raw CRSP vehicle data, enriches it with individual production years from multiple public APIs, and produces a structured lookup dataset.
-2. **Battery Finder web app** — a FastAPI backend with a React + TypeScript frontend that lets users look up the right battery by Make / Model / Year, with optional Engine CC and Fuel Type information.
+1. **Data pipelines** — clean and normalize raw CRSP/NTS vehicle data, enrich with production years and engine specs from multiple public APIs, and produce structured lookup datasets.
+2. **Backend API** — a FastAPI (Python) server with a 3-layer rule-based matching engine, rate limiting, admin dashboard, feedback collection, and test-user auth.
+3. **Frontend** — a React 19 + TypeScript app built with Vite and Tailwind CSS v4, served as static assets from the backend in production.
+
+> **Audience:** This service is available to Kenyan clients only. Geographic access controls are enforced at the CDN and API gateway levels.
+
+---
+
+## Table of Contents
+
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Running the App](#running-the-app)
+- [API Reference](#api-reference)
+- [Matching Engine](#matching-engine)
+- [Admin Dashboard](#admin-dashboard)
+- [Data Pipelines](#data-pipelines)
+- [Database Schema](#database-schema)
+- [Security](#security)
+- [Production Architecture](#production-architecture)
+- [Environment Variables](#environment-variables)
 
 ---
 
@@ -15,122 +35,195 @@ The project has two phases:
 | Layer | Technology |
 |---|---|
 | Language | Python 3.10+ |
-| Web framework | [FastAPI](https://fastapi.tiangolo.com/) |
-| Server | Uvicorn (ASGI) |
-| Rate limiting | `slowapi` |
-| Data | Pandas — CSV lookup dataset |
+| Web framework | [FastAPI](https://fastapi.tiangolo.com/) (`app.py`) |
+| ASGI server | Uvicorn |
+| Rate limiting | `slowapi` — per-endpoint limits in `app.py` and `admin_router.py` |
+| ORM | SQLAlchemy 2.0 (`db.py`, `models.py`) |
+| Migrations | Alembic (`alembic/`) |
+| Auth | bcrypt + HttpOnly session cookies (`admin_auth.py`) |
+| Database | PostgreSQL via `psycopg2-binary` |
 
 ### Frontend
 | Layer | Technology |
 |---|---|
-| Framework | [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
+| Framework | [React 19](https://react.dev/) + [TypeScript 6](https://www.typescriptlang.org/) |
 | Build tool | [Vite 8](https://vite.dev/) |
 | Package manager | [Bun](https://bun.sh/) |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com/) |
 | UI primitives | [Radix UI](https://www.radix-ui.com/) |
-| Icons | [Lucide React](https://lucide.dev/) |
+| Routing | [React Router v7](https://reactrouter.com/) |
+| Icons | [Lucide React](https://lucide.dev/) + [Heroicons](https://heroicons.com/) |
 
 ### Data Pipeline
 | Tool | Purpose |
 |---|---|
-| Pandas | Data cleaning and normalisation |
-| NHTSA VPIC API | Vehicle make/model lookup + fuzzy matching |
+| Pandas | Data cleaning, normalization, and output |
+| `rapidfuzz` | Fuzzy model name matching across external API results |
+| NHTSA VPIC API | Vehicle make/model lookup |
 | CarAPI | Year-range data per model |
-| fueleconomy.gov | US DOE/EPA bulk vehicle dataset (local cache) |
+| fueleconomy.gov | US DOE/EPA bulk CSV (local cache) |
+| Wikidata / Wikipedia | Supplementary year and fuel-type enrichment |
 
 ---
 
+## Project Structure
+
 ```
-├── app.py                         # FastAPI web server (serves API + frontend dist)
-├── matcher.py                     # Rule-based battery matching engine (3-layer)
-├── frontend/                      # React + TypeScript frontend (Vite + Bun)
+├── app.py                      # FastAPI entrypoint — public API, auth, middleware
+├── admin_router.py             # All /api/admin/* routes (batteries, audit, sessions)
+├── admin_auth.py               # bcrypt + HttpOnly cookie session management
+├── matcher.py                  # 3-layer battery matching engine (exact → soft → rule)
+├── models.py                   # SQLAlchemy ORM models for all tables
+├── db.py                       # SQLAlchemy engine + SessionLocal factory
+├── upload_pipeline.py          # Battery spec upload/import handler
+├── seed.py                     # Seed DB from battery_specs_output.xlsx
+├── create_admin.py             # CLI: create/update admin user accounts
+├── check_db.py                 # Diagnostic: quick DB query for feedback records
+├── remove_ultrapower.py        # Maintenance: remove ULTRAPOWER battery entries
+├── audit_28_case.py            # Maintenance: audit specific case records
+│
+├── dataprep.py                 # Pipeline 1: clean CRSP Excel → vehicles_raw
+├── nts_dataprep.py             # Pipeline 2: clean NTS workbook → nts_vehicles_clean
+├── enrich_years.py             # Pipeline 3: enrich vehicles with production years
+├── allocate_cc_fuel.py         # Pipeline 4: enrich NTS vehicles with CC + fuel type
+│
+├── alembic/                    # Database migration scripts
+│   └── versions/               # One migration file per schema change
+│
+├── frontend/                   # React + TypeScript frontend
 │   ├── src/
-│   │   ├── App.tsx                # Root layout — navbar, dark mode, page structure
-│   │   ├── index.css              # Global styles + CSS custom properties
+│   │   ├── App.tsx             # Root layout — navbar, dark mode, routing
 │   │   ├── components/
-│   │   │   ├── VehicleFinderForm.tsx  # Main form with Select/Type toggle
-│   │   │   ├── PageLoader.tsx         # Battery SVG splash screen
-│   │   │   └── Notification.tsx       # Toast notification system
+│   │   │   ├── VehicleFinderForm.tsx   # Main search form (Select/Type toggle)
+│   │   │   ├── ResultCard.tsx          # Battery recommendation result display
+│   │   │   ├── FeedbackModal.tsx       # User feedback submission modal
+│   │   │   ├── ConfidenceBar.tsx       # Match confidence visual indicator
+│   │   │   ├── Notification.tsx        # Toast notification system
+│   │   │   ├── PageLoader.tsx          # Animated battery splash screen
+│   │   │   └── admin/
+│   │   │       ├── AdminLayout.tsx     # Admin panel shell
+│   │   │       └── ProtectedRoute.tsx  # Auth guard for admin routes
+│   │   ├── pages/
+│   │   │   ├── admin/
+│   │   │   │   ├── AdminDashboard.tsx
+│   │   │   │   ├── AdminBatteries.tsx
+│   │   │   │   ├── AdminFeedback.tsx
+│   │   │   │   ├── AdminAuditLog.tsx
+│   │   │   │   ├── AdminSessions.tsx
+│   │   │   │   ├── AdminTestSessions.tsx
+│   │   │   │   ├── AdminDataPipeline.tsx
+│   │   │   │   └── AdminLogin.tsx
+│   │   │   └── TestUserLogin.tsx
 │   │   ├── lib/
-│   │   │   └── api.ts             # Typed fetch wrappers for all API endpoints
+│   │   │   ├── api.ts              # Typed fetch wrappers for public API
+│   │   │   ├── adminApi.ts         # Typed fetch wrappers for admin API
+│   │   │   ├── testUserApi.ts      # Test-user auth API helpers
+│   │   │   └── TestUserContext.tsx # React context for test-user session state
 │   │   └── types/
-│   │       └── battery.ts         # TypeScript interfaces for API responses
-│   ├── vite.config.ts
+│   │       └── battery.ts          # TypeScript interfaces for API responses
 │   ├── package.json
+│   ├── vite.config.ts
 │   └── tsconfig.app.json
-
-├── dataprep.py                    # Data preparation pipeline script
-├── enrich_years.py                # Year enrichment script (multi-source API lookup)
-├── analysis.ipynb                 # Jupyter notebook for exploratory analysis
-├── battery_lookup_dataset.csv     # Cleaned output dataset (CSV)
-├── vehicle_years.csv              # Year-enriched dataset — one row per production year (CSV)
-├── unmatched_models.csv           # Make/model pairs where no year data was found
-├── year_cache.json                # API response cache (auto-generated)
-├── fueleconomy_vehicles.csv       # Local cache of fueleconomy.gov bulk CSV (auto-generated)
-├── requirements.txt               # Python dependencies
-└── README.md
+│
+├── scripts/                    # Accuracy and failure mode analysis scripts
+├── requirements.txt            # Python dependencies
+├── alembic.ini                 # Alembic configuration
+├── Jenkinsfile                 # CI/CD pipeline definition
+└── .env                        # Environment variables (not committed)
 ```
 
-> **Note:** The source file `New-CRSP---July-2025.xlsx` is required to run `dataprep.py` but is not included in the repository.
+> **Note:** The source file `New-CRSP---July-2025.xlsx` is required to run `dataprep.py` but is not committed to the repository.
 
 ---
 
-## Battery Finder Web App
+## Getting Started
 
-### Running the App
+### Prerequisites
 
-**Production (built frontend):**
+- Python 3.10 or later
+- [Bun](https://bun.sh/) (for frontend builds)
+- PostgreSQL running and accessible
+- `.env` file configured (see [Environment Variables](#environment-variables))
+
+### Install Dependencies
+
 ```bash
+# Python
 pip install -r requirements.txt
-cd frontend && bun install && bun run build && cd ..
-uvicorn app:app --reload
+
+# Frontend
+cd frontend && bun install
 ```
 
-The app starts on **http://localhost:8000**.
+### Apply Database Migrations
 
-**Development (hot reload):**
+```bash
+alembic upgrade head
+```
+
+### Create First Admin User
+
+```bash
+python create_admin.py --username admin --password yourpassword
+```
+
+Use `--force` to update an existing password:
+
+```bash
+python create_admin.py --username admin --password newpassword --force
+```
+
+---
+
+## Running the App
+
+### Production
+
+```bash
+cd frontend && bun run build && cd ..
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+The app starts on **http://localhost:8000**. Static frontend assets are served directly from `frontend/dist/` by FastAPI.
+
+### Development (hot reload)
+
 ```bash
 # Terminal 1 — backend
 uvicorn app:app --reload
 
-# Terminal 2 — frontend dev server (proxies /api to port 8000)
+# Terminal 2 — frontend (proxies /api to port 8000)
 cd frontend && bun run dev
 ```
 
-Frontend dev server runs on **http://localhost:5173**.
+Frontend dev server: **http://localhost:5173**
 
-### How It Works
+---
 
-Users select (or manually type) their vehicle's **Make**, **Model**, and **Year**. The UI cascades — selecting a make populates the model list, selecting a model populates the year list. If a vehicle isn't in the database, each field has a **Select / Type** toggle that lets the user enter the details manually.
+## API Reference
 
-Optional fields — **Engine CC** and **Fuel Type** — improve recommendation accuracy. When any field is in manual (Type) mode, Engine CC and Fuel Type become required.
+All public endpoints are rate-limited and served under `/api/`.
 
-### Matching Engine (`matcher.py`)
+### Public Endpoints
 
-The matching engine applies a **3-layer rule hierarchy**:
+| Method | Endpoint | Rate Limit | Description |
+|---|---|---|---|
+| `GET` | `/api/makes` | 20/min | List all available vehicle makes |
+| `GET` | `/api/models/{make}` | 20/min | List models for a given make |
+| `GET` | `/api/years?make=&model=` | 20/min | List available years for a make + model |
+| `POST` | `/api/recommend` | 10/min | Get a battery recommendation |
+| `POST` | `/api/feedback` | 5/min | Submit feedback on a recommendation |
 
-| Layer | Trigger | Confidence |
-|---|---|---|
-| **Exact match** | Make + Model + Year found in `vehicle_years.csv` | 100% |
-| **Close match** | Make + Model found, year within ±2 years | 60–85% |
-| **Fallback** | Engine CC + Fuel Type rules only | 30–50% |
+### Auth Endpoints (Test Users)
 
-The engine returns a primary recommendation and up to three alternative batteries, with a `match_type` label and `confidence` percentage.
+| Method | Endpoint | Rate Limit | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | 5/min | Register a new test user |
+| `POST` | `/api/auth/login` | 10/min | Log in as a test user |
+| `POST` | `/api/auth/logout` | — | Log out |
+| `GET` | `/api/auth/me` | — | Get current test user info |
 
-Stop-start capability is inferred from make + year.
-
-### API Endpoints
-
-All endpoints are rate-limited (20 req/min for lookups, 10 req/min for recommendations).
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/makes` | List all available makes |
-| `GET` | `/api/models/{make}` | List models for a given make |
-| `GET` | `/api/years?make=&model=` | List available years for a make + model |
-| `POST` | `/api/recommend` | Get a battery recommendation |
-
-#### `POST /api/recommend` — Request Body
+### `POST /api/recommend` — Request Body
 
 ```json
 {
@@ -142,239 +235,221 @@ All endpoints are rate-limited (20 req/min for lookups, 10 req/min for recommend
 }
 ```
 
-#### Response
+`engine_cc` (500–8000) and `fuel_type` are optional but improve match confidence.
+
+### `POST /api/recommend` — Response
 
 ```json
 {
   "match_type": "exact",
   "confidence": 100,
   "matched_make": "TOYOTA",
-  "matched_model": "Corolla",
+  "matched_model": "COROLLA AXIO G",
   "matched_year": 2015,
   "engine_cc": 1500,
   "fuel_type": "Petrol",
   "primary": {
     "battery_code": "NS60",
-    "model_key": "...",
+    "model_key": "NS60",
     "ah": 45,
     "cca_en": 390,
     "technology": "MF"
   },
-  "alternatives": [ ... ]
+  "alternatives": []
 }
 ```
 
 ---
 
-## Dataset
+## Matching Engine
 
-### `battery_lookup_dataset.csv`
+Defined in `matcher.py`. Data is loaded from the database at startup via `lru_cache` and held in memory. The engine applies a **3-layer rule hierarchy**:
 
-| Column | Description |
-|---|---|
-| `make` | Vehicle manufacturer (e.g. AUDI, TOYOTA) |
-| `model` | Vehicle model name and variant |
-| `engine_capacity` | Engine displacement in cc |
-| `fuel` | Fuel type (GASOLINE, DIESEL, etc.) — electric vehicles are excluded |
+| Layer | Trigger | Confidence |
+|---|---|---|
+| **Exact** | Make + fuzzy model (≥90 score) + exact year in `vehicle_years` | 100% |
+| **Soft** | Make + fuzzy model (≥60 score) + year within ±3 years | 60–89% |
+| **Rule-based fallback** | Engine CC + fuel type → Ah bracket | 30–59% |
 
-### `vehicle_years.csv`
+The engine also:
+- Resolves international model names to JDM equivalents via `model_aliases`
+- Infers stop-start battery requirement from make + year
+- Applies NS/JIS vs DIN battery standard based on vehicle origin region (see `_NS_MAKES`, `_DIN_MAKES` in `matcher.py`)
 
-Each row represents a single make + model + production year combination. This flat structure enables direct lookup for rule-based battery matching (e.g. user inputs `Toyota Corolla 2012` → one exact row match).
+---
 
-| Column | Description |
-|---|---|
-| `make` | Vehicle manufacturer |
-| `model` | Vehicle model name and variant |
-| `year` | Individual production year (one row per year) |
-| `engine_capacity` | Engine displacement in cc |
-| `fuel` | Fuel type (GASOLINE, DIESEL, etc.) |
+## Admin Dashboard
 
-> Rows where no year data could be found are excluded from this file and written to `unmatched_models.csv` instead.
+Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issued by `POST /api/admin/login`. Implemented in `admin_router.py` with auth enforced by `admin_auth.py`.
 
-## Getting Started
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/admin/login` | Admin login (5/min rate limit) |
+| `POST` | `/api/admin/logout` | Clear session |
+| `GET` | `/api/admin/me` | Current admin user |
+| `GET` | `/api/admin/stats` | Usage stats and record counts |
+| `GET` | `/api/admin/health` | Database connectivity check |
+| `GET/POST` | `/api/admin/batteries` | List or create battery specs |
+| `PATCH` | `/api/admin/batteries/{id}` | Update a battery spec |
+| `DELETE` | `/api/admin/batteries/{id}` | Soft-delete a battery spec |
+| `POST` | `/api/admin/batteries/upload` | Bulk upload from Excel |
+| `GET` | `/api/admin/batteries/export` | Export battery specs as Excel |
+| `GET` | `/api/admin/audit` | Full change history |
+| `POST` | `/api/admin/cache/refresh` | Reload matcher caches from DB |
+| `GET/DELETE` | `/api/admin/sessions` | View or revoke admin sessions |
 
-### Prerequisites
+---
 
-- Python 3.10 or later
-- The source Excel file: `New-CRSP---July-2025.xlsx` placed in the project folder (only needed to re-run the data pipeline)
+## Data Pipelines
 
-### Install Dependencies
+Run scripts in order when refreshing the dataset.
 
-```bash
-pip install -r requirements.txt
-```
-
-### Run the Battery Finder Web App
-
-```bash
-python app.py
-```
-
-Open **http://localhost:8000** in your browser.
-
-### Run the Data Preparation Pipeline
+### Pipeline 1 — CRSP Data Prep
 
 ```bash
 python dataprep.py
 ```
 
-The script will:
-1. Load `New-CRSP---July-2025.xlsx`
-2. Clean and normalise column names , remove model number collumn
-3. 
-4. Filter out electric vehicles
-5. Deduplicate records
-6. Save `battery_lookup_dataset.csv` and `battery_lookup_dataset.xlsx`
+Input: `New-CRSP---July-2025.xlsx` (not committed)
+Output: `battery_lookup_dataset.csv`, `battery_lookup_dataset.xlsx`
 
-Progress is logged to the console every 500 rows (configurable via `LOG_EVERY_N_ROWS` in `dataprep.py`).
-
-### Run the Year Enrichment Script
-
-```bash
-python enrich_years.py
-```
-
-The script will:
-1. Load `battery_lookup_dataset.csv`
-2. Reset the years cache (see [Caching](#caching) below)
-3. Fetch model lists from NHTSA VPIC and CarAPI (cached to `year_cache.json`)
-4. Look up production years in four stages:
-   - **Stage 1** — Download the fueleconomy.gov bulk CSV (cached locally as `fueleconomy_vehicles.csv`)
-   - **Stage 2** — NHTSA VPIC model list per make (used for fuzzy name matching)
-   - **Stage 3** — CarAPI model list per make (includes year-range data)
-   - **Stage 4** — Year lookup per unique make+model using the NHTSA fuzzy-matched name (falls back to raw model name)
-5. Save `vehicle_years.csv`, `vehicle_years.xlsx`, and `unmatched_models.csv`
-
-#### Caching
-
-`year_cache.json` has three sections:
-
-| Section | Behaviour |
-|---|---|
-| `nhtsa` | Persisted across runs — model lists are reused |
-| `carapi` | Persisted across runs — model lists are reused |
-| `years` | **Cleared on every run** — always re-fetched to avoid stale data |
-
-`fueleconomy_vehicles.csv` is downloaded once from the US DOE/EPA and reused on subsequent runs. Delete the file to force a fresh download.
-
----
-
-## NTS Vehicles 2024 — Allocate Engine CC
-
-This pipeline cleans the NTS registration workbook and then enriches it with `engine_capacity` (cc) using public sources.
-
-### 1) Clean / standardize the NTS workbook
-
-Input: `NTSA Vehicles Registered 2024.xlsx` (sheet: `Table1`)
+### Pipeline 2 — NTS Data Prep
 
 ```bash
 python nts_dataprep.py
 ```
 
-Outputs:
+Input: `NTSA Vehicles Registered 2024.xlsx`
+Output: `nts_vehicles_clean.csv`, `nts_vehicles_clean.xlsx`
 
-- `nts_vehicles_clean.csv` (minimal: `make`, `model`, `year`)
-- `nts_vehicles_clean.xlsx`
+### Pipeline 3 — Year Enrichment
 
-### 2) Enrich with Engine CC and Fuel Type
+```bash
+python enrich_years.py
+```
+
+Input: `battery_lookup_dataset.csv`
+Output: `vehicle_years.csv`, `vehicle_years.xlsx`, `unmatched_models.csv`
+
+Fetches production years from (in order): fueleconomy.gov bulk CSV → NHTSA VPIC → CarAPI → Wikidata/Wikipedia.
+API results cached in `year_cache.json` (the `years` key is cleared on each run; `nhtsa` and `carapi` persist).
+
+### Pipeline 4 — NTS CC + Fuel Enrichment
 
 ```bash
 python allocate_cc_fuel.py
 ```
 
-This script replaces the previous `allocate_cc.py`. It simultaneously resolves both **engine displacement (CC)** and **fuel type** for every vehicle so the final dataset is complete for `matcher.py`.
+Input: `nts_vehicles_clean.csv`
+Output: `nts_vehicles_enriched.csv`, `nts_vehicles_enriched.xlsx`, `nts_unmatched_enriched.csv`
 
-Outputs:
+Enriches each NTS vehicle with engine displacement (cc) and fuel type. Results cached in `enrichment_cache.json`.
 
-- `nts_vehicles_enriched.csv` — full enriched dataset: `make`, `model`, `year`, `engine_capacity`, `fuel_type`
-- `nts_vehicles_enriched.xlsx` — same data as Excel
-- `nts_unmatched_enriched.csv` — rows where either CC **or** fuel type could not be resolved (for manual review)
-- `enrichment_cache.json` — lookup cache for both CC and fuel type
+Fuel type is normalized to one of: `PETROL` · `DIESEL` · `ELECTRIC` · `HYBRID` · `PLUG-IN HYBRID` · `CNG` · `LPG` · `HYDROGEN`
 
-#### What changed from `allocate_cc.py`
+---
 
-| | `allocate_cc.py` (old) | `allocate_cc_fuel.py` (new) |
-|---|---|---|
-| Columns produced | `engine_capacity` only | `engine_capacity` + `fuel_type` |
-| Cache file | `cc_cache.json` | `enrichment_cache.json` |
-| Output CSV | `nts_vehicles_with_cc.csv` | `nts_vehicles_enriched.csv` |
-| fueleconomy.gov columns | `displ` only | `displ`, `fuelType1`, `atvType` |
-| Year tolerance | `0` (exact year only) | `±1 year` — improves hit rate for older vehicles |
-| CarQuery | CC only | CC + `model_engine_fuel` |
-| CarAPI | CC only | CC + fuel type fields |
-| Wikipedia | CC only | CC + `fuel_type`/`fuel_system` infobox fields |
+## Database Schema
 
-#### Fuel type values
+Managed by Alembic (`alembic/versions/`). Apply migrations with `alembic upgrade head`.
 
-Fuel type is normalized across all sources to one of:
-
-`PETROL` · `DIESEL` · `ELECTRIC` · `HYBRID` · `PLUG-IN HYBRID` · `CNG` · `LPG` · `HYDROGEN`
-
-#### How CC and fuel type are resolved
-
-Each value is looked up **independently** — finding CC from one source does not prevent fuel type from being filled by a different source. Sources are tried in this order:
-
-| Priority | Source | CC | Fuel type |
+| Table | Written by | Read by | Description |
 |---|---|---|---|
-| 1 | Model text parsing (free, no network) | ✓ | ✓ (keyword scan) |
-| 2 | [fueleconomy.gov](https://www.fueleconomy.gov/feg/epadata/vehicles.csv) bulk CSV | ✓ | ✓ (`fuelType1` / `atvType`) |
-| 3 | [CarAPI](https://carapi.app/) | ✓ | ✓ |
-| 4 | [CarQuery](https://www.carqueryapi.com/) | ✓ | ✓ |
-| 5 | [Wikidata SPARQL](https://query.wikidata.org/) | ✓ | — |
-| 6 | [Wikipedia API](https://en.wikipedia.org/w/api.php) | ✓ | ✓ |
+| `vehicles_raw` | `dataprep.py` | `enrich_years.py` | Cleaned CRSP vehicle records |
+| `vehicle_years` | `enrich_years.py` | `matcher.py` | Per-make/model/year rows with CC + fuel |
+| `battery_specs` | `seed.py`, admin upload | `matcher.py` | Battery catalogue (soft-delete via `deleted_at`) |
+| `model_aliases` | `seed.py` | `matcher.py` | International → JDM model name mappings |
+| `admin_users` | `create_admin.py` | `admin_auth.py` | Admin credentials (bcrypt hashed, cost 12) |
+| `admin_sessions` | `admin_auth.py` | `admin_auth.py` | Active admin sessions (8-hour TTL) |
+| `battery_audit_log` | `admin_router.py` | Admin UI | Immutable change history for battery_specs |
+| `admin_stats` | `app.py` middleware | Admin UI | Persisted usage counters (e.g. `db_reads`) |
+| `test_users` | `/api/auth/register` | `app.py` | Test user accounts |
+| `test_user_sessions` | `/api/auth/login` | `app.py` | Test user tokens (24-hour TTL) |
+| `user_feedback` | `/api/feedback` | Admin UI | User feedback on recommendations |
 
-Non-US makes (Great Wall, SAIC, Maruti Suzuki, Peugeot, Citroën, Renault, Haval, Iveco, Mitsubishi Fuso) are automatically skipped for fueleconomy.gov and fall through to the remaining sources.
+---
 
-#### Notes
+## Security
 
-- Engine CC is always stored as an integer in `engine_capacity`.
-- `enrichment_cache.json` caches both CC and fuel type per `make||model||year` key. Delete the file to force a full re-fetch.
+- All secrets loaded from environment variables via `python-dotenv` (`db.py`)
+- Admin passwords stored as bcrypt hashes with cost factor 12 (`admin_auth.py`)
+- Admin sessions use cryptographically random 64-character hex tokens
+- Session cookies are `HttpOnly`, `Secure`, `SameSite=Strict`
+- Rate limiting applied per endpoint via `slowapi`
+- Input validation enforced on all request bodies via Pydantic models
+- IP addresses captured and truncated to 45 characters for feedback and session records
+- Geographic access restricted to Kenya (enforced at CDN + WAF layer in production)
 
-#### Optional runtime controls
+---
 
-Set environment variables before running:
+## Production Architecture
 
-- `LIMIT_KEYS=100` — only process the first N unique make+model+year keys (useful for dry-runs)
-- `ENABLE_MODEL_TEXT=0` — disable parsing from the model string itself
-- `ENABLE_CARAPI=0` / `ENABLE_CARQUERY=0` / `ENABLE_WIKIDATA=0` / `ENABLE_WIKIPEDIA=0` — disable individual fallback sources
+```
+Users (Kenya only — geo-restricted)
+  │
+  ▼
+Route 53 ─► CloudFront (KE geo-restriction)
+               │                  │
+        static assets        API requests
+               │                  │
+               ▼                  ▼
+         S3 Frontend         ALB + AWS WAF
+         Bucket              (rate limits, bot filtering)
+                                  │
+                                  ▼
+                            ECS Fargate
+                            FastAPI backend
+                            (min 2 tasks / hard max cap)
+                                  │
+                     ┌────────────┴────────────┐
+                     ▼                         ▼
+               ElastiCache Redis          RDS PostgreSQL
+               (cache / rate state)       (auth, feedback,
+                     │                    sessions, audit)
+                     ▼
+               S3 Data Bucket
+               (CSVs, uploads,
+               pipeline outputs)
 
-CarAPI authentication (optional, unlocks full year range):
-
-- `CARAPI_JWT` — provide an existing JWT (preferred)
-- or `CARAPI_API_TOKEN` + `CARAPI_API_SECRET` — script will request a JWT via `/api/auth/login`
-
-Example (Windows CMD):
-
-```bat
-set LIMIT_KEYS=100
-set ENABLE_CARAPI=0
-set ENABLE_CARQUERY=0
-python allocate_cc_fuel.py
+Pipelines
+  EventBridge Scheduler ─► ECS Fargate Tasks
+  (dataprep · enrich · upload · publish jobs)
 ```
 
-### Run the Analysis Notebook
+Secrets are stored in AWS SSM Parameter Store or Secrets Manager and injected as environment variables at task runtime.
 
-```bash
-jupyter notebook analysis.ipynb
-```
+---
 
-## Dependencies
+## Environment Variables
 
-| Package | Version | Purpose |
+Copy `.env.example` to `.env` and fill in your values before running the app:
+
+| Variable | Required | Description |
 |---|---|---|
-| fastapi | ≥ 0.110.0 | Web API framework |
-| uvicorn | ≥ 0.29.0 | ASGI server |
-| slowapi | ≥ 0.1.9 | Rate limiting |
-| pydantic | ≥ 2.0.0 | Request validation |
-| pandas | ≥ 2.2.0 | Data processing |
-| numpy | ≥ 1.26.0 | Numerical operations |
-| openpyxl | ≥ 3.1.0 | Excel read/write |
-| xlrd | ≥ 2.0.1 | Legacy Excel read |
-| matplotlib | ≥ 3.8.0 | Analysis charts |
-| seaborn | ≥ 0.13.0 | Analysis charts |
-| jupyter | ≥ 1.0.0 | Notebook support |
-| ipykernel | ≥ 6.29.0 | Notebook kernel |
-| requests | ≥ 2.31.0 | HTTP client (year enrichment) |
-| rapidfuzz | ≥ 3.6.0 | Fuzzy model-name matching |
-| pandas-stubs | latest | Type stubs |
-| types-requests | latest | Type stubs |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `ADMIN_COOKIE_SECURE` | No | Set `false` for local HTTP dev (default `true`) |
+
+Example `.env`:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/battery_finder
+ADMIN_COOKIE_SECURE=false
+```
+
+> **Never commit `.env` to version control.** The repository `.gitignore` already excludes it.
+
+---
+
+## CI/CD
+
+Defined in `Jenkinsfile`. Pipeline stages:
+
+1. Checkout source
+2. Install Python dependencies
+3. Install Bun + frontend dependencies
+4. Frontend lint (`bun run lint`)
+5. Frontend build (`bun run build`)
+6. Python tests (`pytest`)
+7. Archive `frontend/dist/` artifacts
+
+Build failure notifications are sent by email.
