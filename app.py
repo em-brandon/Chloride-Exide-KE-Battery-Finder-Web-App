@@ -155,14 +155,13 @@ async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
 # ------------------------------------------------------------------
 @app.middleware("http")
 async def count_reads_middleware(request: Request, call_next):
-    """Increment the in-memory read counter for client-side GET /api/* requests only.
-    Admin requests (/api/admin/*) are excluded so the counter reflects end-user traffic."""
+    """Increment the in-memory read counter for POST /api/recommend requests only.
+    This tracks actual battery recommendation lookups made by end users."""
     global _read_counter_pending
     response = await call_next(request)
     if (
-        request.method == "GET"
-        and request.url.path.startswith("/api/")
-        and not request.url.path.startswith("/api/admin")
+        request.method == "POST"
+        and request.url.path == "/api/recommend"
     ):
         with _read_counter_lock:
             _read_counter_pending += 1
