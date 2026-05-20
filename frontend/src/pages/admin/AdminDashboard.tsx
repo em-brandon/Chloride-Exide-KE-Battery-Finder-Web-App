@@ -249,7 +249,7 @@ export default function AdminDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
           <StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database"     icon={<BoltIcon style={{ width: 18, height: 18 }} />} />
           <StatCard accentColor="#1d4ed8" label="Makes &amp; Models"   value={stats?.counts.vehicle_years  ?? '—'} sub="unique make/model pairs" icon={<CircleStackIcon style={{ width: 18, height: 18 }} />} />
-          <StatCard accentColor="#7e22ce" label="API Reads"         value={stats?.db_reads              ?? '—'} sub="cumulative GET requests" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
+          <StatCard accentColor="#7e22ce" label="API Reads"         value={stats?.db_reads              ?? '—'} sub="today's GET requests · resets at midnight" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
           {health && <HealthCard {...health} />}
         </div>
 

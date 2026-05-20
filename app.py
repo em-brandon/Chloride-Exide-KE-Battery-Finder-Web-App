@@ -63,6 +63,37 @@ def _flush_read_counter() -> None:
     threading.Timer(_READ_FLUSH_INTERVAL, _flush_read_counter).start()
 
 
+def _seconds_until_midnight() -> float:
+    """Return the number of seconds until the next local midnight."""
+    now = datetime.now()
+    tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (tomorrow - now).total_seconds()
+
+
+def _reset_daily_reads() -> None:
+    """Reset the db_reads counter to 0 at midnight, then reschedule for next midnight."""
+    try:
+        db = SessionLocal()
+        row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
+        if row:
+            row.stat_value = 0
+            row.updated_at = datetime.now(timezone.utc)
+            db.commit()
+        logger.info("Daily API reads counter reset at midnight.")
+    except Exception as exc:
+        logger.warning("Failed to reset daily reads counter: %s", exc)
+    finally:
+        db.close()
+
+    # Also zero out any pending in-memory delta so it doesn't get added after reset
+    global _read_counter_pending
+    with _read_counter_lock:
+        _read_counter_pending = 0
+
+    # Reschedule for next midnight
+    threading.Timer(_seconds_until_midnight(), _reset_daily_reads).start()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Verify DB connectivity, warm matcher cache, and start read counter flush timer."""
@@ -77,6 +108,9 @@ async def lifespan(_app: FastAPI):
     # Start the background read-counter flush timer
     threading.Timer(_READ_FLUSH_INTERVAL, _flush_read_counter).start()
     logger.info("Read counter flush timer started (every %ds).", _READ_FLUSH_INTERVAL)
+    # Schedule daily midnight reset of the API reads counter
+    threading.Timer(_seconds_until_midnight(), _reset_daily_reads).start()
+    logger.info("Daily reads reset scheduled (next midnight in %.0fs).", _seconds_until_midnight())
     yield
 
 
