@@ -524,6 +524,38 @@ def _parse_inference_code(code: str) -> tuple[int, str] | None:
     return None
 
 
+def _lookup_battery_by_code(code: str) -> tuple[int, str] | None:
+    """
+    Resolve a call-centre battery code to (target_ah, technology) by matching
+    directly against battery_specs — no format parsing required.
+
+    Priority:
+      1. Exact code match in battery_specs
+      2. Fuzzy match (token_set_ratio ≥ 85) in battery_specs
+      3. Legacy format parser (_parse_inference_code) as last resort
+    Returns None only when all three fail.
+    """
+    if not code or not isinstance(code, str):
+        return None
+
+    batt = _batteries()
+    code_n = code.strip().upper()
+    batt_codes = batt["Battery Code"].str.upper().str.strip()
+
+    exact = batt[batt_codes == code_n]
+    if not exact.empty:
+        row = exact.iloc[0]
+        return int(row["Ah"]), str(row["Technology"])
+
+    batt_codes_list = batt_codes.tolist()
+    hit = process.extractOne(code_n, batt_codes_list, scorer=fuzz.token_set_ratio)
+    if hit and hit[1] >= 85:
+        row = batt.iloc[batt_codes_list.index(hit[0])]
+        return int(row["Ah"]), str(row["Technology"])
+
+    return _parse_inference_code(code)
+
+
 # ---------------------------------------------------------------------------
 # Battery selector
 # ---------------------------------------------------------------------------
@@ -698,15 +730,22 @@ def recommend(
 
         effective_inf_year = inf_matched_year if inf_matched_year is not None else int(year)
 
-        # Parse Ah + technology from the inference battery code.
-        # When i-stop is OFF the user's choice overrides the inference tech,
-        # but we still honour the real-world Ah figure.
-        parsed = _parse_inference_code(inf_code)
+        # Resolve Ah + technology from the inference battery code by matching
+        # directly against battery_specs (exact → fuzzy → legacy parser).
+        # Ah always comes from the real-world inference data.
+        # Technology: honour AGM/EFB from inference (deliberate upgrade by call centre);
+        # but when inference says MF, let stop_start determine the correct tech —
+        # MF codes in the inference table often reflect non-i-stop sales or wrong
+        # recommendations, so we should not blindly copy them for i-stop vehicles.
+        parsed = _lookup_battery_by_code(inf_code)
         if parsed is not None:
             target_ah, parsed_tech = parsed
-            pref_tech = parsed_tech if stop_start else _preferred_tech(
-                resolved_cc, resolved_fuel, effective_inf_year, make_n, False
-            )
+            if not stop_start:
+                pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, False)
+            elif parsed_tech in ("AGM", "EFB"):
+                pref_tech = parsed_tech
+            else:
+                pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, True)
         else:
             target_ah = _target_ah(resolved_cc, resolved_fuel, effective_inf_year)
             pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, stop_start)
