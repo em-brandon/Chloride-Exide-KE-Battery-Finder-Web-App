@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pip install -r requirements.txt
 alembic upgrade head
-python create_admin.py --username admin --password <password>
+python scripts/create_admin.py --username admin --password <password>
 uvicorn app:app --reload          # dev server at http://localhost:8000
 uvicorn app:app --host 0.0.0.0 --port 8000   # production
 ```
@@ -29,10 +29,11 @@ bun run preview
 
 ### Data Pipelines (run in order when refreshing dataset)
 ```bash
-python dataprep.py            # CRSP Excel → vehicles_raw table + CSV
-python nts_dataprep.py        # NTS workbook → nts_vehicles_clean.csv
-python enrich_years.py        # Enrich vehicles with production years (hits NHTSA, CarAPI, fueleconomy.gov, Wikidata)
-python allocate_cc_fuel.py    # Enrich NTS vehicles with engine CC + fuel type
+python pipelines/dataprep.py            # CRSP Excel → vehicles_raw table + CSV
+python pipelines/nts_dataprep.py        # NTS workbook → nts_vehicles_clean.csv
+python pipelines/enrich_years.py        # Enrich vehicles with production years (hits NHTSA, CarAPI, fueleconomy.gov, Wikidata)
+python pipelines/dial_battery_clean.py  # Clean Dial-A-Battery data → dial_battery_inference table
+python pipelines/fill_cca.py            # Fill missing CCA values in battery_specs
 ```
 
 ### CI/CD (Jenkinsfile)
@@ -91,28 +92,9 @@ Loaded via `python-dotenv` in `db.py`. Never commit `.env`.
 
 - **Upload pipeline** (`upload_pipeline.py`): handles Excel battery data cleanup, validation, and upsert — used by the admin DataPipeline page
 - **Accuracy scripts** live in `scripts/` and are standalone — not part of the app runtime
-- **Enrichment caches** (`year_cache.json`, `enrichment_cache.json`) speed up re-runs of the data pipelines; safe to delete to force a full re-fetch
+- **Enrichment caches** (`cache/year_cache.json`, `cache/enrichment_cache.json`) speed up re-runs of the data pipelines; safe to delete to force a full re-fetch
+- **Source data files** live in `data/` (e.g. `data/Dial-A-Battery Data - 2023-2026.xlsx`)
+- **Assets** (logos, diagrams) live in `assets/`
 - The `battery_specs` table uses soft-delete; always filter `deleted_at IS NULL` when querying active batteries
 
 THESE ARE YOUR TAKS:
-
-You are to look through battery specs data 2023 to 2026 xlsx file 
-you are standardize data in it by:
-dropping duplicates and rows with blank values 
-duplicates include words or letters in different case but same spelling 
-in the dataset you will remove these rows:
-created on, Customer Acc and region 
-on the batteries collumn remove the first digit as this refers to the quantity we don need this data 
-
-you are to save the new table into the batteryfinderdev db with a uniques name
-
-
-
-this data directly matches a car to battery instead of making a calculated guess in our matcher how can we use this data as inference table before the matcher engine logic fires as it provides real world data?
-
-
-how can we match car models to this data when cars have various trims but likey have the same battery our vehicle dataset has exapnsive model list 
-
-
-
-suggest a plan before you make file changes 

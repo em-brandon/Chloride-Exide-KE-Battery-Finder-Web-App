@@ -4,6 +4,7 @@ export interface BatteryEntry {
   ah: number
   cca_en: number | null
   technology: string
+  origin: 'local' | 'imported' | null
 }
 
 export interface RecommendationResult {
@@ -30,4 +31,5 @@ export interface RecommendRequest {
   year: number
   engine_cc: number | null
   fuel_type: string | null
+  stop_start?: boolean
 }

@@ -165,6 +165,7 @@ body {
 .page-dark .ac-code             { color: rgba(229,231,235,0.88); }
 .page-dark .ac-specs            { color: rgba(229,231,235,0.5); }
 .page-dark .result-title        { color: rgba(229,231,235,0.88); }
+.page-dark .model-missing-hint  { color: rgba(229,231,235,0.4); }
 .page-dark .text-card-foreground { color: rgba(229,231,235,0.95); }
 .page-dark .conf-row span       { color: rgba(229,231,235,0.65); }
 .page-dark .bar-track           { background: #2a2d3a; }
@@ -422,6 +423,9 @@ body {
 }
 .form-label .optional { font-weight: 400; text-transform: none; color: var(--muted2); font-size: 0.74rem; }
 .required-hint { display: none; font-size: 0.78rem; color: #be123c; margin-top: 0.25rem; }
+.model-missing-hint { font-size: 0.7rem; color: var(--muted); margin-top: 0.3rem; margin-bottom: 0; }
+.model-missing-hint-btn { background: none; border: none; padding: 0; color: var(--red); font-size: 0.7rem; font-family: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.model-missing-hint-btn:hover { color: #990000; }
 
 .form-input-wrap { display: flex; gap: 0.5rem; align-items: center; }
 
@@ -672,6 +676,8 @@ body {
   flex-wrap: wrap;
   margin-bottom: 0.55rem;
 }
+.primary-battery-icon { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; flex-shrink: 0; }
+.primary-battery-icon-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .primary-spec { text-align: center; min-width: 48px; }
 .primary-spec .value { font-size: 1.15rem; font-weight: 800; color: var(--red); }
 .primary-spec .unit  { font-size: 0.62rem; color: var(--muted); margin-top: 0.1rem; }
@@ -739,7 +745,8 @@ body {
 .alt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.6rem; }
 .alt-grid--condensed { grid-template-columns: repeat(3, 1fr); }
 .alt-card { background: #ffffff; border: 1px solid var(--border); border-radius: 0.45rem; padding: 0.45rem 0.65rem; }
-.alt-card .ac-code  { font-size: 0.78rem; font-weight: 700; color: var(--text); margin-bottom: 0.2rem; }
+.ac-card-header { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.2rem; }
+.alt-card .ac-code  { font-size: 0.78rem; font-weight: 700; color: var(--text); }
 .alt-card .ac-specs { font-size: 0.68rem; color: var(--muted); }
 
 /* ── Error block ────────────────────────────────────────────────── */

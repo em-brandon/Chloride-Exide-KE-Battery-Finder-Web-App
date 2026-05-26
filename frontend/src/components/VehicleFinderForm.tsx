@@ -31,6 +31,38 @@ function matchClass(matchType: string) {
   return 'badge fallback'
 }
 
+function techIconColor(tech?: string): string {
+  if (!tech) return '#374151'
+  const t = tech.toUpperCase()
+  if (t.includes('EFB')) return '#c2410c'
+  if (t.includes('AGM')) return '#5b21b6'
+  if (t.includes('SB') || t.includes('FLOOD')) return '#1d4ed8'
+  return '#374151'
+}
+
+function CarBatteryIcon({ size = 40, color = '#374151' }: { size?: number; color?: string }) {
+  const h = Math.round(size * 0.7)
+  return (
+    <svg width={size} height={h} viewBox="0 0 48 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      {/* Body */}
+      <rect x="2" y="9" width="44" height="23" rx="3.5" stroke={color} strokeWidth="2.2" />
+      {/* Top highlight strip */}
+      <rect x="2" y="9" width="44" height="8" rx="3.5" fill={color} fillOpacity="0.1" />
+      {/* + terminal */}
+      <rect x="8" y="2" width="10" height="9" rx="2" fill={color} />
+      <line x1="13" y1="4.5" x2="13" y2="8.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="11" y1="6.5" x2="15" y2="6.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      {/* − terminal */}
+      <rect x="30" y="2" width="10" height="9" rx="2" fill={color} fillOpacity="0.5" />
+      <line x1="32.5" y1="6.5" x2="37.5" y2="6.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      {/* Cell dividers */}
+      <line x1="18" y1="9" x2="18" y2="32" stroke={color} strokeWidth="1" strokeOpacity="0.2" />
+      <line x1="24" y1="9" x2="24" y2="32" stroke={color} strokeWidth="1" strokeOpacity="0.2" />
+      <line x1="30" y1="9" x2="30" y2="32" stroke={color} strokeWidth="1" strokeOpacity="0.2" />
+    </svg>
+  )
+}
+
 // ── Result card ───────────────────────────────────────────────────
 function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResult; inputType: string; typedLabel?: string }) {
   const p = data.primary
@@ -71,6 +103,10 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
 
   const barClass = data.confidence === 100 ? 'bar-fill high' : data.confidence >= 60 ? 'bar-fill medium' : 'bar-fill low'
 
+  const sameTechAlts = data.alternatives.filter(
+    alt => (alt.technology ?? 'MF') === (p.technology ?? 'MF')
+  )
+
   return (
     <div className="result-card">
       <div className="result-header">
@@ -98,6 +134,12 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
       </div>
 
       <div className="primary-card">
+        <div className="primary-battery-icon">
+          <CarBatteryIcon size={42} color={techIconColor(p.technology)} />
+          <div className="primary-battery-icon-label" style={{ color: techIconColor(p.technology) }}>
+            {p.technology ?? 'MF'}
+          </div>
+        </div>
         <div className="primary-spec">
           <div className="value">{p.ah ?? '—'}</div>
           <div className="unit">Ah</div>
@@ -106,9 +148,6 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
           <div className="value">{p.cca_en ?? '—'}</div>
           <div className="unit">CCA (EN)</div>
         </div>
-        <span className={techClass(p.technology)} style={{ fontSize: '0.72rem' }}>
-          {p.technology ?? 'MF'}
-        </span>
         <div className="primary-name">
           <div className="battery-code">{p.battery_code || '—'}</div>
           {p.model_key && <div className="model-key">{p.model_key}</div>}
@@ -125,25 +164,23 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
         </div>
       </div>
 
-      <div className="matched-info">
-        {data.matched_make
-          ? `Matched to: ${data.matched_make} ${data.matched_model} (${data.matched_year})`
-          : 'No model match found — result based on engine size and fuel type only'}
-      </div>
 
-      {data.alternatives.length > 0 && (
+      {sameTechAlts.length > 0 && (
         <div style={{ marginTop: '0.5rem' }}>
           <div className="alt-header">
-            <span>Alternative Options ({data.alternatives.length})</span>
+            <span>Same-Technology Alternatives ({sameTechAlts.length})</span>
             <button className="alt-toggle-btn" onClick={() => setAltVisible(v => !v)}>
               {altVisible ? 'hide' : 'show'}
             </button>
           </div>
           {altVisible && (
-            <div className={`alt-grid ${data.alternatives.length > 5 ? 'alt-grid--condensed' : ''}`}>
-              {data.alternatives.map(alt => (
+            <div className={`alt-grid ${sameTechAlts.length > 5 ? 'alt-grid--condensed' : ''}`}>
+              {sameTechAlts.map(alt => (
                 <div key={alt.battery_code} className="alt-card">
-                  <div className="ac-code">{alt.battery_code}</div>
+                  <div className="ac-card-header">
+                    <CarBatteryIcon size={15} color={techIconColor(alt.technology)} />
+                    <div className="ac-code">{alt.battery_code}</div>
+                  </div>
                   <div className="ac-specs">
                     {alt.ah != null ? `${alt.ah} Ah` : ''}
                     {alt.cca_en != null ? ` · ${alt.cca_en} CCA` : ''}
@@ -214,6 +251,11 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
   const [modelText, setModelText] = useState('')
   const [yearText, setYearText]   = useState('')
 
+  // i-stop toggle
+  const [istop, setIstop] = useState(true)
+  const [istopTooltip, setIstopTooltip] = useState(false)
+  const istopTooltipRef = useRef<HTMLDivElement>(null)
+
   // UI state
   const [submitted, setSubmitted] = useState(false)
   const [loadingMakes, setLoadingMakes]   = useState(true)
@@ -221,6 +263,18 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
   const [loadingYears, setLoadingYears]   = useState(false)
   const [submitting, setSubmitting]       = useState(false)
   const [, setFormReady]         = useState(false)
+
+  // Close i-stop tooltip on outside click
+  useEffect(() => {
+    if (!istopTooltip) return
+    function handleClick(e: MouseEvent) {
+      if (istopTooltipRef.current && !istopTooltipRef.current.contains(e.target as Node)) {
+        setIstopTooltip(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [istopTooltip])
 
   // Load makes on mount
   useEffect(() => {
@@ -298,6 +352,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
     setModels([]); setYears([])
     setResult(null); setErrorMsg('')
     setSubmitted(false)
+    setIstop(true)
   }
 
   // Estimated confidence — 0 until make has input, hides after submit until all cleared
@@ -347,11 +402,12 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
     setSubmitting(true)
     try {
       const data = await fetchRecommendation({
-        make:      typeMode ? makeText.trim()  : make,
-        model:     typeMode ? modelText.trim() : model,
-        year:      typeMode ? parseInt(yearText, 10) : parseInt(year, 10),
-        fuel_type: fuelType || null,
-        engine_cc: engineCc ? parseInt(engineCc, 10) : null,
+        make:       typeMode ? makeText.trim()  : make,
+        model:      typeMode ? modelText.trim() : model,
+        year:       typeMode ? parseInt(yearText, 10) : parseInt(year, 10),
+        fuel_type:  fuelType || null,
+        engine_cc:  engineCc ? parseInt(engineCc, 10) : null,
+        stop_start: istop,
       })
       setResult(data)
       setSubmitted(true)
@@ -478,6 +534,14 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
                 disabled={!typeMode}
               />
             </div>
+            {!typeMode && make && (
+              <p className="model-missing-hint">
+                Don't see your model?{' '}
+                <button type="button" className="model-missing-hint-btn" onClick={handleModeToggle}>
+                  Type your query instead →
+                </button>
+              </p>
+            )}
           </div>
 
           {/* Year */}
@@ -558,6 +622,67 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
             <div className="hint-box">
               Check your registration document or dashboard sticker — common sizes: 1000, 1300, 1500, 1800, 2000, 2500, 3000 cc.
             </div>
+          </div>
+        </div>
+
+        {/* i-stop toggle */}
+        <div className="form-group full" style={{ marginTop: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} ref={istopTooltipRef}>
+              <span className="form-label" style={{ marginBottom: 0 }}>Is car i-stop enabled?</span>
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  className="conf-info-btn"
+                  onClick={() => setIstopTooltip(v => !v)}
+                  aria-label="What is i-stop?"
+                >?</button>
+                {istopTooltip && (
+                  <div className="conf-popover" style={{ width: '270px', left: 0, top: '1.8rem' }}>
+                    <strong>What is i-stop?</strong>
+                    <p style={{ marginTop: '0.35rem' }}>i-stop (Idle Stop System) automatically shuts off the engine when the car is stationary — e.g. at traffic lights — to save fuel. You will notice the engine restarting when you release the brake.</p>
+                    <p style={{ marginTop: '0.4rem' }}>Cars with i-stop require an <strong>EFB</strong> or <strong>AGM</strong> battery to handle the extra charge cycles. Standard MF batteries wear out quickly in these vehicles.</p>
+                    <p style={{ marginTop: '0.4rem', color: 'var(--muted)' }}>Turn this <strong>OFF</strong> if your car does not have an automatic start-stop system.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={istop}
+              onClick={() => setIstop(v => !v)}
+              style={{
+                position: 'relative',
+                width: '2.75rem',
+                height: '1.5rem',
+                borderRadius: '9999px',
+                border: 'none',
+                cursor: 'pointer',
+                background: istop ? 'var(--red, #CC0000)' : '#d1d5db',
+                transition: 'background 0.2s',
+                flexShrink: 0,
+                padding: 0,
+              }}
+            >
+              <span style={{
+                position: 'absolute',
+                top: '2px',
+                left: istop ? 'calc(100% - 22px)' : '2px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                transition: 'left 0.2s',
+                display: 'block',
+              }} />
+            </button>
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '0.3rem' }}>
+            {istop
+              ? 'ON — will recommend EFB or AGM battery'
+              : 'OFF — will recommend standard MF battery'}
           </div>
         </div>
 

@@ -16,6 +16,9 @@ export interface AdminStats {
     vehicle_years: number
     vehicles_raw: number
     model_aliases: number
+    inference_makes: number
+    inference_models: number
+    inference_records: number
   }
   db_reads: number
 }
