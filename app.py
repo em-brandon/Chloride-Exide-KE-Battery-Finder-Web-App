@@ -144,6 +144,7 @@ class RecommendRequest(BaseModel):
     year: int = Field(..., ge=1960, le=2030, json_schema_extra={"example": 2015})
     engine_cc: Optional[int] = Field(None, ge=500, le=8000, json_schema_extra={"example": 1500})
     fuel_type: Optional[str] = Field(None, json_schema_extra={"example": "Petrol"})
+    stop_start: bool = Field(True, json_schema_extra={"example": True})
 
 
 class FeedbackRequest(BaseModel):
@@ -238,6 +239,7 @@ def recommend(request: Request, req: RecommendRequest):
         req.year,
         req.engine_cc,
         req.fuel_type,
+        stop_start=req.stop_start,
     )
     return result
 
@@ -440,6 +442,7 @@ def recommend(request: Request, req: RecommendRequest):
         req.year,
         req.engine_cc,
         req.fuel_type,
+        stop_start=req.stop_start,
     )
     return result
 
