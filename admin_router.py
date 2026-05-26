@@ -549,10 +549,12 @@ def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._vehicles.cache_clear()
     matcher._batteries.cache_clear()
     matcher._model_aliases.cache_clear()
+    matcher._inference.cache_clear()
     # Re-warm immediately
     matcher._vehicles()
     matcher._batteries()
     matcher._model_aliases()
+    matcher._inference()
     logger.info("Matcher cache refreshed by %s", admin.username)
     return {"detail": "Cache refreshed"}
 

@@ -377,6 +377,32 @@ def _batteries() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
+def _inference() -> pd.DataFrame:
+    """
+    Load dial_battery_inference (real-world order data) into memory.
+    Returns an empty DataFrame if the table is missing or empty.
+    """
+    from db import engine
+    try:
+        df = pd.read_sql(
+            "SELECT vehicle_type, vehicle_model, battery_code, frequency"
+            " FROM dial_battery_inference",
+            engine,
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=["vehicle_type", "vehicle_model", "battery_code", "frequency",
+                     "vtype_n", "vmodel_n", "bcode_n"]
+        )
+    if df.empty:
+        return df
+    df["vtype_n"]  = df["vehicle_type"].astype(str).str.upper().str.strip()
+    df["vmodel_n"] = df["vehicle_model"].astype(str).str.upper().str.strip()
+    df["bcode_n"]  = df["battery_code"].astype(str).str.upper().str.strip()
+    return df
+
+
+@lru_cache(maxsize=1)
 def _model_aliases() -> pd.DataFrame:
     """
     Alias table mapping international model names to JDM model names
@@ -405,6 +431,95 @@ def _model_aliases() -> pd.DataFrame:
     out["priority"]     = pd.to_numeric(df["priority"], errors="coerce").fillna(999).astype(int)
     out = out[(out["make_n"] != "") & (out["intl_model_n"] != "") & (out["jdm_model_n"] != "")]
     return out.drop_duplicates()
+
+
+# ---------------------------------------------------------------------------
+# Inference helpers (Layer 0)
+# ---------------------------------------------------------------------------
+
+def _inference_lookup(
+    make_n: str,
+    model_n: str,
+) -> tuple[str, str, int] | None:
+    """
+    Return (battery_code, matched_model_n, confidence) from the inference table,
+    or None if no reliable match exists.
+
+    Exact model match → confidence 95.
+    Fuzzy model match (token_set_ratio ≥ 85) → confidence 80.
+    """
+    inf = _inference()
+    if inf.empty:
+        return None
+
+    make_rows = inf[inf["vtype_n"] == make_n]
+    if make_rows.empty:
+        return None
+
+    model_choices = make_rows["vmodel_n"].unique().tolist()
+
+    if model_n in model_choices:
+        matched_model_n = model_n
+        confidence = 95
+    else:
+        result = process.extractOne(model_n, model_choices, scorer=fuzz.token_set_ratio)
+        if not result or result[1] < 85:
+            return None
+        matched_model_n = result[0]
+        confidence = 80
+
+    # Pick the highest-frequency battery for this (make, model) pair
+    matched_rows = make_rows[make_rows["vmodel_n"] == matched_model_n]
+    best = matched_rows.sort_values("frequency", ascending=False).iloc[0]
+    return str(best["bcode_n"]), matched_model_n, confidence
+
+
+def _find_inference_spec(battery_code: str) -> dict | None:
+    """
+    Match an inference battery name against battery_specs using fuzzy lookup.
+    Returns a spec dict (same shape as _row_to_dict) or None.
+    """
+    batt = _batteries()
+    if batt.empty:
+        return None
+
+    spec_codes = batt["Battery Code"].astype(str).str.upper().str.strip().tolist()
+    result = process.extractOne(battery_code, spec_codes, scorer=fuzz.token_set_ratio)
+    if not result or result[1] < 75:
+        return None
+
+    matched_code = result[0]
+    row = batt[
+        batt["Battery Code"].astype(str).str.upper().str.strip() == matched_code
+    ].iloc[0]
+    return {
+        "battery_code": row["Battery Code"],
+        "model_key":    row["Model Key"],
+        "ah":           int(row["Ah"]) if pd.notna(row["Ah"]) else None,
+        "cca_en":       int(row["CCA (A EN)"]) if pd.notna(row["CCA (A EN)"]) else None,
+        "technology":   row["Technology"],
+    }
+
+
+def _inference_alternatives(make_n: str, matched_model_n: str, primary_code: str) -> list[dict]:
+    """
+    Return up to 3 alternative batteries for the same vehicle from the inference table,
+    ranked by order frequency, excluding the primary recommendation.
+    """
+    inf = _inference()
+    make_rows = inf[inf["vtype_n"] == make_n]
+    model_rows = make_rows[make_rows["vmodel_n"] == matched_model_n]
+    others = (
+        model_rows[model_rows["bcode_n"] != primary_code]
+        .sort_values("frequency", ascending=False)
+        .head(3)
+    )
+    alts = []
+    for _, row in others.iterrows():
+        spec = _find_inference_spec(str(row["bcode_n"]))
+        if spec:
+            alts.append(spec)
+    return alts
 
 
 # ---------------------------------------------------------------------------
@@ -540,6 +655,36 @@ def recommend(
     matched_year:  int | None  = None
     confidence:    int  = 40
     match_type:    str  = "Estimated (Rule-Based)"
+
+    # ── Layer 0: Inference — real-world order data ─────────────────────
+    # Checks dial_battery_inference before any computed matching. When a
+    # direct (make, model) pairing is found from actual customer orders it
+    # is more reliable than any heuristic, so we return early.
+    inf_hit = _inference_lookup(make_n, model_n)
+    if inf_hit is not None:
+        inf_battery_code, inf_matched_model_n, inf_confidence = inf_hit
+        inf_spec = _find_inference_spec(inf_battery_code)
+        if inf_spec is not None:
+            region = _make_region(make_n)
+            return {
+                "make":           make_n,
+                "model":          model_n,
+                "year":           year,
+                "engine_cc":      resolved_cc,
+                "fuel_type":      resolved_fuel,
+                "battery_region": region,
+                "recommended_ah": inf_spec["ah"],
+                "preferred_tech": inf_spec["technology"],
+                "confidence":     inf_confidence,
+                "match_type":     "Real-World Data Match",
+                "matched_make":   make_n,
+                "matched_model":  inf_matched_model_n,
+                "matched_year":   None,
+                "primary":        inf_spec,
+                "alternatives":   _inference_alternatives(
+                    make_n, inf_matched_model_n, inf_battery_code
+                ),
+            }
 
     # ── Step 1: filter to the requested make ───────────────────────────
     make_df = df[df["make_n"] == make_n]

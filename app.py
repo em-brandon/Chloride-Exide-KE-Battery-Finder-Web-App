@@ -73,6 +73,7 @@ async def lifespan(_app: FastAPI):
     matcher._vehicles()
     matcher._batteries()
     matcher._model_aliases()
+    matcher._inference()
     logger.info("Matcher caches warmed.")
     # Start the background read-counter flush timer
     threading.Timer(_READ_FLUSH_INTERVAL, _flush_read_counter).start()
