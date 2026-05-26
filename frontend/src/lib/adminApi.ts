@@ -39,6 +39,8 @@ export interface BatteryRow {
   ah: number
   cca_en: number | null
   technology: string
+  origin: string | null
+  brand: string | null
 }
 
 export interface BatteryListResponse {

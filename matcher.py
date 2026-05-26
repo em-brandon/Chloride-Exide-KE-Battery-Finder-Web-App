@@ -267,6 +267,22 @@ def _norm_fuel(raw) -> str:
     return _FUEL_MAP.get(raw.strip().upper(), "PETROL")
 
 
+def _norm_model_key(s: str) -> str:
+    """Canonical model name for matching.
+
+    Normalises all common separator/spacing variations so that user inputs
+    like "CX5", "CX 5", and "CX-5" resolve to the same key ("CX 5"):
+      1. Uppercase + strip
+      2. Hyphens → space; collapse repeated spaces
+      3. Insert a space at every letter↔digit boundary (CX5 → CX 5)
+      4. Final collapse
+    """
+    s = re.sub(r"[\-]+", " ", s.upper().strip())
+    s = re.sub(r"([A-Z])(\d)", r"\1 \2", s)
+    s = re.sub(r"(\d)([A-Z])", r"\1 \2", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
 # ---------------------------------------------------------------------------
 # Ah bracket rules
 # (max_cc_inclusive, petrol_ah, diesel_ah, hybrid_ah)
@@ -361,7 +377,7 @@ def _vehicles() -> pd.DataFrame:
     df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
     # Normalize keys for robust matching: case-insensitive, trim, and collapse internal whitespace.
     df["make_n"]  = df["make"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
-    df["model_n"] = df["model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    df["model_n"] = df["model"].astype(str).apply(_norm_model_key)
     df["fuel_n"]  = df["fuel"].apply(_norm_fuel)
     return df
 
@@ -410,7 +426,7 @@ def _inference() -> pd.DataFrame:
         return df
     df["last_sale_date"] = pd.to_datetime(df["last_sale_date"], errors="coerce", utc=True)
     df["vtype_n"]  = df["vehicle_type"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
-    df["vmodel_n"] = df["vehicle_model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    df["vmodel_n"] = df["vehicle_model"].astype(str).apply(_norm_model_key)
     df["bcode_n"]  = df["battery_code"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
     return df
 
@@ -656,7 +672,7 @@ def get_models(make: str) -> list[str]:
 def get_years(make: str, model: str) -> list[int]:
     df = _vehicles()
     make_n  = make.upper().strip()
-    model_n = model.upper().strip()
+    model_n = _norm_model_key(model)
     subset = df[(df["make_n"] == make_n) & (df["model_n"] == model_n)]
     return sorted(subset["year"].dropna().unique().astype(int).tolist(), reverse=True)
 
@@ -672,8 +688,7 @@ def recommend(
 ) -> dict:
     df = _vehicles()
     make_n  = make.upper().strip()
-    model_n = model.upper().strip()
-    model_n = re.sub(r"\s+", " ", model_n)
+    model_n = _norm_model_key(model)
 
     resolved_cc:   int  = engine_cc or 1500
     resolved_fuel: str  = _norm_fuel(fuel_type)

@@ -287,7 +287,7 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
 
-      <main style={{ maxWidth: '960px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
         {loadErr && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '10px', background: '#fff5f5', border: '1px solid #f5c6c6', padding: '0.75rem 1rem', fontSize: '0.82rem', color: R }}>
@@ -312,8 +312,8 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* ── Stat cards — row 1 ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+        {/* ── Stat cards — all five in one row ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
           <StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} />
           <StatCard
             accentColor="#1d4ed8"
@@ -325,27 +325,21 @@ export default function AdminDashboard() {
             icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
           />
           <StatCard accentColor="#7e22ce" label="Recommend Calls" value={stats?.db_reads ?? '—'} sub="cumulative /recommend requests" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
+          <StatCard
+            accentColor="#059669"
+            label="Inference Table"
+            value={
+              stats?.counts.inference_makes != null && stats?.counts.inference_models != null
+                ? stats.counts.inference_makes + stats.counts.inference_models
+                : '—'
+            }
+            sub={stats?.counts.inference_records != null
+              ? `${stats.counts.inference_records.toLocaleString()} records · ${stats.counts.inference_makes} makes · ${stats.counts.inference_models} models`
+              : undefined}
+            icon={<TableCellsIcon style={{ width: 18, height: 18 }} />}
+            tooltip="Layer 0 of the matching engine uses real-world battery sales data (Dial-A-Battery) to recommend batteries before any rule-based logic runs. This shows how many distinct vehicle models and makes are covered by that dataset."
+          />
           {health && <HealthCard {...health} />}
-        </div>
-
-        {/* ── Stat cards — row 2: Inference Table ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-          <div style={{ gridColumn: 'span 2' }}>
-            <StatCard
-              accentColor="#059669"
-              label="Inference Table"
-              value={
-                stats?.counts.inference_makes != null && stats?.counts.inference_models != null
-                  ? stats.counts.inference_makes + stats.counts.inference_models
-                  : '—'
-              }
-              sub={stats?.counts.inference_records != null
-                ? `${stats.counts.inference_records.toLocaleString()} records · ${stats.counts.inference_makes} makes · ${stats.counts.inference_models} models`
-                : undefined}
-              icon={<TableCellsIcon style={{ width: 18, height: 18 }} />}
-              tooltip="Layer 0 of the matching engine uses real-world battery sales data (Dial-A-Battery) to recommend batteries before any rule-based logic runs. This shows how many distinct vehicle models and makes are covered by that dataset."
-            />
-          </div>
         </div>
 
         {/* ── Quick actions ── */}
