@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-load_dotenv()
+load_dotenv(override=True)
 
 _DATABASE_URL = os.environ.get("DATABASE_URL")
 if not _DATABASE_URL:

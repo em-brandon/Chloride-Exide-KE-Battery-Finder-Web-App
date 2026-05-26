@@ -110,6 +110,8 @@ class BatterySpec(Base):
     ah           = Column(Float,       nullable=True)
     cca_en       = Column(Float,       nullable=True)
     technology   = Column(String(100), nullable=True)
+    origin       = Column(String(50),  nullable=True)   # 'local' | 'imported'
+    brand        = Column(String(100), nullable=True)   # e.g. Powerlast, Sebang
     deleted_at   = Column(DateTime(timezone=True), nullable=True)   # soft delete
 
     __table_args__ = (
