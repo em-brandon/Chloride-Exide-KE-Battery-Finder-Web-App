@@ -242,6 +242,8 @@ def list_batteries(
                 "ah":           b.ah,
                 "cca_en":       b.cca_en,
                 "technology":   b.technology,
+                "origin":       b.origin,
+                "brand":        b.brand,
             }
             for b in items
         ],

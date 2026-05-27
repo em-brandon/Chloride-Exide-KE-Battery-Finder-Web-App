@@ -638,7 +638,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
                   aria-label="What is i-stop?"
                 >?</button>
                 {istopTooltip && (
-                  <div className="conf-popover" style={{ width: '270px', left: 0, top: '1.8rem' }}>
+                  <div className="conf-popover istop-popover" style={{ width: '270px' }}>
                     <strong>What is i-stop?</strong>
                     <p style={{ marginTop: '0.35rem' }}>i-stop (Idle Stop System) automatically shuts off the engine when the car is stationary — e.g. at traffic lights — to save fuel. You will notice the engine restarting when you release the brake.</p>
                     <p style={{ marginTop: '0.4rem' }}>Cars with i-stop require an <strong>EFB</strong> or <strong>AGM</strong> battery to handle the extra charge cycles. Standard MF batteries wear out quickly in these vehicles.</p>

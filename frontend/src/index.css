@@ -373,6 +373,16 @@ body {
 .conf-dot.medium { background: #fb923c; }
 .conf-dot.low    { background: #CC0000; }
 .page-dark .conf-popover { background: #252836; border-color: #2a2d3a; color: rgba(229,231,235,0.9); }
+@keyframes istopSlideIn {
+  from { opacity: 0; transform: translateY(-50%) translateX(-8px); }
+  to   { opacity: 1; transform: translateY(-50%); }
+}
+.istop-popover {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  animation: istopSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
 .nav-conf-pct {
   font-size: 0.7rem;
   color: var(--muted);
