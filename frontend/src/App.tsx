@@ -15,6 +15,11 @@ import AdminFeedback      from '@/pages/admin/AdminFeedback'
 import AdminTestSessions from '@/pages/admin/AdminTestSessions'
 import TestUserLogin     from '@/pages/TestUserLogin'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
+import { FaqModal } from '@/components/FaqModal'
+import { CopyrightModal } from '@/components/CopyrightModal'
+import { PrivacyModal } from '@/components/PrivacyModal'
+import { BuildVersionModal } from '@/components/BuildVersionModal'
+import { TermsGate } from '@/components/TermsGate'
 
 // ---------------------------------------------------------------------------
 // Test-user gate — redirects to /login if not authenticated
@@ -59,6 +64,25 @@ function PublicApp({
   onSetConfPopover,
 }: PublicAppProps) {
   const { user, logout } = useTestUser()
+  const [faqOpen, setFaqOpen] = useState(false)
+  const [copyrightOpen, setCopyrightOpen] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [versionOpen, setVersionOpen] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(
+    () => sessionStorage.getItem('crsp_terms_v1') === '1'
+  )
+
+  if (!termsAccepted) {
+    return (
+      <TermsGate
+        onAccept={() => {
+          sessionStorage.setItem('crsp_terms_v1', '1')
+          setTermsAccepted(true)
+        }}
+      />
+    )
+  }
+
   return (
     <>
       <PageLoader visible={loaderVisible} />
@@ -174,10 +198,29 @@ function PublicApp({
           darkMode={darkMode}
         />
 
-        {/* ── Footer — no separator ── */}
+        {/* ── Footer ── */}
         <footer className="page-footer">
-          &copy; 2026 Chloride Exide Battery Finder
+          <button className="page-footer__copyright" onClick={() => setCopyrightOpen(true)}>
+            &copy; 2026 Chloride Exide Battery Finder
+          </button>
+          <span className="page-footer__sep">·</span>
+          <button className="page-footer__link" onClick={() => setPrivacyOpen(true)}>
+            Privacy Policy
+          </button>
+          <span className="page-footer__sep">·</span>
+          <button className="page-footer__link" onClick={() => setFaqOpen(true)}>
+            FAQ &amp; Disclaimer
+          </button>
+          <span className="page-footer__sep">·</span>
+          <button className="page-footer__link" onClick={() => setVersionOpen(true)}>
+            Build Version Beta 1.16.7
+          </button>
         </footer>
+
+        <FaqModal open={faqOpen} onClose={() => setFaqOpen(false)} />
+        <CopyrightModal open={copyrightOpen} onClose={() => setCopyrightOpen(false)} />
+        <PrivacyModal open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
+        <BuildVersionModal open={versionOpen} onClose={() => setVersionOpen(false)} />
       </div>
     </>
   )
