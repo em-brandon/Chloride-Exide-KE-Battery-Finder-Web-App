@@ -432,6 +432,31 @@ def _inference() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
+def _web_validation() -> pd.DataFrame:
+    """
+    Load web_battery_validation (internet-sourced fitment data) into memory.
+    Returns an empty DataFrame if the table is missing or empty.
+    """
+    from db import engine
+    try:
+        df = pd.read_sql(
+            "SELECT make_n, model_n, year, battery_code, ah, technology"
+            " FROM web_battery_validation",
+            engine,
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=["make_n", "model_n", "year", "battery_code", "ah", "technology"]
+        )
+    if df.empty:
+        return df
+    df["make_n"]  = df["make_n"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    df["model_n"] = df["model_n"].astype(str).apply(_norm_model_key)
+    df["year"]    = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
+    return df
+
+
+@lru_cache(maxsize=1)
 def _model_aliases() -> pd.DataFrame:
     """
     Alias table mapping international model names to JDM model names
@@ -507,6 +532,43 @@ def _inference_lookup(
         ["frequency", "_sort_date"], ascending=[False, False]
     ).iloc[0]
     return str(best["bcode_n"]), matched_model_n, confidence
+
+
+def _web_validation_lookup(
+    make_n: str,
+    model_n: str,
+    year: int,
+) -> tuple[str, str, int] | None:
+    """
+    Return (battery_code, matched_model_n, confidence) from web_battery_validation,
+    or None if no entry exists.
+
+    Exact year + exact model  → confidence 90
+    Exact year + fuzzy model (token_set_ratio ≥ 85) → confidence 75
+    """
+    wv = _web_validation()
+    if wv.empty:
+        return None
+
+    make_rows = wv[wv["make_n"] == make_n]
+    if make_rows.empty:
+        return None
+
+    year_rows = make_rows[make_rows["year"] == year]
+    if year_rows.empty:
+        return None
+
+    model_choices = year_rows["model_n"].unique().tolist()
+
+    if model_n in model_choices:
+        row = year_rows[year_rows["model_n"] == model_n].iloc[0]
+        return str(row["battery_code"]), model_n, 90
+
+    result = process.extractOne(model_n, model_choices, scorer=fuzz.token_set_ratio)
+    if not result or result[1] < 85:
+        return None
+    row = year_rows[year_rows["model_n"] == result[0]].iloc[0]
+    return str(row["battery_code"]), result[0], 75
 
 
 def _parse_inference_code(code: str) -> tuple[int, str] | None:
@@ -698,7 +760,85 @@ def recommend(
     confidence:    int  = 40
     match_type:    str  = "Estimated (Rule-Based)"
 
-    # ── Layer 0: Inference — real-world order data ─────────────────────
+    # ── Layer 0a: Web validation — internet-accepted battery ──────────────
+    # Year-specific lookup against web_battery_validation, populated offline
+    # by pipelines/web_battery_validate.py. Wins over inference because it
+    # reflects current fitment standards rather than historical sales.
+    web_hit = _web_validation_lookup(make_n, model_n, int(year))
+    if web_hit is not None:
+        web_code, web_matched_model_n, web_confidence = web_hit
+        region = _make_region(make_n)
+
+        # Resolve engine specs from vehicle_years for response reporting.
+        web_make_df = df[df["make_n"] == make_n]
+        web_matched_year: int | None = None
+
+        if not web_make_df.empty:
+            if model_n in web_make_df["model_n"].unique().tolist():
+                web_veh_model_n: str | None = model_n
+            else:
+                web_veh_best = _fuzzy_model_score_for_year(model_n, web_make_df, int(year))
+                web_veh_model_n = web_veh_best[0] if web_veh_best else None
+
+            if web_veh_model_n is not None:
+                web_model_df = web_make_df[web_make_df["model_n"] == web_veh_model_n]
+                exact_yr = web_model_df[web_model_df["year"] == year]
+                if not exact_yr.empty:
+                    vrow = exact_yr.iloc[0]
+                    web_matched_year = int(vrow["year"])
+                    if pd.notna(vrow.get("engine_capacity")):
+                        resolved_cc = int(vrow["engine_capacity"])
+                    if pd.notna(vrow.get("fuel")):
+                        resolved_fuel = _norm_fuel(str(vrow["fuel"]))
+                else:
+                    nearby = web_model_df[
+                        (web_model_df["year"] >= year - 3) &
+                        (web_model_df["year"] <= year + 3)
+                    ]
+                    if not nearby.empty:
+                        vrow = nearby.iloc[(nearby["year"] - year).abs().argsort().iloc[0]]
+                        web_matched_year = int(vrow["year"])
+                        if pd.notna(vrow.get("engine_capacity")):
+                            resolved_cc = int(vrow["engine_capacity"])
+                        if pd.notna(vrow.get("fuel")):
+                            resolved_fuel = _norm_fuel(str(vrow["fuel"]))
+
+        effective_web_year = web_matched_year if web_matched_year is not None else int(year)
+
+        parsed = _lookup_battery_by_code(web_code)
+        if parsed is not None:
+            target_ah, parsed_tech = parsed
+            if not stop_start:
+                pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_web_year, make_n, False)
+            elif parsed_tech in ("AGM", "EFB"):
+                pref_tech = parsed_tech
+            else:
+                pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_web_year, make_n, True)
+        else:
+            target_ah = _target_ah(resolved_cc, resolved_fuel, effective_web_year)
+            pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_web_year, make_n, stop_start)
+
+        primary, alternatives = _select_batteries(target_ah, pref_tech, region)
+
+        return {
+            "make":           make_n,
+            "model":          model_n,
+            "year":           year,
+            "engine_cc":      resolved_cc,
+            "fuel_type":      resolved_fuel,
+            "battery_region": region,
+            "recommended_ah": target_ah,
+            "preferred_tech": pref_tech,
+            "confidence":     web_confidence,
+            "match_type":     "Web-Validated Match",
+            "matched_make":   make_n,
+            "matched_model":  web_matched_model_n,
+            "matched_year":   web_matched_year,
+            "primary":        primary,
+            "alternatives":   alternatives,
+        }
+
+    # ── Layer 0b: Inference — real-world order data ────────────────────
     # The highest-frequency call-centre battery code for this make/model
     # is the authoritative source for Ah and technology — it records what
     # real customers were actually sold. Vehicle_years is still consulted
