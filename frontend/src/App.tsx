@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
+import chlorideExideLogo from '@/assets/chloride_exide_transparent.png'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
@@ -96,9 +96,9 @@ function PublicApp({
               src={chlorideExideLogo}
               alt="Chloride Exide"
               style={{
-                height: 38,
+                height: 52,
                 width: 'auto',
-                maxWidth: 130,
+                maxWidth: 160,
                 objectFit: 'contain',
                 display: 'block',
                 flexShrink: 0,

@@ -10,7 +10,10 @@
       "Bash(.venv\\\\Scripts\\\\alembic.exe heads *)",
       "Bash(python -c \"from alembic.config import Config; from alembic import command; cfg = Config\\('alembic.ini'\\); command.current\\(cfg\\)\")",
       "Bash(pip show *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(git commit *)",
+      "Bash(alembic upgrade *)",
+      "Bash(.venv/Scripts/alembic upgrade *)"
     ]
   }
 }
