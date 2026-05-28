@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { useToast, Toaster } from '@/components/Notification'
+import { AccuracyBar } from '@/components/AccuracyBar'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { Search, MousePointerClick, Keyboard } from 'lucide-react'
 import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
@@ -24,12 +25,6 @@ function techClass(tech?: string) {
   return 'badge tech-mf'
 }
 
-function matchClass(matchType: string) {
-  const m = matchType.toLowerCase()
-  if (m.includes('exact')) return 'badge exact'
-  if (m.includes('close')) return 'badge close'
-  return 'badge fallback'
-}
 
 function techIconColor(tech?: string): string {
   if (!tech) return '#374151'
@@ -67,71 +62,43 @@ function CarBatteryIcon({ size = 40, color = '#374151' }: { size?: number; color
 function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResult; inputType: string; typedLabel?: string }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
-  const [matchPopover, setMatchPopover] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const vehicleLabel = inputType === 'type' && typedLabel
     ? typedLabel
     : data.matched_make
       ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
       : `${data.make} ${data.model} ${data.year}`
-  const barRef = useRef<HTMLDivElement>(null)
-  const matchPopoverRef = useRef<HTMLDivElement>(null)
-
-  // Close popover on outside click
-  useEffect(() => {
-    if (!matchPopover) return
-    function handleClick(e: MouseEvent) {
-      if (matchPopoverRef.current && !matchPopoverRef.current.contains(e.target as Node)) {
-        setMatchPopover(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [matchPopover])
-
-  // Animate confidence bar on mount
-  useEffect(() => {
-    if (!barRef.current) return
-    barRef.current.style.width = '0%'
-    const t = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (barRef.current) barRef.current.style.width = `${data.confidence}%`
-      })
-    })
-    return () => cancelAnimationFrame(t)
-  }, [data.confidence])
-
-  const barClass = data.confidence === 100 ? 'bar-fill high' : data.confidence >= 60 ? 'bar-fill medium' : 'bar-fill low'
 
   const sameTechAlts = data.alternatives.filter(
     alt => (alt.technology ?? 'MF') === (p.technology ?? 'MF')
   )
 
+  const isFallback = !data.matched_make
+
   return (
     <div className="result-card">
-      <div className="result-header">
-        <h2 className="result-title">Primary Recommendation</h2>
-        <div className="match-type-row" ref={matchPopoverRef}>
-          <span className={matchClass(data.match_type)}>{data.match_type}</span>
-          <button
-            className="conf-info-btn"
-            onClick={() => setMatchPopover(v => !v)}
-            aria-label="What does match type mean?"
-          >?</button>
-          {matchPopover && (
-            <div className="conf-popover match-type-popover">
-              <strong>What does Match Type mean?</strong>
-              <p>This tells you how closely the battery recommendation matches your vehicle's specifications.</p>
-              <ul>
-                <li><span className="match-dot exact" />Exact Match — Your vehicle was found precisely in our dataset.</li>
-                <li><span className="match-dot close" />Close Match — A very similar vehicle was used as the basis.</li>
-                <li><span className="match-dot fallback" />Fallback — Matched on engine size and fuel type only, no model found.</li>
-              </ul>
-              <p className="match-gigo-note">⚠️ The quality of your result depends on the details you enter — the more accurate and complete, the better the recommendation.</p>
-            </div>
-          )}
-        </div>
+      <div className="result-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.15rem' }}>
+        <h2 className="result-title">Battery Recommendation</h2>
+        {!isFallback && (
+          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted-foreground, #6b7280)' }}>
+            {data.matched_make} {data.matched_model} · {data.matched_year}
+          </p>
+        )}
       </div>
+
+      {isFallback && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+          background: '#fffbeb', border: '1px solid #fcd34d',
+          borderRadius: '0.5rem', padding: '0.5rem 0.75rem', marginBottom: '0.25rem',
+        }}>
+          <span style={{ color: '#d97706', fontSize: '0.85rem', lineHeight: 1.4, flexShrink: 0, marginTop: '0.05rem' }}>⚠</span>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.5 }}>
+            Your exact model wasn't found in our records. This is an estimate based on your{' '}
+            {data.engine_cc}cc {data.fuel_type?.toLowerCase()} engine — confirm with a mechanic before purchasing.
+          </p>
+        </div>
+      )}
 
       <div className="primary-card">
         <div className="primary-battery-icon">
@@ -154,16 +121,7 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
         </div>
       </div>
 
-      <div className="confidence-section">
-        <div className="conf-row">
-          <span>Match Confidence</span>
-          <span>{data.confidence}%</span>
-        </div>
-        <div className="bar-track">
-          <div ref={barRef} className={barClass} style={{ width: '0%' }} />
-        </div>
-      </div>
-
+      <AccuracyBar data={data} />
 
       {sameTechAlts.length > 0 && (
         <div style={{ marginTop: '0.5rem' }}>
