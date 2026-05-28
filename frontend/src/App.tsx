@@ -20,6 +20,7 @@ import { CopyrightModal } from '@/components/CopyrightModal'
 import { PrivacyModal } from '@/components/PrivacyModal'
 import { BuildVersionModal } from '@/components/BuildVersionModal'
 import { TermsGate } from '@/components/TermsGate'
+import { HowToUseModal } from '@/components/HowToUseModal'
 
 // ---------------------------------------------------------------------------
 // Test-user gate — redirects to /login if not authenticated
@@ -68,6 +69,7 @@ function PublicApp({
   const [copyrightOpen, setCopyrightOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [versionOpen, setVersionOpen] = useState(false)
+  const [howToUseOpen, setHowToUseOpen] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(
     () => sessionStorage.getItem('crsp_terms_v1') === '1'
   )
@@ -208,6 +210,10 @@ function PublicApp({
             Privacy Policy
           </button>
           <span className="page-footer__sep">·</span>
+          <button className="page-footer__link" onClick={() => setHowToUseOpen(true)}>
+            How to Use
+          </button>
+          <span className="page-footer__sep">·</span>
           <button className="page-footer__link" onClick={() => setFaqOpen(true)}>
             FAQ &amp; Disclaimer
           </button>
@@ -217,6 +223,7 @@ function PublicApp({
           </button>
         </footer>
 
+        <HowToUseModal open={howToUseOpen} onClose={() => setHowToUseOpen(false)} />
         <FaqModal open={faqOpen} onClose={() => setFaqOpen(false)} />
         <CopyrightModal open={copyrightOpen} onClose={() => setCopyrightOpen(false)} />
         <PrivacyModal open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
