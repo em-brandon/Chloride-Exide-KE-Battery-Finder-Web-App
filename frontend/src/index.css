@@ -5,6 +5,7 @@
   --red:        #CC0000;
   --red-dark:   #990000;
   --red-hover:  #b30000;
+  --blue:       #1A35C0;
   --bg:         #f4f5f7;
   --card-bg:    #ffffff;
   --card-bg2:   #f9fafb;
@@ -230,7 +231,7 @@ body {
   min-width: 300px;
   background: #ffffff;
   border: 1px solid var(--border);
-  border-top: 3px solid var(--red);
+  border-top: 3px solid var(--blue);
   border-radius: 0.75rem;
   padding: 0.85rem 1rem;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
@@ -240,7 +241,7 @@ body {
 .finder-card {
   background: #ffffff;
   border: 1px solid var(--border);
-  border-top: 3px solid var(--red);
+  border-top: 3px solid var(--blue);
   border-radius: 0.75rem;
   padding: 1.25rem 1.5rem;
   width: 100%;
@@ -566,7 +567,7 @@ body {
   margin-top: 0;
   background: var(--card-bg2);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--red);
+  border-left: 3px solid var(--blue);
   border-radius: 0.6rem;
   padding: 0.85rem 1rem;
   animation: slideIn 0.3s ease;

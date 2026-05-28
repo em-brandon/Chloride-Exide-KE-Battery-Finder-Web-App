@@ -45,7 +45,7 @@ export function ResultCard({ data }: ResultCardProps) {
   )
 
   return (
-    <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 border-l-brand bg-card shadow-md p-4 space-y-3">
+    <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 [border-left-color:#1A35C0] bg-card shadow-md p-4 space-y-3">
       {/* Header */}
       <div>
         <h2 className="text-base font-bold text-card-foreground">Battery Recommendation</h2>

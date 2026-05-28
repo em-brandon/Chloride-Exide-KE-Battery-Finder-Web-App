@@ -13,7 +13,12 @@
       "Bash(pip install *)",
       "Bash(git commit *)",
       "Bash(alembic upgrade *)",
-      "Bash(.venv/Scripts/alembic upgrade *)"
+      "Bash(.venv/Scripts/alembic upgrade *)",
+      "Bash(bun run *)",
+      "Bash(grep -Hm1 ^description: 'c:\\\\Users\\\\Brandon Mwavua\\\\Documents\\\\Battery Finder Project\\\\CSRP data set 2025/.claude/skills/*/SKILL.md')",
+      "Bash(dir \"c:\\\\Users\\\\Brandon Mwavua\\\\Documents\\\\Battery Finder Project\\\\CSRP data set 2025\\\\frontend\\\\dist\\\\assets\" /b)",
+      "Bash(findstr index *)",
+      "PowerShell(Select-String -Path \"c:\\\\Users\\\\Brandon Mwavua\\\\Documents\\\\Battery Finder Project\\\\CSRP data set 2025\\\\frontend\\\\dist\\\\assets\\\\index-DNvTliXp.js\" -Pattern \"Battery Recommendation|Primary Recommendation|exact model wasn\" -SimpleMatch | ForEach-Object { $_.Line.Substring\\([Math]::Max\\(0,$_.Line.IndexOf\\($_.Matches[0].Value\\)-30\\), [Math]::Min\\(80, $_.Line.Length\\)\\) })"
     ]
   }
 }
