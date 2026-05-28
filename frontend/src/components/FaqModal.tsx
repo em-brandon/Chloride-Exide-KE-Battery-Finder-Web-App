@@ -16,15 +16,29 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     a: 'The Battery Finder checks your vehicle against a database of thousands of make/model/year combinations used in Kenya. It first tries to find your exact vehicle and recommend the battery most commonly fitted to it by our dealers. If your exact model or year isn\'t found, it looks for the closest match in the same model family. As a last resort, it uses your engine size and fuel type to estimate the right battery size.',
   },
   {
-    q: 'What does "Match Confidence" mean?',
+    q: 'What does the Result Accuracy bar show?',
     a: (
       <span>
-        Match Confidence shows how closely your vehicle matched our records:
+        The Result Accuracy bar is a coloured strip below your battery recommendation. It breaks down how confident the system is across four factors:
         <ul className="faq-inner-list">
-          <li><strong>90–100% (Exact)</strong> — your make, model, and year were found directly in our database.</li>
-          <li><strong>60–89% (Close Match)</strong> — a closely related trim or nearby year was used.</li>
-          <li><strong>Below 60% (Estimated)</strong> — the result is based on engine size and fuel type only. The recommendation is a reasonable starting point, but we recommend visiting a Chloride Exide dealer to confirm.</li>
+          <li>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#10b981', marginRight: 6, verticalAlign: 'middle' }} />
+            <strong>Car Found (green)</strong> — the largest segment. Fully filled when your make and model are in our records; empty when the result falls back to an engine-size estimate.
+          </li>
+          <li>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#3b82f6', marginRight: 6, verticalAlign: 'middle' }} />
+            <strong>Year (blue)</strong> — how closely your year matched. Fully filled for an exact year; lower if the nearest available year was used.
+          </li>
+          <li>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#8b5cf6', marginRight: 6, verticalAlign: 'middle' }} />
+            <strong>Data Quality (purple)</strong> — whether the result came from real-world fitment records, our structured database, or an engine-size estimate.
+          </li>
+          <li>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', marginRight: 6, verticalAlign: 'middle' }} />
+            <strong>Engine Info (amber)</strong> — whether your engine details were confirmed in our database or inferred.
+          </li>
         </ul>
+        A fuller bar means a more reliable result. If an amber warning appears at the top of the result card, your model wasn't found — the recommendation is an estimate; confirm with a Chloride Exide dealer before purchasing.
       </span>
     ),
   },
@@ -54,7 +68,7 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'My car model wasn\'t found — what should I do?',
-    a: 'Try entering your model name differently. For example, type "HILUX" instead of "TOYOTA HILUX", or "CX 5" instead of "CX-5". If the result still shows a low-confidence estimate, it is still a reasonable starting point — visit your nearest Chloride Exide dealer who can physically inspect your vehicle and confirm the correct battery.',
+    a: 'Try entering your model name differently. For example, type "HILUX" instead of "TOYOTA HILUX", or "CX 5" instead of "CX-5". If the Result Accuracy bar is still low, the recommendation is still a reasonable starting point — visit your nearest Chloride Exide dealer who can physically inspect your vehicle and confirm the correct battery.',
   },
   {
     q: 'Can I use a battery with a higher Ah than recommended?',
@@ -178,7 +192,11 @@ export function FaqModal({ open, onClose, initialTab, singleTab }: FaqModalProps
                 </li>
               </ol>
               <p>
-                The <strong>Match Confidence</strong> percentage tells you which step matched your vehicle and how closely — a higher confidence score means a more reliable recommendation.
+                The <strong>Result Accuracy</strong> bar below your recommendation shows how closely each factor matched —{' '}
+                <span style={{ color: '#10b981', fontWeight: 600 }}>green</span> for whether your car was found,{' '}
+                <span style={{ color: '#3b82f6', fontWeight: 600 }}>blue</span> for year match,{' '}
+                <span style={{ color: '#8b5cf6', fontWeight: 600 }}>purple</span> for data quality, and{' '}
+                <span style={{ color: '#f59e0b', fontWeight: 600 }}>amber</span> for engine info. A fuller bar means a more reliable recommendation.
               </p>
               <p>
                 The tool also automatically determines whether your vehicle uses the <strong>NS/JIS</strong> standard (Japanese, Korean, and Chinese makes) or the <strong>DIN</strong> standard (European and American makes), and whether an <strong>AGM</strong>, <strong>EFB</strong>, or standard <strong>MF</strong> battery is appropriate based on stop-start technology and engine characteristics.
@@ -198,7 +216,7 @@ export function FaqModal({ open, onClose, initialTab, singleTab }: FaqModalProps
               <p><strong>Accuracy of Results</strong></p>
               <ul className="faq-inner-list">
                 <li>Results depend entirely on the accuracy of the vehicle details you provide. Incorrect make, model, year, engine size, or fuel type will produce unreliable recommendations.</li>
-                <li>A lower Match Confidence score indicates the result is an estimate — professional verification is especially important in these cases.</li>
+                <li>A lower Result Accuracy bar indicates the result is an estimate — professional verification is especially important in these cases.</li>
                 <li>Actual battery requirements may vary due to aftermarket electrical modifications, non-standard accessories, or grey-import vehicles with specifications not reflected in our database.</li>
               </ul>
 

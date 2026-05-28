@@ -61,13 +61,29 @@ export function HowToUseModal({ open, onClose }: HowToUseModalProps) {
 
             <p><strong>Step 4 — Find your Battery</strong></p>
             <p>
-              Click <strong>Find Battery</strong>. The app searches in three steps — from most accurate to least:
+              Click <strong>Find Battery</strong>. Your result includes a <strong>Result Accuracy</strong> bar — a coloured strip that shows how confident the system is in the recommendation. Each colour represents a different factor:
             </p>
             <ul className="faq-inner-list">
-              <li><strong>Exact match</strong> — your make, model, and year are found directly in our database.</li>
-              <li><strong>Close match</strong> — your model is found but with a nearby year (within ±3 years).</li>
-              <li><strong>Fallback</strong> — your engine size and fuel type are used to estimate the right battery size.</li>
+              <li>
+                <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#10b981', marginRight: 6, verticalAlign: 'middle' }} />
+                <strong>Car Found (green)</strong> — the largest segment. Fully filled when your make and model were found in our records; empty when the result is based on engine size only.
+              </li>
+              <li>
+                <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#3b82f6', marginRight: 6, verticalAlign: 'middle' }} />
+                <strong>Year (blue)</strong> — how closely your year matched. Fully filled for an exact year; lower if the nearest available year was used.
+              </li>
+              <li>
+                <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#8b5cf6', marginRight: 6, verticalAlign: 'middle' }} />
+                <strong>Data Quality (purple)</strong> — whether the result is backed by real-world fitment records, our structured database, or a rule-based engine estimate.
+              </li>
+              <li>
+                <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', marginRight: 6, verticalAlign: 'middle' }} />
+                <strong>Engine Info (amber)</strong> — whether your engine details were confirmed from our records or inferred.
+              </li>
             </ul>
+            <p>
+              A fuller bar means a more reliable recommendation. If an amber warning appears at the top of the result card, your model wasn't found — treat the result as an estimate and confirm with a Chloride Exide dealer before purchasing.
+            </p>
 
             <p><strong>Optional — Engine Size &amp; Fuel Type</strong></p>
             <p>
