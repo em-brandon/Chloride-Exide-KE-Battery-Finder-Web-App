@@ -1,6 +1,7 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 import {
   Squares2X2Icon,
   BoltIcon,
@@ -34,14 +35,6 @@ const NAV_ITEMS = [
   { to: '/admin/test-sessions', label: 'Test Users',    Icon: UserGroupIcon },
 ]
 
-// ── Brand battery SVG ─────────────────────────────────────────────────────────
-function BatteryLogo() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill={R} xmlns="http://www.w3.org/2000/svg">
-      <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
-    </svg>
-  )
-}
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -102,7 +95,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
         {/* Brand */}
         <div style={{
-          padding: collapsed ? '1.1rem 0' : '1.1rem 1rem',
+          padding: collapsed ? '0.9rem 0' : '0.9rem 1rem',
           borderBottom: '1px solid #e2e4e9',
           display: 'flex',
           alignItems: 'center',
@@ -111,28 +104,29 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           minHeight: 56,
           overflow: 'hidden',
         }}>
-          <BatteryLogo />
+          <img
+            src={chlorideExideLogo}
+            alt="Chloride Exide"
+            style={{
+              height: collapsed ? 28 : 36,
+              width: 'auto',
+              maxWidth: collapsed ? 36 : 120,
+              objectFit: 'contain',
+              display: 'block',
+              flexShrink: 0,
+              transition: 'height 0.2s',
+            }}
+          />
           {!collapsed && (
-            <div style={{ whiteSpace: 'nowrap' }}>
-              <div style={{
-                fontSize: '0.88rem',
-                fontWeight: 800,
-                letterSpacing: '0.02em',
-                color: 'rgba(17,24,39,0.88)',
-                lineHeight: 1,
-              }}>
-                CHLORIDE <span style={{ color: R }}>EXIDE</span>
-              </div>
-              <div style={{
-                fontSize: '0.55rem',
-                fontWeight: 600,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: 'rgba(107,114,128,0.9)',
-                marginTop: '0.18rem',
-              }}>
-                Admin Panel
-              </div>
+            <div style={{
+              fontSize: '0.55rem',
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'rgba(107,114,128,0.85)',
+              whiteSpace: 'nowrap',
+            }}>
+              Admin Panel
             </div>
           )}
         </div>

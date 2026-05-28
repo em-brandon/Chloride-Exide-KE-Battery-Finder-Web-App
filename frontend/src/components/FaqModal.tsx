@@ -1,0 +1,240 @@
+import { useState, useEffect, useRef } from 'react'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+
+interface FaqModalProps {
+  open: boolean
+  onClose: () => void
+  initialTab?: Tab
+  singleTab?: boolean
+}
+
+type Tab = 'faq' | 'how' | 'disclaimer'
+
+const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
+  {
+    q: 'How does the Battery Finder work?',
+    a: 'The Battery Finder checks your vehicle against a database of thousands of make/model/year combinations used in Kenya. It first tries to find your exact vehicle and recommend the battery most commonly fitted to it by our dealers. If your exact model or year isn\'t found, it looks for the closest match in the same model family. As a last resort, it uses your engine size and fuel type to estimate the right battery size.',
+  },
+  {
+    q: 'What does "Match Confidence" mean?',
+    a: (
+      <span>
+        Match Confidence shows how closely your vehicle matched our records:
+        <ul className="faq-inner-list">
+          <li><strong>90–100% (Exact)</strong> — your make, model, and year were found directly in our database.</li>
+          <li><strong>60–89% (Close Match)</strong> — a closely related trim or nearby year was used.</li>
+          <li><strong>Below 60% (Estimated)</strong> — the result is based on engine size and fuel type only. The recommendation is a reasonable starting point, but we recommend visiting a Chloride Exide dealer to confirm.</li>
+        </ul>
+      </span>
+    ),
+  },
+  {
+    q: 'What is Ah (Ampere-hours)?',
+    a: 'Ah is the battery\'s energy capacity — how long it can supply power to your car\'s electronics before needing a recharge from the alternator. A higher Ah battery stores more energy. Always use the recommended Ah or above; never go lower.',
+  },
+  {
+    q: 'What is CCA (Cold Cranking Amps)?',
+    a: 'CCA measures the burst of power the battery can deliver to start your engine. A higher CCA means stronger starting ability. In Kenya\'s warm climate, CCA is less of a concern than in cold-weather countries, but it still reflects overall battery quality and reliable starting performance.',
+  },
+  {
+    q: 'What is i-stop / Stop-Start technology?',
+    a: 'i-stop (also called Stop-Start or ISS) is a fuel-saving system that automatically shuts off the engine when the car is at a standstill — at traffic lights, for example — and restarts it instantly when you move off. Vehicles fitted with this system require a special EFB or AGM battery. Installing a standard (MF) battery in a stop-start vehicle will cause it to fail prematurely within months due to the much higher charge/discharge cycling.',
+  },
+  {
+    q: 'What is the difference between AGM, EFB, and MF batteries?',
+    a: (
+      <span>
+        <ul className="faq-inner-list">
+          <li><strong>AGM (Absorbent Glass Mat):</strong> The premium standard. Required for luxury vehicles, large diesel engines, and any vehicle with heavy electrical loads. Handles high charge cycling.</li>
+          <li><strong>EFB (Enhanced Flooded Battery):</strong> Mid-range. The correct choice for most modern stop-start vehicles. More durable than standard batteries under stop-start cycling conditions.</li>
+          <li><strong>MF (Maintenance-Free):</strong> The standard sealed battery for conventional vehicles without stop-start. No water top-up needed. Not suitable for stop-start systems.</li>
+        </ul>
+      </span>
+    ),
+  },
+  {
+    q: 'My car model wasn\'t found — what should I do?',
+    a: 'Try entering your model name differently. For example, type "HILUX" instead of "TOYOTA HILUX", or "CX 5" instead of "CX-5". If the result still shows a low-confidence estimate, it is still a reasonable starting point — visit your nearest Chloride Exide dealer who can physically inspect your vehicle and confirm the correct battery.',
+  },
+  {
+    q: 'Can I use a battery with a higher Ah than recommended?',
+    a: 'Generally yes. A battery one size higher in Ah is acceptable as long as it physically fits your battery tray and has the correct terminal type (NS or DIN) and terminal orientation. Never install a battery with a lower Ah than recommended — it may not meet your vehicle\'s power demands and will shorten battery life.',
+  },
+  {
+    q: 'What is the difference between NS and DIN batteries?',
+    a: 'NS batteries (also called JIS) are the standard for Japanese, Korean, and Chinese vehicles — Toyota, Honda, Nissan, Mazda, Hyundai, Kia, etc. DIN batteries are the standard for European and American vehicles — BMW, Mercedes-Benz, Volkswagen, Ford, Peugeot, etc. The two types have different physical dimensions and terminal positions and are not interchangeable. The Battery Finder automatically selects the correct type based on your vehicle\'s make.',
+  },
+  {
+    q: 'How current is the vehicle and battery data?',
+    a: 'The vehicle database is refreshed periodically to include new models entering the Kenyan market. The battery catalogue reflects Chloride Exide Kenya\'s active product range. For very new vehicles or the latest battery availability, contact your nearest Chloride Exide dealer directly.',
+  },
+]
+
+function AccordionItem({ q, a }: { q: string; a: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="faq-item">
+      <button className="faq-item__q" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="faq-item__chevron">{open ? '▾' : '▸'}</span>
+        {q}
+      </button>
+      {open && <div className="faq-item__a">{a}</div>}
+    </div>
+  )
+}
+
+export function FaqModal({ open, onClose, initialTab, singleTab }: FaqModalProps) {
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'faq')
+  const overlayRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  // Reset to the appropriate tab each time modal opens
+  useEffect(() => {
+    if (open) setTab(initialTab ?? 'faq')
+  }, [open, initialTab])
+
+  if (!open) return null
+
+  return (
+    <div
+      className="faq-overlay"
+      ref={overlayRef}
+      onMouseDown={e => { if (e.target === overlayRef.current) onClose() }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="FAQ and Disclaimer"
+    >
+      <div className="faq-modal">
+        {/* Header */}
+        <div className="faq-modal__header">
+          <span className="faq-modal__title">
+            {singleTab ? 'Disclaimer' : 'FAQ & Disclaimer'}
+          </span>
+          <button className="faq-modal__close" onClick={onClose} aria-label="Close">
+            <XMarkIcon style={{ width: 18, height: 18 }} />
+          </button>
+        </div>
+
+        {/* Tabs — hidden when opened in single-tab (disclaimer-only) mode */}
+        {!singleTab && (
+          <div className="faq-tabs" role="tablist">
+            <button
+              role="tab"
+              aria-selected={tab === 'faq'}
+              className={`faq-tab${tab === 'faq' ? ' faq-tab--active' : ''}`}
+              onClick={() => setTab('faq')}
+            >
+              FAQ
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === 'how'}
+              className={`faq-tab${tab === 'how' ? ' faq-tab--active' : ''}`}
+              onClick={() => setTab('how')}
+            >
+              How It Works
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === 'disclaimer'}
+              className={`faq-tab${tab === 'disclaimer' ? ' faq-tab--active' : ''}`}
+              onClick={() => setTab('disclaimer')}
+            >
+              Disclaimer
+            </button>
+          </div>
+        )}
+
+        {/* Body */}
+        <div className="faq-modal__body">
+          {tab === 'faq' && (
+            <div>
+              {FAQ_ITEMS.map((item, i) => (
+                <AccordionItem key={i} q={item.q} a={item.a} />
+              ))}
+            </div>
+          )}
+
+          {tab === 'how' && (
+            <div className="faq-prose">
+              <p>When you enter your vehicle details, the Battery Finder searches in three steps — from most accurate to least:</p>
+              <ol className="faq-steps">
+                <li>
+                  <strong>Database Lookup</strong> — We search our database for your exact make, model, and year. If found, we recommend the battery most commonly supplied to that vehicle by Chloride Exide dealers across Kenya, backed by real sales records.
+                </li>
+                <li>
+                  <strong>Close Match</strong> — If your exact year isn't in our records, we find the nearest model year within a small window and use that vehicle's battery specification.
+                </li>
+                <li>
+                  <strong>Smart Estimate</strong> — If we can't find your model at all, we use your engine size and fuel type to calculate an appropriate battery size. This is less precise, but gives you a solid starting point.
+                </li>
+              </ol>
+              <p>
+                The <strong>Match Confidence</strong> percentage tells you which step matched your vehicle and how closely — a higher confidence score means a more reliable recommendation.
+              </p>
+              <p>
+                The tool also automatically determines whether your vehicle uses the <strong>NS/JIS</strong> standard (Japanese, Korean, and Chinese makes) or the <strong>DIN</strong> standard (European and American makes), and whether an <strong>AGM</strong>, <strong>EFB</strong>, or standard <strong>MF</strong> battery is appropriate based on stop-start technology and engine characteristics.
+              </p>
+            </div>
+          )}
+
+          {tab === 'disclaimer' && (
+            <div className="faq-prose faq-disclaimer">
+              <p className="faq-disclaimer__lead">
+                <strong>Important — Please Read Before Acting on Any Recommendation</strong>
+              </p>
+              <p>
+                The Chloride Exide Battery Finder provides recommendations based on vehicle specification data and real-world fitment records. These recommendations are intended as a <strong>starting guide only</strong> and do not replace the judgement of a qualified automotive technician or Chloride Exide dealer.
+              </p>
+
+              <p><strong>Accuracy of Results</strong></p>
+              <ul className="faq-inner-list">
+                <li>Results depend entirely on the accuracy of the vehicle details you provide. Incorrect make, model, year, engine size, or fuel type will produce unreliable recommendations.</li>
+                <li>A lower Match Confidence score indicates the result is an estimate — professional verification is especially important in these cases.</li>
+                <li>Actual battery requirements may vary due to aftermarket electrical modifications, non-standard accessories, or grey-import vehicles with specifications not reflected in our database.</li>
+              </ul>
+
+              <p><strong>Before Purchase &amp; Installation</strong></p>
+              <ul className="faq-inner-list">
+                <li>Always verify <strong>physical dimensions</strong>, <strong>terminal polarity</strong>, and <strong>terminal position</strong> before purchasing or installing any battery.</li>
+                <li>Ensure the battery fits your vehicle's battery tray without modification. An ill-fitting battery can vibrate loose and cause electrical damage.</li>
+                <li>Battery installation should be carried out by a qualified technician. Incorrect installation — including reversed polarity — can permanently damage your vehicle's electrical system, trigger airbag deployment, or void the battery warranty.</li>
+                <li>For electric (EV) and hybrid vehicles, this tool recommends the <strong>12V auxiliary battery only</strong> — not the main traction (high-voltage) battery pack.</li>
+              </ul>
+
+              <p><strong>Data Currency</strong></p>
+              <ul className="faq-inner-list">
+                <li>The vehicle database and battery catalogue are updated periodically but may not immediately reflect the very latest model-year releases or recently discontinued battery lines.</li>
+                <li>For vehicles launched within the last 12 months, we recommend confirming the recommendation with a Chloride Exide dealer directly.</li>
+              </ul>
+
+              <p><strong>Pricing &amp; Availability</strong></p>
+              <ul className="faq-inner-list">
+                <li>This tool does not display pricing. Battery prices vary by dealer, location, and market conditions — contact your nearest dealer for a current quote.</li>
+                <li>Stock availability is not guaranteed. A recommended battery code may be temporarily out of stock; alternatives shown carry equivalent specifications.</li>
+              </ul>
+
+              <p><strong>Limitation of Liability</strong></p>
+              <ul className="faq-inner-list">
+                <li style={{ color: '#CC0000', fontWeight: 700 }}>Chloride Exide Kenya accepts no liability for damage, loss, or any adverse outcome arising from reliance on these recommendations without professional verification.</li>
+                <li>This tool is intended for use within Kenya. Recommendations are based on vehicle fitments and battery standards applicable to the Kenyan market and may not be appropriate for other regions.</li>
+              </ul>
+
+              <p>
+                For any uncertainty, visit your nearest <strong>Chloride Exide dealer</strong> for a hands-on battery assessment.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

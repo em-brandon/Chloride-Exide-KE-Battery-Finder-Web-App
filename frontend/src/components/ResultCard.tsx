@@ -6,11 +6,17 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
+import exideMaxxLogo from '@/assets/exide-max-logo.png'
 
 const MATCH_DESCRIPTIONS: Record<string, { color: string; label: string; desc: string }> = {
   exact:    { color: 'text-emerald-600 dark:text-emerald-400', label: 'Exact Match',      desc: 'Your vehicle\'s make, model, and year were found directly in our dataset. Highest confidence result.' },
   close:    { color: 'text-orange-500 dark:text-orange-400',   label: 'Close Match',      desc: 'Your vehicle\'s model was matched approximately using similarity scoring. Verify specs before purchasing.' },
   fallback: { color: 'text-violet-600 dark:text-violet-400',   label: 'Rule-Based Match', desc: 'No exact model found — battery selected using engine size and fuel type rules. Cross-check with your manual.' },
+}
+
+function isExideMaxx(batteryCode: string): boolean {
+  const u = batteryCode.toUpperCase()
+  return u.includes('POWERLAST') || u.includes('SPARK') || u.includes('CHLORIDE EXIDE MAXX')
 }
 
 function getMatchInfo(matchType: string) {
@@ -83,13 +89,25 @@ export function ResultCard({ data }: ResultCardProps) {
       </div>
 
       {/* Primary battery */}
-      <div className="rounded-lg border border-red-100 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 p-3 flex items-center gap-3 flex-wrap">
-        <Stat label="Ah"       value={p.ah}     />
-        <Stat label="CCA (EN)" value={p.cca_en} />
-        <Badge variant={techVariant(p.technology)} className="self-start mt-0.5">
-          {p.technology ?? 'MF'}
-        </Badge>
-        <div className="flex-1 min-w-35">
+      <div className="rounded-lg border border-red-100 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 p-3 space-y-2.5">
+        {/* Series logo */}
+        {isExideMaxx(p.battery_code) && (
+          <div className="flex items-center gap-2 pb-1 border-b border-red-100 dark:border-red-900/40">
+            <img src={exideMaxxLogo} alt="Exide Maxx" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+          </div>
+        )}
+        {/* Specs row */}
+        <div className="flex items-center gap-0 flex-wrap">
+          <Stat label="Ah" value={p.ah} />
+          <div className="w-px self-stretch bg-red-200 dark:bg-red-800/40 mx-3" />
+          <Stat label="CCA (EN)" value={p.cca_en} />
+          <div className="w-px self-stretch bg-red-200 dark:bg-red-800/40 mx-3" />
+          <Badge variant={techVariant(p.technology)} className="self-center">
+            {p.technology ?? 'MF'}
+          </Badge>
+        </div>
+        {/* Battery name */}
+        <div>
           <div className="font-bold text-base text-card-foreground">{p.battery_code}</div>
           {p.model_key && (
             <div className="text-xs text-muted-foreground mt-0.5">{p.model_key}</div>
@@ -198,7 +216,7 @@ function Stat({ label, value }: { label: string; value: number | null | undefine
       <div className="text-2xl font-extrabold text-brand">
         {value != null ? value : '—'}
       </div>
-      <div className="text-[0.65rem] text-muted-foreground mt-0.5">{label}</div>
+      <div className="text-xs font-medium text-muted-foreground mt-0.5">{label}</div>
     </div>
   )
 }

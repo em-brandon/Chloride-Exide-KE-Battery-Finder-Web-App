@@ -16,6 +16,9 @@ export interface AdminStats {
     vehicle_years: number
     vehicles_raw: number
     model_aliases: number
+    inference_makes: number
+    inference_models: number
+    inference_records: number
   }
   db_reads: number
 }
@@ -36,6 +39,8 @@ export interface BatteryRow {
   ah: number
   cca_en: number | null
   technology: string
+  origin: string | null
+  brand: string | null
 }
 
 export interface BatteryListResponse {

@@ -15,7 +15,6 @@ Matching layers
 
 from __future__ import annotations
 
-import os
 import re
 from functools import lru_cache
 from typing import Optional, cast
@@ -186,6 +185,13 @@ _EU_MAKES: frozenset[str] = frozenset({
 
 _KOREAN_MAKES: frozenset[str] = frozenset({"HYUNDAI", "KIA"})
 
+# Luxury / premium makes — always receive AGM regardless of year or engine size.
+_LUXURY_MAKES: frozenset[str] = frozenset({
+    "AUDI", "BENTLEY", "BMW", "CADILLAC", "FERRARI",
+    "INFINITI", "JAGUAR", "LANDROVER", "LEXUS", "MASERATI",
+    "MERCEDES", "MERCEDES-BENZ", "PORSCHE", "ROLLS-ROYCE", "VOLVO",
+})
+
 
 def _is_european_make(make: str) -> bool:
     return make.upper().strip() in _EU_MAKES
@@ -261,6 +267,22 @@ def _norm_fuel(raw) -> str:
     return _FUEL_MAP.get(raw.strip().upper(), "PETROL")
 
 
+def _norm_model_key(s: str) -> str:
+    """Canonical model name for matching.
+
+    Normalises all common separator/spacing variations so that user inputs
+    like "CX5", "CX 5", and "CX-5" resolve to the same key ("CX 5"):
+      1. Uppercase + strip
+      2. Hyphens → space; collapse repeated spaces
+      3. Insert a space at every letter↔digit boundary (CX5 → CX 5)
+      4. Final collapse
+    """
+    s = re.sub(r"[\-]+", " ", s.upper().strip())
+    s = re.sub(r"([A-Z])(\d)", r"\1 \2", s)
+    s = re.sub(r"(\d)([A-Z])", r"\1 \2", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
 # ---------------------------------------------------------------------------
 # Ah bracket rules
 # (max_cc_inclusive, petrol_ah, diesel_ah, hybrid_ah)
@@ -321,18 +343,22 @@ def _preferred_tech(
     fuel: str,
     year: Optional[int],
     make: str,
-    stop_start: bool = False,
+    stop_start: bool = True,
 ) -> str:
     """Return the preferred battery technology given engine size and fuel."""
     if fuel == "EV":
         return "MF"
-    inferred_stop_start = (not stop_start) and _infer_stop_start(make, year, fuel)
-    if stop_start or inferred_stop_start:
+    # Luxury/premium makes always need AGM — advanced electronics baseline.
+    if make.upper().strip() in _LUXURY_MAKES:
         return "AGM"
-    if fuel in ("HYBRID",) or (fuel == "PETROL" and 1600 < engine_cc <= 2000):
+    if fuel == "HYBRID":
         return "EFB"
-    if fuel == "DIESEL" or engine_cc >= 2500:
-        return "AGM"
+    if stop_start:
+        # i-stop ON: diesel/large engines need AGM; standard engines use EFB.
+        if fuel == "DIESEL" or engine_cc >= 2500:
+            return "AGM"
+        return "EFB"
+    # i-stop OFF: standard battery — no stop-start cycling demand.
     return "MF"
 
 
@@ -351,7 +377,7 @@ def _vehicles() -> pd.DataFrame:
     df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
     # Normalize keys for robust matching: case-insensitive, trim, and collapse internal whitespace.
     df["make_n"]  = df["make"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
-    df["model_n"] = df["model"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    df["model_n"] = df["model"].astype(str).apply(_norm_model_key)
     df["fuel_n"]  = df["fuel"].apply(_norm_fuel)
     return df
 
@@ -360,7 +386,8 @@ def _vehicles() -> pd.DataFrame:
 def _batteries() -> pd.DataFrame:
     from db import engine
     df = pd.read_sql(
-        "SELECT battery_code, model_key, ah, cca_en, technology FROM battery_specs",
+        "SELECT battery_code, model_key, ah, cca_en, technology, origin"
+        " FROM battery_specs WHERE deleted_at IS NULL",
         engine,
     )
     # Rename DB column names back to the Excel names the rest of the code expects.
@@ -370,9 +397,37 @@ def _batteries() -> pd.DataFrame:
         "ah":           "Ah",
         "cca_en":       "CCA (A EN)",
         "technology":   "Technology",
+        "origin":       "Origin",
     })
     df["Ah"] = pd.to_numeric(df["Ah"], errors="coerce")
     df["CCA (A EN)"] = pd.to_numeric(df["CCA (A EN)"], errors="coerce")
+    return df
+
+
+@lru_cache(maxsize=1)
+def _inference() -> pd.DataFrame:
+    """
+    Load dial_battery_inference (real-world order data) into memory.
+    Returns an empty DataFrame if the table is missing or empty.
+    """
+    from db import engine
+    try:
+        df = pd.read_sql(
+            "SELECT vehicle_type, vehicle_model, battery_code, frequency, last_sale_date"
+            " FROM dial_battery_inference",
+            engine,
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=["vehicle_type", "vehicle_model", "battery_code", "frequency",
+                     "last_sale_date", "vtype_n", "vmodel_n", "bcode_n"]
+        )
+    if df.empty:
+        return df
+    df["last_sale_date"] = pd.to_datetime(df["last_sale_date"], errors="coerce", utc=True)
+    df["vtype_n"]  = df["vehicle_type"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    df["vmodel_n"] = df["vehicle_model"].astype(str).apply(_norm_model_key)
+    df["bcode_n"]  = df["battery_code"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
     return df
 
 
@@ -408,6 +463,116 @@ def _model_aliases() -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# Inference helpers (Layer 0)
+# ---------------------------------------------------------------------------
+
+def _inference_lookup(
+    make_n: str,
+    model_n: str,
+) -> tuple[str, str, int] | None:
+    """
+    Return (battery_code, matched_model_n, confidence) from the inference table,
+    or None if no reliable match exists.
+
+    Exact model match → confidence 95.
+    Fuzzy model match (token_set_ratio ≥ 85) → confidence 80.
+    """
+    inf = _inference()
+    if inf.empty:
+        return None
+
+    make_rows = inf[inf["vtype_n"] == make_n]
+    if make_rows.empty:
+        return None
+
+    model_choices = make_rows["vmodel_n"].unique().tolist()
+
+    if model_n in model_choices:
+        matched_model_n = model_n
+        confidence = 95
+    else:
+        result = process.extractOne(model_n, model_choices, scorer=fuzz.token_set_ratio)
+        if not result or result[1] < 85:
+            return None
+        matched_model_n = result[0]
+        confidence = 80
+
+    # Pick the best battery for this (make, model) pair.
+    # Primary sort: highest frequency. Tiebreaker: most recent sale date.
+    matched_rows = make_rows[make_rows["vmodel_n"] == matched_model_n].copy()
+    matched_rows["_sort_date"] = matched_rows["last_sale_date"].fillna(
+        pd.Timestamp.min.tz_localize("UTC")
+    )
+    best = matched_rows.sort_values(
+        ["frequency", "_sort_date"], ascending=[False, False]
+    ).iloc[0]
+    return str(best["bcode_n"]), matched_model_n, confidence
+
+
+def _parse_inference_code(code: str) -> tuple[int, str] | None:
+    """
+    Parse a call-centre battery code to extract (target_ah, technology).
+    Returns None if the format is not recognised.
+
+    Handles:
+      DIN {ah}[MF|AGM|EFB] ... → e.g. "DIN 043 EXIDE MF", "DIN 060MF L EXIDE AGM"
+      NS{ah}[...]              → e.g. "NS60", "NS70 ATLAS"
+    """
+    if not code or not isinstance(code, str):
+        return None
+    c = code.strip().upper()
+
+    if "AGM" in c:
+        tech = "AGM"
+    elif "EFB" in c:
+        tech = "EFB"
+    else:
+        tech = "MF"
+
+    din_match = re.match(r"DIN\s+0*(\d+)", c)
+    if din_match:
+        return int(din_match.group(1)), tech
+
+    ns_match = re.match(r"NS\s*0*(\d+)", c)
+    if ns_match:
+        return int(ns_match.group(1)), tech
+
+    return None
+
+
+def _lookup_battery_by_code(code: str) -> tuple[int, str] | None:
+    """
+    Resolve a call-centre battery code to (target_ah, technology) by matching
+    directly against battery_specs — no format parsing required.
+
+    Priority:
+      1. Exact code match in battery_specs
+      2. Fuzzy match (token_set_ratio ≥ 85) in battery_specs
+      3. Legacy format parser (_parse_inference_code) as last resort
+    Returns None only when all three fail.
+    """
+    if not code or not isinstance(code, str):
+        return None
+
+    batt = _batteries()
+    code_n = code.strip().upper()
+    batt_codes = batt["Battery Code"].str.upper().str.strip()
+
+    exact = batt[batt_codes == code_n]
+    if not exact.empty:
+        row = exact.iloc[0]
+        return int(row["Ah"]), str(row["Technology"])
+
+    batt_codes_list = batt_codes.tolist()
+    hit = process.extractOne(code_n, batt_codes_list, scorer=fuzz.token_set_ratio)
+    if hit and hit[1] >= 85:
+        row = batt.iloc[batt_codes_list.index(hit[0])]
+        return int(row["Ah"]), str(row["Technology"])
+
+    return _parse_inference_code(code)
+
+
+# ---------------------------------------------------------------------------
 # Battery selector
 # ---------------------------------------------------------------------------
 
@@ -417,16 +582,15 @@ def _select_batteries(
     region: str = "NS",
 ) -> tuple[dict, list[dict]]:
     """
-    Return (primary, alternatives) from battery_specs_output.
+    Return (primary, alternatives) from battery_specs.
 
-    Primary   — best technology match at target_ah within the given region.
-    Alternatives — remaining at target_ah + nearest Ah tier above/below,
-                   deduplicated by Battery Code, capped at 6.
-    Region    — 'NS' (Japanese/Korean/Chinese) or 'DIN' (European/American).
+    Primary      — best technology match at target_ah within the given region.
+    Alternatives — same Ah, same CCA, same technology as primary; only the
+                   battery code (brand/variant) may differ. Capped at 6.
+    Region       — 'NS' (Japanese/Korean/Chinese) or 'DIN' (European/American).
     """
     batt = _batteries()
 
-    # Filter to the correct regional standard first
     batt = batt[batt["Model Key"].apply(lambda k: _battery_region(str(k)) == region)]
 
     def _row_to_dict(row: pd.Series) -> dict:
@@ -436,62 +600,57 @@ def _select_batteries(
             "ah":           int(row["Ah"]),
             "cca_en":       int(row["CCA (A EN)"]) if pd.notna(row["CCA (A EN)"]) else None,
             "technology":   row["Technology"],
+            "origin":       row["Origin"] if pd.notna(row.get("Origin")) else None,
         }
 
-    # Batteries at the exact target Ah
+    def _origin_pref(val) -> int:
+        """0 = imported (first), 1 = everything else."""
+        return 0 if str(val).lower() == "imported" else 1
+
     exact_ah = batt[batt["Ah"] == target_ah]
 
-    # Sort by technology preference
     tech_order = {t: i for i, t in enumerate(_TECH_PRIORITY)}
     exact_sorted = exact_ah.copy()
     exact_sorted["_pref"] = exact_sorted["Technology"].map(
         lambda t: tech_order.get(t, 99)
     )
-    exact_sorted = exact_sorted.sort_values("_pref")
+    # Within the same technology, imported batteries precede local ones.
+    exact_sorted["_origin_pref"] = exact_sorted["Origin"].map(_origin_pref)
+    exact_sorted = exact_sorted.sort_values(["_pref", "_origin_pref"])
 
-    # Primary: preferred tech at target Ah; fall back to best available
     preferred = exact_sorted[exact_sorted["Technology"] == preferred_tech]
     if not preferred.empty:
         primary_row = preferred.iloc[0]
     elif not exact_sorted.empty:
+        # Preferred tech not available at target Ah → use best available tech at same Ah.
         primary_row = exact_sorted.iloc[0]
     else:
-        # No battery at this Ah — find nearest
+        # Nothing stocked at target Ah → nearest Ah in any tech.
         nearest_idx = (batt["Ah"] - target_ah).abs().idxmin()
         primary_row = cast(pd.Series, batt.loc[[nearest_idx]].iloc[0])
 
     primary = _row_to_dict(primary_row)
     primary_tech = primary_row["Technology"]
+    primary_cca  = int(primary_row["CCA (A EN)"]) if pd.notna(primary_row["CCA (A EN)"]) else None
+    primary_ah_val = int(primary_row["Ah"]) if pd.notna(primary_row["Ah"]) else target_ah
 
-    # Alternatives: same technology as primary, different battery at target Ah
-    alt_rows = exact_sorted[
-        (exact_sorted["Battery Code"] != primary_row["Battery Code"]) &
-        (exact_sorted["Technology"] == primary_tech)
-    ]
+    # Alternatives: same Ah + same CCA + same technology as actual primary.
+    # Use primary_ah_val (not target_ah) because the primary may have stepped
+    # to a different Ah when the preferred tech was unavailable at target_ah.
+    same_ah_pool = batt[batt["Ah"] == primary_ah_val]
+    alt_mask = (
+        (same_ah_pool["Battery Code"] != primary_row["Battery Code"]) &
+        (same_ah_pool["Technology"] == primary_tech)
+    )
+    if primary_cca is not None:
+        alt_mask = alt_mask & same_ah_pool["CCA (A EN)"].apply(
+            lambda c: pd.notna(c) and int(c) == primary_cca
+        )
+    alt_rows = same_ah_pool[alt_mask].copy()
+    # Imported alternatives precede local ones.
+    alt_rows["_origin_pref"] = alt_rows["Origin"].map(_origin_pref)
+    alt_rows = alt_rows.sort_values("_origin_pref")
     alternatives = [_row_to_dict(r) for _, r in alt_rows.iterrows()]
-
-    # Pad alternatives from adjacent Ah tiers if fewer than 3 (same technology only)
-    if len(alternatives) < 3:
-        all_ahs = sorted(batt["Ah"].dropna().unique().tolist())
-        # Find the insertion point so we always get true neighbours even when
-        # target_ah itself is not in the list (avoids idx=-1 wraparound bug)
-        import bisect
-        pos = bisect.bisect_left(all_ahs, target_ah)
-        neighbour_ahs = []
-        if pos < len(all_ahs):
-            neighbour_ahs.append(all_ahs[pos] if all_ahs[pos] != target_ah else None)
-        if pos > 0:
-            neighbour_ahs.append(all_ahs[pos - 1])
-        neighbour_ahs = [a for a in neighbour_ahs if a is not None and a != target_ah]
-        for neighbour_ah in neighbour_ahs:
-            nbr = batt[(batt["Ah"] == neighbour_ah) & (batt["Technology"] == primary_tech)]
-            for _, r in nbr.iterrows():
-                entry = _row_to_dict(r)
-                if entry["battery_code"] != primary["battery_code"] and \
-                   entry not in alternatives:
-                    alternatives.append(entry)
-            if len(alternatives) >= 6:
-                break
 
     return primary, alternatives[:6]
 
@@ -513,7 +672,7 @@ def get_models(make: str) -> list[str]:
 def get_years(make: str, model: str) -> list[int]:
     df = _vehicles()
     make_n  = make.upper().strip()
-    model_n = model.upper().strip()
+    model_n = _norm_model_key(model)
     subset = df[(df["make_n"] == make_n) & (df["model_n"] == model_n)]
     return sorted(subset["year"].dropna().unique().astype(int).tolist(), reverse=True)
 
@@ -525,21 +684,106 @@ def recommend(
     engine_cc: Optional[int] = None,
     fuel_type: Optional[str] = None,
     enable_aliases: bool = True,
+    stop_start: bool = True,
 ) -> dict:
     df = _vehicles()
     make_n  = make.upper().strip()
-    model_n = model.upper().strip()
-    model_n = re.sub(r"\s+", " ", model_n)
+    model_n = _norm_model_key(model)
 
     resolved_cc:   int  = engine_cc or 1500
     resolved_fuel: str  = _norm_fuel(fuel_type)
-    user_provided_cc = engine_cc is not None
-    user_provided_fuel = fuel_type is not None and str(fuel_type).strip() != ""
     matched_make:  str | None  = None
     matched_model: str | None  = None
     matched_year:  int | None  = None
     confidence:    int  = 40
     match_type:    str  = "Estimated (Rule-Based)"
+
+    # ── Layer 0: Inference — real-world order data ─────────────────────
+    # The highest-frequency call-centre battery code for this make/model
+    # is the authoritative source for Ah and technology — it records what
+    # real customers were actually sold. Vehicle_years is still consulted
+    # for engine specs to populate the response. Rules are the fallback only
+    # when the battery code cannot be parsed.
+    inf_hit = _inference_lookup(make_n, model_n)
+    if inf_hit is not None:
+        inf_code, inf_matched_model_n, inf_confidence = inf_hit
+        region = _make_region(make_n)
+
+        # Resolve engine specs from vehicle_years for response reporting.
+        inf_make_df = df[df["make_n"] == make_n]
+        inf_matched_year: int | None = None
+
+        if not inf_make_df.empty:
+            if model_n in inf_make_df["model_n"].unique().tolist():
+                veh_model_n: str | None = model_n
+            else:
+                veh_best = _fuzzy_model_score_for_year(model_n, inf_make_df, int(year))
+                veh_model_n = veh_best[0] if veh_best else None
+
+            if veh_model_n is not None:
+                veh_model_df = inf_make_df[inf_make_df["model_n"] == veh_model_n]
+                exact_yr = veh_model_df[veh_model_df["year"] == year]
+                if not exact_yr.empty:
+                    vrow = exact_yr.iloc[0]
+                    inf_matched_year = int(vrow["year"])
+                    if pd.notna(vrow.get("engine_capacity")):
+                        resolved_cc = int(vrow["engine_capacity"])
+                    if pd.notna(vrow.get("fuel")):
+                        resolved_fuel = _norm_fuel(str(vrow["fuel"]))
+                else:
+                    nearby = veh_model_df[
+                        (veh_model_df["year"] >= year - 3) &
+                        (veh_model_df["year"] <= year + 3)
+                    ]
+                    if not nearby.empty:
+                        vrow = nearby.iloc[(nearby["year"] - year).abs().argsort().iloc[0]]
+                        inf_matched_year = int(vrow["year"])
+                        if pd.notna(vrow.get("engine_capacity")):
+                            resolved_cc = int(vrow["engine_capacity"])
+                        if pd.notna(vrow.get("fuel")):
+                            resolved_fuel = _norm_fuel(str(vrow["fuel"]))
+
+        effective_inf_year = inf_matched_year if inf_matched_year is not None else int(year)
+
+        # Resolve Ah + technology from the inference battery code by matching
+        # directly against battery_specs (exact → fuzzy → legacy parser).
+        # Ah always comes from the real-world inference data.
+        # Technology: honour AGM/EFB from inference (deliberate upgrade by call centre);
+        # but when inference says MF, let stop_start determine the correct tech —
+        # MF codes in the inference table often reflect non-i-stop sales or wrong
+        # recommendations, so we should not blindly copy them for i-stop vehicles.
+        parsed = _lookup_battery_by_code(inf_code)
+        if parsed is not None:
+            target_ah, parsed_tech = parsed
+            if not stop_start:
+                pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, False)
+            elif parsed_tech in ("AGM", "EFB"):
+                pref_tech = parsed_tech
+            else:
+                pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, True)
+        else:
+            target_ah = _target_ah(resolved_cc, resolved_fuel, effective_inf_year)
+            pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, stop_start)
+
+        primary, alternatives = _select_batteries(target_ah, pref_tech, region)
+
+        return {
+            "make":           make_n,
+            "model":          model_n,
+            "year":           year,
+            "engine_cc":      resolved_cc,
+            "fuel_type":      resolved_fuel,
+            "battery_region": region,
+            "recommended_ah": target_ah,
+            "preferred_tech": pref_tech,
+            "confidence":     inf_confidence,
+            "match_type":     "Real-World Data Match",
+            "matched_make":   make_n,
+            "matched_model":  inf_matched_model_n,
+            "matched_year":   inf_matched_year,
+            "primary":        primary,
+            "alternatives":   alternatives,
+        }
 
     # ── Step 1: filter to the requested make ───────────────────────────
     make_df = df[df["make_n"] == make_n]
@@ -700,7 +944,7 @@ def recommend(
     rule_based = confidence == 40
     region = _make_region(make_n)
     target_ah = _target_ah(resolved_cc, resolved_fuel, effective_year if rule_based else None)
-    pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_year, make_n, False)
+    pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_year, make_n, stop_start)
     primary, alternatives = _select_batteries(target_ah, pref_tech, region)
 
     return {

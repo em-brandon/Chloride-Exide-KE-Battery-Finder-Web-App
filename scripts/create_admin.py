@@ -19,9 +19,9 @@ import argparse
 import sys
 from datetime import datetime, timezone
 
-# Ensure project root is on path when run directly
+# Ensure project root is on path when run from scripts/
 import os
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from admin_auth import hash_password

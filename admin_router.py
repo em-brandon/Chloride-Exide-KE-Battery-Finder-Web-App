@@ -146,11 +146,18 @@ def me(admin: AdminUser = Depends(require_admin)):
 def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
     from models import VehicleYear, VehicleRaw, ModelAlias
 
+    inf_makes   = db.execute(text("SELECT COUNT(DISTINCT vehicle_type)  FROM dial_battery_inference")).scalar() or 0
+    inf_models  = db.execute(text("SELECT COUNT(DISTINCT vehicle_model) FROM dial_battery_inference")).scalar() or 0
+    inf_records = db.execute(text("SELECT COUNT(*)                      FROM dial_battery_inference")).scalar() or 0
+
     counts = {
         "battery_specs":    db.query(func.count(BatterySpec.id)).filter(BatterySpec.deleted_at.is_(None)).scalar() or 0,
         "vehicle_years":    db.query(func.count(func.distinct(VehicleYear.make + '|' + VehicleYear.model))).scalar() or 0,
         "vehicles_raw":     db.query(func.count(VehicleRaw.id)).scalar() or 0,
         "model_aliases":    db.query(func.count(ModelAlias.id)).scalar() or 0,
+        "inference_makes":   inf_makes,
+        "inference_models":  inf_models,
+        "inference_records": inf_records,
     }
 
     reads_row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
@@ -235,6 +242,8 @@ def list_batteries(
                 "ah":           b.ah,
                 "cca_en":       b.cca_en,
                 "technology":   b.technology,
+                "origin":       b.origin,
+                "brand":        b.brand,
             }
             for b in items
         ],
@@ -549,10 +558,12 @@ def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._vehicles.cache_clear()
     matcher._batteries.cache_clear()
     matcher._model_aliases.cache_clear()
+    matcher._inference.cache_clear()
     # Re-warm immediately
     matcher._vehicles()
     matcher._batteries()
     matcher._model_aliases()
+    matcher._inference()
     logger.info("Matcher cache refreshed by %s", admin.username)
     return {"detail": "Cache refreshed"}
 

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
@@ -14,6 +15,11 @@ import AdminFeedback      from '@/pages/admin/AdminFeedback'
 import AdminTestSessions from '@/pages/admin/AdminTestSessions'
 import TestUserLogin     from '@/pages/TestUserLogin'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
+import { FaqModal } from '@/components/FaqModal'
+import { CopyrightModal } from '@/components/CopyrightModal'
+import { PrivacyModal } from '@/components/PrivacyModal'
+import { BuildVersionModal } from '@/components/BuildVersionModal'
+import { TermsGate } from '@/components/TermsGate'
 
 // ---------------------------------------------------------------------------
 // Test-user gate — redirects to /login if not authenticated
@@ -58,6 +64,25 @@ function PublicApp({
   onSetConfPopover,
 }: PublicAppProps) {
   const { user, logout } = useTestUser()
+  const [faqOpen, setFaqOpen] = useState(false)
+  const [copyrightOpen, setCopyrightOpen] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [versionOpen, setVersionOpen] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(
+    () => sessionStorage.getItem('crsp_terms_v1') === '1'
+  )
+
+  if (!termsAccepted) {
+    return (
+      <TermsGate
+        onAccept={() => {
+          sessionStorage.setItem('crsp_terms_v1', '1')
+          setTermsAccepted(true)
+        }}
+      />
+    )
+  }
+
   return (
     <>
       <PageLoader visible={loaderVisible} />
@@ -67,15 +92,19 @@ function PublicApp({
         <nav className="page-nav">
           {/* Left: Brand */}
           <div className="page-nav-brand">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="#CC0000" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <div className="page-brand-name">
-                CHLORIDE <span style={{ color: 'var(--red)' }}>EXIDE</span>
-              </div>
-              <div className="page-brand-sub">Battery Finder</div>
-            </div>
+            <img
+              src={chlorideExideLogo}
+              alt="Chloride Exide"
+              style={{
+                height: 38,
+                width: 'auto',
+                maxWidth: 130,
+                objectFit: 'contain',
+                display: 'block',
+                flexShrink: 0,
+              }}
+            />
+            <div className="page-brand-sub" style={{ alignSelf: 'center' }}>Battery Finder</div>
           </div>
 
           {/* Center: manual mode badges */}
@@ -169,10 +198,29 @@ function PublicApp({
           darkMode={darkMode}
         />
 
-        {/* ── Footer — no separator ── */}
+        {/* ── Footer ── */}
         <footer className="page-footer">
-          &copy; 2026 Chloride Exide Battery Finder
+          <button className="page-footer__copyright" onClick={() => setCopyrightOpen(true)}>
+            &copy; 2026 Chloride Exide Battery Finder
+          </button>
+          <span className="page-footer__sep">·</span>
+          <button className="page-footer__link" onClick={() => setPrivacyOpen(true)}>
+            Privacy Policy
+          </button>
+          <span className="page-footer__sep">·</span>
+          <button className="page-footer__link" onClick={() => setFaqOpen(true)}>
+            FAQ &amp; Disclaimer
+          </button>
+          <span className="page-footer__sep">·</span>
+          <button className="page-footer__link" onClick={() => setVersionOpen(true)}>
+            Build Version Beta 1.16.7
+          </button>
         </footer>
+
+        <FaqModal open={faqOpen} onClose={() => setFaqOpen(false)} />
+        <CopyrightModal open={copyrightOpen} onClose={() => setCopyrightOpen(false)} />
+        <PrivacyModal open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
+        <BuildVersionModal open={versionOpen} onClose={() => setVersionOpen(false)} />
       </div>
     </>
   )

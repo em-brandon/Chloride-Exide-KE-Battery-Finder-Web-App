@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type DragEvent, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BoltIcon, MagnifyingGlassIcon, ArrowUpTrayIcon, ArrowDownTrayIcon, PlusIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid'
+import exideMaxLogo from '@/assets/exide-max-logo.png'
 import {
   fetchBatteries,
   addBattery,
@@ -251,6 +252,108 @@ function ExcelDropzone({ onDone }: { onDone: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
+// Brand overview helpers
+// ---------------------------------------------------------------------------
+
+const BRAND_COLOR: Record<string, string> = {
+  'Powerlast':     '#CC0000',
+  'Exide Maxx':    '#CC0000',
+  'Spark':         '#1d4ed8',
+  'SB Flooded':    '#059669',
+  'Exide Matrix':  '#7e22ce',
+  'Supreme':       '#d97706',
+  'Sebang':        '#0891b2',
+}
+function brandColor(brand: string) { return BRAND_COLOR[brand] ?? '#6b7280' }
+
+// Resolve DB brand → display brand. Any battery with MAXX in its code is Exide Maxx.
+function resolveDisplayBrand(b: BatteryRow): string {
+  const brandUp = (b.brand ?? '').toUpperCase()
+  const codeUp  = (b.battery_code ?? '').toUpperCase()
+  if (brandUp.includes('MAXX') || codeUp.includes('MAXX')) return 'Exide Maxx'
+  if (brandUp === 'CHLORIDE EXIDE') return 'SB Flooded'
+  return b.brand ?? 'Unknown'
+}
+
+function groupByBrand(batteries: BatteryRow[]): Array<{ brand: string; count: number }> {
+  const map = new Map<string, number>()
+  for (const b of batteries) {
+    const key = resolveDisplayBrand(b)
+    map.set(key, (map.get(key) ?? 0) + 1)
+  }
+  return Array.from(map.entries())
+    .map(([brand, count]) => ({ brand, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+const TILE_STYLE: React.CSSProperties = {
+  ...CARD,
+  padding: '1.4rem 1.5rem 1.1rem',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.85rem',
+  minHeight: 220,
+  transition: 'box-shadow 0.15s, transform 0.1s',
+}
+
+function BrandTile({ brand, count }: { brand: string; count: number }) {
+  const isMaxx = brand === 'Exide Maxx'
+  const color  = brandColor(brand)
+  return (
+    <div
+      style={{ ...TILE_STYLE, borderTop: `3px solid ${color}` }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,0,0,0.13)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'none' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.9)' }}>
+          {brand}
+        </span>
+        <BoltIcon style={{ width: 15, height: 15, color }} />
+      </div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {isMaxx ? (
+          <img src={exideMaxLogo} alt="Exide Maxx" style={{ maxHeight: 88, maxWidth: '100%', objectFit: 'contain' }} />
+        ) : (
+          <span style={{ fontSize: '4rem', fontWeight: 900, color, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            {count}
+          </span>
+        )}
+      </div>
+      <div style={{ borderTop: '1px solid #e2e4e922', paddingTop: '0.6rem' }}>
+        <span style={{ fontSize: '0.68rem', color: 'rgba(107,114,128,0.65)' }}>
+          {count} {count === 1 ? 'battery' : 'batteries'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function SearchTile({ onClick }: { onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{ ...TILE_STYLE, borderTop: '3px solid #6b7280', cursor: 'pointer' }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,0,0,0.13)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'none' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.9)' }}>
+          Search
+        </span>
+        <MagnifyingGlassIcon style={{ width: 15, height: 15, color: '#6b7280' }} />
+      </div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <MagnifyingGlassIcon style={{ width: 56, height: 56, color: 'rgba(107,114,128,0.2)' }} />
+      </div>
+      <div style={{ borderTop: '1px solid #e2e4e922', paddingTop: '0.6rem' }}>
+        <span style={{ fontSize: '0.68rem', color: 'rgba(107,114,128,0.65)' }}>Find specific batteries</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -258,36 +361,65 @@ export default function AdminBatteries() {
   const [searchParams] = useSearchParams()
   const manage = searchParams.get('manage') === 'true'
 
-  const [items, setItems]       = useState<BatteryRow[]>([])
-  const [total, setTotal]       = useState(0)
-  const [page, setPage]         = useState(1)
-  const [search, setSearch]     = useState('')
-  const [techFilter, setTech]   = useState('')
-  const [loading, setLoading]   = useState(false)
-  const [showAdd, setShowAdd]   = useState(false)
-  const [editing, setEditing]   = useState<BatteryRow | null>(null)
-  const [showUpload, setShowUp] = useState(false)
-  const [deleting, setDeleting] = useState<number | null>(null)
+  // ── View: 'brands' shows the overview; 'search' shows the table ───────────
+  const [view, setView] = useState<'brands' | 'search'>(manage ? 'search' : 'brands')
+
+  // ── Overview state ────────────────────────────────────────────────────────
+  const [overviewItems, setOverviewItems] = useState<BatteryRow[]>([])
+  const [overviewLoading, setOverviewLoading] = useState(true)
+  const [total, setTotal] = useState(0)
+
+  // ── Search/table state ────────────────────────────────────────────────────
+  const [items, setItems]           = useState<BatteryRow[]>([])
+  const [searchTotal, setSearchTotal] = useState(0)
+  const [page, setPage]             = useState(1)
+  const [search, setSearch]         = useState('')
+  const [techFilter, setTech]       = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [showAdd, setShowAdd]       = useState(false)
+  const [editing, setEditing]       = useState<BatteryRow | null>(null)
+  const [showUpload, setShowUp]     = useState(false)
+  const [deleting, setDeleting]     = useState<number | null>(null)
 
   const PAGE_SIZE = 50
 
+  // Load all batteries for the brand overview on mount
+  useEffect(() => {
+    fetchBatteries(1, 1000)
+      .then(r => {
+        setOverviewItems(r.items)
+        setTotal(r.total)
+      })
+      .finally(() => setOverviewLoading(false))
+  }, [])
+
+  async function refreshOverview() {
+    const r = await fetchBatteries(1, 1000)
+    setOverviewItems(r.items)
+    setTotal(r.total)
+  }
+
+  // Load paginated search results when in search mode
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const r = await fetchBatteries(page, PAGE_SIZE, search || undefined, techFilter || undefined)
       setItems(r.items)
-      setTotal(r.total)
+      setSearchTotal(r.total)
     } finally {
       setLoading(false)
     }
   }, [page, search, techFilter])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (view === 'search') load()
+  }, [load, view])
 
   async function handleAdd(payload: BatteryPayload) {
     await addBattery(payload)
     setShowAdd(false)
     load()
+    refreshOverview()
   }
 
   async function handleUpdate(payload: BatteryPayload) {
@@ -295,6 +427,7 @@ export default function AdminBatteries() {
     await updateBattery(editing.id, payload)
     setEditing(null)
     load()
+    refreshOverview()
   }
 
   async function handleDelete(id: number) {
@@ -302,12 +435,19 @@ export default function AdminBatteries() {
     try {
       await deleteBattery(id)
       load()
+      refreshOverview()
     } finally {
       setDeleting(null)
     }
   }
 
-  const totalPages = Math.ceil(total / PAGE_SIZE)
+  const totalPages = Math.ceil(searchTotal / PAGE_SIZE)
+
+  // Group batteries by origin for the brand overview
+  const localItems    = overviewItems.filter(b => b.origin?.toLowerCase() === 'local')
+  const importedItems = overviewItems.filter(b => b.origin?.toLowerCase() !== 'local')
+  const localBrands    = groupByBrand(localItems)
+  const importedBrands = groupByBrand(importedItems)
 
   const techColors: Record<string, { bg: string; color: string; border: string }> = {
     EFB:  { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
@@ -325,215 +465,294 @@ export default function AdminBatteries() {
     )
   }
 
+  const TABLE_COLS = manage
+    ? ['Battery Code', 'Model Key', 'Ah', 'CCA EN', 'Technology', 'Actions']
+    : ['Battery Code', 'Model Key', 'Ah', 'CCA EN', 'Technology']
+
+  // ── Shared tab button style ───────────────────────────────────────────────
+  function tabStyle(active: boolean): React.CSSProperties {
+    return {
+      display: 'flex', alignItems: 'center', gap: '0.4rem',
+      background: active ? '#fff5f5' : 'transparent',
+      color: active ? R : 'rgba(107,114,128,0.65)',
+      border: active ? `1px solid #f5c6c6` : '1px solid transparent',
+      borderRadius: '8px',
+      padding: '0.38rem 0.85rem',
+      fontSize: '0.78rem',
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.15s',
+    }
+  }
+
   return (
     <AdminLayout>
 
-      {/* Nav */}
+      {/* ── Header ── */}
       <header style={{ background: '#fff', borderBottom: '1px solid #e2e4e9', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <BoltIcon style={{ width: 16, height: 16, color: R }} />
           <span style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>Battery Specs</span>
         </div>
-        <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', color: 'rgba(107,114,128,0.6)', background: '#f4f5f7', borderRadius: '99px', padding: '0.2rem 0.7rem', border: '1px solid #e2e4e9' }}>
+        <span style={{ fontSize: '0.72rem', color: 'rgba(107,114,128,0.6)', background: '#f4f5f7', borderRadius: '99px', padding: '0.2rem 0.7rem', border: '1px solid #e2e4e9' }}>
           {total.toLocaleString()} records
         </span>
+
+        {/* Back to overview — only shown in search view */}
+        {view === 'search' && (
+          <div style={{ marginLeft: 'auto' }}>
+            <button style={tabStyle(false)} onClick={() => setView('brands')}>
+              <BoltIcon style={{ width: 13, height: 13 }} />
+              ← Overview
+            </button>
+          </div>
+        )}
       </header>
 
       <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-        {/* Toolbar */}
-        <div style={{ ...CARD, padding: '1rem 1.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-          {/* Search */}
-          <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '180px' }}>
-            <MagnifyingGlassIcon style={{ width: 14, height: 14, color: 'rgba(107,114,128,0.5)', position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-            <input
-              type="search"
-              placeholder="Search code or model…"
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1) }}
-              style={{ ...INPUT, paddingLeft: '2rem' }}
-              onFocus={e => { e.currentTarget.style.borderColor = R; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(204,0,0,0.1)` }}
-              onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none' }}
-            />
-          </div>
-          <input
-            type="text"
-            placeholder="Filter by technology…"
-            value={techFilter}
-            onChange={e => { setTech(e.target.value); setPage(1) }}
-            style={{ ...INPUT, flex: '1 1 160px', minWidth: '140px' }}
-            onFocus={e => { e.currentTarget.style.borderColor = R; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(204,0,0,0.1)` }}
-            onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none' }}
-          />
-
-          {manage && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => { setShowAdd(true); setEditing(null) }}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: R, color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = RD)}
-                onMouseLeave={e => (e.currentTarget.style.background = R)}
-              >
-                <PlusIcon style={{ width: 14, height: 14 }} /> Add Battery
-              </button>
-              <button
-                onClick={() => setShowUp(u => !u)}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showUpload ? '#f4f5f7' : '#fff', color: 'rgba(17,24,39,0.75)', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                <ArrowUpTrayIcon style={{ width: 14, height: 14 }} /> {showUpload ? 'Hide Upload' : 'Upload .xlsx'}
-              </button>
-              <a
-                href={exportBatteriesUrl()}
-                download
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#fff', color: 'rgba(17,24,39,0.75)', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}
-              >
-                <ArrowDownTrayIcon style={{ width: 14, height: 14 }} /> Export .xlsx
-              </a>
-            </div>
-          )}
-        </div>
-
-        {/* Upload zone */}
-        {showUpload && (
-          <div style={{ ...CARD, padding: '1.5rem', borderTop: `3px solid ${R}` }}>
-            <h2 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'rgba(17,24,39,0.8)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <ArrowUpTrayIcon style={{ width: 14, height: 14, color: R }} /> Bulk Upload
-            </h2>
-            <ExcelDropzone onDone={() => { setShowUp(false); load() }} />
-          </div>
-        )}
-
-        {/* Add form panel */}
-        {showAdd && (
-          <div style={{ ...CARD, padding: '1.5rem', maxWidth: '400px', borderTop: `3px solid ${R}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'rgba(17,24,39,0.85)', margin: 0 }}>Add Battery</h2>
-              <button onClick={() => setShowAdd(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: '2px' }}>
-                <XMarkIcon style={{ width: 16, height: 16 }} />
-              </button>
-            </div>
-            <BatteryForm initial={EMPTY_FORM} onSave={handleAdd} onCancel={() => setShowAdd(false)} />
-          </div>
-        )}
-
-        {/* Edit modal */}
-        {editing && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
-            <div style={{ ...CARD, padding: '1.75rem', width: '100%', maxWidth: '400px', maxHeight: '90vh', overflow: 'auto' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'rgba(17,24,39,0.88)', margin: 0 }}>Edit Battery</h2>
-                <button onClick={() => setEditing(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: '2px' }}>
-                  <XMarkIcon style={{ width: 18, height: 18 }} />
-                </button>
+        {/* ── Brands overview ── */}
+        {view === 'brands' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {overviewLoading ? (
+              <div style={{ ...CARD, padding: '4rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>
+                Loading brands…
               </div>
-              <BatteryForm
-                initial={{
-                  battery_code: editing.battery_code,
-                  model_key:    editing.model_key,
-                  ah:           editing.ah,
-                  cca_en:       editing.cca_en,
-                  technology:   editing.technology,
-                }}
-                onSave={handleUpdate}
-                onCancel={() => setEditing(null)}
+            ) : (
+              <>
+                {/* LOCAL section */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+                    <span style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.2rem 0.65rem', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      Local
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(107,114,128,0.55)' }}>
+                      {localItems.length} batteries · {localBrands.length} brand{localBrands.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
+                    {localBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} />)}
+                  </div>
+                </div>
+
+                {/* IMPORTED section */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+                    <span style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.2rem 0.65rem', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      Imported
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(107,114,128,0.55)' }}>
+                      {importedItems.length} batteries · {importedBrands.length} brand{importedBrands.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
+                    {importedBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} />)}
+                    <SearchTile onClick={() => setView('search')} />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Search / table view ── */}
+        {view === 'search' && (
+          <>
+            {/* Toolbar */}
+            <div style={{ ...CARD, padding: '1rem 1.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '180px' }}>
+                <MagnifyingGlassIcon style={{ width: 14, height: 14, color: 'rgba(107,114,128,0.5)', position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                <input
+                  type="search"
+                  placeholder="Search code or model…"
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setPage(1) }}
+                  style={{ ...INPUT, paddingLeft: '2rem' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = R; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(204,0,0,0.1)` }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none' }}
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Filter by technology…"
+                value={techFilter}
+                onChange={e => { setTech(e.target.value); setPage(1) }}
+                style={{ ...INPUT, flex: '1 1 160px', minWidth: '140px' }}
+                onFocus={e => { e.currentTarget.style.borderColor = R; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(204,0,0,0.1)` }}
+                onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none' }}
               />
-            </div>
-          </div>
-        )}
 
-        {/* Table */}
-        <div style={{ ...CARD, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ background: '#f8f9fb', borderBottom: '2px solid #e2e4e9' }}>
-                  {(manage ? ['Battery Code', 'Model Key', 'Ah', 'CCA EN', 'Technology', 'Actions'] : ['Battery Code', 'Model Key', 'Ah', 'CCA EN', 'Technology']).map(h => (
-                    <th key={h} style={{ padding: '0.8rem 1.1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={manage ? 6 : 5} style={{ padding: '3rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>
-                      Loading…
-                    </td>
-                  </tr>
-                )}
-                {!loading && items.length === 0 && (
-                  <tr>
-                    <td colSpan={manage ? 6 : 5} style={{ padding: '3rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>
-                      No batteries found
-                    </td>
-                  </tr>
-                )}
-                {!loading && items.map((b, i) => (
-                  <tr
-                    key={b.id}
-                    style={{ borderTop: i > 0 ? '1px solid #f0f1f4' : 'none', transition: 'background 0.1s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#fff8f8')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+              {manage && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => { setShowAdd(true); setEditing(null) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: R, color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = RD)}
+                    onMouseLeave={e => (e.currentTarget.style.background = R)}
                   >
-                    <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontWeight: 700, color: R, fontSize: '0.8rem' }}>{b.battery_code}</td>
-                    <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(17,24,39,0.7)' }}>{b.model_key}</td>
-                    <td style={{ padding: '0.8rem 1.1rem', fontWeight: 600, color: 'rgba(17,24,39,0.8)' }}>{b.ah}</td>
-                    <td style={{ padding: '0.8rem 1.1rem', color: b.cca_en ? 'rgba(17,24,39,0.7)' : 'rgba(107,114,128,0.4)' }}>{b.cca_en ?? '—'}</td>
-                    <td style={{ padding: '0.8rem 1.1rem' }}>{techBadge(b.technology)}</td>
-                    {manage && (
-                      <td style={{ padding: '0.8rem 1.1rem' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            onClick={() => { setEditing(b); setShowAdd(false) }}
-                            style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '0.25rem 0.65rem', cursor: 'pointer' }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Delete ${b.battery_code}? This is reversible from the audit log.`)) {
-                                handleDelete(b.id)
-                              }
-                            }}
-                            disabled={deleting === b.id}
-                            style={{ fontSize: '0.75rem', fontWeight: 600, color: deleting === b.id ? 'rgba(107,114,128,0.4)' : R, background: deleting === b.id ? '#f8f9fb' : '#fff5f5', border: `1px solid ${deleting === b.id ? '#e2e4e9' : '#f5c6c6'}`, borderRadius: '6px', padding: '0.25rem 0.65rem', cursor: deleting === b.id ? 'not-allowed' : 'pointer' }}
-                          >
-                            {deleting === b.id ? '…' : 'Delete'}
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'rgba(107,114,128,0.8)' }}>
-            <span>{total.toLocaleString()} total records</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}
-              >
-                <ChevronLeftIcon style={{ width: 13, height: 13 }} /> Prev
-              </button>
-              <span style={{ padding: '0 0.5rem', fontWeight: 600, color: 'rgba(17,24,39,0.7)' }}>
-                {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}
-              >
-                Next <ChevronRightIcon style={{ width: 13, height: 13 }} />
-              </button>
+                    <PlusIcon style={{ width: 14, height: 14 }} /> Add Battery
+                  </button>
+                  <button
+                    onClick={() => setShowUp(u => !u)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showUpload ? '#f4f5f7' : '#fff', color: 'rgba(17,24,39,0.75)', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    <ArrowUpTrayIcon style={{ width: 14, height: 14 }} /> {showUpload ? 'Hide Upload' : 'Upload .xlsx'}
+                  </button>
+                  <a
+                    href={exportBatteriesUrl()}
+                    download
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#fff', color: 'rgba(17,24,39,0.75)', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    <ArrowDownTrayIcon style={{ width: 14, height: 14 }} /> Export .xlsx
+                  </a>
+                </div>
+              )}
             </div>
-          </div>
+
+            {/* Upload zone */}
+            {showUpload && (
+              <div style={{ ...CARD, padding: '1.5rem', borderTop: `3px solid ${R}` }}>
+                <h2 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'rgba(17,24,39,0.8)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <ArrowUpTrayIcon style={{ width: 14, height: 14, color: R }} /> Bulk Upload
+                </h2>
+                <ExcelDropzone onDone={() => { setShowUp(false); load() }} />
+              </div>
+            )}
+
+            {/* Add form panel */}
+            {showAdd && (
+              <div style={{ ...CARD, padding: '1.5rem', maxWidth: '400px', borderTop: `3px solid ${R}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'rgba(17,24,39,0.85)', margin: 0 }}>Add Battery</h2>
+                  <button onClick={() => setShowAdd(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: '2px' }}>
+                    <XMarkIcon style={{ width: 16, height: 16 }} />
+                  </button>
+                </div>
+                <BatteryForm initial={EMPTY_FORM} onSave={handleAdd} onCancel={() => setShowAdd(false)} />
+              </div>
+            )}
+
+            {/* Edit modal */}
+            {editing && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
+                <div style={{ ...CARD, padding: '1.75rem', width: '100%', maxWidth: '400px', maxHeight: '90vh', overflow: 'auto' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                    <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'rgba(17,24,39,0.88)', margin: 0 }}>Edit Battery</h2>
+                    <button onClick={() => setEditing(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: '2px' }}>
+                      <XMarkIcon style={{ width: 18, height: 18 }} />
+                    </button>
+                  </div>
+                  <BatteryForm
+                    initial={{
+                      battery_code: editing.battery_code,
+                      model_key:    editing.model_key,
+                      ah:           editing.ah,
+                      cca_en:       editing.cca_en,
+                      technology:   editing.technology,
+                    }}
+                    onSave={handleUpdate}
+                    onCancel={() => setEditing(null)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Table */}
+            <div style={{ ...CARD, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: '#f8f9fb', borderBottom: '2px solid #e2e4e9' }}>
+                      {TABLE_COLS.map(h => (
+                        <th key={h} style={{ padding: '0.8rem 1.1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && (
+                      <tr>
+                        <td colSpan={manage ? 6 : 5} style={{ padding: '3rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loading && items.length === 0 && (
+                      <tr>
+                        <td colSpan={manage ? 6 : 5} style={{ padding: '3rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>
+                          No batteries found
+                        </td>
+                      </tr>
+                    )}
+                    {!loading && items.map((b, i) => (
+                      <tr
+                        key={b.id}
+                        style={{ borderTop: i > 0 ? '1px solid #f0f1f4' : 'none', transition: 'background 0.1s' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#fff8f8')}
+                        onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                      >
+                        <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontWeight: 700, color: R, fontSize: '0.8rem' }}>{b.battery_code}</td>
+                        <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(17,24,39,0.7)' }}>{b.model_key}</td>
+                        <td style={{ padding: '0.8rem 1.1rem', fontWeight: 600, color: 'rgba(17,24,39,0.8)' }}>{b.ah}</td>
+                        <td style={{ padding: '0.8rem 1.1rem', color: b.cca_en ? 'rgba(17,24,39,0.7)' : 'rgba(107,114,128,0.4)' }}>{b.cca_en ?? '—'}</td>
+                        <td style={{ padding: '0.8rem 1.1rem' }}>{techBadge(b.technology)}</td>
+                        {manage && (
+                          <td style={{ padding: '0.8rem 1.1rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                onClick={() => { setEditing(b); setShowAdd(false) }}
+                                style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '0.25rem 0.65rem', cursor: 'pointer' }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Delete ${b.battery_code}? This is reversible from the audit log.`)) {
+                                    handleDelete(b.id)
+                                  }
+                                }}
+                                disabled={deleting === b.id}
+                                style={{ fontSize: '0.75rem', fontWeight: 600, color: deleting === b.id ? 'rgba(107,114,128,0.4)' : R, background: deleting === b.id ? '#f8f9fb' : '#fff5f5', border: `1px solid ${deleting === b.id ? '#e2e4e9' : '#f5c6c6'}`, borderRadius: '6px', padding: '0.25rem 0.65rem', cursor: deleting === b.id ? 'not-allowed' : 'pointer' }}
+                              >
+                                {deleting === b.id ? '…' : 'Delete'}
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'rgba(107,114,128,0.8)' }}>
+                <span>{searchTotal.toLocaleString()} total records</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}
+                  >
+                    <ChevronLeftIcon style={{ width: 13, height: 13 }} /> Prev
+                  </button>
+                  <span style={{ padding: '0 0.5rem', fontWeight: 600, color: 'rgba(17,24,39,0.7)' }}>
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}
+                  >
+                    Next <ChevronRightIcon style={{ width: 13, height: 13 }} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
+
       </main>
     </AdminLayout>
   )
