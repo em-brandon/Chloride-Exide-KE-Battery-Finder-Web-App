@@ -494,6 +494,15 @@ from fastapi.responses import FileResponse
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def spa_fallback(full_path: str):
+    _base = os.path.dirname(__file__)
+    # Always serve files from static/ (maintenance assets must load even during maintenance mode)
+    if full_path.startswith("static/"):
+        candidate = os.path.normpath(os.path.join(_base, full_path))
+        static_root = os.path.normpath(os.path.join(_base, "static"))
+        if candidate.startswith(static_root) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+    if os.getenv("MAINTENANCE_MODE", "false").lower() == "true":
+        return FileResponse(os.path.join(_base, "static", "maintenance.html"))
     index = os.path.join(_frontend_dir, "index.html")
     file_path = os.path.join(_frontend_dir, full_path)
     # Serve the actual file if it exists (JS, CSS, assets, etc.)
@@ -504,6 +513,9 @@ async def spa_fallback(full_path: str):
 
 if os.path.isdir(_frontend_dir):
     app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_dir, "assets")), name="assets")
+
+if os.path.isdir(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static_files")
 
 
 if __name__ == "__main__":
