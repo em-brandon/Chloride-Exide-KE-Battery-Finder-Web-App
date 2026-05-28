@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Battery Finder — Service Unavailable</title>
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.8/dist/lottie-player.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Navbar ── */
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0 1.75rem;
+      height: 64px;
+      background-color: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    nav img {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    nav span {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(107, 114, 128, 0.9);
+      margin-top: 0.2rem;
+    }
+
+    /* ── Body content ── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem 2rem 0;
+    }
+
+    lottie-player {
+      width: 240px;
+      height: 240px;
+    }
+
+    h1 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.3;
+      margin-top: 0.25rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    h1 svg {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      color: #dc2626;
+    }
+
+    .subtitle {
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .subtitle p {
+      font-size: 0.9rem;
+      color: #64748b;
+      line-height: 1.6;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ── Footer ── */
+    footer {
+      flex-shrink: 0;
+      padding: 0.9rem 1.75rem;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+      text-align: center;
+      border-top: 1px solid #f1f5f9;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <img src="/static/chloride_exide_transparent.png" alt="Chloride Exide KE" />
+    <span>Battery Finder</span>
+  </nav>
+
+  <main>
+    <lottie-player
+      src="/static/underconstruction.json"
+      background="transparent"
+      speed="1"
+      autoplay
+      loop
+    ></lottie-player>
+
+    <h1>
+      <!-- Heroicons v2: exclamation-circle outline -->
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+      </svg>
+      Service Temporarily Unavailable
+    </h1>
+
+    <div class="subtitle">
+      <p>We are making improvements to better enhance your experience.</p>
+    </div>
+  </main>
+
+  <footer>
+    &copy; <script>document.write(new Date().getFullYear())</script> Chloride Exide KE. All rights reserved.
+  </footer>
+
+</body>
+</html>
