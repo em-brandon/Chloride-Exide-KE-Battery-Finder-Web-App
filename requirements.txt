@@ -7,6 +7,8 @@ seaborn>=0.13.0
 jupyter>=1.0.0
 ipykernel>=6.29.0
 requests>=2.31.0
+ddgs>=9.0.0
+tavily-python>=0.3.0
 rapidfuzz>=3.6.0
 pandas-stubs
 fastapi>=0.111.0
