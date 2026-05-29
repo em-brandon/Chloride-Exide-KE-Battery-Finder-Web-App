@@ -613,6 +613,21 @@ function LogPanel({ lines }: { lines: string[] }) {
 
 const COVERAGE_PAGE_SIZE = 50
 
+function WebValidateLoadingOverlay() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: '#fff',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem',
+    }}>
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="#CC0000" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'loaderPulse 1.2s ease-in-out infinite' }}>
+        <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
+      </svg>
+      <span style={{ fontSize: '1.05rem', fontWeight: 600, color: '#374151', fontFamily: "'Segoe UI',system-ui,sans-serif" }}>Loading…</span>
+    </div>
+  )
+}
+
 function formatEta(seconds: number): string {
   if (!isFinite(seconds) || seconds <= 0) return '—'
   const h = Math.floor(seconds / 3600)
@@ -624,9 +639,11 @@ function formatEta(seconds: number): string {
 }
 
 function WebValidateTab() {
+  const [tabLoading, setTabLoading]       = useState(true)
   const [status, setStatus]               = useState<WebValidateStatus | null>(null)
   const [quotas, setQuotas]               = useState<QuotaInfo[]>([])
   const [coverage, setCoverage]           = useState<CoverageInfo | null>(null)
+  const [coverageLoading, setCoverageLoading] = useState(false)
   const [providerInfo, setProviderInfo]   = useState<ProviderInfo[]>([])
   const [enabledProviders, setEnabledProviders] = useState<Set<string>>(
     new Set(['carapi', 'duckduckgo'])
@@ -664,6 +681,8 @@ function WebValidateTab() {
       ))
     } catch {
       // leave existing state intact on transient errors
+    } finally {
+      setTabLoading(false)
     }
   }
 
@@ -762,18 +781,22 @@ function WebValidateTab() {
   async function handleCacheReset() {
     setCacheResetMsg(null)
     setLoadingCacheReset(true)
+    // Optimistically zero out matched count immediately
+    setCoverage(c => c ? { ...c, matched: 0, unmatched: c.total, pct_matched: 0, unmatched_vehicles: [] } : null)
+    setMatchedData(null)
+    setShowMatched(false)
     try {
       const res = await resetWebValidateCache()
       const rowsMsg = res.rows_cleared > 0 ? ` — ${res.rows_cleared.toLocaleString()} matched vehicle rows removed.` : ''
       setCacheResetMsg(res.deleted ? `Cache cleared${rowsMsg}` : `No cache file found${rowsMsg}`)
+      setCoverageLoading(true)
       const c = await getWebValidateCoverage()
       setCoverage(c)
-      setMatchedData(null)
-      setShowMatched(false)
     } catch (e: unknown) {
       setCacheResetMsg(e instanceof Error ? e.message : String(e))
     } finally {
       setLoadingCacheReset(false)
+      setCoverageLoading(false)
       setTimeout(() => setCacheResetMsg(null), 7000)
     }
   }
@@ -816,6 +839,8 @@ function WebValidateTab() {
   const totalCount    = coverage?.total ?? 0
   const unmatchedCount = coverage?.unmatched ?? 0
 
+  if (tabLoading) return <WebValidateLoadingOverlay />
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
@@ -828,7 +853,7 @@ function WebValidateTab() {
       </div>
 
       {/* Coverage Summary */}
-      <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
+      <div style={{ ...CARD, padding: '1.25rem 1.5rem', opacity: coverageLoading ? 0.5 : 1, transition: 'opacity 0.3s' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
           Battery Coverage
         </h3>

@@ -1172,6 +1172,23 @@ def get_pipeline_quotas(
 ):
     from sqlalchemy import text as _text
     month = datetime.now(timezone.utc).strftime("%Y-%m")
+    now   = datetime.now(timezone.utc)
+
+    # Seed rows for all providers so cards appear on first page load (0 calls)
+    quota_limits = {
+        "carapi":     -1,
+        "duckduckgo": -1,
+        "google_cse": int(os.getenv("GOOGLE_CSE_MONTHLY_QUOTA", "3000")),
+        "tavily":     int(os.getenv("TAVILY_MONTHLY_QUOTA", "1000")),
+    }
+    for p, ql in quota_limits.items():
+        db.execute(_text("""
+            INSERT INTO api_usage_quota (provider, month, calls_made, quota_limit, updated_at)
+            VALUES (:p, :m, 0, :ql, :now)
+            ON CONFLICT (provider, month) DO NOTHING
+        """), {"p": p, "m": month, "ql": ql, "now": now})
+    db.commit()
+
     rows = db.execute(
         _text("SELECT provider, calls_made, quota_limit FROM api_usage_quota WHERE month = :m"),
         {"m": month},
