@@ -376,3 +376,115 @@ export async function revokeTestSession(id: number): Promise<void> {
 export async function fetchTestUsers(): Promise<{ users: TestUserEntry[] }> {
   return adminFetch('/api/admin/test-users')
 }
+
+// ---------------------------------------------------------------------------
+// Web-validate pipeline
+// ---------------------------------------------------------------------------
+
+export interface WebValidateStatus {
+  run_id:           string | null
+  status:           'idle' | 'running' | 'paused' | 'done' | 'error'
+  total:            number
+  processed:        number
+  found:            number
+  not_found:        number
+  current_provider: string | null
+  provider_counts:  { carapi: number; duckduckgo: number; google_cse: number; tavily: number }
+  logs:             string[]
+  started_at:       string | null
+  finished_at:      string | null
+  error_detail:     string | null
+}
+
+export interface QuotaInfo {
+  provider:    string
+  calls_made:  number
+  quota_limit: number   // -1 = unlimited
+  pct_used:    number
+}
+
+export interface CoverageInfo {
+  total:     number
+  matched:   number
+  unmatched: number
+  pct_matched: number
+  unmatched_vehicles: Array<{
+    make_n:     string
+    model_n:    string
+    year:       number
+    engine_cc:  number | null
+    fuel_type:  string | null
+  }>
+}
+
+export interface ProviderInfo {
+  provider:         string
+  configured:       boolean
+  always_available: boolean
+}
+
+export async function runWebValidatePipeline(enabledProviders?: string[]): Promise<{ run_id: string }> {
+  return adminFetch('/api/admin/pipeline/web-validate/run', {
+    method: 'POST',
+    body: JSON.stringify({ enabled_providers: enabledProviders ?? null }),
+  })
+}
+
+export async function getWebValidateProviders(): Promise<ProviderInfo[]> {
+  return adminFetch('/api/admin/pipeline/web-validate/providers')
+}
+
+export async function getWebValidateStatus(): Promise<WebValidateStatus> {
+  return adminFetch('/api/admin/pipeline/web-validate/status')
+}
+
+export async function pauseWebValidate(): Promise<void> {
+  await adminFetch('/api/admin/pipeline/web-validate/pause', { method: 'POST' })
+}
+
+export async function resumeWebValidate(): Promise<void> {
+  await adminFetch('/api/admin/pipeline/web-validate/resume', { method: 'POST' })
+}
+
+export async function cancelWebValidate(): Promise<void> {
+  await adminFetch('/api/admin/pipeline/web-validate/cancel', { method: 'POST' })
+}
+
+export async function getPipelineQuotas(): Promise<QuotaInfo[]> {
+  return adminFetch('/api/admin/pipeline/quotas')
+}
+
+export async function getWebValidateCoverage(): Promise<CoverageInfo> {
+  return adminFetch('/api/admin/pipeline/web-validate/coverage')
+}
+
+export async function resetWebValidateCache(): Promise<{ deleted: boolean; rows_cleared: number }> {
+  return adminFetch('/api/admin/pipeline/web-validate/reset-cache', { method: 'POST' })
+}
+
+export interface MatchedVehicleRow {
+  make_n:       string
+  model_n:      string
+  year:         number
+  ah:           number | null
+  technology:   string | null
+  source:       string | null
+  validated_at: string | null
+}
+
+export interface MatchedVehiclesResponse {
+  total:     number
+  page:      number
+  page_size: number
+  items:     MatchedVehicleRow[]
+}
+
+export async function getWebValidateMatched(
+  page = 1,
+  pageSize = 50,
+  search = '',
+): Promise<MatchedVehiclesResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (search) params.set('search', search)
+  return adminFetch(`/api/admin/pipeline/web-validate/matched?${params}`)
+}

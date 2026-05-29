@@ -29,11 +29,17 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
+import threading
 import time
+import uuid
+from collections import deque
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 import matcher
+import pandas as pd
 from admin_auth import (
     COOKIE_NAME,
     clear_session_cookie,
@@ -44,7 +50,7 @@ from admin_auth import (
     verify_password,
 )
 from db import SessionLocal, engine
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from models import AdminSession, AdminStats, AdminUser, BatteryAuditLog, BatterySpec, UserFeedback, TestUser, TestUserSession
 from pydantic import BaseModel, Field
@@ -59,6 +65,28 @@ import openpyxl
 logger = logging.getLogger("battery_finder.admin")
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 _limiter = Limiter(key_func=get_remote_address)
+
+# ---------------------------------------------------------------------------
+# Web-validate pipeline in-memory state
+# ---------------------------------------------------------------------------
+
+_pipeline_lock = threading.Lock()
+_pipeline_state: dict = {
+    "run_id":           None,
+    "status":           "idle",   # "idle" | "running" | "paused" | "done" | "error"
+    "total":            0,
+    "processed":        0,
+    "found":            0,
+    "not_found":        0,
+    "current_provider": None,
+    "provider_counts":  {"carapi": 0, "duckduckgo": 0, "google_cse": 0, "tavily": 0},
+    "logs":             deque(maxlen=50),
+    "started_at":       None,
+    "finished_at":      None,
+    "error_detail":     None,
+    "cancel_event":     None,
+    "pause_event":      None,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -992,3 +1020,283 @@ def list_test_users(
             for u in users
         ]
     }
+
+
+# ---------------------------------------------------------------------------
+# Web-validate pipeline endpoints
+# ---------------------------------------------------------------------------
+
+class RunWebValidateBody(BaseModel):
+    enabled_providers: list[str] | None = None  # None = use all available providers
+
+
+def _web_validate_thread(
+    run_id: str,
+    cancel_event: threading.Event,
+    pause_event: threading.Event,
+    enabled_providers: list[str] | None = None,
+) -> None:
+    """Background thread that runs the web_battery_validate pipeline."""
+    from pipelines.web_battery_validate import main as _run_web_validate
+
+    def _progress(processed: int, total: int, provider: str) -> None:
+        with _pipeline_lock:
+            _pipeline_state["processed"] = processed
+            if total > 0:
+                _pipeline_state["total"] = total
+            _pipeline_state["current_provider"] = provider
+            if provider in _pipeline_state["provider_counts"]:
+                _pipeline_state["provider_counts"][provider] += 1
+
+    def _log_cb(line: str) -> None:
+        with _pipeline_lock:
+            _pipeline_state["logs"].append(line)
+
+    try:
+        result = _run_web_validate(cancel_event, pause_event, _progress, _log_cb, enabled_providers)
+        with _pipeline_lock:
+            _pipeline_state["status"]          = "done"
+            _pipeline_state["found"]           = result["fetched"]
+            _pipeline_state["not_found"]       = result["failed"]
+            _pipeline_state["provider_counts"] = result["provider_counts"]
+            _pipeline_state["finished_at"]     = datetime.now(timezone.utc).isoformat()
+            _pipeline_state["error_detail"]    = None
+    except Exception as exc:
+        with _pipeline_lock:
+            _pipeline_state["status"]       = "error"
+            _pipeline_state["finished_at"]  = datetime.now(timezone.utc).isoformat()
+            _pipeline_state["error_detail"] = str(exc)
+        logger.exception("web_battery_validate pipeline error: %s", exc)
+
+
+@router.post("/pipeline/web-validate/run", summary="Launch the web battery validation pipeline")
+def run_web_validate(
+    body: RunWebValidateBody = Body(default_factory=RunWebValidateBody),
+    admin: AdminUser = Depends(require_admin),
+):
+    with _pipeline_lock:
+        if _pipeline_state["status"] == "running":
+            raise HTTPException(status_code=409, detail="Pipeline is already running")
+
+        run_id = str(uuid.uuid4())
+        cancel_ev = threading.Event()
+        pause_ev  = threading.Event()
+        _pipeline_state.update({
+            "run_id":             run_id,
+            "status":             "running",
+            "total":              0,
+            "processed":          0,
+            "found":              0,
+            "not_found":          0,
+            "current_provider":   None,
+            "enabled_providers":  body.enabled_providers,
+            "provider_counts":    {"carapi": 0, "duckduckgo": 0, "google_cse": 0, "tavily": 0},
+            "logs":               deque(maxlen=50),
+            "started_at":         datetime.now(timezone.utc).isoformat(),
+            "finished_at":        None,
+            "error_detail":       None,
+            "cancel_event":       cancel_ev,
+            "pause_event":        pause_ev,
+        })
+
+    t = threading.Thread(
+        target=_web_validate_thread,
+        args=(run_id, cancel_ev, pause_ev, body.enabled_providers),
+        daemon=True,
+        name=f"web-validate-{run_id[:8]}",
+    )
+    t.start()
+    logger.info(
+        "web_battery_validate started by %s, run_id=%s, providers=%s",
+        admin.username, run_id, body.enabled_providers,
+    )
+    return {"run_id": run_id}
+
+
+@router.get("/pipeline/web-validate/status", summary="Get web-validate pipeline status")
+def get_web_validate_status(admin: AdminUser = Depends(require_admin)):
+    with _pipeline_lock:
+        state = dict(_pipeline_state)
+        state["logs"] = list(state["logs"])   # deque → list for JSON
+        state.pop("cancel_event", None)        # threading.Event — not serialisable
+        state.pop("pause_event", None)         # threading.Event — not serialisable
+    return state
+
+
+@router.post("/pipeline/web-validate/pause", summary="Pause the running web-validate pipeline")
+def pause_web_validate(admin: AdminUser = Depends(require_admin)):
+    with _pipeline_lock:
+        if _pipeline_state["status"] != "running":
+            raise HTTPException(status_code=400, detail="Pipeline is not currently running")
+        pause_ev = _pipeline_state.get("pause_event")
+        _pipeline_state["status"] = "paused"
+    if pause_ev:
+        pause_ev.set()
+    logger.info("web_battery_validate pause requested by %s", admin.username)
+    return {"detail": "Pause signal sent"}
+
+
+@router.post("/pipeline/web-validate/resume", summary="Resume a paused web-validate pipeline")
+def resume_web_validate(admin: AdminUser = Depends(require_admin)):
+    with _pipeline_lock:
+        if _pipeline_state["status"] != "paused":
+            raise HTTPException(status_code=400, detail="Pipeline is not currently paused")
+        pause_ev = _pipeline_state.get("pause_event")
+        _pipeline_state["status"] = "running"
+    if pause_ev:
+        pause_ev.clear()
+    logger.info("web_battery_validate resume requested by %s", admin.username)
+    return {"detail": "Resume signal sent"}
+
+
+@router.post("/pipeline/web-validate/cancel", summary="Cancel the running web-validate pipeline")
+def cancel_web_validate(admin: AdminUser = Depends(require_admin)):
+    with _pipeline_lock:
+        if _pipeline_state["status"] not in ("running", "paused"):
+            raise HTTPException(status_code=400, detail="Pipeline is not running or paused")
+        cancel_ev = _pipeline_state.get("cancel_event")
+        pause_ev  = _pipeline_state.get("pause_event")
+    # Unblock pause loop first so the thread can see the cancel signal
+    if pause_ev:
+        pause_ev.clear()
+    if cancel_ev:
+        cancel_ev.set()
+    logger.info("web_battery_validate cancel requested by %s", admin.username)
+    return {"detail": "Cancel signal sent"}
+
+
+@router.get("/pipeline/quotas", summary="Get API provider quota usage for current month")
+def get_pipeline_quotas(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import text as _text
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    rows = db.execute(
+        _text("SELECT provider, calls_made, quota_limit FROM api_usage_quota WHERE month = :m"),
+        {"m": month},
+    ).fetchall()
+
+    result = []
+    for provider, calls_made, quota_limit in rows:
+        if quota_limit == -1:
+            pct = 0.0
+        else:
+            pct = round(calls_made / max(quota_limit, 1) * 100, 1)
+        result.append({
+            "provider":    provider,
+            "calls_made":  calls_made,
+            "quota_limit": quota_limit,
+            "pct_used":    pct,
+        })
+    return result
+
+
+@router.get("/pipeline/web-validate/coverage", summary="Get matched vs unmatched vehicle coverage")
+def get_web_validate_coverage(admin: AdminUser = Depends(require_admin)):
+    from matcher import _norm_model_key as _nk
+
+    # Load vehicle_years (all combos with engine and fuel details)
+    veh = pd.read_sql(
+        "SELECT UPPER(TRIM(make)) AS make_n,"
+        " model AS raw_model, year,"
+        " engine_capacity, fuel"
+        " FROM vehicle_years WHERE year IS NOT NULL",
+        engine,
+    )
+    veh["model_n"] = veh["raw_model"].astype(str).apply(_nk)
+    veh["year"]    = pd.to_numeric(veh["year"], errors="coerce")
+    veh = veh.dropna(subset=["make_n", "model_n", "year"])
+    veh["year"] = veh["year"].astype(int)
+
+    combos = (
+        veh.groupby(["make_n", "model_n", "year"], as_index=False)
+        .agg({"engine_capacity": "first", "fuel": "first"})
+    )
+
+    # Load validated combos
+    validated = pd.read_sql(
+        "SELECT make_n, model_n, year FROM web_battery_validation", engine
+    )
+    validated["year"] = pd.to_numeric(validated["year"], errors="coerce").astype(int)
+    validated["_matched"] = True
+
+    merged = combos.merge(validated, on=["make_n", "model_n", "year"], how="left")
+    total   = len(merged)
+    matched = int(merged["_matched"].sum())
+
+    unmatched_df = (
+        merged[merged["_matched"].isna()]
+        [["make_n", "model_n", "year", "engine_capacity", "fuel"]]
+        .rename(columns={"engine_capacity": "engine_cc", "fuel": "fuel_type"})
+        .sort_values(["make_n", "model_n", "year"])
+    )
+
+    return {
+        "total":              total,
+        "matched":            matched,
+        "unmatched":          total - matched,
+        "pct_matched":        round(matched / total * 100, 1) if total else 0.0,
+        "unmatched_vehicles": unmatched_df.astype(object).where(pd.notna(unmatched_df), None).to_dict(orient="records"),
+    }
+
+
+@router.get("/pipeline/web-validate/providers", summary="Provider configuration status")
+def get_web_validate_providers(admin: AdminUser = Depends(require_admin)):
+    """Returns which providers are configured (have API keys) and which are always available."""
+    google_configured = bool(os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"))
+    tavily_configured = bool(os.getenv("TAVILY_API_KEY"))
+    return [
+        {"provider": "carapi",     "configured": True,             "always_available": True},
+        {"provider": "duckduckgo", "configured": True,             "always_available": True},
+        {"provider": "google_cse", "configured": google_configured, "always_available": False},
+        {"provider": "tavily",     "configured": tavily_configured, "always_available": False},
+    ]
+
+
+@router.get("/pipeline/web-validate/matched", summary="Paginated list of web-validated vehicles")
+def get_web_validate_matched(
+    page: int = 1,
+    page_size: int = 50,
+    search: str = "",
+    admin: AdminUser = Depends(require_admin),
+):
+    from sqlalchemy import text as _text
+    offset = (page - 1) * page_size
+    like = f"%{search.upper()}%" if search else "%"
+
+    with engine.connect() as conn:
+        total = conn.execute(_text("""
+            SELECT COUNT(*) FROM web_battery_validation
+            WHERE (UPPER(make_n) LIKE :q OR UPPER(model_n) LIKE :q)
+        """), {"q": like}).scalar() or 0
+
+        rows = conn.execute(_text("""
+            SELECT make_n, model_n, year, ah, technology, source, validated_at
+            FROM web_battery_validation
+            WHERE (UPPER(make_n) LIKE :q OR UPPER(model_n) LIKE :q)
+            ORDER BY make_n, model_n, year
+            LIMIT :lim OFFSET :off
+        """), {"q": like, "lim": page_size, "off": offset}).fetchall()
+
+    return {
+        "total":     total,
+        "page":      page,
+        "page_size": page_size,
+        "items":     [dict(r._mapping) for r in rows],
+    }
+
+
+@router.post("/pipeline/web-validate/reset-cache", summary="Delete the battery validate lookup cache file and all matched vehicle rows")
+def reset_web_validate_cache(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    from sqlalchemy import text as _text
+    cache_path = Path(__file__).parent / "cache" / "battery_validate_cache.json"
+    file_deleted = False
+    if cache_path.exists():
+        cache_path.unlink()
+        file_deleted = True
+
+    result = db.execute(_text("DELETE FROM web_battery_validation"))
+    db.commit()
+
+    return {"deleted": file_deleted, "rows_cleared": result.rowcount}
