@@ -395,7 +395,7 @@ def _resolve_battery_code(parsed: dict, make_n: str) -> tuple[str, int, str] | N
 # DB upsert
 # ---------------------------------------------------------------------------
 
-def _upsert_rows(eng, rows: list[dict]) -> None:
+def _upsert_rows(eng, rows: list[dict], run_id: str | None = None) -> None:
     if not rows:
         return
     now = datetime.now(timezone.utc)
@@ -405,10 +405,10 @@ def _upsert_rows(eng, rows: list[dict]) -> None:
                 text(f"""
                     INSERT INTO {TABLE_NAME}
                         (make_n, model_n, year, battery_code, ah, technology,
-                         source, engine_cc, fuel_type, validated_at)
+                         source, engine_cc, fuel_type, validated_at, run_id)
                     VALUES
                         (:make_n, :model_n, :year, :battery_code, :ah, :technology,
-                         :source, :engine_cc, :fuel_type, :validated_at)
+                         :source, :engine_cc, :fuel_type, :validated_at, :run_id)
                     ON CONFLICT (make_n, model_n, year)
                     DO UPDATE SET
                         battery_code = EXCLUDED.battery_code,
@@ -417,9 +417,10 @@ def _upsert_rows(eng, rows: list[dict]) -> None:
                         source       = EXCLUDED.source,
                         engine_cc    = EXCLUDED.engine_cc,
                         fuel_type    = EXCLUDED.fuel_type,
-                        validated_at = EXCLUDED.validated_at
+                        validated_at = EXCLUDED.validated_at,
+                        run_id       = EXCLUDED.run_id
                 """),
-                {**row, "validated_at": now},
+                {**row, "validated_at": now, "run_id": run_id},
             )
 
 
@@ -433,6 +434,7 @@ def main(
     progress_callback: Callable | None = None,  # (processed, total, provider)
     log_callback: Callable | None = None,        # (line: str)
     enabled_providers: list[str] | None = None,  # None = all available providers
+    run_id: str | None = None,                   # UUID from admin_router — tags DB rows
 ) -> dict:
     """
     Run the web battery validation pipeline.
@@ -654,11 +656,34 @@ def main(
 
         # Flush every 50 rows to avoid losing progress
         if len(new_rows) >= 50:
-            _upsert_rows(engine, new_rows)
+            _upsert_rows(engine, new_rows, run_id=run_id)
             new_rows = []
 
     # Final flush
-    _upsert_rows(engine, new_rows)
+    _upsert_rows(engine, new_rows, run_id=run_id)
+
+    # Determine whether pipeline finished normally or was cancelled
+    was_cancelled = bool(cancel_event and cancel_event.is_set())
+    run_status = "cancelled" if was_cancelled else "completed"
+
+    # Log to pipeline_run_log for staleness tracking
+    if run_id:
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "INSERT INTO pipeline_run_log (run_id, status, combos_processed, combos_matched)"
+                        " VALUES (:run_id, :status, :processed, :matched)"
+                    ),
+                    {
+                        "run_id":    run_id,
+                        "status":    run_status,
+                        "processed": n_cached + n_fetched + n_failed,
+                        "matched":   n_fetched + n_cached,
+                    },
+                )
+        except Exception as exc:
+            _log(f"  [WARN] could not write pipeline_run_log: {exc}")
 
     _log(
         f"\n[END] Done — {n_fetched} fetched, {n_cached} from cache, {n_failed} no result"

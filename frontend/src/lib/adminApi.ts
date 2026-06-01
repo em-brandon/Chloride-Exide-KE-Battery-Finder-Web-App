@@ -404,10 +404,12 @@ export interface QuotaInfo {
 }
 
 export interface CoverageInfo {
-  total:     number
-  matched:   number
-  unmatched: number
-  pct_matched: number
+  total:         number
+  matched:       number
+  unmatched:     number
+  pct_matched:   number
+  master_count:  number
+  staging_count: number
   unmatched_vehicles: Array<{
     make_n:     string
     model_n:    string
@@ -446,8 +448,15 @@ export async function resumeWebValidate(): Promise<void> {
   await adminFetch('/api/admin/pipeline/web-validate/resume', { method: 'POST' })
 }
 
-export async function cancelWebValidate(): Promise<void> {
-  await adminFetch('/api/admin/pipeline/web-validate/cancel', { method: 'POST' })
+export interface CancelWebValidateResult {
+  detail:         string
+  staged_count:   number
+  invalid_count:  number
+  conflict_count: number
+}
+
+export async function cancelWebValidate(): Promise<CancelWebValidateResult> {
+  return adminFetch('/api/admin/pipeline/web-validate/cancel', { method: 'POST' })
 }
 
 export async function getPipelineQuotas(): Promise<QuotaInfo[]> {
@@ -487,4 +496,158 @@ export async function getWebValidateMatched(
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (search) params.set('search', search)
   return adminFetch(`/api/admin/pipeline/web-validate/matched?${params}`)
+}
+
+// ---------------------------------------------------------------------------
+// Staging area
+// ---------------------------------------------------------------------------
+
+export interface ConflictDetail {
+  current: { ah: number | null; technology: string | null; source: string; run_id: string | null }
+  staged:  { ah: number | null; technology: string | null; source: string }
+}
+
+export interface StagingRow {
+  make_n:          string
+  model_n:         string
+  year:            number
+  battery_code:    string | null
+  ah:              number | null
+  technology:      string | null
+  source:          string | null
+  engine_cc:       number | null
+  fuel_type:       string | null
+  staged_at:       string
+  is_valid:        boolean
+  invalid_reason:  string | null
+  conflict:        boolean
+  conflict_detail: ConflictDetail | null
+}
+
+export interface StagingAreaResponse {
+  has_staging:    boolean
+  total:          number
+  valid_count:    number
+  invalid_count:  number
+  conflict_count: number
+  run_id:         string | null
+  page:           number
+  page_size:      number
+  items:          StagingRow[]
+}
+
+export interface ConflictResolution {
+  make_n:  string
+  model_n: string
+  year:    number
+  keep:    'staging' | 'current'
+}
+
+export interface CommitStagingResult {
+  version_id:         string
+  version_number:     number
+  committed:          number
+  removed_invalid:    number
+  conflicts_resolved: number
+}
+
+export async function getStagingArea(
+  page = 1,
+  pageSize = 50,
+  filter: 'all' | 'valid' | 'invalid' | 'conflicts' = 'all',
+): Promise<StagingAreaResponse> {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+    filter,
+  })
+  return adminFetch(`/api/admin/pipeline/web-validate/staging?${params}`)
+}
+
+export async function getStagingPreCommit(): Promise<{
+  conflict_count: number
+  conflicts: Array<{ make_n: string; model_n: string; year: number; conflict_detail: ConflictDetail }>
+}> {
+  return adminFetch('/api/admin/pipeline/web-validate/staging/pre-commit')
+}
+
+export async function commitStagingArea(
+  conflictResolutions: ConflictResolution[] = [],
+): Promise<CommitStagingResult> {
+  return adminFetch('/api/admin/pipeline/web-validate/staging/commit', {
+    method: 'POST',
+    body: JSON.stringify({ conflict_resolutions: conflictResolutions }),
+  })
+}
+
+export async function discardStagingArea(): Promise<{ discarded: number }> {
+  return adminFetch('/api/admin/pipeline/web-validate/staging/discard', { method: 'POST' })
+}
+
+// ---------------------------------------------------------------------------
+// Versioning
+// ---------------------------------------------------------------------------
+
+export interface ValidationVersion {
+  id:              string
+  version_number:  number
+  committed_at:    string
+  run_id:          string | null
+  committed_count: number
+  removed_count:   number
+  conflict_count:  number
+  notes:           string | null
+}
+
+export interface ValidationVersionsResponse {
+  total:     number
+  page:      number
+  page_size: number
+  items:     ValidationVersion[]
+}
+
+export interface ChangelogEntry {
+  make_n:      string
+  model_n:     string
+  year:        number
+  change_type: 'added' | 'updated' | 'removed'
+  old_values:  Record<string, unknown> | null
+  new_values:  Record<string, unknown> | null
+}
+
+export interface VersionChangelogResponse {
+  version:   ValidationVersion
+  total:     number
+  page:      number
+  page_size: number
+  items:     ChangelogEntry[]
+}
+
+export async function getValidationVersions(page = 1, pageSize = 20): Promise<ValidationVersionsResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  return adminFetch(`/api/admin/pipeline/web-validate/versions?${params}`)
+}
+
+export async function getVersionChangelog(
+  versionId: string,
+  page = 1,
+  pageSize = 100,
+): Promise<VersionChangelogResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  return adminFetch(`/api/admin/pipeline/web-validate/versions/${versionId}/changelog?${params}`)
+}
+
+// ---------------------------------------------------------------------------
+// Staleness
+// ---------------------------------------------------------------------------
+
+export interface StalenessInfo {
+  last_run_completed_at:      string | null
+  vehicles_last_updated_at:   string | null
+  new_vehicles_since_last_run: number
+  stale:                      boolean
+}
+
+export async function getPipelineStaleness(): Promise<StalenessInfo> {
+  return adminFetch('/api/admin/pipeline/web-validate/staleness')
 }

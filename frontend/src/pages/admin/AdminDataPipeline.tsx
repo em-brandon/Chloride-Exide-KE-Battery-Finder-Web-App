@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useBlocker } from 'react-router-dom'
 import {
   ClipboardDocumentListIcon,
   CloudArrowUpIcon,
@@ -20,6 +21,10 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MagnifyingGlassIcon,
+  ClockIcon,
+  ArchiveBoxIcon,
+  ServerStackIcon,
+  XMarkIcon,
 } from '@heroicons/react/20/solid'
 import AdminLayout from '@/components/admin/AdminLayout'
 import {
@@ -33,11 +38,25 @@ import {
   resetWebValidateCache,
   getWebValidateProviders,
   getWebValidateMatched,
+  getStagingArea,
+  getStagingPreCommit,
+  commitStagingArea,
+  discardStagingArea,
+  getValidationVersions,
+  getVersionChangelog,
+  getPipelineStaleness,
   type WebValidateStatus,
   type QuotaInfo,
   type CoverageInfo,
   type ProviderInfo,
   type MatchedVehiclesResponse,
+  type StagingAreaResponse,
+  type StagingRow,
+  type ConflictResolution,
+  type CommitStagingResult,
+  type ValidationVersion,
+  type VersionChangelogResponse,
+  type StalenessInfo,
 } from '@/lib/adminApi'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -663,18 +682,64 @@ function WebValidateTab() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const matchedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Staging area state
+  const [stagingInfo, setStagingInfo]             = useState<StagingAreaResponse | null>(null)
+  const [stagingFilter, setStagingFilter]         = useState<'all' | 'valid' | 'invalid' | 'conflicts'>('all')
+  const [stagingPage, setStagingPage]             = useState(1)
+  const [stagingLoading, setStagingLoading]       = useState(false)
+  const [stagingToast, setStagingToast]           = useState<string | null>(null)
+  const [commitModalOpen, setCommitModalOpen]     = useState(false)
+  const [commitLoading, setCommitLoading]         = useState(false)
+  const [commitResult, setCommitResult]           = useState<CommitStagingResult | null>(null)
+  const [discardLoading, setDiscardLoading]       = useState(false)
+  const [conflictResolutions, setConflictResolutions] = useState<Record<string, 'staging' | 'current'>>({})
+  const [preCommitConflicts, setPreCommitConflicts] = useState<{ make_n: string; model_n: string; year: number; conflict_detail: { current: { ah: number|null; technology: string|null; source: string }; staged: { ah: number|null; technology: string|null; source: string } } }[]>([])
+
+  // Version history state
+  const [showVersions, setShowVersions]           = useState(false)
+  const [versions, setVersions]                   = useState<ValidationVersion[]>([])
+  const [versionsTotal, setVersionsTotal]         = useState(0)
+  const [versionsPage, setVersionsPage]           = useState(1)
+  const [versionsLoading, setVersionsLoading]     = useState(false)
+  const [openChangelog, setOpenChangelog]         = useState<VersionChangelogResponse | null>(null)
+  const [changelogLoading, setChangelogLoading]   = useState(false)
+
+  // Staleness state
+  const [staleness, setStaleness]                 = useState<StalenessInfo | null>(null)
+
+  // Nav blocker — warn when staging has uncommitted data
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      !!(stagingInfo?.has_staging) &&
+      currentLocation.pathname !== nextLocation.pathname
+  )
+
+  const fetchStagingArea = useCallback(async (filter: 'all' | 'valid' | 'invalid' | 'conflicts' = 'all', page = 1) => {
+    setStagingLoading(true)
+    try {
+      const s = await getStagingArea(page, 50, filter)
+      setStagingInfo(s)
+    } catch { /* ignore */ } finally {
+      setStagingLoading(false)
+    }
+  }, [])
+
   async function fetchAll() {
     try {
-      const [s, q, c, p] = await Promise.all([
+      const [s, q, c, p, stale, staging] = await Promise.all([
         getWebValidateStatus(),
         getPipelineQuotas(),
         getWebValidateCoverage(),
         getWebValidateProviders(),
+        getPipelineStaleness().catch(() => null),
+        getStagingArea(1, 50, 'all').catch(() => null),
       ])
       setStatus(s)
       setQuotas(q)
       setCoverage(c)
       setProviderInfo(p)
+      if (stale) setStaleness(stale)
+      if (staging) setStagingInfo(staging)
       // Initialise enabled providers: always-on + any configured limited providers
       setEnabledProviders(new Set(
         p.filter(pi => pi.always_available || pi.configured).map(pi => pi.provider)
@@ -686,10 +751,36 @@ function WebValidateTab() {
     }
   }
 
+  async function fetchVersions(page = 1) {
+    setVersionsLoading(true)
+    try {
+      const r = await getValidationVersions(page, 20)
+      setVersions(r.items)
+      setVersionsTotal(r.total)
+      setVersionsPage(page)
+    } catch { /* ignore */ } finally {
+      setVersionsLoading(false)
+    }
+  }
+
+  async function handleOpenChangelog(versionId: string) {
+    setChangelogLoading(true)
+    try {
+      const r = await getVersionChangelog(versionId)
+      setOpenChangelog(r)
+    } catch { /* ignore */ } finally {
+      setChangelogLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchAll()
     return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
   }, [])
+
+  useEffect(() => {
+    if (showVersions) fetchVersions(1)
+  }, [showVersions])
 
   useEffect(() => {
     if (!showMatched) return
@@ -723,9 +814,14 @@ function WebValidateTab() {
           if (s.status !== 'running' && s.status !== 'paused') {
             clearInterval(pollingRef.current!)
             pollingRef.current = null
-            const [q, c] = await Promise.all([getPipelineQuotas(), getWebValidateCoverage()])
+            const [q, c, stale] = await Promise.all([
+              getPipelineQuotas(),
+              getWebValidateCoverage(),
+              getPipelineStaleness().catch(() => null),
+            ])
             setQuotas(q)
             setCoverage(c)
+            if (stale) setStaleness(stale)
           }
         } catch { /* ignore transient */ }
       }, 3000)
@@ -772,9 +868,80 @@ function WebValidateTab() {
   async function handleCancel() {
     setActionError(null)
     try {
-      await cancelWebValidate()
+      const result = await cancelWebValidate()
+      if (result.staged_count > 0) {
+        const warnParts: string[] = []
+        if (result.invalid_count > 0) warnParts.push(`${result.invalid_count} data warning${result.invalid_count > 1 ? 's' : ''}`)
+        if (result.conflict_count > 0) warnParts.push(`${result.conflict_count} conflict${result.conflict_count > 1 ? 's' : ''}`)
+        const warnStr = warnParts.length > 0 ? ` — ${warnParts.join(', ')}` : ''
+        setStagingToast(`${result.staged_count} matched vehicle${result.staged_count > 1 ? 's' : ''} saved to staging area for validation${warnStr}.`)
+        await fetchStagingArea('all', 1)
+        const c = await getWebValidateCoverage().catch(() => null)
+        if (c) setCoverage(c)
+      }
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function handleStagingFilterChange(filter: 'all' | 'valid' | 'invalid' | 'conflicts') {
+    setStagingFilter(filter)
+    setStagingPage(1)
+    await fetchStagingArea(filter, 1)
+  }
+
+  async function handleStagingPageChange(page: number) {
+    setStagingPage(page)
+    await fetchStagingArea(stagingFilter, page)
+  }
+
+  async function handleOpenCommitModal() {
+    setCommitResult(null)
+    setConflictResolutions({})
+    const preCommit = await getStagingPreCommit().catch(() => ({ conflict_count: 0, conflicts: [] }))
+    setPreCommitConflicts(preCommit.conflicts)
+    setCommitModalOpen(true)
+  }
+
+  async function handleCommit() {
+    setCommitLoading(true)
+    try {
+      const resolutions: ConflictResolution[] = preCommitConflicts.map(c => {
+        const key = `${c.make_n}|${c.model_n}|${c.year}`
+        return { make_n: c.make_n, model_n: c.model_n, year: c.year, keep: conflictResolutions[key] ?? 'staging' }
+      })
+      const result = await commitStagingArea(resolutions)
+      setCommitResult(result)
+      setStagingInfo(null)
+      setStagingToast(null)
+      // Refresh coverage and matched
+      const [c, stale] = await Promise.all([getWebValidateCoverage(), getPipelineStaleness().catch(() => null)])
+      setCoverage(c)
+      if (stale) setStaleness(stale)
+      if (showMatched) {
+        const md = await getWebValidateMatched(1, 50, matchedSearch).catch(() => null)
+        if (md) { setMatchedData(md); setMatchedPage(1) }
+      }
+      if (showVersions) fetchVersions(1)
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setCommitLoading(false)
+    }
+  }
+
+  async function handleDiscard() {
+    setDiscardLoading(true)
+    try {
+      await discardStagingArea()
+      setStagingInfo(null)
+      setStagingToast(null)
+      const c = await getWebValidateCoverage().catch(() => null)
+      if (c) setCoverage(c)
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDiscardLoading(false)
     }
   }
 
@@ -844,6 +1011,46 @@ function WebValidateTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
+      {/* Staleness banner */}
+      {staleness?.stale && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '0.75rem 1rem' }}>
+          <ClockIcon style={{ width: 16, height: 16, color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.6 }}>
+            <strong>Vehicle data has changed since the last pipeline run.</strong>
+            {staleness.new_vehicles_since_last_run > 0 && ` ${staleness.new_vehicles_since_last_run.toLocaleString()} new vehicle combinations need validation.`}
+            {' '}Run the pipeline to update matches.
+          </p>
+        </div>
+      )}
+
+      {/* Staging toast */}
+      {stagingToast && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '0.75rem 1rem' }}>
+          <ArchiveBoxIcon style={{ width: 16, height: 16, color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.6, flex: 1 }}>
+            <strong>Staging area updated.</strong> {stagingToast} Review below before committing to master.
+          </p>
+          <button onClick={() => setStagingToast(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#92400e' }}>
+            <XMarkIcon style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
+      )}
+
+      {/* Commit success banner */}
+      {commitResult && !commitModalOpen && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '0.75rem 1rem' }}>
+          <CheckCircleIcon style={{ width: 16, height: 16, color: '#22c55e', flexShrink: 0, marginTop: 1 }} />
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#14532d', lineHeight: 1.6, flex: 1 }}>
+            <strong>Committed as version #{commitResult.version_number}.</strong>{' '}
+            {commitResult.committed} records committed, {commitResult.removed_invalid} invalid records removed
+            {commitResult.conflicts_resolved > 0 ? `, ${commitResult.conflicts_resolved} conflicts resolved` : ''}.
+          </p>
+          <button onClick={() => setCommitResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#14532d' }}>
+            <XMarkIcon style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
+      )}
+
       {/* Info banner */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.75rem 1rem' }}>
         <InformationCircleIcon style={{ width: 16, height: 16, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
@@ -858,9 +1065,13 @@ function WebValidateTab() {
           Battery Coverage
         </h3>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          <SummaryBadge label="Total Combos" value={totalCount.toLocaleString()} />
-          <SummaryBadge label="Matched"      value={matchedCount.toLocaleString()} color="#22c55e" />
-          <SummaryBadge label="Unmatched"    value={unmatchedCount.toLocaleString()} color={unmatchedCount > 0 ? R : '#22c55e'} />
+          <SummaryBadge label="Total Combos"      value={totalCount.toLocaleString()} />
+          <SummaryBadge label="Matched"           value={matchedCount.toLocaleString()} color="#22c55e" />
+          <SummaryBadge label="Unmatched"         value={unmatchedCount.toLocaleString()} color={unmatchedCount > 0 ? R : '#22c55e'} />
+          <SummaryBadge label="Committed to Master" value={(coverage?.master_count ?? 0).toLocaleString()} color="#22c55e" />
+          {(coverage?.staging_count ?? 0) > 0 && (
+            <SummaryBadge label="In Staging" value={(coverage?.staging_count ?? 0).toLocaleString()} color="#f59e0b" />
+          )}
         </div>
         {/* Segmented progress bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -874,6 +1085,300 @@ function WebValidateTab() {
             {matchedPct.toFixed(1)}% covered
           </span>
         </div>
+      </div>
+
+      {/* Staging Area Panel */}
+      {stagingInfo?.has_staging && (
+        <div style={{ ...CARD, padding: '1.25rem 1.5rem', border: '1px solid #fcd34d', background: '#fffdf0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ArchiveBoxIcon style={{ width: 15, height: 15, color: '#f59e0b' }} />
+              <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#92400e' }}>
+                Staging Area — Review &amp; Resolve Before Committing
+              </h3>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {/* Summary chips */}
+              {[
+                { label: 'Total', val: stagingInfo.total, color: '#374151' },
+                { label: 'Valid', val: stagingInfo.valid_count, color: '#22c55e' },
+                { label: 'Invalid', val: stagingInfo.invalid_count, color: R },
+                { label: 'Conflicts', val: stagingInfo.conflict_count, color: '#f59e0b' },
+              ].map(({ label, val, color }) => val > 0 && (
+                <span key={label} style={{ fontSize: '0.7rem', fontWeight: 700, background: '#fff', border: '1px solid #e2e4e9', borderRadius: 99, padding: '0.2rem 0.6rem', color }}>
+                  {val} {label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.75rem' }}>
+            {(['all', 'valid', 'invalid', 'conflicts'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => handleStagingFilterChange(f)}
+                style={{
+                  fontSize: '0.72rem', fontWeight: stagingFilter === f ? 700 : 500,
+                  padding: '0.3rem 0.65rem', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  background: stagingFilter === f ? '#f59e0b' : '#f4f5f7',
+                  color: stagingFilter === f ? '#fff' : '#6b7280',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Staging table */}
+          {stagingLoading ? (
+            <p style={{ margin: '0.5rem 0', fontSize: '0.75rem', color: '#9ca3af' }}>Loading…</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
+                <thead>
+                  <tr style={{ background: '#fef3c7' }}>
+                    {['Make', 'Model', 'Year', 'Ah', 'Tech', 'Source', 'Status'].map(col => (
+                      <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: '#92400e', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(stagingInfo.items?.length ?? 0) === 0 ? (
+                    <tr><td colSpan={7} style={{ padding: '1rem', textAlign: 'center', color: '#9ca3af' }}>No records in this filter</td></tr>
+                  ) : stagingInfo.items.map((row: StagingRow, i: number) => (
+                    <>
+                      <tr key={`${row.make_n}-${row.model_n}-${row.year}`}
+                        style={{
+                          background: !row.is_valid ? '#fff5f5' : row.conflict ? '#fffbeb' : i % 2 === 0 ? '#fff' : '#fffdf5',
+                          borderBottom: '1px solid #fcd34d',
+                        }}
+                      >
+                        <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{row.make_n}</td>
+                        <td style={{ padding: '0.5rem 0.75rem' }}>{row.model_n}</td>
+                        <td style={{ padding: '0.5rem 0.75rem' }}>{row.year}</td>
+                        <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600, color: !row.is_valid && row.invalid_reason?.includes('Ah') ? R : '#22c55e' }}>
+                          {row.ah != null ? `${row.ah} Ah` : '—'}
+                        </td>
+                        <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{row.technology ?? '—'}</td>
+                        <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{row.source ? (PROVIDER_LABELS[row.source] ?? row.source) : '—'}</td>
+                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                          {!row.is_valid ? (
+                            <span title={row.invalid_reason ?? ''} style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fee2e2', color: R, borderRadius: 99, padding: '0.15rem 0.5rem', cursor: 'help' }}>
+                              Invalid
+                            </span>
+                          ) : row.conflict ? (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', borderRadius: 99, padding: '0.15rem 0.5rem' }}>
+                              Conflict
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '0.15rem 0.5rem' }}>
+                              Valid
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      {/* Conflict detail row */}
+                      {row.conflict && row.conflict_detail && (
+                        <tr key={`${row.make_n}-${row.model_n}-${row.year}-conflict`}
+                          style={{ background: '#fffbeb', borderBottom: '1px solid #fcd34d' }}>
+                          <td colSpan={7} style={{ padding: '0.35rem 0.75rem 0.5rem 1.5rem' }}>
+                            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.68rem', color: '#92400e' }}>
+                              <div>
+                                <span style={{ fontWeight: 700 }}>Current master: </span>
+                                Ah {row.conflict_detail.current.ah ?? '—'} · {row.conflict_detail.current.technology ?? '—'} · {row.conflict_detail.current.source}
+                              </div>
+                              <div>
+                                <span style={{ fontWeight: 700 }}>Staged: </span>
+                                Ah {row.conflict_detail.staged.ah ?? '—'} · {row.conflict_detail.staged.technology ?? '—'} · {row.conflict_detail.staged.source}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Staging pagination */}
+          {(stagingInfo.total > 50) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem', justifyContent: 'flex-end' }}>
+              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>
+                {((stagingPage - 1) * 50) + 1}–{Math.min(stagingPage * 50, stagingInfo.total)} of {stagingInfo.total.toLocaleString()}
+              </span>
+              <button disabled={stagingPage === 1} onClick={() => handleStagingPageChange(stagingPage - 1)}
+                style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: stagingPage === 1 ? 'not-allowed' : 'pointer', opacity: stagingPage === 1 ? 0.4 : 1 }}>
+                <ChevronLeftIcon style={{ width: 14, height: 14 }} />
+              </button>
+              <button disabled={stagingPage * 50 >= stagingInfo.total} onClick={() => handleStagingPageChange(stagingPage + 1)}
+                style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: stagingPage * 50 >= stagingInfo.total ? 'not-allowed' : 'pointer', opacity: stagingPage * 50 >= stagingInfo.total ? 0.4 : 1 }}>
+                <ChevronRightIcon style={{ width: 14, height: 14 }} />
+              </button>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '1rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => { if (window.confirm('Discard all staged data? This will remove the staged records from the master table and cannot be undone.')) handleDiscard() }}
+              disabled={discardLoading}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                fontSize: '0.78rem', fontWeight: 700,
+                padding: '0.55rem 1.1rem', borderRadius: 9, cursor: discardLoading ? 'not-allowed' : 'pointer',
+                border: `1px solid ${R}`, background: '#fff', color: R, opacity: discardLoading ? 0.6 : 1,
+              }}
+            >
+              <TrashIcon style={{ width: 13, height: 13 }} />
+              {discardLoading ? 'Discarding…' : 'Discard All'}
+            </button>
+            <button
+              onClick={handleOpenCommitModal}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                fontSize: '0.78rem', fontWeight: 700,
+                padding: '0.55rem 1.1rem', borderRadius: 9, cursor: 'pointer',
+                border: 'none', background: '#3b82f6', color: '#fff',
+              }}
+            >
+              <ServerStackIcon style={{ width: 13, height: 13 }} />
+              Review &amp; Commit
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Version History Panel */}
+      <div style={{ ...CARD, padding: '1rem 1.5rem' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
+          onClick={() => setShowVersions(v => !v)}
+        >
+          <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <ServerStackIcon style={{ width: 13, height: 13 }} />
+            Version History {versionsTotal > 0 ? `(${versionsTotal})` : ''}
+          </h3>
+          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{showVersions ? '▲' : '▼'}</span>
+        </div>
+
+        {showVersions && (
+          <div style={{ marginTop: '0.85rem' }}>
+            {versionsLoading ? (
+              <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>Loading…</p>
+            ) : versions.length === 0 ? (
+              <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>No committed versions yet.</p>
+            ) : (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f4f5f7' }}>
+                        {['Version', 'Committed At', 'Committed', 'Removed', 'Conflicts', ''].map(col => (
+                          <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: 'rgba(107,114,128,0.9)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {versions.map((v, i) => (
+                        <tr key={v.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e2e4e9' }}>
+                          <td style={{ padding: '0.5rem 0.75rem', fontWeight: 700, color: '#3b82f6' }}>#{v.version_number}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{new Date(v.committed_at).toLocaleString()}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', color: '#22c55e', fontWeight: 600 }}>{v.committed_count}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', color: v.removed_count > 0 ? R : '#9ca3af' }}>{v.removed_count}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', color: v.conflict_count > 0 ? '#f59e0b' : '#9ca3af' }}>{v.conflict_count}</td>
+                          <td style={{ padding: '0.5rem 0.75rem' }}>
+                            <button
+                              onClick={() => handleOpenChangelog(v.id)}
+                              style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            >
+                              View Diff
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {versionsTotal > 20 && (
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+                    <button disabled={versionsPage === 1} onClick={() => fetchVersions(versionsPage - 1)}
+                      style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: versionsPage === 1 ? 'not-allowed' : 'pointer', opacity: versionsPage === 1 ? 0.4 : 1 }}>
+                      <ChevronLeftIcon style={{ width: 14, height: 14 }} />
+                    </button>
+                    <button disabled={versionsPage * 20 >= versionsTotal} onClick={() => fetchVersions(versionsPage + 1)}
+                      style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: versionsPage * 20 >= versionsTotal ? 'not-allowed' : 'pointer', opacity: versionsPage * 20 >= versionsTotal ? 0.4 : 1 }}>
+                      <ChevronRightIcon style={{ width: 14, height: 14 }} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Inline changelog drawer */}
+            {openChangelog && (
+              <div style={{ marginTop: '1rem', background: '#f9fafb', border: '1px solid #e2e4e9', borderRadius: 10, padding: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>
+                    Changelog for Version #{openChangelog.version.version_number}
+                  </span>
+                  <button onClick={() => setOpenChangelog(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}>
+                    <XMarkIcon style={{ width: 14, height: 14 }} />
+                  </button>
+                </div>
+                {changelogLoading ? (
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Loading…</p>
+                ) : (
+                  <div style={{ overflowX: 'auto', maxHeight: 320, overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+                      <thead>
+                        <tr style={{ background: '#e5e7eb' }}>
+                          {['Type', 'Make', 'Model', 'Year', 'Before', 'After'].map(col => (
+                            <th key={col} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: '0.63rem', textTransform: 'uppercase' }}>
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {openChangelog.items.map((entry, i) => (
+                          <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                            <td style={{ padding: '0.4rem 0.6rem' }}>
+                              <span style={{
+                                fontSize: '0.62rem', fontWeight: 700, borderRadius: 99, padding: '0.1rem 0.4rem',
+                                background: entry.change_type === 'added' ? '#dcfce7' : entry.change_type === 'removed' ? '#fee2e2' : '#dbeafe',
+                                color: entry.change_type === 'added' ? '#16a34a' : entry.change_type === 'removed' ? R : '#1d4ed8',
+                              }}>
+                                {entry.change_type}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.4rem 0.6rem', fontWeight: 600 }}>{entry.make_n}</td>
+                            <td style={{ padding: '0.4rem 0.6rem' }}>{entry.model_n}</td>
+                            <td style={{ padding: '0.4rem 0.6rem' }}>{entry.year}</td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#9ca3af', fontFamily: 'monospace', fontSize: '0.68rem' }}>
+                              {entry.old_values ? `${entry.old_values.ah}Ah ${entry.old_values.technology}` : '—'}
+                            </td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#22c55e', fontFamily: 'monospace', fontSize: '0.68rem' }}>
+                              {entry.new_values ? `${entry.new_values.ah}Ah ${entry.new_values.technology}` : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Unmatched vehicles panel */}
@@ -1348,6 +1853,140 @@ function WebValidateTab() {
       {/* Log panel */}
       {(isRunning || isPaused || (status?.logs && status.logs.length > 0)) && (
         <LogPanel lines={status?.logs ?? []} />
+      )}
+
+      {/* ── Commit Modal ── */}
+      {commitModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ ...CARD, padding: '1.5rem', maxWidth: 560, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}>
+            <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#111827' }}>
+              Commit Staged Data to Master Table
+            </h2>
+
+            {commitResult ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+                  <CheckCircleIcon style={{ width: 16, height: 16, color: '#22c55e', flexShrink: 0, marginTop: 1 }} />
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#14532d' }}>
+                    <strong>Version #{commitResult.version_number} created.</strong><br />
+                    {commitResult.committed} records committed · {commitResult.removed_invalid} invalid removed · {commitResult.conflicts_resolved} conflicts resolved.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCommitModalOpen(false)}
+                  style={{ padding: '0.6rem 1.25rem', borderRadius: 9, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <>
+                {stagingInfo && (
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '0.2rem 0.6rem' }}>
+                      {stagingInfo.valid_count} valid → will commit
+                    </span>
+                    {stagingInfo.invalid_count > 0 && (
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, background: '#fee2e2', color: R, borderRadius: 99, padding: '0.2rem 0.6rem' }}>
+                        {stagingInfo.invalid_count} invalid → will remove from master
+                      </span>
+                    )}
+                    {stagingInfo.conflict_count > 0 && (
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, background: '#fef3c7', color: '#92400e', borderRadius: 99, padding: '0.2rem 0.6rem' }}>
+                        {stagingInfo.conflict_count} conflicts → resolve below
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Conflict resolution */}
+                {preCommitConflicts.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700, color: '#92400e' }}>
+                      Resolve conflicts — choose which value to keep:
+                    </p>
+                    {preCommitConflicts.map(c => {
+                      const key = `${c.make_n}|${c.model_n}|${c.year}`
+                      const choice = conflictResolutions[key] ?? 'staging'
+                      return (
+                        <div key={key} style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '0.65rem 0.85rem', marginBottom: '0.5rem' }}>
+                          <p style={{ margin: '0 0 0.4rem', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>
+                            {c.make_n} {c.model_n} {c.year}
+                          </p>
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            {(['staging', 'current'] as const).map(opt => (
+                              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', cursor: 'pointer' }}>
+                                <input type="radio" name={key} value={opt} checked={choice === opt}
+                                  onChange={() => setConflictResolutions(prev => ({ ...prev, [key]: opt }))} />
+                                <span style={{ fontWeight: 600 }}>{opt === 'staging' ? 'Use Staged' : 'Keep Current'}:</span>
+                                <span style={{ color: '#6b7280' }}>
+                                  {opt === 'staging'
+                                    ? `Ah ${c.conflict_detail.staged.ah ?? '—'} · ${c.conflict_detail.staged.technology ?? '—'} · ${c.conflict_detail.staged.source}`
+                                    : `Ah ${c.conflict_detail.current.ah ?? '—'} · ${c.conflict_detail.current.technology ?? '—'} · ${c.conflict_detail.current.source}`
+                                  }
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button onClick={() => setCommitModalOpen(false)}
+                    style={{ padding: '0.6rem 1.1rem', borderRadius: 9, border: '1px solid #e2e4e9', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCommit}
+                    disabled={commitLoading}
+                    style={{ padding: '0.6rem 1.25rem', borderRadius: 9, border: 'none', background: commitLoading ? '#9ca3af' : '#3b82f6', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: commitLoading ? 'not-allowed' : 'pointer' }}>
+                    {commitLoading ? 'Committing…' : 'Confirm & Commit'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Navigation Blocker Modal ── */}
+      {blocker.state === 'blocked' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ ...CARD, padding: '1.5rem', maxWidth: 440, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+              <ExclamationCircleIcon style={{ width: 22, height: 22, color: '#f59e0b', flexShrink: 0 }} />
+              <div>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '0.95rem', fontWeight: 700, color: '#111827' }}>
+                  Unsaved Staged Data
+                </h2>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: '#6b7280', lineHeight: 1.6 }}>
+                  You have unreviewed staged data. Navigating away will permanently discard all staged data from the master table.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => blocker.reset?.()}
+                style={{ padding: '0.6rem 1.1rem', borderRadius: 9, border: '1px solid #e2e4e9', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Stay on Page
+              </button>
+              <button
+                onClick={async () => {
+                  await discardStagingArea().catch(() => {})
+                  setStagingInfo(null)
+                  blocker.proceed?.()
+                }}
+                style={{ padding: '0.6rem 1.1rem', borderRadius: 9, border: 'none', background: R, color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Discard &amp; Leave
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
