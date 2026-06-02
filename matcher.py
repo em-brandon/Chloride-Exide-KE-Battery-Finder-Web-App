@@ -808,7 +808,9 @@ def recommend(
         parsed = _lookup_battery_by_code(web_code)
         if parsed is not None:
             target_ah, parsed_tech = parsed
-            if not stop_start:
+            if make_n in _LUXURY_MAKES:
+                pref_tech = "AGM"
+            elif not stop_start:
                 pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_web_year, make_n, False)
             elif parsed_tech in ("AGM", "EFB"):
                 pref_tech = parsed_tech
@@ -895,7 +897,9 @@ def recommend(
         parsed = _lookup_battery_by_code(inf_code)
         if parsed is not None:
             target_ah, parsed_tech = parsed
-            if not stop_start:
+            if make_n in _LUXURY_MAKES:
+                pref_tech = "AGM"
+            elif not stop_start:
                 pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, False)
             elif parsed_tech in ("AGM", "EFB"):
                 pref_tech = parsed_tech

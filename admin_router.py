@@ -79,13 +79,18 @@ _pipeline_state: dict = {
     "found":            0,
     "not_found":        0,
     "current_provider": None,
-    "provider_counts":  {"carapi": 0, "duckduckgo": 0, "google_cse": 0, "tavily": 0},
+    "current_combo":    None,
+    "provider_counts":  {"duckduckgo": 0, "google_cse": 0, "tavily": 0},
     "logs":             deque(maxlen=50),
-    "started_at":       None,
-    "finished_at":      None,
+    "started_at":        None,
+    "phase1_total":      0,
+    "phase1_processed":  0,
+    "phase2_started_at": None,
+    "finished_at":       None,
     "error_detail":     None,
     "cancel_event":     None,
     "pause_event":      None,
+    "initiated_by":     None,
 }
 
 
@@ -1039,23 +1044,33 @@ def _web_validate_thread(
     """Background thread that runs the web_battery_validate pipeline."""
     from pipelines.web_battery_validate import main as _run_web_validate
 
-    def _progress(processed: int, total: int, provider: str) -> None:
+    def _progress(processed: int, total: int, provider: str, combo_label: str = "") -> None:
         with _pipeline_lock:
             _pipeline_state["processed"] = processed
             if total > 0:
                 _pipeline_state["total"] = total
             _pipeline_state["current_provider"] = provider
+            if combo_label:
+                _pipeline_state["current_combo"] = combo_label
             if provider in _pipeline_state["provider_counts"]:
                 _pipeline_state["provider_counts"][provider] += 1
+            if _pipeline_state["phase2_started_at"] is None and processed > 0:
+                _pipeline_state["phase2_started_at"] = datetime.now(timezone.utc).isoformat()
 
     def _log_cb(line: str) -> None:
         with _pipeline_lock:
             _pipeline_state["logs"].append(line)
 
-    try:
-        result = _run_web_validate(cancel_event, pause_event, _progress, _log_cb, enabled_providers, run_id)
+    def _phase1_progress(fetched: int, total: int) -> None:
         with _pipeline_lock:
-            _pipeline_state["status"]          = "done"
+            _pipeline_state["phase1_processed"] = fetched
+            _pipeline_state["phase1_total"]     = total
+
+    try:
+        result = _run_web_validate(cancel_event, pause_event, _progress, _log_cb, enabled_providers, run_id,
+                                   phase1_progress_callback=_phase1_progress)
+        with _pipeline_lock:
+            _pipeline_state["status"]          = "cancelled" if cancel_event.is_set() else "done"
             _pipeline_state["found"]           = result["fetched"]
             _pipeline_state["not_found"]       = result["failed"]
             _pipeline_state["provider_counts"] = result["provider_counts"]
@@ -1089,14 +1104,19 @@ def run_web_validate(
             "found":              0,
             "not_found":          0,
             "current_provider":   None,
+            "current_combo":      None,
             "enabled_providers":  body.enabled_providers,
-            "provider_counts":    {"carapi": 0, "duckduckgo": 0, "google_cse": 0, "tavily": 0},
+            "provider_counts":    {"duckduckgo": 0, "google_cse": 0, "tavily": 0},
             "logs":               deque(maxlen=50),
             "started_at":         datetime.now(timezone.utc).isoformat(),
+            "phase1_total":       0,
+            "phase1_processed":   0,
+            "phase2_started_at":  None,
             "finished_at":        None,
             "error_detail":       None,
             "cancel_event":       cancel_ev,
             "pause_event":        pause_ev,
+            "initiated_by":       admin.username,
         })
 
     t = threading.Thread(
@@ -1393,7 +1413,6 @@ def get_web_validate_providers(admin: AdminUser = Depends(require_admin)):
     google_configured = bool(os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"))
     tavily_configured = bool(os.getenv("TAVILY_API_KEY"))
     return [
-        {"provider": "carapi",     "configured": True,             "always_available": True},
         {"provider": "duckduckgo", "configured": True,             "always_available": True},
         {"provider": "google_cse", "configured": google_configured, "always_available": False},
         {"provider": "tavily",     "configured": tavily_configured, "always_available": False},
@@ -1485,7 +1504,7 @@ def get_staging_area(
 
         rows = conn.execute(
             text(
-                f"SELECT make_n, model_n, year, battery_code, ah, technology,"
+                f"SELECT id, make_n, model_n, year, battery_code, ah, technology,"
                 f" source, engine_cc, fuel_type, staged_at,"
                 f" is_valid, invalid_reason, conflict, conflict_detail"
                 f" FROM web_battery_staging {where_clause}"
@@ -1517,6 +1536,63 @@ def get_staging_area(
         "page_size":      page_size,
         "items":          items,
     }
+
+
+class PatchStagingRowBody(BaseModel):
+    ah:         float | None = None
+    technology: str   | None = None
+
+
+@router.patch("/pipeline/web-validate/staging/{row_id}", summary="Edit ah/technology on a staged row")
+def patch_staging_row(
+    row_id: int,
+    body: PatchStagingRowBody,
+    admin: AdminUser = Depends(require_admin),
+):
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT * FROM web_battery_staging WHERE id = :id"),
+            {"id": row_id},
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Staging row not found")
+
+        row_dict = dict(row._mapping)
+        ah         = body.ah         if body.ah         is not None else row_dict.get("ah")
+        technology = body.technology if body.technology is not None else row_dict.get("technology")
+        battery_code = row_dict.get("battery_code")
+
+        is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
+
+        conn.execute(
+            text(
+                "UPDATE web_battery_staging"
+                " SET ah = :ah, technology = :technology,"
+                "     is_valid = :is_valid, invalid_reason = :invalid_reason"
+                " WHERE id = :id"
+            ),
+            {"ah": ah, "technology": technology, "is_valid": is_valid,
+             "invalid_reason": invalid_reason, "id": row_id},
+        )
+
+    updated = {
+        "id":             row_dict["id"],
+        "make_n":         row_dict["make_n"],
+        "model_n":        row_dict["model_n"],
+        "year":           row_dict["year"],
+        "battery_code":   battery_code,
+        "ah":             ah,
+        "technology":     technology,
+        "source":         row_dict.get("source"),
+        "engine_cc":      row_dict.get("engine_cc"),
+        "fuel_type":      row_dict.get("fuel_type"),
+        "staged_at":      row_dict["staged_at"].isoformat() if hasattr(row_dict["staged_at"], "isoformat") else str(row_dict["staged_at"]),
+        "is_valid":       is_valid,
+        "invalid_reason": invalid_reason,
+        "conflict":       row_dict.get("conflict", False),
+        "conflict_detail": json.loads(row_dict["conflict_detail"]) if row_dict.get("conflict_detail") else None,
+    }
+    return updated
 
 
 @router.get("/pipeline/web-validate/staging/pre-commit", summary="Re-run conflict detection against current master state")
@@ -1720,12 +1796,15 @@ def commit_staging(
         conn.execute(
             text(
                 "INSERT INTO web_battery_validation_versions"
-                " (id, version_number, committed_at, run_id, committed_count, removed_count, conflict_count)"
-                " VALUES (:id, :vn, :now, :rid, :cc, :rc, :cfc)"
+                " (id, version_number, committed_at, run_id, committed_count, removed_count, conflict_count,"
+                "  committed_by, initiated_by)"
+                " VALUES (:id, :vn, :now, :rid, :cc, :rc, :cfc, :cby, :iby)"
             ),
             {
                 "id": version_id, "vn": version_number, "now": now,
                 "rid": run_id, "cc": committed, "rc": removed_invalid, "cfc": conflicts_resolved,
+                "cby": admin.username,
+                "iby": _pipeline_state.get("initiated_by"),
             },
         )
 
@@ -1758,6 +1837,8 @@ def commit_staging(
         "committed":         committed,
         "removed_invalid":   removed_invalid,
         "conflicts_resolved": conflicts_resolved,
+        "committed_by":      admin.username,
+        "initiated_by":      _pipeline_state.get("initiated_by"),
     }
 
 
@@ -1802,7 +1883,8 @@ def get_versions(
         rows = conn.execute(
             text(
                 "SELECT id, version_number, committed_at, run_id,"
-                " committed_count, removed_count, conflict_count, notes"
+                " committed_count, removed_count, conflict_count, notes,"
+                " committed_by, initiated_by"
                 " FROM web_battery_validation_versions"
                 " ORDER BY version_number DESC"
                 " LIMIT :lim OFFSET :off"
@@ -1829,7 +1911,7 @@ def get_version_changelog(
         ver = conn.execute(
             text(
                 "SELECT id, version_number, committed_at, committed_count,"
-                " removed_count, conflict_count"
+                " removed_count, conflict_count, committed_by, initiated_by"
                 " FROM web_battery_validation_versions WHERE id = :vid"
             ),
             {"vid": version_id},
@@ -1869,6 +1951,160 @@ def get_version_changelog(
         "page":      page,
         "page_size": page_size,
         "items":     items,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Version revert endpoint
+# ---------------------------------------------------------------------------
+
+@router.post("/pipeline/web-validate/versions/{version_id}/revert", summary="Revert the master table to the state before a version's changes")
+def revert_version(version_id: str, admin: AdminUser = Depends(require_admin)):
+    with engine.connect() as conn:
+        ver = conn.execute(
+            text(
+                "SELECT id, version_number, committed_count, removed_count, conflict_count"
+                " FROM web_battery_validation_versions WHERE id = :vid"
+            ),
+            {"vid": version_id},
+        ).fetchone()
+        if not ver:
+            raise HTTPException(status_code=404, detail="Version not found")
+
+        changelog = conn.execute(
+            text(
+                "SELECT make_n, model_n, year, change_type, old_values, new_values"
+                " FROM web_battery_validation_changelog WHERE version_id = :vid"
+            ),
+            {"vid": version_id},
+        ).fetchall()
+
+    if not changelog:
+        raise HTTPException(status_code=400, detail="Version has no changelog entries — cannot revert")
+
+    new_version_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    reverted = 0
+    restored = 0
+    revert_changelog: list[dict] = []
+
+    with engine.begin() as conn:
+        next_vn = (conn.execute(
+            text("SELECT COALESCE(MAX(version_number), 0) + 1 FROM web_battery_validation_versions")
+        ).scalar() or 1)
+
+        for row in changelog:
+            mn, mo, yr = row.make_n, row.model_n, row.year
+            ct = row.change_type
+            old_vals = json.loads(row.old_values) if row.old_values else {}
+            new_vals = json.loads(row.new_values) if row.new_values else {}
+
+            if ct == "added":
+                # This row was added by the version — delete it to undo
+                conn.execute(
+                    text("DELETE FROM web_battery_validation WHERE make_n=:mn AND model_n=:mo AND year=:yr"),
+                    {"mn": mn, "mo": mo, "yr": yr},
+                )
+                revert_changelog.append({
+                    "version_id": new_version_id, "make_n": mn, "model_n": mo, "year": yr,
+                    "change_type": "removed",
+                    "old_values": row.new_values,
+                    "new_values": None,
+                })
+                reverted += 1
+
+            elif ct == "removed":
+                # This row was deleted by the version — restore it from old_values
+                conn.execute(
+                    text(
+                        "INSERT INTO web_battery_validation"
+                        " (make_n, model_n, year, battery_code, ah, technology, source, validated_at, version_id)"
+                        " VALUES (:mn, :mo, :yr, :bc, :ah, :tech, :src, :now, :vid)"
+                        " ON CONFLICT (make_n, model_n, year) DO UPDATE SET"
+                        "  battery_code=EXCLUDED.battery_code, ah=EXCLUDED.ah,"
+                        "  technology=EXCLUDED.technology, source=EXCLUDED.source,"
+                        "  validated_at=EXCLUDED.validated_at, version_id=EXCLUDED.version_id"
+                    ),
+                    {
+                        "mn": mn, "mo": mo, "yr": yr,
+                        "bc": old_vals.get("battery_code"), "ah": old_vals.get("ah"),
+                        "tech": old_vals.get("technology"), "src": "reverted",
+                        "now": now, "vid": new_version_id,
+                    },
+                )
+                revert_changelog.append({
+                    "version_id": new_version_id, "make_n": mn, "model_n": mo, "year": yr,
+                    "change_type": "added",
+                    "old_values": None,
+                    "new_values": row.old_values,
+                })
+                restored += 1
+
+            elif ct == "updated":
+                # Restore the previous values
+                conn.execute(
+                    text(
+                        "UPDATE web_battery_validation"
+                        " SET battery_code=:bc, ah=:ah, technology=:tech,"
+                        "     validated_at=:now, version_id=:vid"
+                        " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
+                    ),
+                    {
+                        "bc": old_vals.get("battery_code"), "ah": old_vals.get("ah"),
+                        "tech": old_vals.get("technology"),
+                        "now": now, "vid": new_version_id,
+                        "mn": mn, "mo": mo, "yr": yr,
+                    },
+                )
+                revert_changelog.append({
+                    "version_id": new_version_id, "make_n": mn, "model_n": mo, "year": yr,
+                    "change_type": "updated",
+                    "old_values": row.new_values,
+                    "new_values": row.old_values,
+                })
+                reverted += 1
+
+        total_changes = reverted + restored
+        conn.execute(
+            text(
+                "INSERT INTO web_battery_validation_versions"
+                " (id, version_number, committed_at, run_id, committed_count, removed_count,"
+                "  conflict_count, committed_by, initiated_by, notes)"
+                " VALUES (:id, :vn, :now, NULL, :cc, :rc, 0, :cby, NULL, :notes)"
+            ),
+            {
+                "id": new_version_id, "vn": next_vn, "now": now,
+                "cc": restored, "rc": reverted,
+                "cby": admin.username,
+                "notes": f"Revert of version #{ver.version_number}",
+            },
+        )
+
+        for entry in revert_changelog:
+            conn.execute(
+                text(
+                    "INSERT INTO web_battery_validation_changelog"
+                    " (version_id, make_n, model_n, year, change_type, old_values, new_values)"
+                    " VALUES (:vid, :mn, :mo, :yr, :ct, :ov, :nv)"
+                ),
+                {
+                    "vid": entry["version_id"], "mn": entry["make_n"],
+                    "mo": entry["model_n"], "yr": entry["year"],
+                    "ct": entry["change_type"],
+                    "ov": entry["old_values"], "nv": entry["new_values"],
+                },
+            )
+
+    logger.info(
+        "Version #%d reverted by %s — new version #%d: %d restored, %d removed",
+        ver.version_number, admin.username, next_vn, restored, reverted,
+    )
+    return {
+        "version_id":              new_version_id,
+        "version_number":          next_vn,
+        "reverted_version_number": ver.version_number,
+        "committed_by":            admin.username,
+        "changes":                 total_changes,
     }
 
 

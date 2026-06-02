@@ -1,7 +1,7 @@
 """
 Web battery validation pipeline.
 
-Queries external sources (carapi.app → DuckDuckGo → Google Custom Search → Tavily)
+Queries external sources (DuckDuckGo → Google Custom Search → Tavily)
 to find the internet-accepted battery for each (make, model, year) combination that
 does not already exist in web_battery_validation. Results are upserted into the table
 so matcher.py can use them as an additional data layer.
@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import sys
 import threading
 import time
@@ -47,13 +48,17 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Config
 # ---------------------------------------------------------------------------
 
-CACHE_FILE        = "cache/battery_validate_cache.json"
-REQUEST_DELAY     = 0.3   # seconds between carapi calls (unlimited provider)
-DDG_REQUEST_DELAY = 2.0   # DuckDuckGo per-request delay — generous to avoid silent throttle
+CACHE_FILE           = "cache/battery_validate_cache.json"
+WEB_MODEL_CACHE_FILE = "cache/web_model_cache.json"
+REQUEST_DELAY        = 0.3   # seconds between provider calls
+DDG_REQUEST_DELAY    = 0.5   # DuckDuckGo per-request delay
+MAX_WORKERS           = int(os.getenv("VALIDATE_MAX_WORKERS",      "15"))  # Phase 2 workers
+WEB_PREFETCH_WORKERS  = int(os.getenv("VALIDATE_WEB_WORKERS",     "3"))   # Phase 1 DDG/web workers
+CACHE_SAVE_INTERVAL   = int(os.getenv("VALIDATE_CACHE_INTERVAL",  "100")) # save cache every N rows
+WEB_MODEL_SAVE_INTERVAL = 20  # persist web model cache every N fetched models
 TABLE_NAME        = "web_battery_validation"
 _SEARCH_QUERY_MAX_LEN = 120
 
-CARAPI_TRIMS_URL    = "https://carapi.app/api/trims?make={make}&model={model}&year={year}&verbose=yes&limit=50"
 CARQUERY_API_URL    = "https://www.carqueryapi.com/api/0.3/"
 GOOGLE_SEARCH_API_URL = "https://www.googleapis.com/customsearch/v1"
 
@@ -64,7 +69,6 @@ TAVILY_API_KEY           = os.getenv("TAVILY_API_KEY", "")
 TAVILY_MONTHLY_QUOTA     = int(os.getenv("TAVILY_MONTHLY_QUOTA", "1000"))
 
 _PROVIDER_DEFAULT_QUOTA: dict[str, int] = {
-    "carapi":     -1,
     "duckduckgo": -1,
     "google_cse": GOOGLE_CSE_MONTHLY_QUOTA,
     "tavily":     TAVILY_MONTHLY_QUOTA,
@@ -76,6 +80,11 @@ SESSION.verify = False
 SESSION.headers["User-Agent"] = (
     "BatteryFinderBot/1.0 (chloride-exide-ke battery research; contact: admin@chloride-exide.co.ke)"
 )
+
+# Network-outage detection state (set = network is OK; cleared = outage detected)
+_net_ok_event   = threading.Event()
+_net_ok_event.set()
+_net_check_lock = threading.Lock()  # ensures only one thread polls connectivity
 
 # ---------------------------------------------------------------------------
 # Cache helpers
@@ -94,6 +103,22 @@ def _load_cache() -> dict:
 def _save_cache(cache: dict) -> None:
     os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
     with open(CACHE_FILE, "w") as f:
+        json.dump(cache, f, indent=2)
+
+
+def _load_web_model_cache() -> dict:
+    if os.path.exists(WEB_MODEL_CACHE_FILE):
+        try:
+            with open(WEB_MODEL_CACHE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_web_model_cache(cache: dict) -> None:
+    os.makedirs(os.path.dirname(WEB_MODEL_CACHE_FILE), exist_ok=True)
+    with open(WEB_MODEL_CACHE_FILE, "w") as f:
         json.dump(cache, f, indent=2)
 
 
@@ -182,40 +207,24 @@ def _parse_text(raw: str) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
+# Interruptible sleep helper
+# ---------------------------------------------------------------------------
+
+def _interruptible_sleep(secs: float, cancel_event: threading.Event | None = None) -> None:
+    """Sleep for `secs` seconds, waking early if cancel_event is set (checks every 0.5 s)."""
+    deadline = time.monotonic() + secs
+    while time.monotonic() < deadline:
+        if cancel_event and cancel_event.is_set():
+            return
+        time.sleep(min(0.5, deadline - time.monotonic()))
+
+
+# ---------------------------------------------------------------------------
 # Provider lookups
 # ---------------------------------------------------------------------------
 
-def _carapi_lookup(make: str, model: str, year: int) -> dict | None:
-    """Query carapi.app trims endpoint; return parsed battery dict or None."""
-    url = CARAPI_TRIMS_URL.format(
-        make=requests.utils.quote(make.title()),
-        model=requests.utils.quote(model.title()),
-        year=year,
-    )
-    for attempt in range(3):
-        try:
-            resp = SESSION.get(url, timeout=15)
-            if resp.status_code == 429:
-                wait = 15 * (attempt + 1)
-                print(f"    [CARAPI] 429 — waiting {wait}s")
-                time.sleep(wait)
-                continue
-            if not resp.ok:
-                return None
-            trims = resp.json().get("data", [])
-            if not trims:
-                return None
-            full_text = " ".join(
-                str(t.get("description", "")) + " " + str(t.get("specs", ""))
-                for t in trims
-            )
-            return _parse_text(full_text) if full_text.strip() else None
-        except Exception:
-            return None
-    return None
 
-
-def _carquery_lookup(make: str, model: str, year: int) -> dict | None:
+def _carquery_lookup(make: str, model: str, year: int, cancel_event: threading.Event | None = None) -> dict | None:
     """
     Query carquery.com for engine CC and fuel type (vehicle spec enrichment only —
     not a battery source). Returns {"engine_cc": int, "fuel": str} or None.
@@ -231,7 +240,7 @@ def _carquery_lookup(make: str, model: str, year: int) -> dict | None:
         try:
             resp = SESSION.get(CARQUERY_API_URL, params=params, timeout=15)
             if resp.status_code == 429:
-                time.sleep(15 * (attempt + 1))
+                _interruptible_sleep(15 * (attempt + 1), cancel_event)
                 continue
             if not resp.ok:
                 return None
@@ -251,7 +260,7 @@ def _carquery_lookup(make: str, model: str, year: int) -> dict | None:
     return None
 
 
-def _duckduckgo_lookup(make: str, model: str, year: int) -> dict | None:
+def _duckduckgo_lookup(make: str, model: str, year: int, cancel_event: threading.Event | None = None) -> dict | None:
     """Query DuckDuckGo and parse battery Ah from snippets. Returns dict or None."""
     from ddgs import DDGS
     queries = [
@@ -261,12 +270,12 @@ def _duckduckgo_lookup(make: str, model: str, year: int) -> dict | None:
     ]
     for attempt in range(3):
         try:
-            ddgs = DDGS()
+            ddgs = DDGS(timeout=10)
             for query in queries:
                 results = list(ddgs.text(query, max_results=5))
                 if not results:
                     # Empty results = silent throttle — back off before next query
-                    time.sleep(DDG_REQUEST_DELAY)
+                    _interruptible_sleep(DDG_REQUEST_DELAY, cancel_event)
                     continue
                 combined = " ".join(
                     (r.get("title", "") + " " + r.get("body", "")) for r in results
@@ -274,20 +283,26 @@ def _duckduckgo_lookup(make: str, model: str, year: int) -> dict | None:
                 parsed = _parse_text(combined)
                 if parsed:
                     return parsed
-                time.sleep(DDG_REQUEST_DELAY)
+                _interruptible_sleep(DDG_REQUEST_DELAY, cancel_event)
             return None
         except Exception as exc:
             err = str(exc).lower()
             if any(k in err for k in ("ratelimit", "429", "rate limit", "too many")):
                 wait = 30 * (attempt + 1)
                 print(f"    [DDG] rate-limited — waiting {wait}s")
-                time.sleep(wait)
+                _interruptible_sleep(wait, cancel_event)
                 continue
+            if any(k in err for k in (
+                "network is unreachable", "failed to establish a new connection",
+                "no route to host", "name or service not known",
+                "temporary failure in name resolution",
+            )):
+                raise
             return None
     return None
 
 
-def _google_cse_lookup(make: str, model: str, year: int) -> dict | None:
+def _google_cse_lookup(make: str, model: str, year: int, cancel_event: threading.Event | None = None) -> dict | None:
     """Query Google Custom Search and parse battery Ah. Returns dict or None."""
     if not GOOGLE_SEARCH_API_KEY or not GOOGLE_SEARCH_CX:
         return None
@@ -299,7 +314,7 @@ def _google_cse_lookup(make: str, model: str, year: int) -> dict | None:
             if resp.status_code == 429:
                 wait = 30 * (attempt + 1)
                 print(f"    [GOOGLE] 429 — waiting {wait}s")
-                time.sleep(wait)
+                _interruptible_sleep(wait, cancel_event)
                 continue
             if not resp.ok:
                 return None
@@ -308,12 +323,19 @@ def _google_cse_lookup(make: str, model: str, year: int) -> dict | None:
                 (i.get("title", "") + " " + i.get("snippet", "")) for i in items
             )
             return _parse_text(combined) if combined.strip() else None
-        except Exception:
+        except Exception as exc:
+            err = str(exc).lower()
+            if any(k in err for k in (
+                "network is unreachable", "failed to establish a new connection",
+                "no route to host", "name or service not known",
+                "temporary failure in name resolution",
+            )):
+                raise
             return None
     return None
 
 
-def _tavily_lookup(make: str, model: str, year: int) -> dict | None:
+def _tavily_lookup(make: str, model: str, year: int, cancel_event: threading.Event | None = None) -> dict | None:
     """Query Tavily AI search and parse battery Ah. Returns dict or None."""
     if not TAVILY_API_KEY:
         return None
@@ -323,7 +345,14 @@ def _tavily_lookup(make: str, model: str, year: int) -> dict | None:
         results = TavilyClient(api_key=TAVILY_API_KEY).search(query, max_results=5)
         combined = " ".join(r.get("content", "") for r in results.get("results", []))
         return _parse_text(combined) if combined.strip() else None
-    except Exception:
+    except Exception as exc:
+        err = str(exc).lower()
+        if any(k in err for k in (
+            "network is unreachable", "failed to establish a new connection",
+            "no route to host", "name or service not known",
+            "temporary failure in name resolution", "broken pipe", "reset by peer",
+        )):
+            raise
         return None
 
 
@@ -431,16 +460,26 @@ def _upsert_rows(eng, rows: list[dict], run_id: str | None = None) -> None:
 def main(
     cancel_event: threading.Event | None = None,
     pause_event: threading.Event | None = None,
-    progress_callback: Callable | None = None,  # (processed, total, provider)
-    log_callback: Callable | None = None,        # (line: str)
-    enabled_providers: list[str] | None = None,  # None = all available providers
-    run_id: str | None = None,                   # UUID from admin_router — tags DB rows
+    progress_callback: Callable | None = None,         # (processed, total, provider)
+    log_callback: Callable | None = None,              # (line: str)
+    enabled_providers: list[str] | None = None,        # None = all available providers
+    run_id: str | None = None,                         # UUID from admin_router — tags DB rows
+    phase1_progress_callback: Callable | None = None,  # (fetched, total)
 ) -> dict:
     """
     Run the web battery validation pipeline.
 
+    Two-phase concurrent execution:
+      Phase 1 — pre-fetch web results (DDG/Google/Tavily) for all unique (make, model)
+                 pairs using WEB_PREFETCH_WORKERS threads (default 2).  Results are
+                 stored in _model_web_cache so Phase 2 workers never call web APIs.
+      Phase 2 — process every (make, model, year) combo with MAX_WORKERS threads
+                 (default 15).  Each worker reads the pre-fetched web cache keyed
+                 by 5-year generation bucket and writes to the DB.
+
     Returns {"fetched": int, "cached": int, "failed": int, "provider_counts": dict}.
     """
+    from concurrent.futures import ThreadPoolExecutor
     from db import engine
 
     def _log(line: str) -> None:
@@ -448,10 +487,81 @@ def main(
         if log_callback:
             log_callback(line)
 
+    def _is_cancelled() -> bool:
+        return bool(cancel_event and cancel_event.is_set())
+
+    def _wait_if_paused() -> bool:
+        """Block while paused. Returns False if pipeline was cancelled."""
+        if pause_event and pause_event.is_set():
+            while pause_event and pause_event.is_set():
+                if _is_cancelled():
+                    return False
+                time.sleep(0.5)
+        return not _is_cancelled()
+
+    def _is_net_error(exc: Exception) -> bool:
+        s = str(exc).lower()
+        return any(k in s for k in (
+            "network is unreachable",
+            "failed to establish a new connection",
+            "no route to host",
+            "name or service not known",
+            "nodename nor servname provided",
+            "temporary failure in name resolution",
+        ))
+
+    def _wait_for_net() -> bool:
+        """
+        Block until network is restored or 3 minutes have elapsed.
+        Returns True if network came back, False if timed out or cancelled.
+        Only one thread polls; others just wait for _net_ok_event.
+        """
+        if _net_ok_event.is_set():
+            return True
+        if _net_check_lock.acquire(blocking=False):
+            try:
+                if _net_ok_event.is_set():
+                    return True
+                # Immediate check — handles transient DNS hiccups without any wait
+                try:
+                    socket.create_connection(("8.8.8.8", 53), timeout=5).close()
+                    _net_ok_event.set()
+                    return True   # transient error, unblock workers silently
+                except OSError:
+                    pass          # genuine outage — enter polling loop
+                _log("  [NET] Connection lost — pausing up to 3 min waiting for reconnect…")
+                for attempt in range(6):  # 6 × 30 s = 3 minutes
+                    _interruptible_sleep(30, cancel_event)
+                    if _is_cancelled():
+                        break
+                    try:
+                        socket.create_connection(("8.8.8.8", 53), timeout=5).close()
+                        _net_ok_event.set()
+                        _log("  [NET] Connection restored — resuming pipeline")
+                        return True
+                    except OSError:
+                        _log(f"  [NET] Still no connection ({attempt + 1}/6)…")
+                # Timed out (or cancelled) — save cache and stop
+                _log("  [NET] No connection after 3 min — saving cache and stopping pipeline")
+                with _cache_lock:
+                    _save_web_model_cache(_model_web_cache)
+                if cancel_event:
+                    cancel_event.set()
+                _net_ok_event.set()  # unblock any waiting workers
+                return False
+            finally:
+                _net_check_lock.release()
+        else:
+            # Another thread is already polling — just wait
+            while not _is_cancelled() and not _net_ok_event.is_set():
+                time.sleep(1)
+            return not _is_cancelled()
+
+    _net_ok_event.set()  # reset network state at start of each run
+
     _log("[START] web_battery_validate.py")
     month = _current_month()
 
-    # Which providers are active for this run
     _ep = set(enabled_providers) if enabled_providers is not None else None
 
     def _is_enabled(p: str) -> bool:
@@ -459,6 +569,23 @@ def main(
 
     if _ep is not None:
         _log(f"  [CONFIG] enabled providers: {', '.join(sorted(_ep))}")
+
+    # Pre-seed all quota rows once so concurrent threads only do SELECTs later
+    for _p in ["duckduckgo", "google_cse", "tavily", "carquery"]:
+        _ensure_quota_row(engine, _p, month)
+
+    # Log which providers will actually be used this run
+    for _pn in ["duckduckgo", "google_cse", "tavily"]:
+        if not _is_enabled(_pn):
+            continue
+        if _pn == "google_cse" and not (GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX):
+            _log(f"  [CONFIG] {_pn}: no API key — will be skipped")
+        elif _pn == "tavily" and not TAVILY_API_KEY:
+            _log(f"  [CONFIG] {_pn}: no API key — will be skipped")
+        elif not _check_quota(engine, _pn, month):
+            _log(f"  [CONFIG] {_pn}: quota exhausted for {month} — will be skipped")
+        else:
+            _log(f"  [CONFIG] {_pn}: active")
 
     # Load all (make, model, year, engine_capacity, fuel) from vehicle_years
     veh = pd.read_sql(
@@ -473,7 +600,6 @@ def main(
     veh["year"]    = pd.to_numeric(veh["year"], errors="coerce").astype("Int64")
     veh = veh.dropna(subset=["make_n", "model_n", "year"])
 
-    # Group to unique combos; take first non-null engine/fuel per (make, model, year)
     combos = (
         veh.groupby(["make_n", "model_n", "year"], as_index=False)
         .agg({"engine_capacity": "first", "fuel": "first"})
@@ -481,7 +607,6 @@ def main(
     combos["year"] = combos["year"].astype(int)
     _log(f"  {len(combos)} unique (make, model, year) combinations in vehicle_years")
 
-    # Load already-validated combos
     try:
         existing = pd.read_sql(
             f"SELECT make_n, model_n, year FROM {TABLE_NAME}", engine
@@ -493,180 +618,326 @@ def main(
     _log(f"  {len(existing_keys)} already validated — skipping")
 
     cache = _load_cache()
-    new_rows: list[dict] = []
-    n_cached = n_fetched = n_failed = 0
-    provider_counts: dict[str, int] = {
-        "carapi": 0, "duckduckgo": 0, "google_cse": 0, "tavily": 0,
-    }
-    # Web-search providers (DDG / Google / Tavily) return the same results regardless of
-    # model year. Cache the result keyed by make+model so we only call them once per model
-    # instead of once per make/model/year — reduces 60k calls to ~3.3k.
-    _model_web_cache: dict[str, dict | None] = {}  # "MAKE|MODEL" → parsed or None (miss)
     total = len(combos) - len(existing_keys)
 
-    for _, row in combos.iterrows():
-        if cancel_event and cancel_event.is_set():
-            _log("  [CANCELLED] pipeline stopped by user")
-            break
+    # ── Shared mutable state (all writes through the appropriate lock) ────────
+    _model_web_cache: dict[str, dict | None] = _load_web_model_cache()
+    provider_counts: dict[str, int] = {
+        "duckduckgo": 0, "google_cse": 0, "tavily": 0,
+    }
+    _cache_lock    = threading.Lock()   # guards: cache dict + dirty_count + _save_cache
+                                        #         also guards _model_web_cache saves
+    _counters_lock = threading.Lock()   # guards: n_cached / n_fetched / n_failed
+    _rows_lock     = threading.Lock()   # guards: rows_buffer + DB flush
+    _prov_lock     = threading.Lock()   # guards: provider_counts
 
-        # Pause: block until resumed or cancelled
-        if pause_event and pause_event.is_set():
-            _log("  [PAUSED] waiting for resume…")
-            while pause_event.is_set():
-                if cancel_event and cancel_event.is_set():
-                    break
-                time.sleep(0.5)
-            if cancel_event and cancel_event.is_set():
-                _log("  [CANCELLED] pipeline stopped while paused")
-                break
+    n_cached = n_fetched = n_failed = dirty_count = web_model_dirty = _buckets_attempted = 0
+    rows_buffer: list[dict] = []
 
-        make_n  = str(row["make_n"])
-        model_n = str(row["model_n"])
-        year    = int(row["year"])
-        key     = _cache_key(make_n, model_n, year)
+    def _flush_rows() -> None:
+        """Flush rows_buffer to DB. Must be called with _rows_lock held."""
+        if rows_buffer:
+            _upsert_rows(engine, rows_buffer[:], run_id=run_id)
+            rows_buffer.clear()
 
-        # engine_cc and fuel_type come from vehicle_years — never from any API
-        raw_cc   = row["engine_capacity"]
-        raw_fuel = row["fuel"]
-        engine_cc = int(raw_cc)   if pd.notna(raw_cc)   else None
-        fuel_type = str(raw_fuel) if pd.notna(raw_fuel) else None
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 1 — pre-fetch web results per 5-year generation bucket per model
+    # ─────────────────────────────────────────────────────────────────────────
+    all_unique_buckets: list[tuple[str, str, int, int]] = []
+    for (make, model), grp in combos.groupby(["make_n", "model_n"]):
+        years = sorted(grp["year"].dropna().astype(int).unique())
+        for bucket in sorted({(y // 5) * 5 for y in years}):
+            bucket_years = [y for y in years if (y // 5) * 5 == bucket]
+            # Skip bucket if every year-combo in it is already validated in the DB
+            if all((str(make), str(model), y) in existing_keys for y in bucket_years):
+                continue
+            rep_year = bucket_years[len(bucket_years) // 2]
+            all_unique_buckets.append((str(make), str(model), int(bucket), int(rep_year)))
 
-        if (make_n, model_n, year) in existing_keys:
-            continue
+    unique_buckets = [
+        (m, mo, b, ry) for m, mo, b, ry in all_unique_buckets
+        if f"{m}|{mo}|{b}" not in _model_web_cache
+    ]
+    already_cached = len(all_unique_buckets) - len(unique_buckets)
+    _log(f"  Phase 1: {len(unique_buckets)} model-year buckets to fetch"
+         f" ({already_cached} already cached, {WEB_PREFETCH_WORKERS} workers)…")
 
-        # Check file cache first
-        if key in cache:
-            cached = cache[key]
-            if cached is not None:
-                new_rows.append(cached)
-            n_cached += 1
-            if progress_callback:
-                progress_callback(n_cached + n_fetched + n_failed, total, "cache")
-            continue
+    def _prefetch_web(bucket_entry: tuple) -> None:
+        nonlocal web_model_dirty, _buckets_attempted
+        make, model, bucket, rep_year = bucket_entry
+        wck = f"{make}|{model}|{bucket}"
+        if _is_cancelled():
+            return
 
-        _log(f"  [FETCH] {make_n} {model_n} {year}")
-        parsed: dict | None = None
-        source_provider = "none"
+        # If network was already down when this worker starts, wait before attempting
+        if not _net_ok_event.is_set():
+            if not _wait_for_net():
+                with _cache_lock:
+                    _buckets_attempted += 1
+                if phase1_progress_callback:
+                    phase1_progress_callback(_buckets_attempted, len(all_unique_buckets))
+                return
 
-        # ── carquery.com: enrich engine_cc when missing from vehicle_years ──────
-        if not engine_cc and _check_quota(engine, "carquery", month):
-            cq = _carquery_lookup(make_n, model_n, year)
-            _increment_quota(engine, "carquery", month)
-            if cq:
-                engine_cc = cq.get("engine_cc")
-                if not fuel_type:
-                    fuel_type = cq.get("fuel")
-                _log(f"    [CARQUERY] engine_cc={engine_cc} fuel={fuel_type}")
-            time.sleep(REQUEST_DELAY)
+        for net_retry in range(2):
+            web_parsed: dict | None = None
+            src = None
+            any_net_error = False
 
-        # ── carapi.app ────────────────────────────────────────────────────────────
-        if _is_enabled("carapi") and _check_quota(engine, "carapi", month):
-            parsed = _carapi_lookup(make_n, model_n, year)
-            _increment_quota(engine, "carapi", month)
-            if parsed:
-                source_provider = "carapi"
-                provider_counts["carapi"] += 1
-                _log(f"    [CARAPI] Ah={parsed['ah']} tech={parsed['technology']}")
-            time.sleep(REQUEST_DELAY)
-
-        # ── Web search providers (DDG → Google CSE → Tavily) ─────────────────────
-        # These are called at most once per make+model (not per year) because the
-        # results are virtually identical across model years. The cache is keyed by
-        # "MAKE|MODEL" and persists for the lifetime of this run.
-        if parsed is None:
-            web_cache_key = f"{make_n}|{model_n}"
-            if web_cache_key in _model_web_cache:
-                # Reuse result from a previous year of the same model — no API call needed
-                web_hit = _model_web_cache[web_cache_key]
-                if web_hit:
-                    parsed = web_hit
-                    source_provider = "web_cached"
-                    _log(f"    [WEB-CACHE] Ah={parsed['ah']} tech={parsed['technology']}")
-            else:
-                web_parsed: dict | None = None
-
-                if web_parsed is None and _is_enabled("duckduckgo") and _check_quota(engine, "duckduckgo", month):
-                    web_parsed = _duckduckgo_lookup(make_n, model_n, year)
+            # DDG — always attempted first
+            if _is_enabled("duckduckgo") and _check_quota(engine, "duckduckgo", month):
+                try:
+                    web_parsed = _duckduckgo_lookup(make, model, rep_year, cancel_event)
                     _increment_quota(engine, "duckduckgo", month)
                     if web_parsed:
-                        source_provider = "duckduckgo"
-                        provider_counts["duckduckgo"] += 1
-                        _log(f"    [DDG] Ah={web_parsed['ah']} tech={web_parsed['technology']}")
-                    time.sleep(DDG_REQUEST_DELAY)
+                        src = "duckduckgo"
+                        with _prov_lock:
+                            provider_counts["duckduckgo"] += 1
+                except Exception as exc:
+                    if _is_net_error(exc):
+                        any_net_error = True
+                    else:
+                        err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
+                        _log(f"    [WEB-ERR] DDG {make} {model} ({bucket}–{bucket+4}): {err_msg}")
 
-                if web_parsed is None and _is_enabled("google_cse") and _check_quota(engine, "google_cse", month):
-                    web_parsed = _google_cse_lookup(make_n, model_n, year)
+            if _is_cancelled():
+                return
+
+            # Google CSE — cascade even if DDG errored; _check_quota returns False instantly if no key/quota
+            if web_parsed is None and _is_enabled("google_cse") and _check_quota(engine, "google_cse", month):
+                try:
+                    web_parsed = _google_cse_lookup(make, model, rep_year, cancel_event)
                     _increment_quota(engine, "google_cse", month)
                     if web_parsed:
-                        source_provider = "google_cse"
-                        provider_counts["google_cse"] += 1
-                        _log(f"    [GOOGLE] Ah={web_parsed['ah']} tech={web_parsed['technology']}")
-                    time.sleep(REQUEST_DELAY)
+                        src = "google_cse"
+                        with _prov_lock:
+                            provider_counts["google_cse"] += 1
+                except Exception as exc:
+                    if _is_net_error(exc):
+                        any_net_error = True
+                    else:
+                        err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
+                        _log(f"    [WEB-ERR] Google {make} {model} ({bucket}–{bucket+4}): {err_msg}")
+                _interruptible_sleep(REQUEST_DELAY, cancel_event)
 
-                if web_parsed is None and _is_enabled("tavily") and _check_quota(engine, "tavily", month):
-                    web_parsed = _tavily_lookup(make_n, model_n, year)
+            if _is_cancelled():
+                return
+
+            # Tavily — cascade even if DDG/Google errored; _check_quota returns False instantly if no key/quota
+            if web_parsed is None and _is_enabled("tavily") and _check_quota(engine, "tavily", month):
+                try:
+                    web_parsed = _tavily_lookup(make, model, rep_year, cancel_event)
                     _increment_quota(engine, "tavily", month)
                     if web_parsed:
-                        source_provider = "tavily"
-                        provider_counts["tavily"] += 1
-                        _log(f"    [TAVILY] Ah={web_parsed['ah']} tech={web_parsed['technology']}")
-                    time.sleep(REQUEST_DELAY)
+                        src = "tavily"
+                        with _prov_lock:
+                            provider_counts["tavily"] += 1
+                except Exception as exc:
+                    if _is_net_error(exc):
+                        any_net_error = True
+                    else:
+                        err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
+                        _log(f"    [WEB-ERR] Tavily {make} {model} ({bucket}–{bucket+4}): {err_msg}")
+                _interruptible_sleep(REQUEST_DELAY, cancel_event)
 
-                _model_web_cache[web_cache_key] = web_parsed
-                parsed = web_parsed
+            # Trigger network-down path only if at least one provider got a net error
+            # and no provider found a result — wait for reconnect then retry the bucket once
+            if any_net_error and web_parsed is None and not _is_cancelled() and net_retry == 0:
+                _net_ok_event.clear()
+                _log(f"    [NET] Network error on {make} {model} — waiting for reconnect…")
+                if _wait_for_net():
+                    _log(f"    [NET] Retrying {make} {model} {bucket}…")
+                    continue  # second pass
 
-        if parsed is None:
-            _log(f"    [SKIP] no result from any provider")
-            cache[key] = None
-            n_failed += 1
-            _save_cache(cache)
+            ah_val = web_parsed.get("ah") if web_parsed else None
+            is_valid_result = web_parsed is not None and isinstance(ah_val, (int, float)) and 20 <= ah_val <= 250
+
+            if is_valid_result and web_parsed:
+                with _cache_lock:
+                    _model_web_cache[wck] = web_parsed
+                    web_model_dirty += 1
+                    if web_model_dirty >= WEB_MODEL_SAVE_INTERVAL:
+                        _save_web_model_cache(_model_web_cache)
+                        web_model_dirty = 0
+                _log(f"    [WEB/{src}] {make} {model} ({bucket}–{bucket+4}) Ah={web_parsed['ah']} tech={web_parsed['technology']}")
+            elif web_parsed:
+                _log(f"    [WEB-BAD] {make} {model} ({bucket}–{bucket+4}) Ah={ah_val} out of range — skipped")
+
+            break
+
+        # Always fires exactly once per bucket — outside the retry loop
+        with _cache_lock:
+            _buckets_attempted += 1
+            if _buckets_attempted % 50 == 0:
+                _log(f"  [P1] {_buckets_attempted}/{len(all_unique_buckets)} buckets processed…")
+        if phase1_progress_callback:
+            phase1_progress_callback(_buckets_attempted, len(all_unique_buckets))
+
+    with ThreadPoolExecutor(max_workers=WEB_PREFETCH_WORKERS) as ex:
+        list(ex.map(_prefetch_web, unique_buckets))
+
+    # Always flush whatever is left after Phase 1 (covers cancel mid-phase too)
+    with _cache_lock:
+        _save_web_model_cache(_model_web_cache)
+
+    web_hits = sum(1 for v in _model_web_cache.values() if v is not None)
+    total_buckets = len(all_unique_buckets)
+    if _is_cancelled():
+        _log(f"  [CANCELLED] Phase 1 stopped early — {web_hits}/{total_buckets} buckets cached. Phase 2 skipped.")
+        return {"fetched": 0, "cached": 0, "failed": 0, "provider_counts": dict(provider_counts)}
+    else:
+        _log(f"  Phase 1 complete — {web_hits}/{total_buckets} buckets matched via web search")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 2 — process all (make, model, year) combos concurrently
+    # ─────────────────────────────────────────────────────────────────────────
+    _log(f"  Phase 2: processing {total} combos with {MAX_WORKERS} workers…")
+
+    def _process_combo(row: pd.Series) -> None:
+        nonlocal n_cached, n_fetched, n_failed, dirty_count
+
+        try:
+            if not _wait_if_paused():
+                return
+
+            make_n  = str(row["make_n"])
+            model_n = str(row["model_n"])
+            year    = int(row["year"])
+
+            if (make_n, model_n, year) in existing_keys:
+                return
+
+            key = _cache_key(make_n, model_n, year)
+
+            # File cache hit
+            with _cache_lock:
+                if key in cache:
+                    cached_val = cache[key]
+                    if cached_val is not None:
+                        with _rows_lock:
+                            rows_buffer.append(cached_val)
+                            if len(rows_buffer) >= 50:
+                                _flush_rows()
+                    with _counters_lock:
+                        n_cached += 1
+                    if progress_callback:
+                        progress_callback(n_cached + n_fetched + n_failed, total, "cache", f"{make_n} {model_n} {year}")
+                    return
+
+            parsed: dict | None = None
+            source_provider = "none"
+
+            raw_cc   = row["engine_capacity"]
+            raw_fuel = row["fuel"]
+            try:
+                engine_cc = int(float(raw_cc)) if pd.notna(raw_cc) else None
+            except (ValueError, TypeError):
+                engine_cc = None
+            fuel_type = str(raw_fuel) if pd.notna(raw_fuel) else None
+
+            try:
+                # carquery: fill missing engine_cc only
+                if not engine_cc and _check_quota(engine, "carquery", month):
+                    cq = _carquery_lookup(make_n, model_n, year, cancel_event)
+                    _increment_quota(engine, "carquery", month)
+                    if cq:
+                        engine_cc = cq.get("engine_cc")
+                        if not fuel_type:
+                            fuel_type = cq.get("fuel")
+                    _interruptible_sleep(REQUEST_DELAY, cancel_event)
+
+                # Web cache — pre-fetched in Phase 1 per 5-year generation bucket
+                if not _wait_if_paused():
+                    return
+
+                if parsed is None:
+                    year_bucket = (year // 5) * 5
+                    web_hit = _model_web_cache.get(f"{make_n}|{model_n}|{year_bucket}")
+                    if web_hit:
+                        parsed = web_hit
+                        source_provider = "web_cached"
+
+            except Exception as exc:
+                _log(f"    [ERR] {make_n} {model_n} {year}: {exc}")
+                parsed = None
+
+            _combo_label = f"{make_n} {model_n} {year}"
+
+            def _mark_failed() -> None:
+                nonlocal n_failed, dirty_count
+                _log(f"  [P2] {_combo_label} → no match")
+                with _cache_lock:
+                    cache[key] = None
+                    dirty_count += 1
+                    if dirty_count >= CACHE_SAVE_INTERVAL:
+                        _save_cache(cache)
+                        dirty_count = 0
+                with _counters_lock:
+                    n_failed += 1
+                if progress_callback:
+                    progress_callback(n_cached + n_fetched + n_failed, total, "none", _combo_label)
+
+            if parsed is None:
+                _mark_failed()
+                return
+
+            resolved = _resolve_battery_code(parsed, make_n)
+            if resolved is None:
+                _log(f"    [SKIP] {make_n} {model_n} {year} — could not resolve battery_code")
+                _mark_failed()
+                return
+
+            battery_code, ah, technology = resolved
+            _log(f"  [P2] {_combo_label} → Ah={ah} {technology or ''} ({source_provider})")
+            db_row = {
+                "make_n":       make_n,
+                "model_n":      model_n,
+                "year":         year,
+                "battery_code": battery_code,
+                "ah":           ah,
+                "technology":   technology,
+                "source":       source_provider,
+                "engine_cc":    engine_cc,
+                "fuel_type":    fuel_type,
+            }
+
+            with _cache_lock:
+                cache[key] = db_row
+                dirty_count += 1
+                if dirty_count >= CACHE_SAVE_INTERVAL:
+                    _save_cache(cache)
+                    dirty_count = 0
+
+            with _rows_lock:
+                rows_buffer.append(db_row)
+                if len(rows_buffer) >= 50:
+                    _flush_rows()
+
+            with _counters_lock:
+                n_fetched += 1
+
             if progress_callback:
-                progress_callback(n_cached + n_fetched + n_failed, total, "none")
-            continue
+                progress_callback(n_cached + n_fetched + n_failed, total, source_provider, _combo_label)
 
-        resolved = _resolve_battery_code(parsed, make_n)
-        if resolved is None:
-            _log(f"    [SKIP] could not resolve to battery_code")
-            cache[key] = None
-            n_failed += 1
-            _save_cache(cache)
+        except Exception as exc:
+            _log(f"    [FATAL-SKIP] row crashed unexpectedly: {exc}")
+            with _counters_lock:
+                n_failed += 1
             if progress_callback:
-                progress_callback(n_cached + n_fetched + n_failed, total, "none")
-            continue
+                progress_callback(n_cached + n_fetched + n_failed, total, "none", "")
 
-        battery_code, ah, technology = resolved
-        db_row = {
-            "make_n":       make_n,
-            "model_n":      model_n,
-            "year":         year,
-            "battery_code": battery_code,
-            "ah":           ah,
-            "technology":   technology,
-            "source":       source_provider,
-            "engine_cc":    engine_cc,
-            "fuel_type":    fuel_type,
-        }
-        cache[key] = db_row
-        new_rows.append(db_row)
-        n_fetched += 1
+    rows_list = [row for _, row in combos.iterrows()]
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+        list(ex.map(_process_combo, rows_list))
+
+    # Final flushes
+    with _rows_lock:
+        _flush_rows()
+    with _cache_lock:
         _save_cache(cache)
 
-        if progress_callback:
-            progress_callback(n_cached + n_fetched + n_failed, total, source_provider)
-
-        # Flush every 50 rows to avoid losing progress
-        if len(new_rows) >= 50:
-            _upsert_rows(engine, new_rows, run_id=run_id)
-            new_rows = []
-
-    # Final flush
-    _upsert_rows(engine, new_rows, run_id=run_id)
-
-    # Determine whether pipeline finished normally or was cancelled
-    was_cancelled = bool(cancel_event and cancel_event.is_set())
+    was_cancelled = _is_cancelled()
     run_status = "cancelled" if was_cancelled else "completed"
 
-    # Log to pipeline_run_log for staleness tracking
     if run_id:
         try:
             with engine.begin() as conn:
