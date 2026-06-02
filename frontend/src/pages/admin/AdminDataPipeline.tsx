@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useBlocker } from 'react-router-dom'
 import {
   ClipboardDocumentListIcon,
   CloudArrowUpIcon,
@@ -42,10 +41,13 @@ import {
   getStagingPreCommit,
   commitStagingArea,
   discardStagingArea,
+  patchStagingRow,
   getValidationVersions,
   getVersionChangelog,
+  revertVersion,
   getPipelineStaleness,
   type WebValidateStatus,
+  type RevertVersionResult,
   type QuotaInfo,
   type CoverageInfo,
   type ProviderInfo,
@@ -567,7 +569,6 @@ function stageDemoLog(stageId: string, dataset: 'CRSP' | 'NTSA'): string {
 // ── Web Validate helpers ──────────────────────────────────────────────────────
 
 const PROVIDER_LABELS: Record<string, string> = {
-  carapi:     'carapi.app',
   duckduckgo: 'DuckDuckGo',
   google_cse: 'Google CSE',
   tavily:     'Tavily',
@@ -610,22 +611,91 @@ function QuotaCard({ info }: { info: QuotaInfo }) {
   )
 }
 
-function LogPanel({ lines }: { lines: string[] }) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [lines])
+const PROVIDER_BADGE: Record<string, string> = {
+  '[ddg]':        'DuckDuckGo',
+  '[google_cse]': 'Google CSE',
+  '[tavily]':     'Tavily',
+  '[prefetch]':   'Web Pre-fetch',
+}
+
+function LogLine({ raw }: { raw: string }) {
+  const isError   = /\[error\]|error:/i.test(raw)
+  const isWarning = /\[warn\]|warning:/i.test(raw)
+  const isSuccess = /✓|done|complete|found \d/i.test(raw)
+  const isPhase   = /phase \d|starting|finished|pipeline/i.test(raw)
+
+  let text = raw
+  let badge: string | null = null
+  for (const [prefix, label] of Object.entries(PROVIDER_BADGE)) {
+    if (raw.toLowerCase().startsWith(prefix.toLowerCase())) {
+      badge = label
+      text = raw.slice(prefix.length).trim()
+      break
+    }
+  }
+
+  const dotColor  = isError ? R : isWarning ? '#f59e0b' : isSuccess ? '#22c55e' : '#d1d5db'
+  const textColor = isError ? R : isPhase ? '#1d4ed8' : '#374151'
+  const bg        = isPhase ? '#f0f7ff' : 'transparent'
+  const fw        = isPhase ? 700 : 400
+
   return (
     <div style={{
-      background: 'rgba(17,24,39,0.95)', borderRadius: 10, padding: '0.75rem 1rem',
-      fontFamily: 'monospace', fontSize: '0.68rem', color: '#a3e635',
-      maxHeight: 240, overflowY: 'auto', lineHeight: 1.7,
+      display: 'flex', alignItems: 'baseline', gap: '0.5rem',
+      padding: '0.2rem 1rem',
+      background: bg,
+      borderLeft: isPhase ? '3px solid #bfdbfe' : '3px solid transparent',
     }}>
-      {lines.length === 0
-        ? <span style={{ color: 'rgba(163,230,53,0.4)' }}>Waiting for pipeline output…</span>
-        : lines.map((l, i) => <div key={i}>{l}</div>)
-      }
-      <div ref={bottomRef} />
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0, marginTop: 5, display: 'inline-block' }} />
+      {badge && (
+        <span style={{
+          fontSize: '0.62rem', fontWeight: 700,
+          background: '#eff6ff', color: '#3b82f6',
+          borderRadius: 99, padding: '0.05rem 0.4rem',
+          whiteSpace: 'nowrap', flexShrink: 0,
+        }}>
+          {badge}
+        </span>
+      )}
+      <span style={{ color: textColor, fontWeight: fw, flex: 1 }}>{text}</span>
+    </div>
+  )
+}
+
+function LogPanel({ lines }: { lines: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [lines])
+  return (
+    <div style={{ ...CARD, overflow: 'hidden' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.4rem',
+        padding: '0.6rem 1rem', borderBottom: '1px solid #e2e4e9',
+        background: '#f9fafb',
+      }}>
+        <ClipboardDocumentListIcon style={{ width: 13, height: 13, color: '#9ca3af' }} />
+        <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>
+          Pipeline Log
+        </span>
+      </div>
+      <div
+        ref={containerRef}
+        style={{
+          maxHeight: 240, overflowY: 'auto',
+          padding: '0.5rem 0',
+          fontFamily: "'Segoe UI', system-ui, sans-serif",
+          fontSize: '0.76rem',
+          lineHeight: 1.6,
+        }}
+      >
+        {lines.length === 0
+          ? <div style={{ padding: '0.5rem 1rem', color: '#9ca3af', fontStyle: 'italic' }}>Waiting for pipeline output…</div>
+          : lines.map((l, i) => <LogLine key={i} raw={l} />)
+        }
+      </div>
     </div>
   )
 }
@@ -657,6 +727,24 @@ function formatEta(seconds: number): string {
   return `${s}s remaining`
 }
 
+function Phase1ElapsedTimer({ startedAt }: { startedAt: string }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const base = new Date(startedAt).getTime()
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - base) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [startedAt])
+  const h = Math.floor(elapsed / 3600)
+  const m = Math.floor((elapsed % 3600) / 60)
+  const s = elapsed % 60
+  const label = h > 0
+    ? `${h}h ${m}m ${s}s elapsed`
+    : m > 0
+      ? `${m}m ${s}s elapsed`
+      : `${s}s elapsed`
+  return <span style={{ fontSize: '0.65rem', color: '#6b7280' }}>{label}</span>
+}
+
 function WebValidateTab() {
   const [tabLoading, setTabLoading]       = useState(true)
   const [status, setStatus]               = useState<WebValidateStatus | null>(null)
@@ -665,10 +753,13 @@ function WebValidateTab() {
   const [coverageLoading, setCoverageLoading] = useState(false)
   const [providerInfo, setProviderInfo]   = useState<ProviderInfo[]>([])
   const [enabledProviders, setEnabledProviders] = useState<Set<string>>(
-    new Set(['carapi', 'duckduckgo'])
+    new Set(['duckduckgo'])
   )
   const [actionError, setActionError]     = useState<string | null>(null)
   const [loadingRun, setLoadingRun]       = useState(false)
+  const [actionInProgress, setActionInProgress] = useState<'pause' | 'resume' | 'cancel' | null>(null)
+  const [isStopping, setIsStopping] = useState(false)
+  const [loadingQuotas, setLoadingQuotas] = useState(false)
   const [loadingCacheReset, setLoadingCacheReset] = useState(false)
   const [cacheResetMsg, setCacheResetMsg] = useState<string | null>(null)
   const [coveragePage, setCoveragePage]   = useState(1)
@@ -688,6 +779,11 @@ function WebValidateTab() {
   const [stagingPage, setStagingPage]             = useState(1)
   const [stagingLoading, setStagingLoading]       = useState(false)
   const [stagingToast, setStagingToast]           = useState<string | null>(null)
+  const [editingRow, setEditingRow]               = useState<StagingRow | null>(null)
+  const [editAh, setEditAh]                       = useState<string>('')
+  const [editTech, setEditTech]                   = useState<string>('')
+  const [editSaving, setEditSaving]               = useState(false)
+  const [editError, setEditError]                 = useState<string | null>(null)
   const [commitModalOpen, setCommitModalOpen]     = useState(false)
   const [commitLoading, setCommitLoading]         = useState(false)
   const [commitResult, setCommitResult]           = useState<CommitStagingResult | null>(null)
@@ -703,16 +799,28 @@ function WebValidateTab() {
   const [versionsLoading, setVersionsLoading]     = useState(false)
   const [openChangelog, setOpenChangelog]         = useState<VersionChangelogResponse | null>(null)
   const [changelogLoading, setChangelogLoading]   = useState(false)
+  const [revertingId, setRevertingId]             = useState<string | null>(null)
+  const [revertResult, setRevertResult]           = useState<RevertVersionResult | null>(null)
 
   // Staleness state
   const [staleness, setStaleness]                 = useState<StalenessInfo | null>(null)
 
   // Nav blocker — warn when staging has uncommitted data
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      !!(stagingInfo?.has_staging) &&
-      currentLocation.pathname !== nextLocation.pathname
-  )
+  const [showNavWarning, setShowNavWarning] = useState(false)
+  const pendingNavRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    if (!stagingInfo?.has_staging) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [stagingInfo?.has_staging])
+
+  const blocker = {
+    state: showNavWarning ? 'blocked' : 'idle',
+    reset: () => { setShowNavWarning(false); pendingNavRef.current = null },
+    proceed: () => { const fn = pendingNavRef.current; setShowNavWarning(false); pendingNavRef.current = null; fn?.() },
+  }
 
   const fetchStagingArea = useCallback(async (filter: 'all' | 'valid' | 'invalid' | 'conflicts' = 'all', page = 1) => {
     setStagingLoading(true)
@@ -723,6 +831,30 @@ function WebValidateTab() {
       setStagingLoading(false)
     }
   }, [])
+
+  async function handleSaveEdit() {
+    if (!editingRow) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      const updated = await patchStagingRow(editingRow.id, {
+        ah:         editAh.trim() === '' ? null : Number(editAh),
+        technology: editTech.trim() === '' ? null : editTech.trim(),
+      })
+      setStagingInfo(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          items: prev.items.map(r => r.id === updated.id ? updated : r),
+        }
+      })
+      setEditingRow(null)
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : 'Save failed')
+    } finally {
+      setEditSaving(false)
+    }
+  }
 
   async function fetchAll() {
     try {
@@ -773,6 +905,31 @@ function WebValidateTab() {
     }
   }
 
+  async function handleRevert(v: ValidationVersion) {
+    if (!window.confirm(
+      `Revert version #${v.version_number}?\n\n` +
+      `This will undo ${v.committed_count} added and ${v.removed_count} removed rows, ` +
+      `and create a new version record.\n\nThis cannot be undone.`
+    )) return
+    setRevertingId(v.id)
+    setActionError(null)
+    try {
+      const r = await revertVersion(v.id)
+      setRevertResult(r)
+      fetchVersions(1)
+      const [c, stale] = await Promise.all([
+        getWebValidateCoverage().catch(() => null),
+        getPipelineStaleness().catch(() => null),
+      ])
+      if (c) setCoverage(c)
+      if (stale) setStaleness(stale)
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRevertingId(null)
+    }
+  }
+
   useEffect(() => {
     fetchAll()
     return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
@@ -814,6 +971,7 @@ function WebValidateTab() {
           if (s.status !== 'running' && s.status !== 'paused') {
             clearInterval(pollingRef.current!)
             pollingRef.current = null
+            setIsStopping(false)
             const [q, c, stale] = await Promise.all([
               getPipelineQuotas(),
               getWebValidateCoverage(),
@@ -824,7 +982,7 @@ function WebValidateTab() {
             if (stale) setStaleness(stale)
           }
         } catch { /* ignore transient */ }
-      }, 3000)
+      }, 1000)
     } else {
       if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null }
     }
@@ -847,28 +1005,42 @@ function WebValidateTab() {
 
   async function handlePause() {
     setActionError(null)
+    setActionInProgress('pause')
     try {
       await pauseWebValidate()
       setStatus(s => s ? { ...s, status: 'paused' } : s)
+      const s = await getWebValidateStatus()
+      setStatus(s)
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setActionInProgress(null)
     }
   }
 
   async function handleResume() {
     setActionError(null)
+    setActionInProgress('resume')
     try {
       await resumeWebValidate()
       setStatus(s => s ? { ...s, status: 'running' } : s)
+      const s = await getWebValidateStatus()
+      setStatus(s)
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setActionInProgress(null)
     }
   }
 
   async function handleCancel() {
+    setIsStopping(true)
     setActionError(null)
+    setActionInProgress('cancel')
     try {
       const result = await cancelWebValidate()
+      const s = await getWebValidateStatus()
+      setStatus(s)
       if (result.staged_count > 0) {
         const warnParts: string[] = []
         if (result.invalid_count > 0) warnParts.push(`${result.invalid_count} data warning${result.invalid_count > 1 ? 's' : ''}`)
@@ -881,6 +1053,8 @@ function WebValidateTab() {
       }
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setActionInProgress(null)
     }
   }
 
@@ -945,6 +1119,16 @@ function WebValidateTab() {
     }
   }
 
+  async function handleRefreshQuotas() {
+    setLoadingQuotas(true)
+    try {
+      const q = await getPipelineQuotas()
+      setQuotas(q)
+    } catch { /* ignore */ } finally {
+      setLoadingQuotas(false)
+    }
+  }
+
   async function handleCacheReset() {
     setCacheResetMsg(null)
     setLoadingCacheReset(true)
@@ -970,14 +1154,20 @@ function WebValidateTab() {
 
   const isRunning = status?.status === 'running'
   const isPaused  = status?.status === 'paused'
-  const progressPct = (status?.total ?? 0) > 0
-    ? Math.round((status!.processed / status!.total) * 100)
-    : 0
+  const isPhase1 = (status?.processed ?? 0) === 0 && (status?.phase1_total ?? 0) > 0
+  const progressPct = isPhase1
+    ? Math.round(((status?.phase1_processed ?? 0) / status!.phase1_total) * 100)
+    : (status?.total ?? 0) > 0
+      ? Math.round((status!.processed / status!.total) * 100)
+      : 0
 
   const etaSeconds = (() => {
-    if (!status?.started_at || !status.processed || !status.total) return NaN
-    const elapsedSec = (Date.now() - new Date(status.started_at).getTime()) / 1000
-    const rate = status.processed / elapsedSec          // vehicles per second
+    // Use phase2_started_at so Phase 1 web-prefetch time doesn't skew the rate
+    const ref = (status as any)?.phase2_started_at ?? status?.started_at
+    if (!ref || !status?.processed || !status.total) return NaN
+    const elapsedSec = (Date.now() - new Date(ref).getTime()) / 1000
+    if (elapsedSec < 1) return NaN
+    const rate = status.processed / elapsedSec
     return (status.total - status.processed) / rate
   })()
 
@@ -1036,6 +1226,20 @@ function WebValidateTab() {
         </div>
       )}
 
+      {/* Revert success banner */}
+      {revertResult && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '0.75rem 1rem' }}>
+          <CheckCircleIcon style={{ width: 16, height: 16, color: '#22c55e', flexShrink: 0, marginTop: 1 }} />
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#14532d', lineHeight: 1.6, flex: 1 }}>
+            <strong>Reverted version #{revertResult.reverted_version_number}.</strong>{' '}
+            {revertResult.changes} row{revertResult.changes !== 1 ? 's' : ''} restored — saved as version #{revertResult.version_number}.
+          </p>
+          <button onClick={() => setRevertResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#14532d' }}>
+            <XMarkIcon style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
+      )}
+
       {/* Commit success banner */}
       {commitResult && !commitModalOpen && (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '0.75rem 1rem' }}>
@@ -1055,9 +1259,351 @@ function WebValidateTab() {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.75rem 1rem' }}>
         <InformationCircleIcon style={{ width: 16, height: 16, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
         <p style={{ margin: 0, fontSize: '0.75rem', color: '#1d4ed8', lineHeight: 1.6 }}>
-          Looks up internet-accepted battery specs for each vehicle in the database. Provider chain: <strong>carapi.app</strong> → <strong>DuckDuckGo</strong> → <strong>Google CSE</strong> → <strong>Tavily</strong>. Results are saved to <code>web_battery_validation</code>. carapi.app and DuckDuckGo are always available (unlimited); Google CSE and Tavily have monthly quotas.
+          Looks up internet-accepted battery specs for each vehicle in the database. Phase 1 searches per 5-year generation bucket; provider chain: <strong>DuckDuckGo</strong> → <strong>Google CSE</strong> → <strong>Tavily</strong>. Results are saved to <code>web_battery_validation</code>. DuckDuckGo is always available (unlimited); Google CSE and Tavily have monthly quotas.
         </p>
       </div>
+
+      {/* Provider Selection — only shown when idle */}
+      {!isRunning && !isPaused && (
+        <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
+          <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
+            Providers for this run
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
+            {(['duckduckgo', 'google_cse', 'tavily'] as const).map(p => {
+              const info             = providerInfo.find(pi => pi.provider === p)
+              const isAlways         = info?.always_available ?? (p === 'duckduckgo')
+              const isConfigured     = info?.configured ?? false
+              const isOn             = enabledProviders.has(p)
+              const noKey            = !isAlways && !isConfigured
+              const quota            = quotas.find(q => q.provider === p)
+              const isQuotaExhausted = !isAlways && !!quota && quota.quota_limit !== -1 && quota.calls_made >= quota.quota_limit
+              const isQuotaWarning   = !isAlways && !!quota && quota.quota_limit !== -1 && quota.pct_used >= 80 && !isQuotaExhausted
+              const isUnavailable    = noKey || isQuotaExhausted
+              const canToggle        = !isAlways && isConfigured && !isQuotaExhausted
+
+              const bg    = isUnavailable ? '#f9fafb' : isOn ? '#f0fdf4' : '#fff5f5'
+              const border = isUnavailable ? '#e2e4e9' : isOn ? '#bbf7d0' : '#fecaca'
+
+              return (
+                <div key={p} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.65rem',
+                  background: bg, border: `1px solid ${border}`,
+                  borderRadius: 10, padding: '0.65rem 0.85rem',
+                  opacity: isUnavailable ? 0.55 : 1,
+                }}>
+                  <GlobeAltIcon style={{ width: 13, height: 13, color: isUnavailable ? '#9ca3af' : '#6b7280', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: isUnavailable ? '#9ca3af' : 'rgba(17,24,39,0.8)', flex: 1 }}>
+                    {PROVIDER_LABELS[p] ?? p}
+                  </span>
+
+                  {isAlways && (
+                    <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#16a34a', background: '#dcfce7', borderRadius: 99, padding: '0.1rem 0.45rem', whiteSpace: 'nowrap' }}>
+                      Always on
+                    </span>
+                  )}
+
+                  {isQuotaWarning && (
+                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#92400e', background: '#fef3c7', borderRadius: 99, padding: '0.1rem 0.45rem', whiteSpace: 'nowrap' }}>
+                      {quota!.pct_used}% used
+                    </span>
+                  )}
+
+                  {canToggle && (
+                    <button
+                      onClick={() => setEnabledProviders(prev => {
+                        const next = new Set(prev)
+                        if (next.has(p)) next.delete(p); else next.add(p)
+                        return next
+                      })}
+                      title={isOn ? 'Click to disable for this run' : 'Click to enable for this run'}
+                      style={{
+                        position: 'relative', width: 36, height: 20,
+                        borderRadius: 99, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
+                        background: isOn ? '#22c55e' : '#d1d5db', transition: 'background 0.18s',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 2, left: isOn ? 18 : 2,
+                        width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                        transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }} />
+                    </button>
+                  )}
+
+                  {noKey && (
+                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#9ca3af', whiteSpace: 'nowrap' }}>No API key</span>
+                  )}
+                  {isQuotaExhausted && (
+                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: R, whiteSpace: 'nowrap' }}>Quota exhausted</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {providerInfo.some(p => !p.always_available && !p.configured) && (
+            <p style={{ margin: '0.85rem 0 0', fontSize: '0.7rem', color: '#9ca3af', lineHeight: 1.6 }}>
+              Contact IT if default providers do not activate or for disabled providers.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Patience banner — shown after Stop is clicked while pipeline is still running */}
+      {isStopping && isRunning && (
+        <div style={{
+          background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 8,
+          padding: '0.6rem 1rem', fontSize: '0.75rem', color: '#92400e',
+          display: 'flex', alignItems: 'center', gap: '0.5rem',
+          marginBottom: '0.5rem',
+        }}>
+          <span>⚠</span>
+          <span>Stopping… please wait for the pipeline to finish before closing this page — leaving early may corrupt the cache.</span>
+        </div>
+      )}
+
+      {/* Run / Pause / Resume / Stop controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+        {!isRunning && !isPaused ? (
+          /* ── Idle state: Run button ── */
+          <button
+            onClick={handleRun}
+            disabled={loadingRun}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.45rem',
+              fontSize: '0.82rem', fontWeight: 700,
+              padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
+              cursor: loadingRun ? 'not-allowed' : 'pointer',
+              background: loadingRun ? '#e2e4e9' : R,
+              color: loadingRun ? 'rgba(107,114,128,0.7)' : '#fff',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { if (!loadingRun) e.currentTarget.style.background = RD }}
+            onMouseLeave={e => { if (!loadingRun) e.currentTarget.style.background = R }}
+          >
+            <PlayIcon style={{ width: 14, height: 14 }} />
+            {loadingRun ? 'Starting…' : 'Run Web Validate'}
+          </button>
+        ) : isPaused ? (
+          /* ── Paused state: Resume + Stop ── */
+          <>
+            <button
+              onClick={handleResume}
+              disabled={!!actionInProgress}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.45rem',
+                fontSize: '0.82rem', fontWeight: 700,
+                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
+                cursor: actionInProgress ? 'not-allowed' : 'pointer',
+                background: actionInProgress ? '#e2e4e9' : '#22c55e',
+                color: actionInProgress ? 'rgba(107,114,128,0.7)' : '#fff',
+                transition: 'background 0.15s', opacity: actionInProgress && actionInProgress !== 'resume' ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { if (!actionInProgress) e.currentTarget.style.background = '#16a34a' }}
+              onMouseLeave={e => { if (!actionInProgress) e.currentTarget.style.background = '#22c55e' }}
+            >
+              {actionInProgress === 'resume' ? <ArrowSpinner /> : <PlayIcon style={{ width: 14, height: 14 }} />}
+              {actionInProgress === 'resume' ? 'Resuming…' : 'Resume'}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={!!actionInProgress}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.45rem',
+                fontSize: '0.82rem', fontWeight: 700,
+                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
+                cursor: actionInProgress ? 'not-allowed' : 'pointer',
+                background: actionInProgress === 'cancel' ? '#7f1d1d' : actionInProgress ? '#e2e4e9' : R,
+                color: actionInProgress && actionInProgress !== 'cancel' ? 'rgba(107,114,128,0.7)' : '#fff',
+                transition: 'background 0.15s', opacity: actionInProgress && actionInProgress !== 'cancel' ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { if (!actionInProgress) e.currentTarget.style.background = RD }}
+              onMouseLeave={e => { if (!actionInProgress) e.currentTarget.style.background = R }}
+            >
+              {actionInProgress === 'cancel' ? <ArrowSpinner /> : <StopIcon style={{ width: 14, height: 14 }} />}
+              {actionInProgress === 'cancel' ? 'Stopping…' : 'Stop'}
+            </button>
+          </>
+        ) : (
+          /* ── Running state: Pause + Stop ── */
+          <>
+            <button
+              onClick={handlePause}
+              disabled={!!actionInProgress}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.45rem',
+                fontSize: '0.82rem', fontWeight: 700,
+                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
+                cursor: actionInProgress ? 'not-allowed' : 'pointer',
+                background: actionInProgress === 'pause' ? '#d97706' : actionInProgress ? '#e2e4e9' : '#f59e0b',
+                color: actionInProgress && actionInProgress !== 'pause' ? 'rgba(107,114,128,0.7)' : '#fff',
+                transition: 'background 0.15s', opacity: actionInProgress && actionInProgress !== 'pause' ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { if (!actionInProgress) e.currentTarget.style.background = '#d97706' }}
+              onMouseLeave={e => { if (!actionInProgress) e.currentTarget.style.background = '#f59e0b' }}
+            >
+              {actionInProgress === 'pause' ? <ArrowSpinner /> : <PauseIcon style={{ width: 14, height: 14 }} />}
+              {actionInProgress === 'pause' ? 'Pausing…' : 'Pause'}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={!!actionInProgress}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.45rem',
+                fontSize: '0.82rem', fontWeight: 700,
+                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
+                cursor: actionInProgress ? 'not-allowed' : 'pointer',
+                background: actionInProgress === 'cancel' ? '#7f1d1d' : actionInProgress ? '#e2e4e9' : R,
+                color: actionInProgress && actionInProgress !== 'cancel' ? 'rgba(107,114,128,0.7)' : '#fff',
+                transition: 'background 0.15s', opacity: actionInProgress && actionInProgress !== 'cancel' ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { if (!actionInProgress) e.currentTarget.style.background = RD }}
+              onMouseLeave={e => { if (!actionInProgress) e.currentTarget.style.background = R }}
+            >
+              {actionInProgress === 'cancel' ? <ArrowSpinner /> : <StopIcon style={{ width: 14, height: 14 }} />}
+              {actionInProgress === 'cancel' ? 'Stopping…' : 'Stop'}
+            </button>
+          </>
+        )}
+        {actionError && (
+          <span style={{ fontSize: '0.75rem', color: R }}>{actionError}</span>
+        )}
+
+        {/* Clear Cache — pushed to the right */}
+        <button
+          onClick={handleCacheReset}
+          disabled={isRunning || isPaused || loadingCacheReset}
+          title="Delete the local lookup cache so the next run re-fetches all vehicles"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            fontSize: '0.75rem', fontWeight: 600,
+            padding: '0.55rem 1rem', borderRadius: 10,
+            border: '1px solid #e2e4e9', cursor: (isRunning || isPaused || loadingCacheReset) ? 'not-allowed' : 'pointer',
+            background: '#fff', color: 'rgba(107,114,128,0.8)',
+            opacity: (isRunning || isPaused || loadingCacheReset) ? 0.5 : 1,
+            marginLeft: 'auto', whiteSpace: 'nowrap', transition: 'all 0.15s',
+          }}
+        >
+          <ArrowPathIcon style={{ width: 13, height: 13 }} />
+          {loadingCacheReset ? 'Clearing…' : 'Clear Cache'}
+        </button>
+        {cacheResetMsg && (
+          <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>{cacheResetMsg}</span>
+        )}
+      </div>
+
+      {/* Last run summary */}
+      {status && (status.status === 'done' || status.status === 'cancelled' || status.status === 'error') && (
+        <div style={{ ...CARD, padding: '1rem 1.25rem', borderLeft: `4px solid ${status.status === 'error' ? R : status.status === 'cancelled' ? '#f59e0b' : '#22c55e'}` }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(107,114,128,0.7)', marginBottom: '0.75rem' }}>
+            Last Run {status.finished_at ? `— ${new Date(status.finished_at).toLocaleString()}` : ''}
+          </div>
+          {status.status === 'error' && status.error_detail && (
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: R }}>{status.error_detail}</p>
+          )}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+            <SummaryBadge label="Found"     value={status.found}     color="#22c55e" />
+            <SummaryBadge label="Not Found" value={status.not_found} color="#9ca3af" />
+            <SummaryBadge label="Total"     value={status.total} />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {Object.entries(status.provider_counts).filter(([, n]) => n > 0).map(([p, n]) => (
+              <span key={p} style={{ fontSize: '0.7rem', background: '#f4f5f7', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'rgba(17,24,39,0.7)', fontWeight: 600 }}>
+                {PROVIDER_LABELS[p] ?? p}: {n}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Live progress */}
+      {(isRunning || isPaused) && (
+        <div style={{ ...CARD, padding: '1rem 1.25rem', borderLeft: `4px solid ${isPaused ? '#f59e0b' : '#3b82f6'}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {isPaused
+                ? <PauseIcon style={{ width: 16, height: 16, color: '#f59e0b' }} />
+                : <ArrowSpinner />
+              }
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: isPaused ? '#92400e' : '#1d4ed8' }}>
+                {isPaused ? 'Paused' : (status?.processed === 0 ? 'Pre-fetching web data…' : 'Running…')}
+              </span>
+              {!isPaused && status?.processed === 0 && (
+                <span style={{ fontSize: '0.72rem', background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 99, padding: '0.15rem 0.55rem', color: '#7c3aed' }}>
+                  Phase 1 of 2
+                </span>
+              )}
+              {!isPaused && status?.processed !== 0 && status?.current_provider && status.current_provider !== 'none' && (
+                <span style={{ fontSize: '0.72rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 99, padding: '0.15rem 0.55rem', color: '#1d4ed8' }}>
+                  via {PROVIDER_LABELS[status.current_provider] ?? status.current_provider}
+                </span>
+              )}
+              {!isPaused && status?.processed === 0 && (status?.phase1_total ?? 0) > 0 && (
+                <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>
+                  {status!.phase1_processed} / {status!.phase1_total} buckets
+                </span>
+              )}
+              {!isPaused && (status?.processed ?? 0) > 0 && status?.current_combo && (
+                <span style={{ fontSize: '0.7rem', color: '#6b7280', fontFamily: 'monospace' }}>
+                  ↳ {status.current_combo}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.1rem' }}>
+              {(status?.processed ?? 0) === 0 ? (
+                <>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(17,24,39,0.7)' }}>
+                    {(status?.phase1_total ?? 0) > 0
+                      ? `${Math.round(((status?.phase1_processed ?? 0) / status!.phase1_total) * 100)}%`
+                      : '—'}
+                  </span>
+                  {isRunning && status?.started_at && (
+                    <Phase1ElapsedTimer startedAt={status.started_at} />
+                  )}
+                </>
+              ) : (
+                <>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(17,24,39,0.7)' }}>
+                    {status?.processed ?? 0} / {status?.total ?? '?'}
+                    {(status?.total ?? 0) > 0 && (
+                      <span style={{ marginLeft: 6, fontSize: '0.7rem', fontWeight: 600, color: '#6b7280' }}>
+                        ({progressPct}%)
+                      </span>
+                    )}
+                  </span>
+                  {isRunning && (
+                    <span style={{ fontSize: '0.65rem', color: '#6b7280' }}>
+                      {formatEta(etaSeconds)}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <div style={{ background: '#e2e4e9', borderRadius: 99, height: 8, overflow: 'hidden' }}>
+            <div style={{
+              width: `${progressPct}%`,
+              background: getProgressBarColor(progressPct, isPaused),
+              height: '100%', borderRadius: 99, transition: 'width 0.5s',
+            }} />
+          </div>
+          {status && Object.values(status.provider_counts).some(n => n > 0) && (
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.6rem' }}>
+              {Object.entries(status.provider_counts).filter(([, n]) => n > 0).map(([p, n]) => (
+                <span key={p} style={{ fontSize: '0.7rem', background: '#f4f5f7', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'rgba(17,24,39,0.7)', fontWeight: 600 }}>
+                  {PROVIDER_LABELS[p] ?? p}: {n}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Log panel */}
+      {(isRunning || isPaused || (status?.logs && status.logs.length > 0)) && (
+        <LogPanel lines={status?.logs ?? []} />
+      )}
 
       {/* Coverage Summary */}
       <div style={{ ...CARD, padding: '1.25rem 1.5rem', opacity: coverageLoading ? 0.5 : 1, transition: 'opacity 0.3s' }}>
@@ -1139,7 +1685,7 @@ function WebValidateTab() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
                 <thead>
                   <tr style={{ background: '#fef3c7' }}>
-                    {['Make', 'Model', 'Year', 'Ah', 'Tech', 'Source', 'Status'].map(col => (
+                    {['Make', 'Model', 'Year', 'Ah', 'Tech', 'Source', 'Status', ''].map(col => (
                       <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: '#92400e', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                         {col}
                       </th>
@@ -1180,12 +1726,26 @@ function WebValidateTab() {
                             </span>
                           )}
                         </td>
+                        <td style={{ padding: '0.5rem 0.75rem' }}>
+                          <button
+                            onClick={() => {
+                              setEditingRow(row)
+                              setEditAh(row.ah != null ? String(row.ah) : '')
+                              setEditTech(row.technology ?? '')
+                              setEditError(null)
+                            }}
+                            title="Edit Ah / Technology"
+                            style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 4, padding: '0.15rem 0.4rem', cursor: 'pointer', fontSize: '0.7rem', color: '#4b5563' }}
+                          >
+                            ✏
+                          </button>
+                        </td>
                       </tr>
                       {/* Conflict detail row */}
                       {row.conflict && row.conflict_detail && (
                         <tr key={`${row.make_n}-${row.model_n}-${row.year}-conflict`}
                           style={{ background: '#fffbeb', borderBottom: '1px solid #fcd34d' }}>
-                          <td colSpan={7} style={{ padding: '0.35rem 0.75rem 0.5rem 1.5rem' }}>
+                          <td colSpan={8} style={{ padding: '0.35rem 0.75rem 0.5rem 1.5rem' }}>
                             <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.68rem', color: '#92400e' }}>
                               <div>
                                 <span style={{ fontWeight: 700 }}>Current master: </span>
@@ -1279,7 +1839,7 @@ function WebValidateTab() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
                     <thead>
                       <tr style={{ background: '#f4f5f7' }}>
-                        {['Version', 'Committed At', 'Committed', 'Removed', 'Conflicts', ''].map(col => (
+                        {['Version', 'Committed At', 'Committed By', 'Pipeline Run By', 'Committed', 'Removed', 'Conflicts', ''].map(col => (
                           <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: 'rgba(107,114,128,0.9)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                             {col}
                           </th>
@@ -1289,17 +1849,44 @@ function WebValidateTab() {
                     <tbody>
                       {versions.map((v, i) => (
                         <tr key={v.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e2e4e9' }}>
-                          <td style={{ padding: '0.5rem 0.75rem', fontWeight: 700, color: '#3b82f6' }}>#{v.version_number}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', fontWeight: 700, color: '#3b82f6' }}>
+                            #{v.version_number}
+                            {v.notes && (
+                              <span style={{ marginLeft: 6, fontSize: '0.6rem', fontWeight: 600, background: '#fef3c7', color: '#92400e', borderRadius: 99, padding: '0.1rem 0.4rem' }}>
+                                revert
+                              </span>
+                            )}
+                          </td>
                           <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{new Date(v.committed_at).toLocaleString()}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', color: '#374151', fontWeight: 600, fontSize: '0.72rem' }}>{v.committed_by ?? '—'}</td>
+                          <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280', fontSize: '0.72rem' }}>{v.initiated_by ?? '—'}</td>
                           <td style={{ padding: '0.5rem 0.75rem', color: '#22c55e', fontWeight: 600 }}>{v.committed_count}</td>
                           <td style={{ padding: '0.5rem 0.75rem', color: v.removed_count > 0 ? R : '#9ca3af' }}>{v.removed_count}</td>
                           <td style={{ padding: '0.5rem 0.75rem', color: v.conflict_count > 0 ? '#f59e0b' : '#9ca3af' }}>{v.conflict_count}</td>
-                          <td style={{ padding: '0.5rem 0.75rem' }}>
+                          <td style={{ padding: '0.5rem 0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <button
                               onClick={() => handleOpenChangelog(v.id)}
                               style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                             >
                               View Diff
+                            </button>
+                            <button
+                              onClick={() => handleRevert(v)}
+                              disabled={revertingId === v.id}
+                              title={`Undo the changes made by version #${v.version_number}`}
+                              style={{
+                                fontSize: '0.7rem', fontWeight: 600,
+                                color: revertingId === v.id ? '#9ca3af' : R,
+                                background: 'none', border: 'none',
+                                cursor: revertingId === v.id ? 'not-allowed' : 'pointer',
+                                padding: 0, display: 'flex', alignItems: 'center', gap: 2,
+                              }}
+                            >
+                              {revertingId === v.id
+                                ? <ArrowSpinner />
+                                : <ArrowPathIcon style={{ width: 11, height: 11 }} />
+                              }
+                              Revert
                             </button>
                           </td>
                         </tr>
@@ -1381,7 +1968,6 @@ function WebValidateTab() {
         )}
       </div>
 
-      {/* Unmatched vehicles panel */}
       {/* Matched Vehicles panel */}
       {matchedCount > 0 && (
         <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
@@ -1563,9 +2149,23 @@ function WebValidateTab() {
       {/* Quota Status */}
       <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-          <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
-            API Quota — {new Date().toISOString().slice(0, 7)}
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
+              API Quota — {new Date().toISOString().slice(0, 7)}
+            </h3>
+            <button
+              onClick={handleRefreshQuotas}
+              disabled={loadingQuotas}
+              title="Refresh quota data"
+              style={{
+                background: 'none', border: 'none', cursor: loadingQuotas ? 'not-allowed' : 'pointer',
+                padding: 3, borderRadius: 6, color: '#9ca3af', opacity: loadingQuotas ? 0.4 : 1,
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              <ArrowPathIcon style={{ width: 13, height: 13, animation: loadingQuotas ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+          </div>
           <span style={{ fontSize: '0.65rem', color: '#9ca3af' }}>
             Resets {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
           </span>
@@ -1582,277 +2182,78 @@ function WebValidateTab() {
         {anyAtWarning && !allLimitedOut && (
           <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '0.6rem 0.85rem' }}>
             <ExclamationCircleIcon style={{ width: 15, height: 15, color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: '0.73rem', color: '#92400e' }}>One or more paid search providers are approaching their monthly quota. DuckDuckGo and carapi.app remain available as unlimited fallbacks.</span>
+            <span style={{ fontSize: '0.73rem', color: '#92400e' }}>One or more paid search providers are approaching their monthly quota. DuckDuckGo remains available as an unlimited fallback.</span>
           </div>
         )}
 
         {allLimitedOut && (
           <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#fff5f5', border: `1px solid ${R}`, borderRadius: 8, padding: '0.6rem 0.85rem' }}>
             <ExclamationCircleIcon style={{ width: 15, height: 15, color: R, flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: '0.73rem', color: '#7f1d1d' }}>Google CSE and Tavily quotas are exhausted. The pipeline will continue using carapi.app and DuckDuckGo (both unlimited).</span>
+            <span style={{ fontSize: '0.73rem', color: '#7f1d1d' }}>Google CSE and Tavily quotas are exhausted. The pipeline will continue using DuckDuckGo (unlimited).</span>
           </div>
         )}
       </div>
 
-      {/* Provider Selection — only shown when idle */}
-      {!isRunning && !isPaused && (
-        <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
-          <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
-            Providers for this run
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
-            {(['carapi', 'duckduckgo', 'google_cse', 'tavily'] as const).map(p => {
-              const info        = providerInfo.find(pi => pi.provider === p)
-              const isAlways    = info?.always_available ?? (p === 'carapi' || p === 'duckduckgo')
-              const isConfigured = info?.configured ?? false
-              const isOn        = enabledProviders.has(p)
-              const canToggle   = !isAlways && isConfigured
-              const noKey       = !isAlways && !isConfigured
-
-              const bg     = noKey ? '#f9fafb' : isOn ? '#f0fdf4' : '#fff5f5'
-              const border  = noKey ? '#e2e4e9' : isOn ? '#bbf7d0' : '#fecaca'
-
-              return (
-                <div key={p} style={{
-                  display: 'flex', alignItems: 'center', gap: '0.65rem',
-                  background: bg, border: `1px solid ${border}`,
-                  borderRadius: 10, padding: '0.65rem 0.85rem',
-                  opacity: noKey ? 0.55 : 1,
-                }}>
-                  <GlobeAltIcon style={{ width: 13, height: 13, color: noKey ? '#9ca3af' : '#6b7280', flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: noKey ? '#9ca3af' : 'rgba(17,24,39,0.8)', flex: 1 }}>
-                    {PROVIDER_LABELS[p] ?? p}
-                  </span>
-
-                  {isAlways && (
-                    <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#16a34a', background: '#dcfce7', borderRadius: 99, padding: '0.1rem 0.45rem', whiteSpace: 'nowrap' }}>
-                      Always on
-                    </span>
-                  )}
-
-                  {canToggle && (
-                    <button
-                      onClick={() => setEnabledProviders(prev => {
-                        const next = new Set(prev)
-                        if (next.has(p)) next.delete(p); else next.add(p)
-                        return next
-                      })}
-                      title={isOn ? 'Click to disable for this run' : 'Click to enable for this run'}
-                      style={{
-                        position: 'relative', width: 36, height: 20,
-                        borderRadius: 99, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
-                        background: isOn ? '#22c55e' : '#d1d5db', transition: 'background 0.18s',
-                      }}
-                    >
-                      <span style={{
-                        position: 'absolute', top: 2, left: isOn ? 18 : 2,
-                        width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                        transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                      }} />
-                    </button>
-                  )}
-
-                  {noKey && (
-                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: '#9ca3af', whiteSpace: 'nowrap' }}>No API key</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {providerInfo.some(p => !p.always_available && !p.configured) && (
-            <p style={{ margin: '0.85rem 0 0', fontSize: '0.7rem', color: '#9ca3af', lineHeight: 1.6 }}>
-              Contact IT if default providers do not activate or for disabled providers.
+      {/* ── Edit Staging Row Modal ── */}
+      {editingRow && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ ...CARD, padding: '1.5rem', maxWidth: 360, width: '100%' }}>
+            <h2 style={{ margin: '0 0 0.1rem', fontSize: '0.95rem', fontWeight: 700, color: '#111827' }}>
+              Edit Staged Row
+            </h2>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.72rem', color: '#6b7280' }}>
+              {editingRow.make_n} {editingRow.model_n} {editingRow.year}
             </p>
-          )}
-        </div>
-      )}
 
-      {/* Run / Pause / Resume / Stop controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-        {!isRunning && !isPaused ? (
-          /* ── Idle state: Run button ── */
-          <button
-            onClick={handleRun}
-            disabled={loadingRun}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.45rem',
-              fontSize: '0.82rem', fontWeight: 700,
-              padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-              cursor: loadingRun ? 'not-allowed' : 'pointer',
-              background: loadingRun ? '#e2e4e9' : R,
-              color: loadingRun ? 'rgba(107,114,128,0.7)' : '#fff',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => { if (!loadingRun) e.currentTarget.style.background = RD }}
-            onMouseLeave={e => { if (!loadingRun) e.currentTarget.style.background = R }}
-          >
-            <PlayIcon style={{ width: 14, height: 14 }} />
-            {loadingRun ? 'Starting…' : 'Run Web Validate'}
-          </button>
-        ) : isPaused ? (
-          /* ── Paused state: Resume + Stop ── */
-          <>
-            <button
-              onClick={handleResume}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.45rem',
-                fontSize: '0.82rem', fontWeight: 700,
-                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: '#22c55e', color: '#fff', transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#16a34a' }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#22c55e' }}
-            >
-              <PlayIcon style={{ width: 14, height: 14 }} /> Resume
-            </button>
-            <button
-              onClick={handleCancel}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.45rem',
-                fontSize: '0.82rem', fontWeight: 700,
-                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: R, color: '#fff', transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = RD }}
-              onMouseLeave={e => { e.currentTarget.style.background = R }}
-            >
-              <StopIcon style={{ width: 14, height: 14 }} /> Stop
-            </button>
-          </>
-        ) : (
-          /* ── Running state: Pause + Stop ── */
-          <>
-            <button
-              onClick={handlePause}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.45rem',
-                fontSize: '0.82rem', fontWeight: 700,
-                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: '#f59e0b', color: '#fff', transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#d97706' }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#f59e0b' }}
-            >
-              <PauseIcon style={{ width: 14, height: 14 }} /> Pause
-            </button>
-            <button
-              onClick={handleCancel}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.45rem',
-                fontSize: '0.82rem', fontWeight: 700,
-                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: R, color: '#fff', transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = RD }}
-              onMouseLeave={e => { e.currentTarget.style.background = R }}
-            >
-              <StopIcon style={{ width: 14, height: 14 }} /> Stop
-            </button>
-          </>
-        )}
-        {actionError && (
-          <span style={{ fontSize: '0.75rem', color: R }}>{actionError}</span>
-        )}
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>
+              Ah (20–250, leave blank for none)
+            </label>
+            <input
+              type="number"
+              value={editAh}
+              onChange={e => setEditAh(e.target.value)}
+              min={20} max={250} step={1}
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '0.82rem', marginBottom: '0.75rem' }}
+            />
 
-        {/* Clear Cache — pushed to the right */}
-        <button
-          onClick={handleCacheReset}
-          disabled={isRunning || isPaused || loadingCacheReset}
-          title="Delete the local lookup cache so the next run re-fetches all vehicles"
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            fontSize: '0.75rem', fontWeight: 600,
-            padding: '0.55rem 1rem', borderRadius: 10,
-            border: '1px solid #e2e4e9', cursor: (isRunning || isPaused || loadingCacheReset) ? 'not-allowed' : 'pointer',
-            background: '#fff', color: 'rgba(107,114,128,0.8)',
-            opacity: (isRunning || isPaused || loadingCacheReset) ? 0.5 : 1,
-            marginLeft: 'auto', whiteSpace: 'nowrap', transition: 'all 0.15s',
-          }}
-        >
-          <ArrowPathIcon style={{ width: 13, height: 13 }} />
-          {loadingCacheReset ? 'Clearing…' : 'Clear Cache'}
-        </button>
-        {cacheResetMsg && (
-          <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>{cacheResetMsg}</span>
-        )}
-      </div>
-
-      {/* Last run summary */}
-      {status && (status.status === 'done' || status.status === 'error') && (
-        <div style={{ ...CARD, padding: '1rem 1.25rem', borderLeft: `4px solid ${status.status === 'error' ? R : '#22c55e'}` }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(107,114,128,0.7)', marginBottom: '0.75rem' }}>
-            Last Run {status.finished_at ? `— ${new Date(status.finished_at).toLocaleString()}` : ''}
-          </div>
-          {status.status === 'error' && status.error_detail && (
-            <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: R }}>{status.error_detail}</p>
-          )}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-            <SummaryBadge label="Found"     value={status.found}     color="#22c55e" />
-            <SummaryBadge label="Not Found" value={status.not_found} color="#9ca3af" />
-            <SummaryBadge label="Total"     value={status.total} />
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {Object.entries(status.provider_counts).filter(([, n]) => n > 0).map(([p, n]) => (
-              <span key={p} style={{ fontSize: '0.7rem', background: '#f4f5f7', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'rgba(17,24,39,0.7)', fontWeight: 600 }}>
-                {PROVIDER_LABELS[p] ?? p}: {n}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Live progress */}
-      {(isRunning || isPaused) && (
-        <div style={{ ...CARD, padding: '1rem 1.25rem', borderLeft: `4px solid ${isPaused ? '#f59e0b' : '#3b82f6'}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {isPaused
-                ? <PauseIcon style={{ width: 16, height: 16, color: '#f59e0b' }} />
-                : <ArrowSpinner />
-              }
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: isPaused ? '#92400e' : '#1d4ed8' }}>
-                {isPaused ? 'Paused' : 'Running…'}
-              </span>
-              {!isPaused && status?.current_provider && status.current_provider !== 'none' && (
-                <span style={{ fontSize: '0.72rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 99, padding: '0.15rem 0.55rem', color: '#1d4ed8' }}>
-                  via {PROVIDER_LABELS[status.current_provider] ?? status.current_provider}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.1rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(17,24,39,0.7)' }}>
-                {status?.processed ?? 0} / {status?.total ?? '?'}
-              </span>
-              {isRunning && (
-                <span style={{ fontSize: '0.65rem', color: '#6b7280' }}>
-                  {formatEta(etaSeconds)}
-                </span>
-              )}
-            </div>
-          </div>
-          <div style={{ background: '#e2e4e9', borderRadius: 99, height: 8, overflow: 'hidden' }}>
-            <div style={{
-              width: `${progressPct}%`,
-              background: isPaused ? '#f59e0b' : '#3b82f6',
-              height: '100%', borderRadius: 99, transition: 'width 0.5s',
-            }} />
-          </div>
-          {status && Object.values(status.provider_counts).some(n => n > 0) && (
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.6rem' }}>
-              {Object.entries(status.provider_counts).filter(([, n]) => n > 0).map(([p, n]) => (
-                <span key={p} style={{ fontSize: '0.7rem', background: '#f4f5f7', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'rgba(17,24,39,0.7)', fontWeight: 600 }}>
-                  {PROVIDER_LABELS[p] ?? p}: {n}
-                </span>
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>
+              Technology
+            </label>
+            <select
+              value={editTech}
+              onChange={e => setEditTech(e.target.value)}
+              style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '0.82rem', marginBottom: '1rem' }}
+            >
+              <option value="">— none —</option>
+              {['MF', 'AGM', 'EFB', 'GEL', 'WET'].map(t => (
+                <option key={t} value={t}>{t}</option>
               ))}
-            </div>
-          )}
-        </div>
-      )}
+            </select>
 
-      {/* Log panel */}
-      {(isRunning || isPaused || (status?.logs && status.logs.length > 0)) && (
-        <LogPanel lines={status?.logs ?? []} />
+            {editError && (
+              <p style={{ margin: '0 0 0.75rem', fontSize: '0.72rem', color: '#dc2626', background: '#fee2e2', borderRadius: 6, padding: '0.4rem 0.6rem' }}>
+                {editError}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setEditingRow(null)}
+                disabled={editSaving}
+                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={editSaving}
+                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: 'none', background: '#3b82f6', color: '#fff', cursor: editSaving ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: editSaving ? 0.7 : 1 }}
+              >
+                {editSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Commit Modal ── */}
@@ -1990,6 +2391,17 @@ function WebValidateTab() {
       )}
     </div>
   )
+}
+
+function getProgressBarColor(pct: number, paused: boolean): string {
+  if (paused) return '#f59e0b'
+  // red #ef4444 rgb(239,68,68) → blue #3b82f6 rgb(59,130,246) → green #22c55e rgb(34,197,94)
+  if (pct <= 50) {
+    const t = pct / 50
+    return `rgb(${Math.round(239 + (59 - 239) * t)},${Math.round(68 + (130 - 68) * t)},${Math.round(68 + (246 - 68) * t)})`
+  }
+  const t = (pct - 50) / 50
+  return `rgb(${Math.round(59 + (34 - 59) * t)},${Math.round(130 + (197 - 130) * t)},${Math.round(246 + (94 - 246) * t)})`
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

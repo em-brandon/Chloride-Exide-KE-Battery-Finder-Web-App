@@ -383,17 +383,21 @@ export async function fetchTestUsers(): Promise<{ users: TestUserEntry[] }> {
 
 export interface WebValidateStatus {
   run_id:           string | null
-  status:           'idle' | 'running' | 'paused' | 'done' | 'error'
+  status:           'idle' | 'running' | 'paused' | 'done' | 'cancelled' | 'error'
   total:            number
   processed:        number
   found:            number
   not_found:        number
   current_provider: string | null
-  provider_counts:  { carapi: number; duckduckgo: number; google_cse: number; tavily: number }
-  logs:             string[]
-  started_at:       string | null
-  finished_at:      string | null
-  error_detail:     string | null
+  current_combo:    string | null
+  provider_counts:  { duckduckgo: number; google_cse: number; tavily: number }
+  logs:              string[]
+  started_at:        string | null
+  phase1_total:      number
+  phase1_processed:  number
+  phase2_started_at: string | null
+  finished_at:       string | null
+  error_detail:      string | null
 }
 
 export interface QuotaInfo {
@@ -508,6 +512,7 @@ export interface ConflictDetail {
 }
 
 export interface StagingRow {
+  id:              number
   make_n:          string
   model_n:         string
   year:            number
@@ -584,6 +589,16 @@ export async function discardStagingArea(): Promise<{ discarded: number }> {
   return adminFetch('/api/admin/pipeline/web-validate/staging/discard', { method: 'POST' })
 }
 
+export async function patchStagingRow(
+  rowId: number,
+  patch: { ah: number | null; technology: string | null },
+): Promise<StagingRow> {
+  return adminFetch(`/api/admin/pipeline/web-validate/staging/${rowId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Versioning
 // ---------------------------------------------------------------------------
@@ -597,6 +612,8 @@ export interface ValidationVersion {
   removed_count:   number
   conflict_count:  number
   notes:           string | null
+  committed_by:    string | null
+  initiated_by:    string | null
 }
 
 export interface ValidationVersionsResponse {
@@ -635,6 +652,18 @@ export async function getVersionChangelog(
 ): Promise<VersionChangelogResponse> {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   return adminFetch(`/api/admin/pipeline/web-validate/versions/${versionId}/changelog?${params}`)
+}
+
+export interface RevertVersionResult {
+  version_id:              string
+  version_number:          number
+  reverted_version_number: number
+  committed_by:            string
+  changes:                 number
+}
+
+export async function revertVersion(versionId: string): Promise<RevertVersionResult> {
+  return adminFetch(`/api/admin/pipeline/web-validate/versions/${versionId}/revert`, { method: 'POST' })
 }
 
 // ---------------------------------------------------------------------------
