@@ -1,7 +1,7 @@
 """
 Web battery validation pipeline.
 
-Queries external sources (DuckDuckGo → Google Custom Search → Tavily)
+Queries external sources (SearXNG → DuckDuckGo → Brave → Tavily)
 to find the internet-accepted battery for each (make, model, year) combination that
 does not already exist in web_battery_validation. Results are upserted into the table
 so matcher.py can use them as an additional data layer.
@@ -11,9 +11,9 @@ Usage:
 
 Environment variables (in .env):
     DATABASE_URL             — PostgreSQL connection string (required)
-    GOOGLE_SEARCH_API_KEY    — Google Custom Search API key (optional)
-    GOOGLE_SEARCH_CX         — Google Programmable Search Engine ID (optional)
-    GOOGLE_CSE_MONTHLY_QUOTA — override monthly Google CSE call limit (default 3000)
+    SEARXNG_URL              — SearXNG base URL e.g. http://localhost:8888 (optional; skipped if unset)
+    BRAVE_SEARCH_API_KEY     — Brave Search API key (optional)
+    BRAVE_MONTHLY_QUOTA      — override monthly Brave call limit (default 2000)
     TAVILY_API_KEY           — Tavily API key (optional)
     TAVILY_MONTHLY_QUOTA     — override monthly Tavily call limit (default 1000)
 """
@@ -60,17 +60,18 @@ TABLE_NAME        = "web_battery_validation"
 _SEARCH_QUERY_MAX_LEN = 120
 
 CARQUERY_API_URL    = "https://www.carqueryapi.com/api/0.3/"
-GOOGLE_SEARCH_API_URL = "https://www.googleapis.com/customsearch/v1"
 
-GOOGLE_SEARCH_API_KEY    = os.getenv("GOOGLE_SEARCH_API_KEY", "")
-GOOGLE_SEARCH_CX         = os.getenv("GOOGLE_SEARCH_CX", "")
-GOOGLE_CSE_MONTHLY_QUOTA = int(os.getenv("GOOGLE_CSE_MONTHLY_QUOTA", "3000"))
 TAVILY_API_KEY           = os.getenv("TAVILY_API_KEY", "")
 TAVILY_MONTHLY_QUOTA     = int(os.getenv("TAVILY_MONTHLY_QUOTA", "1000"))
+BRAVE_SEARCH_API_KEY     = os.getenv("BRAVE_SEARCH_API_KEY", "")
+BRAVE_MONTHLY_QUOTA      = int(os.getenv("BRAVE_MONTHLY_QUOTA", "2000"))
+BRAVE_SEARCH_API_URL     = "https://api.search.brave.com/res/v1/web/search"
+SEARXNG_URL              = os.getenv("SEARXNG_URL", "")   # empty = disabled
 
 _PROVIDER_DEFAULT_QUOTA: dict[str, int] = {
     "duckduckgo": -1,
-    "google_cse": GOOGLE_CSE_MONTHLY_QUOTA,
+    "searxng":    -1,
+    "brave":      BRAVE_MONTHLY_QUOTA,
     "tavily":     TAVILY_MONTHLY_QUOTA,
     "carquery":   -1,
 }
@@ -302,25 +303,63 @@ def _duckduckgo_lookup(make: str, model: str, year: int, cancel_event: threading
     return None
 
 
-def _google_cse_lookup(make: str, model: str, year: int, cancel_event: threading.Event | None = None) -> dict | None:
-    """Query Google Custom Search and parse battery Ah. Returns dict or None."""
-    if not GOOGLE_SEARCH_API_KEY or not GOOGLE_SEARCH_CX:
+def _searxng_lookup(make: str, model: str, year: int, cancel_event: threading.Event | None = None) -> dict | None:
+    """Query local SearXNG instance and parse battery Ah. Returns dict or None."""
+    if not SEARXNG_URL:
         return None
     query = _build_search_query(make, model, year)
-    params = {"key": GOOGLE_SEARCH_API_KEY, "cx": GOOGLE_SEARCH_CX, "q": query, "num": 5}
+    try:
+        resp = SESSION.get(
+            f"{SEARXNG_URL.rstrip('/')}/search",
+            params={"q": query, "format": "json", "categories": "general"},
+            timeout=15,
+        )
+        if not resp.ok:
+            return None
+        results = resp.json().get("results", [])
+        combined = " ".join(
+            (r.get("title", "") + " " + r.get("content", "")) for r in results[:5]
+        )
+        return _parse_text(combined) if combined.strip() else None
+    except Exception as exc:
+        err = str(exc).lower()
+        if any(k in err for k in (
+            "network is unreachable", "failed to establish a new connection",
+            "no route to host", "name or service not known",
+            "temporary failure in name resolution",
+        )):
+            raise
+        return None
+
+
+def _brave_lookup(make: str, model: str, year: int, cancel_event: threading.Event | None = None) -> dict | None:
+    """Query Brave Search API and parse battery Ah. Returns dict or None."""
+    if not BRAVE_SEARCH_API_KEY:
+        return None
+    query = _build_search_query(make, model, year)
+    headers = {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": BRAVE_SEARCH_API_KEY,
+    }
     for attempt in range(3):
         try:
-            resp = SESSION.get(GOOGLE_SEARCH_API_URL, params=params, timeout=15)
+            resp = SESSION.get(
+                BRAVE_SEARCH_API_URL,
+                params={"q": query, "count": 5},
+                headers=headers,
+                timeout=15,
+            )
             if resp.status_code == 429:
                 wait = 30 * (attempt + 1)
-                print(f"    [GOOGLE] 429 — waiting {wait}s")
+                print(f"    [BRAVE] 429 — waiting {wait}s")
                 _interruptible_sleep(wait, cancel_event)
                 continue
             if not resp.ok:
                 return None
-            items = resp.json().get("items", [])
+            results = resp.json().get("web", {}).get("results", [])
             combined = " ".join(
-                (i.get("title", "") + " " + i.get("snippet", "")) for i in items
+                (r.get("title", "") + " " + r.get("description", "")) for r in results
             )
             return _parse_text(combined) if combined.strip() else None
         except Exception as exc:
@@ -380,7 +419,9 @@ def _check_quota(eng, provider: str, month: str) -> bool:
     Returns False immediately for providers whose API keys are not configured —
     this prevents phantom quota rows being created for unconfigured services.
     """
-    if provider == "google_cse" and not (GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX):
+    if provider == "brave" and not BRAVE_SEARCH_API_KEY:
+        return False
+    if provider == "searxng" and not SEARXNG_URL:
         return False
     if provider == "tavily" and not TAVILY_API_KEY:
         return False
@@ -571,14 +612,16 @@ def main(
         _log(f"  [CONFIG] enabled providers: {', '.join(sorted(_ep))}")
 
     # Pre-seed all quota rows once so concurrent threads only do SELECTs later
-    for _p in ["duckduckgo", "google_cse", "tavily", "carquery"]:
+    for _p in ["duckduckgo", "searxng", "brave", "tavily", "carquery"]:
         _ensure_quota_row(engine, _p, month)
 
     # Log which providers will actually be used this run
-    for _pn in ["duckduckgo", "google_cse", "tavily"]:
+    for _pn in ["duckduckgo", "searxng", "brave", "tavily"]:
         if not _is_enabled(_pn):
             continue
-        if _pn == "google_cse" and not (GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX):
+        if _pn == "searxng" and not SEARXNG_URL:
+            _log(f"  [CONFIG] {_pn}: SEARXNG_URL not set — will be skipped")
+        elif _pn == "brave" and not BRAVE_SEARCH_API_KEY:
             _log(f"  [CONFIG] {_pn}: no API key — will be skipped")
         elif _pn == "tavily" and not TAVILY_API_KEY:
             _log(f"  [CONFIG] {_pn}: no API key — will be skipped")
@@ -623,7 +666,7 @@ def main(
     # ── Shared mutable state (all writes through the appropriate lock) ────────
     _model_web_cache: dict[str, dict | None] = _load_web_model_cache()
     provider_counts: dict[str, int] = {
-        "duckduckgo": 0, "google_cse": 0, "tavily": 0,
+        "duckduckgo": 0, "searxng": 0, "brave": 0, "tavily": 0,
     }
     _cache_lock    = threading.Lock()   # guards: cache dict + dirty_count + _save_cache
                                         #         also guards _model_web_cache saves
@@ -702,27 +745,46 @@ def main(
             if _is_cancelled():
                 return
 
-            # Google CSE — cascade even if DDG errored; _check_quota returns False instantly if no key/quota
-            if web_parsed is None and _is_enabled("google_cse") and _check_quota(engine, "google_cse", month):
+            # SearXNG — first if configured (localhost/self-hosted); no quota consumed
+            if web_parsed is None and _is_enabled("searxng") and _check_quota(engine, "searxng", month):
                 try:
-                    web_parsed = _google_cse_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "google_cse", month)
+                    web_parsed = _searxng_lookup(make, model, rep_year, cancel_event)
                     if web_parsed:
-                        src = "google_cse"
+                        src = "searxng"
                         with _prov_lock:
-                            provider_counts["google_cse"] += 1
+                            provider_counts["searxng"] += 1
                 except Exception as exc:
                     if _is_net_error(exc):
                         any_net_error = True
                     else:
                         err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
-                        _log(f"    [WEB-ERR] Google {make} {model} ({bucket}–{bucket+4}): {err_msg}")
+                        _log(f"    [WEB-ERR] SearXNG {make} {model} ({bucket}–{bucket+4}): {err_msg}")
                 _interruptible_sleep(REQUEST_DELAY, cancel_event)
 
             if _is_cancelled():
                 return
 
-            # Tavily — cascade even if DDG/Google errored; _check_quota returns False instantly if no key/quota
+            # Brave — cascade if DDG/SearXNG missed; _check_quota returns False instantly if no key/quota
+            if web_parsed is None and _is_enabled("brave") and _check_quota(engine, "brave", month):
+                try:
+                    web_parsed = _brave_lookup(make, model, rep_year, cancel_event)
+                    _increment_quota(engine, "brave", month)
+                    if web_parsed:
+                        src = "brave"
+                        with _prov_lock:
+                            provider_counts["brave"] += 1
+                except Exception as exc:
+                    if _is_net_error(exc):
+                        any_net_error = True
+                    else:
+                        err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
+                        _log(f"    [WEB-ERR] Brave {make} {model} ({bucket}–{bucket+4}): {err_msg}")
+                _interruptible_sleep(REQUEST_DELAY, cancel_event)
+
+            if _is_cancelled():
+                return
+
+            # Tavily — last resort; _check_quota returns False instantly if no key/quota
             if web_parsed is None and _is_enabled("tavily") and _check_quota(engine, "tavily", month):
                 try:
                     web_parsed = _tavily_lookup(make, model, rep_year, cancel_event)
