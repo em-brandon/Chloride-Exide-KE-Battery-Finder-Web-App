@@ -408,12 +408,12 @@ export interface QuotaInfo {
 }
 
 export interface CoverageInfo {
-  total:         number
-  matched:       number
-  unmatched:     number
-  pct_matched:   number
-  master_count:  number
-  staging_count: number
+  total:              number
+  matched:            number
+  unmatched:          number
+  pct_matched:        number
+  master_count:       number
+  staging_count:      number
   unmatched_vehicles: Array<{
     make_n:     string
     model_n:    string
@@ -421,6 +421,10 @@ export interface CoverageInfo {
     engine_cc:  number | null
     fuel_type:  string | null
   }>
+  total_buckets:     number
+  resolved_buckets:  number
+  remaining_buckets: number
+  web_cache_size:    number
 }
 
 export interface ProviderInfo {
@@ -429,10 +433,13 @@ export interface ProviderInfo {
   always_available: boolean
 }
 
-export async function runWebValidatePipeline(enabledProviders?: string[]): Promise<{ run_id: string }> {
+export async function runWebValidatePipeline(
+  enabledProviders?: string[],
+  phase: 'phase1' | 'phase2' | 'both' = 'phase1',
+): Promise<{ run_id: string }> {
   return adminFetch('/api/admin/pipeline/web-validate/run', {
     method: 'POST',
-    body: JSON.stringify({ enabled_providers: enabledProviders ?? null }),
+    body: JSON.stringify({ enabled_providers: enabledProviders ?? null, phase }),
   })
 }
 

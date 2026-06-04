@@ -506,6 +506,7 @@ def main(
     enabled_providers: list[str] | None = None,        # None = all available providers
     run_id: str | None = None,                         # UUID from admin_router — tags DB rows
     phase1_progress_callback: Callable | None = None,  # (fetched, total)
+    phase: str = "both",                               # "phase1", "phase2", or "both"
 ) -> dict:
     """
     Run the web battery validation pipeline.
@@ -834,20 +835,27 @@ def main(
         if phase1_progress_callback:
             phase1_progress_callback(_buckets_attempted, len(all_unique_buckets))
 
-    with ThreadPoolExecutor(max_workers=WEB_PREFETCH_WORKERS) as ex:
-        list(ex.map(_prefetch_web, unique_buckets))
+    if phase in ("phase1", "both"):
+        with ThreadPoolExecutor(max_workers=WEB_PREFETCH_WORKERS) as ex:
+            list(ex.map(_prefetch_web, unique_buckets))
 
-    # Always flush whatever is left after Phase 1 (covers cancel mid-phase too)
-    with _cache_lock:
-        _save_web_model_cache(_model_web_cache)
+        # Always flush whatever is left after Phase 1 (covers cancel mid-phase too)
+        with _cache_lock:
+            _save_web_model_cache(_model_web_cache)
 
-    web_hits = sum(1 for v in _model_web_cache.values() if v is not None)
-    total_buckets = len(all_unique_buckets)
-    if _is_cancelled():
-        _log(f"  [CANCELLED] Phase 1 stopped early — {web_hits}/{total_buckets} buckets cached. Phase 2 skipped.")
-        return {"fetched": 0, "cached": 0, "failed": 0, "provider_counts": dict(provider_counts)}
+        web_hits = sum(1 for v in _model_web_cache.values() if v is not None)
+        total_buckets = len(all_unique_buckets)
+        if _is_cancelled():
+            _log(f"  [CANCELLED] Phase 1 stopped early — {web_hits}/{total_buckets} buckets cached. Phase 2 skipped.")
+            return {"fetched": 0, "cached": 0, "failed": 0, "provider_counts": dict(provider_counts)}
+        else:
+            _log(f"  Phase 1 complete — {web_hits}/{total_buckets} buckets matched via web search")
+
+        if phase == "phase1":
+            _log("  Phase 1 only — done. Run Phase 2 separately when ready.")
+            return {"fetched": 0, "cached": 0, "failed": 0, "provider_counts": dict(provider_counts)}
     else:
-        _log(f"  Phase 1 complete — {web_hits}/{total_buckets} buckets matched via web search")
+        _log("  Skipping Phase 1 — running Phase 2 only using existing web cache.")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Phase 2 — process all (make, model, year) combos concurrently

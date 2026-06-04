@@ -48,7 +48,6 @@ REMOVE_MAKES: set[str] = {
     "SKODA",
     "OPEL",
     "PROTON",
-    "FAW",
 }
 
 AUDI_MIN_YEAR = 2010   # keep AUDI 2010 and later; remove older entries

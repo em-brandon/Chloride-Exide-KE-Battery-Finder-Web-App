@@ -1,0 +1,5572 @@
+{
+  "AUDI|A 3 SEDAN 1.4 TFSI|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 1.4 TFSI SPORT S LINE PACKAGE|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 30 TFSI SPORT|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 30 TFSI SPORT|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 40 TFSI QUATTRO S LINE|2010": {
+    "ah": 73,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 40 TFSI QUATTRO S LINE|2020": {
+    "ah": 73,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 40 TFSI QUATTRO SIGNATURE EDITION|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN S LINE TECHNO LIMITED|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI|2015": {
+    "ah": 72,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI|2010": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI|2020": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI ADVANCED|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI ADVANCED|2015": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI S LINE|2015": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI SPORT|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI SPORT SIGNATURE EDITION|2010": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK S LINE TECHNO LIMITED|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 35 TDI S LINE|2015": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 2.0 TFSI QUATTRO TUXEDO STYLE|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI ADVANCED|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI SPORT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI ADVANCED|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 40 TFSI MEISTERSTUECK S LINE PACKAGE|2015": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 40 TFSI MEISTERSTUECK S LINE PACKAGE|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO S LINE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO ADVANCED|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO S LINE|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO|2015": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO|2020": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO ABSOLUTE|2020": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO ABSOLUTE|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO BASE GRADE|2015": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO BASE GRADE|2020": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 1.4 TFSI TUXEDO STYLE|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO ABSOLUTE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 ALLROAD QUATTRO BASE GRADE|2010": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TDI ADVANCED|2015": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TDI S LINE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TDI S LINE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TDI S LINE|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TFSI SPORT|2010": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TFSI SPORT|2015": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TFSI SPORT|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 45 TFSI QUATTRO MEISTERSTUECK|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 45 TFSI QUATTRO MEISTERSTUECK|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT BLACK STYLE PLUS|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT BLACK STYLE PLUS|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 BLACK STYLE PLUS|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 BLACK STYLE PLUS|2015": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 BLACK STYLE PLUS|2020": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 CABRIOLET 2.0 TFSI QUATTRO SPORT|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 45 TFSI QUATTRO S LINE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 45 TFSI QUATTRO SPORT|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK BLACK STYLE PLUS|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK BLACK STYLE PLUS|2015": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK BLACK STYLE PLUS|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK S LINE COMPETITION PLUS|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK S LINE COMPETITION PLUS|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 6 45 TFSI QUATTRO|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 45 TFSI QUATTRO SPORT|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 45 TFSI QUATTRO SPORT|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 6 45 TFSI QUATTRO SPORT S LINE PACKAGE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 6 AVANT|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 40 TDI QUATTRO SPORT|2010": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 40 TDI QUATTRO SPORT S LINE PACKAGE|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 45 TFSI QUATTRO S LINE|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 40 TDI QUATTRO SPORT S LINE PACKAGE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 45 TFSI QUATTRO SPORT|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK|2020": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 2.0 TFSI QUATTRO|2010": {
+    "ah": 73,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 2.0 TFSI QUATTRO|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 2.0 TFSI QUATTRO|2025": {
+    "ah": 106,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 40 TDI QUATTRO S LINE PACKAGE|2015": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 40 TDI QUATTRO S LINE PACKAGE|2010": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 40 TDI QUATTRO S LINE PACKAGE|2025": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 45 TFSI QUATTRO|2010": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 55 TFSI QUATTRO S LINE|2015": {
+    "ah": 106,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 8|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 8|2010": {
+    "ah": 70,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|A 8 55 TFSI QUATTRO|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 8 60 TFSI E QUATTRO|2015": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 2 1.4 TFSI CYLINDER ON DEMAND SPORT|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 2 HASHTAG BLACK ELEGANCE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 2 HASHTAG CONTRAST STYLING|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 2 HASHTAG CONTRAST STYLING|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 2.0 TFSI QUATTRO 180 PS|2020": {
+    "ah": 92,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "AUDI|Q 3 35 TDI QUATTRO S LINE|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 35 TFSI S LINE|2020": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 SPORTBACK 35 TDI QUATTRO S LINE|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 SPORTBACK 35 TFSI|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 SPORTBACK HIGH STYLE|2020": {
+    "ah": 73,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 2.0 TFSI QUATTRO|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 2.0 TFSI QUATTRO|2015": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO|2010": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 2.0 TFSI QUATTRO|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO ADVANCED|2010": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO S LINE|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO ADVANCED|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO S LINE|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 45 TFSI QUATTRO SPORT S LINE PACKAGE|2010": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 45 TFSI QUATTRO SPORT S LINE PACKAGE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 BLACK EDITION|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 BLACK EDITION|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 BLACK EDITION|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 S LINE DYNAMIC LIMITED|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 S LINE DYNAMIC LIMITED|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 S LINE DYNAMIC LIMITED|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 TDI 1 ST EDITION BLACK STYLING|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|Q 7|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7|2025": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7|2020": {
+    "ah": 96,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7 3.0 TFSI QUATTRO|2015": {
+    "ah": 96,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7 45 S LINE LIMITED|2010": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7 45 S LINE LIMITED|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7 45 S LINE LIMITED|2025": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 7 50 TDI QUATTRO S LINE|2020": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8 55 TFSI QUATTRO|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8 55 TFSI QUATTRO|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8 BRONZE EDITION|2015": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8|2020": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8 JAPAN FINAL EDITION|2020": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8 SPYDER BASEGRADE|2010": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|R 8 SPYDER BASEGRADE|2015": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 3|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 3|2025": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 3 BASE GRADE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 3 SPORTBACK BASE GRADE|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 3 BASE GRADE|2025": {
+    "ah": 79,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 4 AVANT BASE GRADE|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 4 AVANT BASE GRADE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 5 BASE GRADE|2025": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 6 AVANT PERFORMANCE BASE GRADE|2020": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 7 SPORTBACK BASE GRADE|2015": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS Q 3|2015": {
+    "ah": 55,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "AUDI|RS Q 3 BASE GRADE|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS Q 3 BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS Q 3 SPORTBACK BASE GRADE|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS Q 8|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS Q 8 BASE GRADE|2015": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS Q 8|2020": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS Q 8 BASE GRADE|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 3 SEDAN BASE GRADE|2020": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 3 SEDAN BASE GRADE|2025": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 4 AVANT BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 4 AVANT BASE GRADE|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 4 AVANT BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 4 AVANT BASE GRADE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 4 BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 4 BASE GRADE|2015": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET|2010": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET BASE GRADE|2020": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 SPORTBACK BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 SPORTBACK BASE GRADE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 SPORTBACK BASE GRADE|2025": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 6 BASE GRADE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 7 SPORTBACK|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 2|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 2|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|SQ 2|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 2|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 2 BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 BASE GRADE|2010": {
+    "ah": 58,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5|2025": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|SQ 5 BASE GRADE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK|2010": {
+    "ah": 58,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 BASE GRADE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK|2015": {
+    "ah": 58,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK BASE GRADE|2020": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 7|2025": {
+    "ah": 79,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "AUDI|TT COUPE 40 TFSI|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|TT COUPE S LINE COMPETITION PLUS|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|TT RS COUPE BASE GRADE|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|TTS COUPE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|TTS COUPE|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 I|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 I HI LINE PACKAGE|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 I HI LINE PACKAGE|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 I M SPORT|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 330 E M SPORT|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 5 SERIES 523 D TOURING M SPORT|1995": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 D X DRIVE M SPORT|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 I M SPORT|1990": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 I M SPORT|2010": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 I M SPORT|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 I M SPORT|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 I M SPORT THE FIRST EDITION|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 LI EXCELLENCE|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 745 E LUXURY|1995": {
+    "ah": 34,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 LI EXCELLENCE|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 750 LI M SPORT PACKAGE|2010": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 745 E LUXURY|2000": {
+    "ah": 34,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 8 SERIES|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW 8 SERIES|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "BMW|BMW 8 SERIES 840 I GRAN COUPE|1990": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 8 SERIES M 850 I X DRIVE GRAN COUPE|1990": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW I 3|2010": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3 ATELIER RANGE EXTENDER|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3 BASE GRADE|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3 ATELIER RANGE EXTENDER|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3 LODGE RANGE EXTENDER|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3 LODGE RANGE EXTENDER|2015": {
+    "ah": 94,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW I 3 SUITE RANGE EXTENDER|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3 SUITE RANGE EXTENDER|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 4 E DRIVE 35 M SPORT|2020": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 3 BASE GRADE|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 4 E DRIVE 40 M SPORT|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 4 M 50 X DRIVE|2020": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW I 5 M 60 X DRIVE TOURING|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW I 7 E DRIVE 50 M SPORT|2020": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 8 ROADSTER|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW I 8 ROADSTER|2015": {
+    "ah": 34,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW IX 3 M SPORT|1985": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 1|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 1|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 1|2025": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW X 3 M COMPETITION|2000": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 4 M 40 I|2015": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 3 M COMPETITION|2005": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 4 X DRIVE 28 I M SPORT|2015": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 5 LIMITED BLACK|2000": {
+    "ah": 77,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 5 LIMITED WHITE|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 LIMITED BLACK|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 5 LIMITED WHITE|2005": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 M 50 I|2000": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW X 5 M 50 I|2005": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 35 D|2005": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 35 D M SPORT|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 45 E M SPORT|2000": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 50 E M SPORT|2000": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 6 M 50 I|2005": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW X 6 M 50 I|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "BMW|BMW X 6 X DRIVE 35 D M SPORT|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 7 M 50 I|2025": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 7 M 50 I|2020": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW Z 4 M 40 I|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW Z 4 S DRIVE 20 I SPORT|2005": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 BASE GRADE|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 LODGE RANGE EXTENDER|2010": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 LODGE RANGE EXTENDER|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 RANGE EXTENDER|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 BASE GRADE|2010": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 SUITE RANGE EXTENDER|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 RANGE EXTENDER|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 3 SUITE RANGE EXTENDER|2015": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 4 E DRIVE 40 HI LINE PACKAGE|2020": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 4 E DRIVE 40 M SPORT HI LINE PACKAGE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 5 M 60 X DRIVE|2025": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|I 7 E DRIVE 50 M SPORT|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|IX 3 M SPORT|1990": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|IX 3 M SPORT|1995": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 3 M 3 50 TH ANNIVERSARY LIMITED|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 50 TH ANNIVERSARY LIMITED|2005": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 50 TH ANNIVERSARY LIMITED|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 3 M 3 MT FINAL EDITION|1985": {
+    "ah": 85,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 50 TH ANNIVERSARY LIMITED|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 MT FINAL EDITION|1990": {
+    "ah": 75,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|M 3 M 3 MT FINAL EDITION|2010": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 3 M 3 MT FINAL EDITION|2020": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 SEDAN COMPETITION M X DRIVE|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 4 COUPE EDITION HERITAGE|2020": {
+    "ah": 69,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "BMW|M 4 CSL|2015": {
+    "ah": 69,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 5|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5 M 5|2000": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "BMW|M 5 M 5|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5 M 5|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5 M 5|2020": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 8 M 8 CABRIOLET COMPETITION|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 8 M 8 COUPE COMPETITION|2020": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I|2025": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I M SPORT|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I M SPORT|2020": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I M SPORT|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I X LINE|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I X LINE|2025": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I X LINE HI LINE PACKAGE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I X LINE HI LINE PACKAGE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I X LINE HI LINE PACKAGE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 18 D X LINE|2010": {
+    "ah": 71,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 18 D M SPORT|2025": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 18 D X LINE|2015": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 20 D X LINE|2010": {
+    "ah": 71,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 M 35 I|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 M 35 I|2020": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 M 35 I X DRIVE|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 S DRIVE 18 I|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 M 35 I X DRIVE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 S DRIVE 18 I|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 S DRIVE 18 I M SPORT X|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 2 S DRIVE 18 I|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 S DRIVE 18 I M SPORT X|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 X DRIVE 18 D M SPORT EDITION SUNRISE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 X DRIVE 18 D M SPORT EDITION SUNRISE|2025": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 X DRIVE 20 I M SPORT X|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 X DRIVE 20 I M SPORT X|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 3 20 X DRIVE X LINE|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 3|2000": {
+    "ah": 80,
+    "technology": "EFB",
+    "region": "DIN"
+  },
+  "BMW|X 3 20 X DRIVE X LINE|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 3 M 40 D|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 3 M 40 D|2000": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 3 MIDNIGHT EDITION|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 3 X DRIVE 20 D|2000": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 3 MIDNIGHT EDITION|2005": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 3 X DRIVE 20 D M SPORT|2000": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 3 X DRIVE 20 D M SPORT|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 3 X DRIVE 20 I|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 3 X DRIVE 20 I|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 4 X DRIVE 28 I M SPORT|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 5 LIMITED BLACK|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 5 LIMITED WHITE|2000": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 5 LIMITED BLACK|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 5 LIMITED WHITE|2005": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 35 D EDITION X|2005": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 35 D M SPORT HI LINE PACKAGE|2000": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 35 D PLEASURE 3 EDITION|2000": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 6 M 50 I|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 6 M 50 I|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 6 M 50 I|2015": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 7 M 60 I X DRIVE|2015": {
+    "ah": 96,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 7 X DRIVE 35 D M SPORT|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 7 X DRIVE 35 D M SPORT|2025": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 7 X DRIVE 40 D EXCELLENCE|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 7 X DRIVE 40 D M SPORT|2015": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|Z 4 S DRIVE 20 I|2005": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|Z 4 S DRIVE 20 I M SPORT|2005": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|Z 4 S DRIVE 20 I M SPORT|2000": {
+    "ah": 82,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|Z 4 S DRIVE 20 I|2000": {
+    "ah": 82,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|Z 4 S DRIVE 20 I M SPORT EDITION SUNRISE|2000": {
+    "ah": 82,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|Z 4 S DRIVE 20 I SPORT|2005": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "CHERY|TIGGO 7 PRO ELITE 2 WD|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHERY|TIGGO 7 PRO SE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "CHERY|TIGGO 7 PRO SE|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "CHERY|TIGGO 7 PRO SE+|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHERY|TIGGO 7 PRO URBAN 2 WD|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHERY|TIGGO 8 PRO MAX URBAN 2 WD|2020": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "CHERY|TIGGO 8 PRO MAX URBAN 2 WD|2015": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1950": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1960": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1985": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CAMARO 2 SS|2000": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|BELAIR|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|1995": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|1980": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS HERITAGE EDITION|1965": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS HERITAGE EDITION|1985": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO SS|2000": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO ZL 1|1965": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CAMARO ZL 1|1980": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CAMARO ZL 1|2005": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO ZL 1|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CAMARO ZL 1|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA BASE GRADE|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA BASE GRADE|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA|2020": {
+    "ah": 49,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAPTIVA BASE GRADE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CHEVY VAN|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CHEVY VAN|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CHEVY VAN|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|COLORADO CREW CAB SHORT Z 2|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CHEVY VAN|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|COLORADO CREW CAB SHORT Z 2|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|COLORADO CREW CAB SHORT Z 2|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|COLORADO CREW CAB SHORT Z 2|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|COLORADO CREW CAB SHORT Z 2|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "CHEVROLET|COLORADO CREW CAB SHORT Z 2|2010": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|COLORADO CREW CAB SHORT Z 2|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE|2015": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|1950": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|1970": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE CONVERTIBLE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE STINGRAY|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE Z 06 3 LZ|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE Z 06|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE Z 06 3 LZ|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO 1500 LTZ PREMIUM|2005": {
+    "ah": 62,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO 1500 LTZ PREMIUM TECH PACK|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO 1500 ZR 2|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO 1500 ZR 2|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 1)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 1)|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 1)|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 2)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 2)|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 2)|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ALTIS G|2020": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|1995": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|2000": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|1975": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|1990": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|2015": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON CILQ|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON CILQ|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|BOON STYLE|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|BOON STYLE|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|BOON X|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|BOON X|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON X|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|BOON X|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON X L PACKAGE|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON X L PACKAGE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON X L PACKAGE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|CAST SPORT|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN CERO|2000": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN CERO|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN G|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN G|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN G|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN GR|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|COPEN GR|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|COPEN GR|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN GR|1995": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN GR SPORT|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|COPEN ROBE|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|COPEN ROBE|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN ROBE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN STYLE \"SA III\"|2000": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN STYLE \"SA III\"|2010": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN X \"L SA III\"|1995": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN X \"L SA III\"|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN STYLE \"SA III\"|2005": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN X \"L SA III\"|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN X \"L SA III\"|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|COPEN XPLAY|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN XPLAY|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN XPLAY|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX CARGO GL|2010": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX|2010": {
+    "ah": 40,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX CARGO GL|2020": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX GL|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX GL|2010": {
+    "ah": 38,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET CADDIE D DELUXE|2005": {
+    "ah": 32,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET CADDIE D DELUXE|2015": {
+    "ah": 32,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET CARGO DELUXE|1995": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET JUMBO|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET JUMBO|1985": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET JUMBO|1990": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET JUMBO|1995": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET JUMBO|2010": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK|1965": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DAIHATSU|HIJET TRUCK|1980": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DAIHATSU|HIJET TRUCK|1995": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK|2010": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DAIHATSU|HIJET TRUCK|2015": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK ALUMINIUM MODERATE TEMP REFRIGERATING|1985": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK ALUMINIUM MODERATE TEMP REFRIGERATING|1975": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK ALUMINIUM MODERATE TEMP REFRIGERATING|1995": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK ALUMINIUM MODERATE TEMP REFRIGERATING|2015": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK ALUMINIUM MODERATE TEMP REFRIGERATING|2020": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK EXTRA|1990": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK EXTRA|1995": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK EXTRA|1980": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK EXTRA|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK JUMBO|1985": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK JUMBO|1990": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK JUMBO|2010": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK MODERATE TEMPERATURE REFRIGERATING TRUCK|1970": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK MODERATE TEMPERATURE REFRIGERATING TRUCK|1985": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK MODERATE TEMPERATURE REFRIGERATING TRUCK|2010": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK MODERATE TEMPERATURE REFRIGERATING TRUCK|2020": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|1965": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|1980": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|1985": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|2000": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|1995": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|1990": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|2020": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PTO|1985": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PTO|2000": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PTO|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PTO|2020": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VEHICLE TAIL|1965": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VERTICAL TAIL LIFT|1960": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VERTICAL TAIL LIFT|1965": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VERTICAL TAIL LIFT|2020": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S TOURING|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S TOURING|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S TOURING|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MIRA COCOA|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MIRA E:S|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MIRA G|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MIRA G|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MIRA VAN TX|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE CUSTOM RS|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE CUSTOM RS|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|MOVE CUSTOM X\"LIMITED SA III\"|2015": {
+    "ah": 38,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE L|2005": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE L|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE L \"SA III\"|2010": {
+    "ah": 38,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE X|2020": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ROCKY G|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ROCKY G|2020": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ROCKY PREMIUM G|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ROCKY PREMIUM G|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TAFT 2|2020": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|TANTO|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM RS|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM SLOPER X|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM SLOPER X|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM SLOPER X|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM SLOPER X\"SA III\"|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM SLOPER X\"SA III\"|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM SLOPER X\"SA III\"|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM WELCOME SEAT X\"SA III\"|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM WELCOME SEAT X\"SA III\"|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPE X|2025": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPER X|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPER X|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPER X|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPER X|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPER X|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT IFT CUSTOM RS|1960": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT IFT CUSTOM RS|1955": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT IFT CUSTOM RS|1965": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1955": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1980": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1990": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|1995": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|TANTO WELCOME SEAT X\"SA III\"|2015": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|THOR CUSTOM G|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|THOR CUSTOM G|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|THOR CUSTOM G TURBO \"SA II\"|2015": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|THOR G|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|THOR G|2015": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|WAKE G|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|WAKE G TURBO|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|WAKE G|2020": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|WAKE G TURBO|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|WAKE TURBO|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|CHARENGER|1980": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO CITADEL|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO CITADEL|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO CITADEL|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO GT|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|DURANGO GT PLUS|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO GT PREMIUM|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|DURANGO GT PREMIUM|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO R/T|2000": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO R/T|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|DURANGO RT|2000": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO RT|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|DURANGO SRT HELLCAT|2015": {
+    "ah": 24,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO SXT|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO SXT|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|DURANGO SXT|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO SXT PLUS|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO SXT PLUS|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO SXT PLUS|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO SXT PLUS|2010": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|HORNET GT|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|RAM|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|RAM|1985": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|RAM|1990": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|RAM BASE GRADE|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|RAM BASE GRADE|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|RAM RARAMY|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|RAM RARAMY|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|RAM RARAMY|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "EICHER|PRO 2050|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "EICHER|PRO 2050|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "EICHER|PRO 2050 CNG|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "EICHER|PRO 2050|2020": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "EICHER|PRO 60|2020": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "EICHER|PRO 2050 CNG|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|CA 6371|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|CA 6371|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|CA 6371|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|CA 6371|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|CA 6371|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|CA 6371|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FAW|CA 6371|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|CA 6371|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|2005": {
+    "ah": 126,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|500 1.2 POP|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 1.2 POP|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 MIMOSA|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 MIMOSA|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|500 TWIN AIR LOUNGE|2010": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 TWIN AIR LOUNGE|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 X BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|500 X CLUB|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 X INDIGO|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|500 X INFINITO|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|500 X INFINITO|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 X INDIGO|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|CINQUECENTO|1990": {
+    "ah": 40,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "FIAT|CINQUECENTO BASE GRADE|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|CINQUECENTO BASE GRADE|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO|2005": {
+    "ah": 78,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|CINQUECENTO|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|DOBLO|2020": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO BASE GRADE|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|DOBLO|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO BASE GRADE|2005": {
+    "ah": 78,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO BASE GRADE|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO MAXI|2010": {
+    "ah": 200,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|1960": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|DUCATO|1985": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DUCATO|1980": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DUCATO|2000": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DUCATO|1990": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DUCATO|1995": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DUCATO|2015": {
+    "ah": 107,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DUCATO|2010": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DUCATO|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DUCATO|2020": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DUCATO L 2 H 2|1980": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|FIAT FIAT OTHER|1995": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|FIAT FIAT OTHER|2000": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|FIAT FIAT OTHER|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|FIAT FIAT OTHER|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|PANDA 4 X 4 FORESTA|2015": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA 30|2020": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|PANDA 4 X 4 FORESTA|2020": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA 4 X 4 SUCCOSA|2015": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA 4 X 4 SUCCOSA|2020": {
+    "ah": 100,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|PANDA COMFORT|1985": {
+    "ah": 54,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "FIAT|PANDA COMFORT|1995": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA COMFORT|2005": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA COMFORT|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|PANDA CROSS 4 X 4|1980": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA COMFORT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|PANDA CROSS 4 X 4|1990": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA CROSS 4 X 4|2000": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA CROSS 4 X 4|2010": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA EASY|1985": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA EASY|1980": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA EASY|1995": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA EASY|2005": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA EASY|2015": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|1970": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|1975": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|1985": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|1990": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|2000": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|1980": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|2005": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|2020": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|POP|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|POP STAR|2015": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|SCUDO LWB|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|SCUDO LWB|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|SCUDO LWB|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|SCUDO LWB|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|SCUDO LWB|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|SCUDO LWB|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|1960": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|1970": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|1965": {
+    "ah": 59,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|1975": {
+    "ah": 59,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|1980": {
+    "ah": 44,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|ECOSPORT|1985": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|1990": {
+    "ah": 44,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|ECOSPORT|2000": {
+    "ah": 44,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|ECOSPORT|2010": {
+    "ah": 70,
+    "technology": "EFB",
+    "region": null
+  },
+  "FORD|ECOSPORT|2015": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|2005": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ECOSPORT|1995": {
+    "ah": 59,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|2005": {
+    "ah": 36,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1955": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1965": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1960": {
+    "ah": 36,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1980": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1985": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1975": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1970": {
+    "ah": 36,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|1995": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|ESCAPE|2010": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|ESCAPE|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|ESCAPE|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|ESCAPE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|EVEREST|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ESCAPE|2020": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|EVEREST|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|EVEREST|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FORD|EVEREST|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|EVEREST|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|FIESTA|1975": {
+    "ah": 36,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|F 150|2025": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|FOCUS|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|FIESTA|1980": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|FOCUS|2005": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|MONDEO|1990": {
+    "ah": 62,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|MONDEO|2005": {
+    "ah": 60,
+    "technology": "EFB",
+    "region": null
+  },
+  "FORD|MONDEO|1995": {
+    "ah": 43,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|MONDEO|2000": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|MONDEO|2020": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|MUSTANG|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|PUMA|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|MONDEO|2010": {
+    "ah": 43,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|PUMA|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|RANGER|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|RANGER|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FORD|RANGER|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|RANGER|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|RANGER|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TOURNEO CUSTOM|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TOURNEO CUSTOM|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TOURNEO CUSTOM|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|1965": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|1980": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|1985": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "FORD|TRANSIT|1970": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|1995": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT CUSTOM|1980": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "GREAT WALL|GREAT WALL V 200|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|TRANSIT|2010": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "GREAT WALL|GREAT WALL V 240|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HAVAL|CITY 2 WD|2005": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HAVAL|CITY 2 WD|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HAVAL|PREMIUM|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HAVAL|PREMIUM|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HAVAL|CITY 2 WD|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1950": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1960": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HAVAL|ULTRA|2020": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|300|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|2000": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO|1960": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR|1950": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR|2010": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR|2005": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1950": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1960": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1970": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1955": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1995": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1980": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1985": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|2005": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR DUMP|1955": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|2025": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR DUMP|1970": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR DUMP|1985": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR DUMP|2000": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR DUMP|2020": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR DUMP|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR SUPER YOKOZUNA DUMP|1965": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DOUBLE CAB|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR SUPER YOKOZUNA DUMP|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1960": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|2020": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|2015": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|1965": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|1980": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|1985": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|2005": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|2010": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1960": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1965": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1975": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1980": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1970": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|2005": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|2010": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|2020": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|2015": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HYBRID|1960": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|2025": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1960": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1965": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1975": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1980": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HINO|DUTRO LONG|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HINO|DUTRO LONG|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG ALL LOW FLOOR|2025": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO LONG ALL LOW FLOOR TURBO|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO WIDE CAB SUPER LONG ALL LOW FLOOR|1990": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|MELPHA|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1950": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|MELPHA|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1970": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1980": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|1995": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HINO|MELPHA|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|MELPHA|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1950": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1950": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1970": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1975": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1980": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|2005": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACCORD EX|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|1975": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC EX|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC EX|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC EX|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|1975": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|1990": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC RS|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC RS|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|2010": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|1975": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|1990": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|2000": {
+    "ah": 40,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC TYPE R|1985": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|CIVIC TYPE R|1995": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT 13 G.F|2005": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT 13 G.F|2020": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT 13 G.F|2010": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT E:HVE BASIC|2010": {
+    "ah": 35,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|FIT HYBRID F|2020": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT HYBRID S|2015": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FREED G|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FREED HYBRID MODULO X|2015": {
+    "ah": 32,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FREED HYBRID MODULO X|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID DX|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID DX|2000": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID DX|2010": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID DX|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID DX|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID EX|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID DX|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID EX|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID EX|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID EX|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|GRACE LX|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|GRACE LX|1980": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|GRACE LX|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|INSIGHT EX BLACK STYLE|1980": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|INSIGHT EX BLACK STYLE|1975": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|INSIGHT EX BLACK STYLE|1985": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|JADE RS|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|JADE RS|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|JADE RS|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID EX|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID EX|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID X|1995": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID X|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 30 TFSI ADVANCED|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 1.4 TFSI SPORT S LINE PACKAGE|2010": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN S LINE BLACK STYLING|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI SPORT|2010": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 40 TFSI QUATTRO ADVANCED|2010": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI SPORT SIGNATURE EDITION|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK S LINE TECHNO LIMITED|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 35 TDI S LINE|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "AUDI|A 4 40 TFSI MEISTERSTUECK S LINE PACKAGE|2010": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI SPORT|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO ADVANCED|2020": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO ADVANCED|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO SPORT S LINE PACKAGE|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 1.4 TFSI TUXEDO STYLE|2020": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT BLACK STYLE PLUS|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 45 TFSI QUATTRO SPORT|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 CABRIOLET 2.0 TFSI QUATTRO SPORT|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 40 TFSI SPORT|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 45 TFSI QUATTRO SPORT|2010": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 55 TFSI QUATTRO DEBUT PACKAGE|2015": {
+    "ah": 96,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 45 TFSI QUATTRO SPORT S LINE PACKAGE|2015": {
+    "ah": 110,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK|2010": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 2.0 TFSI QUATTRO|2015": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK|2025": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 45 TFSI QUATTRO|2015": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 40 TDI QUATTRO S LINE PACKAGE|2020": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 8 55 TFSI QUATTRO|2010": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "AUDI|A 8 60 TFSI E QUATTRO|2010": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 3 2.0 TFSI QUATTRO 180 PS|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 35 TDI QUATTRO ADVANCED|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 2 HASHTAG BLACK ELEGANCE|2015": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 35 TDI QUATTRO S LINE|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 SPORTBACK 35 TFSI S LINE|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO SPORT|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO SPORT|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 TDI 1 ST EDITION BLACK STYLING|2015": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 7 45 S LINE LIMITED|2015": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7 50 TDI QUATTRO S LINE|2010": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 7 3.0 TFSI QUATTRO|2025": {
+    "ah": 96,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8 BRONZE EDITION|2020": {
+    "ah": 26,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8 JAPAN FINAL EDITION|2010": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8 JAPAN FINAL EDITION|2015": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 5 BASE GRADE|2020": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 6 AVANT BASE GRADE|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 6 AVANT BASE GRADE|2020": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS 7 SPORTBACK BASE GRADE|2020": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS Q 3 SPORTBACK BASE GRADE|2020": {
+    "ah": 73,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 3 SEDAN BASE GRADE|2015": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 3 SPORTBACK|2015": {
+    "ah": 58,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 4 BASE GRADE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 4 BASE GRADE|2025": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET BASE GRADE|2025": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 5 CABRIOLET|2025": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 6 BASE GRADE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 6 BASE GRADE|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 6 BASE GRADE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 7 SPORTBACK BASE GRADE|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 2 BASE GRADE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|SQ 5|2015": {
+    "ah": 58,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|SQ 5|2010": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK|2020": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5|2020": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK|2025": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK BASE GRADE|2010": {
+    "ah": 58,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK BASE GRADE|2015": {
+    "ah": 58,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 5 SPORTBACK BASE GRADE|2025": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|SQ 7|2020": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|TT COUPE S LINE DYNAMIC LIMITED|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|TTS COUPE MEMORIAL EDITION|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 D X DRIVE M SPORT EDITION SHADOW|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 I|2010": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 I STYLE MEISTER|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 5 SERIES 523 D X DRIVE TOURING M SPORT|1995": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 D X DRIVE EXCELLENCE|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 E IPERFORMANCE M SPORT|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 740 I M SPORT|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 745 E LUXURY|2005": {
+    "ah": 34,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 1.4 TFSI SPORT S LINE PACKAGE|2020": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 40 TFSI QUATTRO SIGNATURE EDITION|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 40 TFSI QUATTRO S LINE|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO S LINE|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 40 TFSI QUATTRO S LINE|2020": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 1.4 TFSI TUXEDO STYLE|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TDI ADVANCED|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 45 TFSI QUATTRO SPORT|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 CABRIOLET 2.0 TFSI QUATTRO SPORT|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 40 TFSI SPORT|2010": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 40 TFSI SPORT|2025": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 45 TFSI QUATTRO SPORT|2025": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK BLACK STYLE PLUS|2025": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 2.0 TFSI QUATTRO S LINE PACKAGE|2015": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  }
+}
