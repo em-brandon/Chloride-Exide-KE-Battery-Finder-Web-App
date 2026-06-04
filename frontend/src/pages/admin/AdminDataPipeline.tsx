@@ -757,6 +757,7 @@ function WebValidateTab() {
   )
   const [actionError, setActionError]     = useState<string | null>(null)
   const [loadingRun, setLoadingRun]       = useState(false)
+  const [loadingRunP2, setLoadingRunP2]   = useState(false)
   const [actionInProgress, setActionInProgress] = useState<'pause' | 'resume' | 'cancel' | null>(null)
   const [isStopping, setIsStopping] = useState(false)
   const [loadingQuotas, setLoadingQuotas] = useState(false)
@@ -993,13 +994,27 @@ function WebValidateTab() {
     setActionError(null)
     setLoadingRun(true)
     try {
-      await runWebValidatePipeline([...enabledProviders])
+      await runWebValidatePipeline([...enabledProviders], 'phase1')
       const s = await getWebValidateStatus()
       setStatus(s)
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoadingRun(false)
+    }
+  }
+
+  async function handleRunPhase2() {
+    setActionError(null)
+    setLoadingRunP2(true)
+    try {
+      await runWebValidatePipeline([...enabledProviders], 'phase2')
+      const s = await getWebValidateStatus()
+      setStatus(s)
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoadingRunP2(false)
     }
   }
 
@@ -1366,25 +1381,48 @@ function WebValidateTab() {
       {/* Run / Pause / Resume / Stop controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
         {!isRunning && !isPaused ? (
-          /* ── Idle state: Run button ── */
-          <button
-            onClick={handleRun}
-            disabled={loadingRun}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.45rem',
-              fontSize: '0.82rem', fontWeight: 700,
-              padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-              cursor: loadingRun ? 'not-allowed' : 'pointer',
-              background: loadingRun ? '#e2e4e9' : R,
-              color: loadingRun ? 'rgba(107,114,128,0.7)' : '#fff',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => { if (!loadingRun) e.currentTarget.style.background = RD }}
-            onMouseLeave={e => { if (!loadingRun) e.currentTarget.style.background = R }}
-          >
-            <PlayIcon style={{ width: 14, height: 14 }} />
-            {loadingRun ? 'Starting…' : 'Run Web Validate'}
-          </button>
+          /* ── Idle state: Phase 1 + conditional Phase 2 buttons ── */
+          <>
+            <button
+              onClick={handleRun}
+              disabled={loadingRun || loadingRunP2}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.45rem',
+                fontSize: '0.82rem', fontWeight: 700,
+                padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
+                cursor: (loadingRun || loadingRunP2) ? 'not-allowed' : 'pointer',
+                background: loadingRun ? '#e2e4e9' : R,
+                color: loadingRun ? 'rgba(107,114,128,0.7)' : '#fff',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => { if (!loadingRun && !loadingRunP2) e.currentTarget.style.background = RD }}
+              onMouseLeave={e => { if (!loadingRun && !loadingRunP2) e.currentTarget.style.background = R }}
+            >
+              <PlayIcon style={{ width: 14, height: 14 }} />
+              {loadingRun ? 'Starting…' : 'Run Phase 1'}
+            </button>
+            {/* Phase 2 button — shown when Phase 1 has run but Phase 2 hasn't */}
+            {(status?.phase1_total ?? 0) > 0 && (status?.processed ?? 0) === 0 && (
+              <button
+                onClick={handleRunPhase2}
+                disabled={loadingRunP2 || loadingRun}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.45rem',
+                  fontSize: '0.82rem', fontWeight: 700,
+                  padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
+                  cursor: (loadingRunP2 || loadingRun) ? 'not-allowed' : 'pointer',
+                  background: loadingRunP2 ? '#e2e4e9' : '#3b82f6',
+                  color: loadingRunP2 ? 'rgba(107,114,128,0.7)' : '#fff',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { if (!loadingRunP2 && !loadingRun) e.currentTarget.style.background = '#2563eb' }}
+                onMouseLeave={e => { if (!loadingRunP2 && !loadingRun) e.currentTarget.style.background = '#3b82f6' }}
+              >
+                <PlayIcon style={{ width: 14, height: 14 }} />
+                {loadingRunP2 ? 'Starting…' : 'Run Phase 2'}
+              </button>
+            )}
+          </>
         ) : isPaused ? (
           /* ── Paused state: Resume + Stop ── */
           <>
@@ -1531,7 +1569,7 @@ function WebValidateTab() {
               </span>
               {!isPaused && status?.processed === 0 && (
                 <span style={{ fontSize: '0.72rem', background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 99, padding: '0.15rem 0.55rem', color: '#7c3aed' }}>
-                  Phase 1 of 2
+                  Phase 1 — Web Prefetch
                 </span>
               )}
               {!isPaused && status?.processed !== 0 && status?.current_provider && status.current_provider !== 'none' && (
@@ -1607,29 +1645,53 @@ function WebValidateTab() {
 
       {/* Coverage Summary */}
       <div style={{ ...CARD, padding: '1.25rem 1.5rem', opacity: coverageLoading ? 0.5 : 1, transition: 'opacity 0.3s' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', display: 'inline-block' }}>
           Battery Coverage
         </h3>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          <SummaryBadge label="Total Combos"      value={totalCount.toLocaleString()} />
-          <SummaryBadge label="Matched"           value={matchedCount.toLocaleString()} color="#22c55e" />
-          <SummaryBadge label="Unmatched"         value={unmatchedCount.toLocaleString()} color={unmatchedCount > 0 ? R : '#22c55e'} />
-          <SummaryBadge label="Committed to Master" value={(coverage?.master_count ?? 0).toLocaleString()} color="#22c55e" />
-          {(coverage?.staging_count ?? 0) > 0 && (
-            <SummaryBadge label="In Staging" value={(coverage?.staging_count ?? 0).toLocaleString()} color="#f59e0b" />
-          )}
-        </div>
-        {/* Segmented progress bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ flex: 1, background: '#e2e4e9', borderRadius: 99, height: 10, overflow: 'hidden' }}>
-            <div style={{
-              width: `${matchedPct}%`, background: '#22c55e',
-              height: '100%', borderRadius: 99, transition: 'width 0.5s',
-            }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          {/* Left: stacked label rows */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.38rem' }}>
+            {([
+              { label: 'Total Combos',        value: totalCount.toLocaleString(),                                  Icon: TableCellsIcon,       color: '#9ca3af' },
+              { label: 'Matched',             value: matchedCount.toLocaleString(),                               Icon: CheckCircleIcon,       color: '#22c55e' },
+              { label: 'Unmatched',           value: unmatchedCount.toLocaleString(),                             Icon: ExclamationCircleIcon, color: unmatchedCount > 0 ? R : '#22c55e' },
+              { label: 'Committed to Master', value: (coverage?.master_count ?? 0).toLocaleString(),              Icon: CloudArrowUpIcon,      color: '#16a34a' },
+              ...((coverage?.staging_count ?? 0) > 0 ? [{ label: 'In Staging', value: (coverage!.staging_count).toLocaleString(), Icon: ArchiveBoxIcon, color: '#f59e0b' }] : []),
+              { label: 'Buckets Remaining',   value: (coverage?.remaining_buckets ?? 0).toLocaleString(),         Icon: FunnelIcon,            color: '#6366f1' },
+              { label: 'In Web Cache',        value: (coverage?.web_cache_size ?? 0).toLocaleString(),            Icon: GlobeAltIcon,          color: '#0ea5e9' },
+            ] as { label: string; value: string; Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; color: string }[]).map(({ label, value, Icon, color }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Icon style={{ width: 12, height: 12, color, flexShrink: 0 }} />
+                <span style={{ fontSize: '0.75rem', color: 'rgba(107,114,128,0.85)' }}>{label}</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)', fontVariantNumeric: 'tabular-nums', marginLeft: '0.2rem' }}>{value}</span>
+              </div>
+            ))}
           </div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#22c55e', whiteSpace: 'nowrap' }}>
-            {matchedPct.toFixed(1)}% covered
-          </span>
+
+          {/* Right: SVG donut chart */}
+          {(() => {
+            const r = 45, cx = 60, cy = 60
+            const circ = 2 * Math.PI * r
+            const arc  = (matchedPct / 100) * circ
+            return (
+              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                <svg width="110" height="110" viewBox="0 0 120 120">
+                  <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e4e9" strokeWidth="15" />
+                  {matchedPct > 0 && (
+                    <circle
+                      cx={cx} cy={cy} r={r} fill="none"
+                      stroke="#22c55e" strokeWidth="15"
+                      strokeDasharray={`${arc} ${circ - arc}`}
+                      transform={`rotate(-90 ${cx} ${cy})`}
+                      style={{ transition: 'stroke-dasharray 0.6s ease' }}
+                    />
+                  )}
+                  <text x={cx} y={cy - 4} textAnchor="middle" fontSize="17" fontWeight="800" fill="rgba(17,24,39,0.88)">{matchedPct.toFixed(1)}%</text>
+                  <text x={cx} y={cy + 12} textAnchor="middle" fontSize="8.5" fill="#6b7280" letterSpacing="0.08em">COVERED</text>
+                </svg>
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -1811,6 +1873,9 @@ function WebValidateTab() {
               Review &amp; Commit
             </button>
           </div>
+          <p style={{ fontSize: '0.68rem', color: '#92400e', margin: '0.5rem 0 0', fontStyle: 'italic' }}>
+            Discard removes staged records only — the Phase 1 web search cache is preserved.
+          </p>
         </div>
       )}
 

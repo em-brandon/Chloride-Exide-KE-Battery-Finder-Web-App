@@ -4,7 +4,7 @@ import type { RecommendationResult } from '@/types/battery'
 import { useToast, Toaster } from '@/components/Notification'
 import { AccuracyBar } from '@/components/AccuracyBar'
 import { FeedbackModal } from '@/components/FeedbackModal'
-import { Search, MousePointerClick, Keyboard } from 'lucide-react'
+import { Search, MousePointerClick, Keyboard, Copy, Check } from 'lucide-react'
 import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
 
 interface VehicleFinderFormProps {
@@ -63,6 +63,13 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    if (!p.battery_code) return
+    navigator.clipboard.writeText(p.battery_code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
   const vehicleLabel = inputType === 'type' && typedLabel
     ? typedLabel
     : data.matched_make
@@ -116,7 +123,14 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
           <div className="unit">CCA (EN)</div>
         </div>
         <div className="primary-name">
-          <div className="battery-code">{p.battery_code || '—'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div className="battery-code">{p.battery_code || '—'}</div>
+            {p.battery_code && (
+              <button className="copy-btn" onClick={handleCopy} title="Copy battery code">
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+              </button>
+            )}
+          </div>
           {p.model_key && <div className="model-key">{p.model_key}</div>}
         </div>
       </div>
@@ -584,7 +598,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
         </div>
 
         {/* i-stop toggle */}
-        <div className="form-group full" style={{ marginTop: '0.25rem' }}>
+        <div className="form-group full" style={{ marginTop: '0.15rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} ref={istopTooltipRef}>
               <span className="form-label" style={{ marginBottom: 0 }}>Is car i-stop enabled?</span>
@@ -661,8 +675,14 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       </div>
 
       {/* Result column on the right */}
+      {submitting && !result && (
+        <div className="result-side-card result-loader-card">
+          <CarBatteryIcon size={52} color="var(--red)" />
+          <p className="result-loader-text">Finding your battery…</p>
+        </div>
+      )}
       {result && (
-        <div className="result-side-card">
+        <div className="result-side-card animate-slide-up">
           <ResultPanel
             data={result}
             inputType={typeMode ? 'type' : 'select'}

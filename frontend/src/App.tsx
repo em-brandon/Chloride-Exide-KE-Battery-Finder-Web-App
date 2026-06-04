@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import chlorideExideLogo from '@/assets/chloride_exide_transparent.png'
+import chlorideExideLogo     from '@/assets/chloride_exide_transparent.png'
+import chlorideExideBrandLogo from '@/assets/chlorideexidebrandlogo.png'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
@@ -95,7 +96,7 @@ function PublicApp({
           {/* Left: Brand */}
           <div className="page-nav-brand">
             <img
-              src={chlorideExideLogo}
+              src={darkMode ? chlorideExideBrandLogo : chlorideExideLogo}
               alt="Chloride Exide"
               style={{
                 height: 52,
@@ -104,28 +105,32 @@ function PublicApp({
                 objectFit: 'contain',
                 display: 'block',
                 flexShrink: 0,
+                borderRadius: darkMode ? 6 : 0,
               }}
             />
-            <div className="page-brand-sub" style={{ alignSelf: 'center' }}>Battery Finder</div>
+            <div className="page-brand-sub" style={{ alignSelf: 'center' }}>
+              <span style={{ color: 'var(--red)' }}>Battery</span>{' '}
+              <span style={{ color: 'var(--blue)' }}>Finder</span>
+            </div>
           </div>
 
           {/* Center: manual mode badges */}
           {typeMode && (
             <div className="nav-type-mode">
-              <span className="badge nav-manual-badge"><Settings size={13} strokeWidth={1.75} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Manual Mode Active</span>
+              <span className="nav-manual-badge"><Settings size={13} strokeWidth={1.75} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Manual Mode Active</span>
               {navEstConf && navEstConf.pct > 0 && (
                 <div className="nav-conf">
                   <div className="nav-conf-label-row" ref={popoverRef}>
-                    <span className="nav-conf-label">Match Confidence</span>
+                    <span className="nav-conf-label">Estimated Accuracy</span>
                     <button
                       className="conf-info-btn"
                       onClick={() => onSetConfPopover(v => !v)}
-                      aria-label="What is match confidence?"
+                      aria-label="About estimated accuracy"
                     >?</button>
                     {confPopover && (
                       <div className="conf-popover">
-                        <strong>What is Match Confidence?</strong>
-                        <p>This score estimates how accurately we can recommend a battery based on the details you've entered. The more information provided — model, year, fuel type and engine size — the higher and more reliable the score.</p>
+                        <strong>What does this score mean?</strong>
+                        <p>This shows how confident we are in the battery recommendation based on what you've entered. More detail — model, year, fuel type and engine size — means a higher, more reliable score.</p>
                         <ul>
                           <li><span className="conf-dot high" />85%+ — All details provided</li>
                           <li><span className="conf-dot medium" />55–70% — Partial details</li>
@@ -169,7 +174,7 @@ function PublicApp({
               </div>
             )}
             <button
-              className={`nav-dark-btn${darkMode ? ' active' : ''}`}
+              className={`nav-dark-btn nav-night-btn${darkMode ? ' active' : ''}`}
               onClick={onToggleDark}
               aria-label={darkMode ? 'Switch to day mode' : 'Switch to night mode'}
             >
@@ -181,7 +186,7 @@ function PublicApp({
               href="https://www.chlorideexide.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="nav-dark-btn"
+              className="nav-dark-btn nav-home-btn"
               aria-label="Go to Chloride Exide website"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>

@@ -1033,6 +1033,7 @@ def list_test_users(
 
 class RunWebValidateBody(BaseModel):
     enabled_providers: list[str] | None = None  # None = use all available providers
+    phase: str = "phase1"                       # "phase1", "phase2", or "both"
 
 
 def _web_validate_thread(
@@ -1040,6 +1041,7 @@ def _web_validate_thread(
     cancel_event: threading.Event,
     pause_event: threading.Event,
     enabled_providers: list[str] | None = None,
+    phase: str = "phase1",
 ) -> None:
     """Background thread that runs the web_battery_validate pipeline."""
     from pipelines.web_battery_validate import main as _run_web_validate
@@ -1068,7 +1070,8 @@ def _web_validate_thread(
 
     try:
         result = _run_web_validate(cancel_event, pause_event, _progress, _log_cb, enabled_providers, run_id,
-                                   phase1_progress_callback=_phase1_progress)
+                                   phase1_progress_callback=_phase1_progress,
+                                   phase=phase)
         with _pipeline_lock:
             _pipeline_state["status"]          = "cancelled" if cancel_event.is_set() else "done"
             _pipeline_state["found"]           = result["fetched"]
@@ -1121,7 +1124,7 @@ def run_web_validate(
 
     t = threading.Thread(
         target=_web_validate_thread,
-        args=(run_id, cancel_ev, pause_ev, body.enabled_providers),
+        args=(run_id, cancel_ev, pause_ev, body.enabled_providers, body.phase),
         daemon=True,
         name=f"web-validate-{run_id[:8]}",
     )
@@ -1388,6 +1391,21 @@ def get_web_validate_coverage(admin: AdminUser = Depends(require_admin)):
         .sort_values(["make_n", "model_n", "year"])
     )
 
+    # Bucket counts (5-year generation windows)
+    import json as _json
+    veh["bucket"]       = (veh["year"] // 5) * 5
+    total_buckets       = int(veh.groupby(["make_n", "model_n", "bucket"]).ngroups)
+    validated["bucket"] = (validated["year"] // 5) * 5
+    resolved_buckets    = int(validated.groupby(["make_n", "model_n", "bucket"]).ngroups)
+
+    # web_model_cache.json entry count
+    web_cache_path = Path(__file__).parent / "cache" / "web_model_cache.json"
+    try:
+        with open(web_cache_path) as _f:
+            web_cache_size = len(_json.load(_f))
+    except Exception:
+        web_cache_size = 0
+
     with engine.connect() as conn:
         master_count = conn.execute(
             text("SELECT COUNT(*) FROM web_battery_validation")
@@ -1404,6 +1422,10 @@ def get_web_validate_coverage(admin: AdminUser = Depends(require_admin)):
         "master_count":       master_count,
         "staging_count":      staging_count,
         "unmatched_vehicles": unmatched_df.astype(object).where(pd.notna(unmatched_df), None).to_dict(orient="records"),
+        "total_buckets":      total_buckets,
+        "resolved_buckets":   resolved_buckets,
+        "remaining_buckets":  total_buckets - resolved_buckets,
+        "web_cache_size":     web_cache_size,
     }
 
 
