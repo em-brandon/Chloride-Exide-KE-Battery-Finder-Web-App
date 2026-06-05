@@ -5568,5 +5568,4835 @@
     "ah": 100,
     "technology": "MF",
     "region": null
+  },
+  "AUDI|A 3 SEDAN S LINE TECHNO LIMITED|2015": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI SPORT|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 35 TDI ADVANCED|2010": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 AVANT 45 TFSI QUATTRO MEISTERSTUECK|2015": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 6 55 TFSI QUATTRO DEBUT PACKAGE|2010": {
+    "ah": 96,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK|2015": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 8 60 TFSI QUATTRO|2015": {
+    "ah": 75,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "AUDI|Q 3 35 TDI QUATTRO ADVANCED|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 40 TFSI QUATTRO S LINE|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI S LINE|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI SPORT SIGNATURE EDITION|2015": {
+    "ah": 74,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI ADVANCED|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 45 TFSI QUATTRO SPORT S LINE PACKAGE|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 45 TFSI QUATTRO SPORT|2025": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 45 TFSI QUATTRO SPORT|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 CABRIOLET 2.0 TFSI QUATTRO SPORT|2025": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 40 TFSI SPORT|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 45 TFSI QUATTRO S LINE|2025": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK S LINE COMPETITION PLUS|2015": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 45 TFSI QUATTRO SPORT|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 45 TFSI QUATTRO SPORT S LINE PACKAGE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 7 SPORTBACK 55 TFSI QUATTRO S LINE|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 2 1.4 TFSI CYLINDER ON DEMAND SPORT|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 35 TFSI ADVANCED|2015": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 35 TFSI S LINE|2015": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 3 SPORTBACK 35 TDI QUATTRO S LINE|2020": {
+    "ah": 73,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 5 40 TDI QUATTRO S LINE|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 7|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 5 45 TFSI QUATTRO SPORT S LINE PACKAGE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 7 50 TDI QUATTRO S LINE|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 7 50 TDI QUATTRO S LINE|2025": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|Q 8 55 TFSI QUATTRO S LINE|2015": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8 55 TFSI QUATTRO S LINE|2020": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|Q 8 SPORTBACK E TRON 55 E TRON QUATTRO S LINE|2020": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|R 8 SPYDER BASEGRADE|2020": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 3 SPORTBACK|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 4 AVANT|2025": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS 5|2010": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 5|2020": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS 7 SPORTBACK BASE GRADE|2010": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS 7 SPORTBACK PERFORMANCE BASE GRADE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS Q 3 SPORTBACK|2015": {
+    "ah": 73,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|RS Q 3 SPORTBACK|2020": {
+    "ah": 73,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 3 SEDAN|2015": {
+    "ah": 44,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 3 SPORTBACK|2025": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 5 SPORTBACK BASE GRADE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|S 7 SPORTBACK|2025": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|S 7 SPORTBACK BASE GRADE|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 8|2025": {
+    "ah": 68,
+    "technology": "EFB",
+    "region": null
+  },
+  "AUDI|TT COUPE FINAL EDITION|2020": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|TTS COUPE BASE GRADE|2015": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|TTS COUPE MEMORIAL EDITION|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 I M SPORT|2010": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 3 SERIES 320 D X DRIVE TOURING M SPORT|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW 6 SERIES 630 I GRAN TURISMO M SPORT|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 6 SERIES 640 I GRAN COUPE M SPORT|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES 750 LI M SPORT PACKAGE|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW 7 SERIES M 760 LI X DRIVE V 12 EXCELLENCE|2015": {
+    "ah": 20,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW 8 SERIES 840 I GRAN COUPE EXCLUSIVE M SPORT|1990": {
+    "ah": 94,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW I 4 E DRIVE 40 M SPORT HI LINE PACKAGE|2020": {
+    "ah": 94,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 5 E DRIVE 40 TOURING M SPORT|2020": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW I 5 E DRIVE 40 TOURING M SPORT|2025": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|BMW I 5 M 60 X DRIVE TOURING|2025": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW I 7 M 70 X DRIVE|2025": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW IX 3 M SPORT|1995": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 1|2020": {
+    "ah": 82,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 4 M COMPETITION|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 M COMPETITION|2000": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 35 D|2000": {
+    "ah": 106,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 35 D EDITION X|2000": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 35 D EDITION X|2005": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 35 D M SPORT HI LINE PACKAGE|2005": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 35 D PLEASURE 3 EDITION|2000": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 5 X DRIVE 40 D M SPORT|2000": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 6 M 50 I|2010": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 6 M COMPETITION|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 6 M COMPETITION|2005": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 6 X DRIVE 35 D|2010": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 6 X DRIVE 35 D|2015": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 6 X DRIVE 35 D M SPORT|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 7 M 50 I|2015": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "BMW|BMW X 7 M 60 I X DRIVE|2015": {
+    "ah": 210,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 7 M 60 I X DRIVE|2025": {
+    "ah": 210,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 7 X DRIVE 35 D DESIGN PURE EXCELLENCE|2020": {
+    "ah": 34,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|BMW X 7 X DRIVE 40 D EXCELLENCE|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 7 X DRIVE 40 D M SPORT|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW X 7 X DRIVE 40 D EXCELLENCE|2020": {
+    "ah": 26,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW XM BASE GRADE|2020": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW Z 4 M 40 I|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|BMW Z 4 S DRIVE 20 I M SPORT EDITION SUNRISE|2005": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 4 E DRIVE 40 M SPORT HI LINE PACKAGE|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 4 M 50 X DRIVE|2025": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|I 5 E DRIVE 40 THE FIRST EDITION|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|I 5 E DRIVE 40 TOURING M SPORT|2025": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|I 5 M 60 X DRIVE TOURING|2025": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|IX 3 M SPORT|1985": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|IX 3 M SPORT|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 2 BASE GRADE|2015": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 2 COMPETITION|2015": {
+    "ah": 94,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|M 2 CS|2015": {
+    "ah": 80,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|M 2 EDITION BLACK SHADOW|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 2 BASE GRADE HI LINE PACKAGE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 3 M 3 50 TH ANNIVERSARY LIMITED|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 3 M 3 50 TH ANNIVERSARY LIMITED|1995": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 MT FINAL EDITION|1995": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 50 TH ANNIVERSARY LIMITED|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 MT FINAL EDITION|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 3 M 3 MT FINAL EDITION|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 4 CSL|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|M 4 M 4 COUPE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 4 M 4 CS|2015": {
+    "ah": 69,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 4 M 4 CS|2020": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|M 5 COMPETITION|2000": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|M 5 COMPETITION|2015": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 M 35 I X DRIVE|2010": {
+    "ah": 82,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 M 35 I X DRIVE|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I M SPORT|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I X LINE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 18 D M SPORT|2010": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 S DRIVE 18 I X LINE|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 18 D X LINE EDITION JOY+|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 20 I M SPORT|2010": {
+    "ah": 20,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 20 I M SPORT|2025": {
+    "ah": 20,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 20 I X LINE|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 20 I X LINE|2020": {
+    "ah": 20,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 1 X DRIVE 20 I X LINE|2025": {
+    "ah": 20,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 S DRIVE 18 I M SPORT X|2025": {
+    "ah": 82,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 2 X DRIVE 20 I|2015": {
+    "ah": 82,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 3|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "BMW|X 3 M 40 D M SPORT EDITION|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "BMW|X 3 X DRIVE 20 D|2005": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 4 M 40 I|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 4 X DRIVE 20 D M SPORT|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 35 D|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 35 D M SPORT|2000": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 35 D EDITION X|2000": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 40 D M SPORT|2000": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 35 D M SPORT HI LINE PACKAGE|2005": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 40 D M SPORT|2005": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|X 5 X DRIVE 50 E M SPORT|2000": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "BMW|X 7 M 50 I|2015": {
+    "ah": 96,
+    "technology": "MF",
+    "region": null
+  },
+  "BMW|Z 4 S DRIVE 20 I M SPORT EDITION SUNRISE|2005": {
+    "ah": 82,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHERY|TIGGO 7 PRO ELITE 2 WD|2005": {
+    "ah": 55,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHERY|TIGGO 7 PRO ULTIMATE AWD|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "CHERY|TIGGO 8 PRO MAX ELITE 2 WD|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO FINAL EDITION|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS HERITAGE EDITION|1975": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO LT RS HERITAGE EDITION|2020": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CAMARO ZL 1|1970": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CHEVY VAN|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CHEVY VAN|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 2 LT|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 2 LT|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE 3 LT|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE CONVERTIBLE|2010": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE E RAY 3 LZ|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE STINGRAY|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|CORVETTE Z 06|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 1)|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO 2500 HD LTZ PREMIUM|2000": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "CHEVROLET|SILVERADO HD LTZ PREMIUM (NB 1)|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ALTIS G|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|2015": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI|2005": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|ATRAI RS|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON CILQ|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON CILQ|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|BOON X L PACKAGE|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|COPEN G|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN ROBE|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|COPEN XPLAY|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX GL|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|GRAN MAX GL|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET CADDIE D|2015": {
+    "ah": 48,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "DAIHATSU|HIJET CARGO DECKVAN|1995": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET CARGO DECKVAN G|1980": {
+    "ah": 32,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET JUMBO|2000": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET JUMBO|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK|1970": {
+    "ah": 48,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DAIHATSU|HIJET TRUCK|1985": {
+    "ah": 48,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DAIHATSU|HIJET TRUCK|1975": {
+    "ah": 48,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DAIHATSU|HIJET TRUCK ALUMINIUM MODERATE TEMP REFRIGERATING|1960": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK ALUMINIUM MODERATE TEMP REFRIGERATING|2000": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK COLOR MODERATE TEMPERATURE REFRIGERATING TRUCK|1980": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK EXTRA|1960": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK EXTRA|2010": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK JUMBO|1960": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK JUMBO|1970": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK JUMBO|2000": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|2010": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PANEL VAN|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PTO|1965": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK PTO|1995": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VEHICLE TAIL|1970": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VERTICAL TAIL LIFT|2000": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VERTICAL TAIL LIFT|2010": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VERTICAL TAIL LIFT|2005": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|HIJET TRUCK VERTICAL TAIL LIFT|2015": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MEBIUS S TOURING|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MIRA COCOA|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MIRA E:S|2005": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "DAIHATSU|MOVE L|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE CUSTOM X\"LIMITED SA III\"|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|MOVE L \"SA III\"|2005": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TAFT G|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM RS \"TOP EDITION SA II\"|2015": {
+    "ah": 40,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO CUSTOM WELCOME SEAT X\"SA III\"|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPE X|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPE X|2015": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|TANTO SLOPER X|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DAIHATSU|WAKE G|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|WAKE G|2005": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "DAIHATSU|WAKE G TURBO|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|CHARENGER|1960": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO CITADEL|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO GT PLUS|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|DURANGO R/T PREMIUM|2000": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO RT|1995": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|DURANGO SRT 392|2015": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|1975": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|HORNET GT|1960": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT PLUS|1965": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "DODGE|HORNET GT|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|HORNET GT|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|RAM BASE GRADE|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "EICHER|PRO 2050 CNG|2015": {
+    "ah": 130,
+    "technology": "MF",
+    "region": null
+  },
+  "EICHER|PRO 60|2025": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FAW|BACK DUMPER CA 3252 P 2 K 2 J 5 P|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|2015": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|126 BASE GRADE|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 C 120 TH TUXEDO|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 C 120 TH TUXEDO|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|500 TWIN AIR CULT|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 X BASE GRADE|2020": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|500 X CLUB|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO MAXI|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOBLO MAXI|2005": {
+    "ah": 78,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|500 X CROSS|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|1980": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|1990": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|DOLCEVITA|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|FIAT FIAT OTHER|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "FIAT|PANDA 30|2015": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA CROSS 4 X 4|1995": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA CROSS 4 X 4|2005": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|PANDA EASY|2010": {
+    "ah": 44,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|POP STAR|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "FIAT|PANDA STREET 4 X 4|1995": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "FIAT|SCUDO LWB|2020": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|ENDURA|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|FOCUS|1995": {
+    "ah": 62,
+    "technology": "MF",
+    "region": null
+  },
+  "FORD|MONDEO|2015": {
+    "ah": 75,
+    "technology": "EFB",
+    "region": null
+  },
+  "FORD|RANGER|2005": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HAVAL|CITY|2020": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "HAVAL|CITY 2 WD|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|1955": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "HAVAL|PREMIUM|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|2025": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|300|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|300|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR|1995": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR|2020": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR BUILD UP DUMP|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR SUPER YOKOZUNA DUMP|1980": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR SUPER YOKOZUNA DUMP|1985": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR SUPER YOKOZUNA DUMP|2005": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR SUPER YOKOZUNA DUMP|2010": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO ALL LOW FLOOR SUPER YOKOZUNA DUMP|2000": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO DUMP|2000": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|1955": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR BUILD UP MULTI TREND DUMP|1990": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1955": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1950": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO HIGH FLOOR DUMP|1995": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG|1950": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG ALL LOW FLOOR|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO LONG ALL LOW FLOOR|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|DUTRO LONG ALL LOW FLOOR|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG ALL LOW FLOOR TURBO|2000": {
+    "ah": 120,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|DUTRO LONG ALL LOW FLOOR TURBO|2020": {
+    "ah": 120,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|MELPHA|2000": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|PONCHO|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HINO|PONCHO|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|MELPHA|2015": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HINO|PONCHO|2025": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PONCHO|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|PROFIA|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HINO|RANGER PRO|1960": {
+    "ah": 25,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC HATCHBACK|1970": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|1995": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CLARITY PHEV EX|2010": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CLARITY PHEV EX|2020": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID EX|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|GRACE HYBRID EX|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID EX|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID EX|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID X|2005": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID X|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID X|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N B 0 X EX|1985": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|N BOX|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N B 0 X EX|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N ONE STANDARD. L|2010": {
+    "ah": 100,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|ODSSEY ABSOLUTE X|2000": {
+    "ah": 126,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY G|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ODSSEY G|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ODSSEY G|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID|2025": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|SHUTTLEG SENSING (FF)|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|SHUTTLEG SENSING (FF)|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HONDA|STEP WGN MODULO X|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID SENSING|1995": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|WR V Z+|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|6 S LIFTBACK|1990": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|6 S LIFTBACK|2000": {
+    "ah": 150,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|6 S LIFTBACK|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|6 S TWIN SWING|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ACCENT SPORT|2010": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ACCENT SPORT|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA ACTIVE|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ACCENT SPORT|2005": {
+    "ah": 100,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA ACTIVE|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA ACTIVE|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA ACTIVE|2005": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA ACTIVE SMARTSENSE|1990": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA GO|2000": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA GO|2005": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA GO|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA GO SMARTSENSE|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA GO SMARTSENSE|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA GO SMARTSENSE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA GO SMARTSENSE|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT (BLACK)|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT (BLACK)|1990": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT (BLACK)|2000": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT (BLACK)|2005": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT (RED)|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT PREMIUM (RED)|1995": {
+    "ah": 75,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT PREMIUM (RED)|2000": {
+    "ah": 75,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|ELANTRA SPORT PREMIUM (RED)|2005": {
+    "ah": 75,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|1995": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (LWB)|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (MWB)|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|2010": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|EX 4 STANDARD CAB (SWB)|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|EX 8 SUPER CAB (LWB)|2015": {
+    "ah": 200,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|EX 8 SUPER CAB (ELWB)|2015": {
+    "ah": 200,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|GENESIS BASE|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 20 N|2005": {
+    "ah": 52,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 (BASE)|2005": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 (BASE)|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 20 N TTR|2005": {
+    "ah": 52,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 ACTIVE|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 (BASE)|2010": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 ACTIVE|2010": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 ACTIVE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 ELITE|2010": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|I 30 ELITE HEV 1.6 P DCT|2005": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE MHEV|2005": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE MHEV|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE PREMIUM|2005": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE MHEV|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE PREMIUM|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE PREMIUM|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N LINE PRM MHEV|2005": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N PREMIUM|2005": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N PREMIUM|2010": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N PREMIUM|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 30 N PREMIUM WITH SUNROOF|2010": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 PREMIUM|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 40 ACTIVE|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 30 PREMIUM|2020": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 40 ACTIVE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 40 ACTIVE TOURER|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 40 ACTIVE TOURER|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|I 40 PREMIUM|2010": {
+    "ah": 82,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|I 40 PREMIUM TOURER|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|ILOAD 3 S LIFTBACK|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ILOAD 3 S LIFTBACK|2010": {
+    "ah": 85,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ILOAD 3 S LIFTBACK|2015": {
+    "ah": 85,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ILOAD 3 S TWIN SWING|2015": {
+    "ah": 85,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|ILOAD 3 S TWIN SWING|2005": {
+    "ah": 85,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|IMAX ACTIVE|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|IMAX ACTIVE|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|IMAX ACTIVE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|IMAX ELITE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|IMAX ACTIVE|2020": {
+    "ah": 85,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|KONA HYBRID N LINE|2015": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|KONA HYBRID PREMIUM N LINE SUNROOF|2015": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|KONA N LINE|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|KONA PREMIUM N LINE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|PALISADE ELITE (7 SEAT)|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|PALISADE ELITE (8 SEAT)|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE (7 SEAT) (AWD)|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (6 SEAT)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (6 SEAT)|2010": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (6 SEAT)|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE (7 SEAT) (AWD)|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (6 SEAT)|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (6 SEAT)|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (7 SEAT)|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (7 SEAT)|2000": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SANTA FE CALIGRAPHY (7 SEAT)|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALLIGRAPHY (6 SEAT)|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SANTA FE CALLIGRAPHY (7 SEAT)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALLIGRAPHY (6 SEAT)|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALLIGRAPHY (7 SEAT)|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALLIGRAPHY (7 SEAT)|2010": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE CALLIGRAPHY (7 SEAT)|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SANTA FE ELITE (7 SEAT)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE ELITE HEV (7 SEAT)|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE ELITE HEV (7 SEAT)|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "HYUNDAI|SANTA FE HEV (AWD)|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "HYUNDAI|SONATA N LINE|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|SONATA N LINE|2015": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|SONATA N LINE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|STARIA (BASE)|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|STARIA LOAD 5 S 2.2 D LIFTBACK|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|TUCSON (FWD)|2015": {
+    "ah": 68,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "HYUNDAI|TUCSON (FWD)|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|TUCSON (FWD)|2025": {
+    "ah": 80,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "HYUNDAI|TUCSON ELITE HYBRID (FWD)|2000": {
+    "ah": 80,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "HYUNDAI|TUCSON ELITE N LINE (FWD)|2000": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|TUCSON HIGHLANDER (FWD)|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|TUCSON HIGHLANDER (AWD)|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|TUCSON HIGHLANDER (FWD) NO SRF|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|TUCSON HIGHLANDER N LINE (AWD)|2000": {
+    "ah": 80,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "HYUNDAI|TUCSON PREMIUM (AWD)|2000": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "HYUNDAI|TUCSON PREMIUM HYBRID (AWD)|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER (BASE)|2010": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER (BASE)|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER (BASE)|2020": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER TURBO|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER TURBO|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER TURBO PREMIUM|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER TURBO PREMIUM|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER TURBO PREMIUM|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "HYUNDAI|VELOSTER TURBO PREMIUM TTR|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX LS U (2 WD) HIGH RIDE|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|FRR 110 240 (SWB) PTO|1970": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|NLR 45 140 (SWB) SERVICEPACK X|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|NLR 45 140 (SWB) SERVICEPACK X|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|NLR 45 140 (SWB) SERVICEPACK X|1995": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "ISUZU|NPR 45/55 155 (MWB) SERVICEPACK X|1975": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "ISUZU|NPR 45/55 155 (MWB) SERVICEPACK X|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|NPR 45/55 155 (MWB) SERVICEPACK X|1970": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "ISUZU|NPR 45/55 155 (MWB) SERVICEPACK X|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|NPR 75 190|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|NPR 75 190|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|NPR 75 190|1970": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|NPR 75 190|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE BASE GRADE D 200|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F PACE BASE GRADE D 200|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE PRESTIGE|2025": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F PACE PRESTIGE|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F PACE PRESTIGE|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE PURE|2025": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F PACE PURE|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F PACE R DYNAMIC SE D 200|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE R DYNAMIC SE D 200|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F PACE R DYNAMIC SE D 200|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE R DYNAMIC SE P 250|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE R SPORT|2015": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE S|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE R SPORT|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F PACE S D 200|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F PACE S D 200|2025": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|F TYPE COUPE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F TYPE COUPE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F TYPE HERITAGE 60 EDITION|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F TYPE R AWD COUPE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F TYPE R DYNAMIC CONVERTIBLE|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|F TYPE R DYNAMIC CONVERTIBLE|2025": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|XF PRESTIGE|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|XF PRESTIGE|2010": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|XF R DYNAMIC HSE P 250|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|XF SPORTBRAKE XF SPORTBRAKE PRESTIGE|2010": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|XF SPORTBRAKE XF SPORTBRAKE PRESTIGE|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|XF SPORTBRAKE XF SPORTBRAKE R SPORT|2010": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|XF SPORTBRAKE XF SPORTBRAKE R SPORT|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|XJ PREMIUM LUXURY|1980": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "JAGUAR|XJ XJ R SPORT|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JAGUAR|XJ XJ R SPORT|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE LONGITUDE LAUNCH EDITION|1980": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE LONGITUDE LAUNCH EDITION|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE LONGITUDE LAUNCH EDITION|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE LONGITUDE LAUNCH EDITION|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE LONGITUDE LAUNCH EDITION|2025": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE LONGITUDE LAUNCH EDITION|2020": {
+    "ah": 26,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE NIGHT EAGLE|1970": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE NIGHT EAGLE|1980": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE NIGHT EAGLE|1975": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE NIGHT EAGLE|1990": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE NIGHT EAGLE|1985": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE NIGHT EAGLE|2025": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|1985": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|1970": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|1990": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|1995": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER CHEROKEE TRAILHAWK|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1950": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1970": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1975": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMMANDER LIMITED|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS 80 TH ANNIVERSARY EDITION|2005": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS 80 TH ANNIVERSARY EDITION|2015": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LIMITED|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LIMITED|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LIMITED|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LIMITED|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LONGITUDE|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LONGITUDE|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LONGITUDE|2025": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS S MODEL|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS LONGITUDE|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER COMPASS S MODEL|2025": {
+    "ah": 85,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1965": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1985": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1980": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR|2005": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1960": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1970": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1975": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1965": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|2010": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GLADIATOR RUBICON|2015": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE|1995": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE 4 XE LIMITED 4 XE|1995": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE L SUMMIT RESERVE|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE L SUMMIT RESERVE|1995": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE LIMITED|1985": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE STERLING EDITION|1995": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE TRACKHAWK|1985": {
+    "ah": 48,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER GRAND CHEROKEE TRACKHAWK|1995": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|1950": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|1955": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|1970": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|1995": {
+    "ah": 36,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER OTHER|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER|1995": {
+    "ah": 61,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER OVERLAND NACHO|1995": {
+    "ah": 78,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER OVERLAND NACHO|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER OVERLAND NACHO|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER RUBICON|1985": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER RUBICON|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER RUBICON|2015": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER RUBICON SOFT TOP|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER SPORTS|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER SPORTS|1990": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER SPORTS|1995": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER SPORTS|2005": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER SPORTS|2000": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED BLACK&TAN|2005": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED BLACK&TAN|2010": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED RUBICON POWER TOP|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED SAHARA|1985": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED SAHARA|1990": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED SAHARA|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED SAHARA|2005": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED SAHARA|2015": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED SAHARA LAUNCH EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED SPORT ALTITUDE|2000": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED WILLYS|2000": {
+    "ah": 63,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED WILLYS|1990": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED WILLYS|2005": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|CARNIVAL|1995": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|CARNIVAL|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "JEEP|CHRYSLER WRANGLER UNLIMITED WILLYS|2015": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|CARNIVAL|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|CARNIVAL|2005": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|CERATO|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|CERATO|2000": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|NIRO|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "KIA|NIRO|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|NIRO|2025": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|OPTIMA|2005": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|OPTIMA|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|RIO|1995": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|PICANTO|2000": {
+    "ah": 50,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "KIA|RIO|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|RIO|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|RIO|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|SORENTO|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|SELTOS|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|RIO|2020": {
+    "ah": 57,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|SOUL|2005": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|SOUL|2000": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|SPORTAGE|1990": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|SOUL|2025": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|SPORTAGE|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|SPORTAGE|2000": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|SPORTAGE|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|SOUL|2020": {
+    "ah": 45,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "KIA|SPORTAGE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|STINGER|2020": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 300 PS X DYNAMIC S|1980": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "KIA|STONIC|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 300 PS X DYNAMIC S|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 300 PS X DYNAMIC S|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 300 PS X DYNAMIC S|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 300 PS X DYNAMIC S|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 240 PS FIRST EDITION 90|1985": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 240 PS FIRST EDITION 90|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 240 PS FIRST EDITION 90|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 240 PS FIRST EDITION 90|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 240 PS FIRST EDITION 90|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 240 PS FIRST EDITION 90|2015": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS|1985": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS|2015": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS S|1990": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS S|2000": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS S|2015": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS S|2010": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS X|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS X|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS X|1990": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS X DYNAMIC SE|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS X DYNAMIC SE|2005": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS X DYNAMIC SE|1995": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 3 DOOR 300 PS X DYNAMIC SE|2010": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 200 PS S|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 200 PS S|1995": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 200 PS S|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 200 PS S|2005": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 200 PS X DYNAMIC SE|1990": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 200 PS X DYNAMIC SE|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS FIRST EDITION 110|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS FIRST EDITION 110|2005": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS FIRST EDITION 110|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS S|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS X DYNAMIC HSE|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS X DYNAMIC HSE|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS X DYNAMIC S|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS X DYNAMIC S|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS X DYNAMIC S|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 240 PS X DYNAMIC SE|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS S|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS S|1995": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X|1985": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC HSE|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC S|1990": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC S|1995": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC S|2005": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC S|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC SE|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC SE|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC SE|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR 300 PS X DYNAMIC SE|2005": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C 5 DOOR LWB 300 PS X DYNAMIC HSE|1995": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS S|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS S|1995": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS S|2005": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS S|1985": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS S|2000": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS X DYNAMIC S|1980": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS X DYNAMIC S|1985": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS X DYNAMIC S|2000": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS X DYNAMIC S|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS XS EDITION|1995": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 3 DOOR 300 PS XS EDITION|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 5 DOOR 200 PS X DYNAMIC S|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 5 DOOR 200 PS X DYNAMIC S|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 5 DOOR 300 PS S|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 5 DOOR 300 PS S|2000": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 5 DOOR 300 PS X|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 5 DOOR 300 PS X|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C AWD 5 DOOR 300 PS X|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS FIRST EDITION 90|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS FIRST EDITION 90|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS FIRST EDITION 90|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS X|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS X|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS X|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS X|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS X|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS X|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 3 DOOR 400 PS XS EDITION|2005": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 5 DOOR 400 PS X|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 5 DOOR 400 PS X|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV 5 DOOR 400 PS X|2010": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV AWD 3 DOOR 400 PS XS EDITION|1985": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C MHEV AWD 3 DOOR 400 PS XS EDITION|2005": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C PHEV 5 DOOR 404 PS S|1985": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C PHEV 5 DOOR 404 PS X|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C PHEV 5 DOOR 404 PS X|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C PHEV 5 DOOR 404 PS X|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C PHEV 5 DOOR 404 PS X|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DEFENDER T/C PHEV 5 DOOR 404 PS X|2020": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY FIRST EDITION|2015": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY FIRST EDITION|2010": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY SE|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY HSE|2015": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY SPORT HSE LUXURY|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY SPORT S R DYNAMIC|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY SPORT S|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 300 PS 5 DOOR S|1990": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 300 PS 5 DOOR S|1975": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 300 PS 5 DOOR S|1995": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 300 PS 5 DOOR S|2010": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 300 PS 5 DOOR S|2000": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 300 PS 5 DOOR S|2020": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 360 PS 5 DOOR R DYNAMIC HSE|2000": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 360 PS 5 DOOR R DYNAMIC SE|1985": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|DISCOVERY T/C 360 PS 5 DOOR S|1955": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110|1990": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110|1995": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110|2005": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 FIRST EDITION|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 FIRST EDITION|2000": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 FIRST EDITION|2005": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 FIRST EDITION|2015": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 HSE|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 FIRST EDITION|2010": {
+    "ah": 110,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 S|1990": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 S|2010": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 S|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 SE|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 S|2015": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 S|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 SE|1995": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 SE|2010": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X|1990": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X|2010": {
+    "ah": 110,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC HSE|1980": {
+    "ah": 110,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC HSE|2000": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC HSE|2005": {
+    "ah": 110,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC HSE|2020": {
+    "ah": 110,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC HSE|2010": {
+    "ah": 110,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC SE|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC SE|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": "DIN"
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 110 X DYNAMIC SE|2010": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|2000": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|2005": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|2015": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|1990": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|1985": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|1990": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|1980": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|1995": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|2000": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|2010": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 S|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X|1985": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X|2000": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X|1990": {
+    "ah": 90,
+    "technology": "EFB",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X|2005": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X|2015": {
+    "ah": 90,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X DYNAMIC S|1985": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X DYNAMIC S|1995": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X DYNAMIC S|1980": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X DYNAMIC S|1990": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X DYNAMIC S|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER DEFENDER 90 X DYNAMIC S|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE 286 HP AUT.BIO|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE 286 HP AUT.BIO|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE 286 HP HSE DYNAMIC|1980": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE 286 HP HSE DYNAMIC|1985": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE 286 HP HSE DYNAMIC|1990": {
+    "ah": 88,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE 286 HP HSE DYNAMIC|2000": {
+    "ah": 88,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE 286 HP HSE DYNAMIC|1995": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUT.BIO|1980": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUT.BIO|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUT.BIO|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUT.BIO|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUT.BIO|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUT.BIO|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUTOBIOGRAPHY|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUTOBIOGRAPHY|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUTOBIOGRAPHY|2015": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE AUTOBIOGRAPHY|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE CONVERTIBLE HSE DYNAMIC|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE CONVERTIBLE SE DYNAMIC|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE|1990": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE|1995": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE|1985": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC|1985": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC|1990": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC CONVERTIBLE|2010": {
+    "ah": 88,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC CONVERTIBLE|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE HSE DYNAMIC CONVERTIBLE|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE LAND MARK EDITION|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE LAND MARK EDITION|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE LAND MARK EDITION|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE LAND MARK EDITION|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE LANDMARK EDITION|1980": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE LANDMARK EDITION|1985": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE LANDMARK EDITION|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 FIRST EDITION|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 FIRST EDITION|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 FIRST EDITION|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 S|1980": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 S|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 S|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 S|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 S|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 SE|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 SE|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 SE|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 250 SE|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE P 300 R DYNAMIC HSE|2010": {
+    "ah": 88,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC HSE|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC HSE|2010": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC HSE|2015": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC S|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC S|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC S|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC SE|1985": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC SE|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC SE|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC SE|2015": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE R DYNAMIC SE|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE S|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE S|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE S|2005": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE S|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE|1985": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE|2015": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE DYNAMIC|1980": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE DYNAMIC|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE DYNAMIC|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE DYNAMIC|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE DYNAMIC|2015": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE DYNAMIC|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE PREMIUM|1990": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE PREMIUM|1980": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE PREMIUM|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE SE PREMIUM|2020": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE T/C 5 DOOR 199 PS|1990": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE T/C 5 DOOR 199 PS|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE T/C 5 DOOR 199 PS S|1980": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE T/C 5 DOOR 199 PS S|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER EVOQUE T/C 5 DOOR 249 PS S|2010": {
+    "ah": 88,
+    "technology": "MF",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER FIFTY SWB|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER FIFTY SWB|2010": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER HSE SWB|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER HSE SWB|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 HSE LWB|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 HSE LWB|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 HSE LWB|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 HSE LWB|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 HSE SWB|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 HSE SWB|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER LWB|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER LWB|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER LWB|2005": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER LWB|2010": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER SWB|1980": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER SWB|1990": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER SWB|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER SWB|2010": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER P 525 WESTMINSTER SWB|2020": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER PHEV AUT.BIO|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER PHEV AUT.BIO|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER PHEV HSE|1980": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "LANDROVER|RANGE ROVER PHEV HSE|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
   }
 }
