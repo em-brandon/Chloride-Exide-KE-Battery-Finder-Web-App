@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback, useRef, type DragEvent, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BoltIcon, MagnifyingGlassIcon, ArrowUpTrayIcon, ArrowDownTrayIcon, PlusIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid'
-import exideMaxLogo from '@/assets/exide-max-logo.png'
+import exideMaxLogo    from '@/assets/exide-max-logo.png'
+import sparkLogo       from '@/assets/spark-logo.jpg'
+import powerlastLogo   from '@/assets/powerlast-logo.jpg'
+import supremeLogo     from '@/assets/supreme-logo.jpg'
+import sebangLogo      from '@/assets/sebang-logo.jpg'
+import exideAgmLogo    from '@/assets/exide-agm-logo.jpg'
+import sbFloodedLogo   from '@/assets/sb-flooded-logo.jpg'
 import {
   fetchBatteries,
   addBattery,
@@ -19,17 +25,18 @@ import AdminLayout from '@/components/admin/AdminLayout'
 const R   = '#CC0000'
 const RD  = '#990000'
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--adm-card-bg)',
   borderRadius: '14px',
-  border: '1px solid #e2e4e9',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+  border: '1px solid var(--adm-card-border)',
+  boxShadow: 'var(--adm-card-shadow)',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
 }
 const INPUT: React.CSSProperties = {
   width: '100%',
   borderRadius: '8px',
-  border: '1px solid #d1d5db',
-  background: '#fff',
+  border: '1px solid var(--adm-input-border)',
+  background: 'var(--adm-input-bg)',
+  color: 'var(--adm-text-1)',
   padding: '0.45rem 0.75rem',
   fontSize: '0.85rem',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
@@ -86,7 +93,7 @@ function BatteryForm({
 
   const field = (label: string, key: keyof BatteryPayload, type = 'text', required = true) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-      <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(107,114,128,0.9)', letterSpacing: '0.04em' }}>
+      <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--adm-text-3)', letterSpacing: '0.04em' }}>
         {label}{required && <span style={{ color: R, marginLeft: '2px' }}>*</span>}
       </label>
       <input
@@ -127,7 +134,7 @@ function BatteryForm({
         <button
           type="button"
           onClick={onCancel}
-          style={{ flex: 1, background: '#f4f5f7', color: 'rgba(17,24,39,0.7)', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.55rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+          style={{ flex: 1, background: 'var(--adm-subtle-bg)', color: 'var(--adm-text-1)', border: '1px solid var(--adm-sep)', borderRadius: '8px', padding: '0.55rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
         >
           Cancel
         </button>
@@ -199,7 +206,7 @@ function ExcelDropzone({ onDone }: { onDone: () => void }) {
         />
         <ArrowUpTrayIcon style={{ width: 28, height: 28, color: dragging ? R : 'rgba(107,114,128,0.5)', margin: '0 auto 0.6rem', display: 'block' }} />
         {uploading ? (
-          <p style={{ fontSize: '0.85rem', color: 'rgba(107,114,128,0.8)' }}>Uploading and processing…</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--adm-text-2)' }}>Uploading and processing…</p>
         ) : (
           <>
             <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(17,24,39,0.75)', margin: 0 }}>
@@ -225,7 +232,7 @@ function ExcelDropzone({ onDone }: { onDone: () => void }) {
             {[
               { label: `Inserted: ${result.inserted}`,          bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
               { label: `Updated: ${result.updated}`,            bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-              { label: `Unchanged: ${result.skipped_unchanged}`,bg: '#f8f9fb', color: 'rgba(107,114,128,0.8)', border: '#e2e4e9' },
+              { label: `Unchanged: ${result.skipped_unchanged}`,bg: '#f8f9fb', color: 'var(--adm-text-2)', border: '#e2e4e9' },
               { label: `Rejected: ${result.rejected}`,          bg: '#fff5f5', color: R,          border: '#f5c6c6' },
             ].map(c => (
               <div key={c.label} style={{ borderRadius: '7px', background: c.bg, border: `1px solid ${c.border}`, padding: '0.4rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, color: c.color, whiteSpace: 'nowrap' }}>{c.label}</div>
@@ -238,7 +245,7 @@ function ExcelDropzone({ onDone }: { onDone: () => void }) {
               </summary>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                 {result.errors.map((e, i) => (
-                  <li key={i} style={{ fontSize: '0.75rem', color: 'rgba(107,114,128,0.8)' }}>
+                  <li key={i} style={{ fontSize: '0.75rem', color: 'var(--adm-text-2)' }}>
                     Row {e.row} ({e.battery_code}): {e.reason}
                   </li>
                 ))}
@@ -256,22 +263,39 @@ function ExcelDropzone({ onDone }: { onDone: () => void }) {
 // ---------------------------------------------------------------------------
 
 const BRAND_COLOR: Record<string, string> = {
-  'Powerlast':     '#CC0000',
-  'Exide Maxx':    '#CC0000',
-  'Spark':         '#1d4ed8',
-  'SB Flooded':    '#059669',
-  'Exide Matrix':  '#7e22ce',
-  'Supreme':       '#d97706',
-  'Sebang':        '#0891b2',
+  'Powerlast':          '#CC0000',
+  'Exide Maxx':         '#CC0000',
+  'Spark':              '#1d4ed8',
+  'SB Flooded':         '#059669',
+  'Chloride Exide AGM': '#7e22ce',
+  'Exide AGM':          '#6366f1',
+  'Supreme':            '#d97706',
+  'Sebang':             '#0891b2',
 }
 function brandColor(brand: string) { return BRAND_COLOR[brand] ?? '#6b7280' }
 
-// Resolve DB brand → display brand. Any battery with MAXX in its code is Exide Maxx.
+const BRAND_LOGO: Record<string, string> = {
+  'Exide Maxx':         exideMaxLogo,
+  'Spark':              sparkLogo,
+  'Powerlast':          powerlastLogo,
+  'Supreme':            supremeLogo,
+  'Sebang':             sebangLogo,
+  'Chloride Exide AGM': exideAgmLogo,
+  'SB Flooded':         sbFloodedLogo,
+}
+
+// Resolve DB brand → display brand.
 function resolveDisplayBrand(b: BatteryRow): string {
   const brandUp = (b.brand ?? '').toUpperCase()
   const codeUp  = (b.battery_code ?? '').toUpperCase()
+  const techUp  = (b.technology ?? '').toUpperCase()
   if (brandUp.includes('MAXX') || codeUp.includes('MAXX')) return 'Exide Maxx'
-  if (brandUp === 'CHLORIDE EXIDE') return 'SB Flooded'
+  if (brandUp === 'CHLORIDE EXIDE') {
+    return techUp === 'AGM' ? 'Chloride Exide AGM' : 'SB Flooded'
+  }
+  if (brandUp === 'EXIDE MATRIX') {
+    return techUp === 'AGM' ? 'Chloride Exide AGM' : 'Exide Matrix'
+  }
   return b.brand ?? 'Unknown'
 }
 
@@ -296,24 +320,25 @@ const TILE_STYLE: React.CSSProperties = {
   transition: 'box-shadow 0.15s, transform 0.1s',
 }
 
-function BrandTile({ brand, count }: { brand: string; count: number }) {
-  const isMaxx = brand === 'Exide Maxx'
-  const color  = brandColor(brand)
+function BrandTile({ brand, count, onClick }: { brand: string; count: number; onClick?: () => void }) {
+  const color = brandColor(brand)
+  const logo  = BRAND_LOGO[brand]
   return (
     <div
-      style={{ ...TILE_STYLE, borderTop: `3px solid ${color}` }}
+      onClick={onClick}
+      style={{ ...TILE_STYLE, borderTop: `3px solid ${color}`, cursor: 'pointer' }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,0,0,0.13)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'none' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.9)' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
           {brand}
         </span>
         <BoltIcon style={{ width: 15, height: 15, color }} />
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {isMaxx ? (
-          <img src={exideMaxLogo} alt="Exide Maxx" style={{ maxHeight: 88, maxWidth: '100%', objectFit: 'contain' }} />
+        {logo ? (
+          <img src={logo} alt={brand} style={{ maxHeight: 88, maxWidth: '100%', objectFit: 'contain' }} />
         ) : (
           <span style={{ fontSize: '4rem', fontWeight: 900, color, lineHeight: 1, letterSpacing: '-0.02em' }}>
             {count}
@@ -338,7 +363,7 @@ function SearchTile({ onClick }: { onClick: () => void }) {
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'none' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.9)' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
           Search
         </span>
         <MagnifyingGlassIcon style={{ width: 15, height: 15, color: '#6b7280' }} />
@@ -361,8 +386,9 @@ export default function AdminBatteries() {
   const [searchParams] = useSearchParams()
   const manage = searchParams.get('manage') === 'true'
 
-  // ── View: 'brands' shows the overview; 'search' shows the table ───────────
-  const [view, setView] = useState<'brands' | 'search'>(manage ? 'search' : 'brands')
+  // ── View: 'brands' shows the overview; 'brand-detail' shows a brand's list; 'search' shows the table ──
+  const [view, setView] = useState<'brands' | 'brand-detail' | 'search'>(manage ? 'search' : 'brands')
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
 
   // ── Overview state ────────────────────────────────────────────────────────
   const [overviewItems, setOverviewItems] = useState<BatteryRow[]>([])
@@ -443,6 +469,11 @@ export default function AdminBatteries() {
 
   const totalPages = Math.ceil(searchTotal / PAGE_SIZE)
 
+  // Batteries for the selected brand detail view
+  const brandItems = selectedBrand
+    ? overviewItems.filter(b => resolveDisplayBrand(b) === selectedBrand)
+    : []
+
   // Group batteries by origin for the brand overview
   const localItems    = overviewItems.filter(b => b.origin?.toLowerCase() === 'local')
   const importedItems = overviewItems.filter(b => b.origin?.toLowerCase() !== 'local')
@@ -474,7 +505,7 @@ export default function AdminBatteries() {
     return {
       display: 'flex', alignItems: 'center', gap: '0.4rem',
       background: active ? '#fff5f5' : 'transparent',
-      color: active ? R : 'rgba(107,114,128,0.65)',
+      color: active ? R : 'var(--adm-text-2)',
       border: active ? `1px solid #f5c6c6` : '1px solid transparent',
       borderRadius: '8px',
       padding: '0.38rem 0.85rem',
@@ -489,19 +520,19 @@ export default function AdminBatteries() {
     <AdminLayout>
 
       {/* ── Header ── */}
-      <header style={{ background: '#fff', borderBottom: '1px solid #e2e4e9', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
+      <header style={{ background: 'var(--adm-header-bg)', borderBottom: '1px solid var(--adm-sep)', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <BoltIcon style={{ width: 16, height: 16, color: R }} />
-          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>Battery Specs</span>
+          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Battery Specs</span>
         </div>
-        <span style={{ fontSize: '0.72rem', color: 'rgba(107,114,128,0.6)', background: '#f4f5f7', borderRadius: '99px', padding: '0.2rem 0.7rem', border: '1px solid #e2e4e9' }}>
+        <span style={{ fontSize: '0.72rem', color: 'rgba(107,114,128,0.6)', background: 'var(--adm-subtle-bg)', borderRadius: '99px', padding: '0.2rem 0.7rem', border: '1px solid var(--adm-sep)' }}>
           {total.toLocaleString()} records
         </span>
 
-        {/* Back to overview — only shown in search view */}
-        {view === 'search' && (
+        {/* Back to overview — shown in search and brand-detail views */}
+        {(view === 'search' || view === 'brand-detail') && (
           <div style={{ marginLeft: 'auto' }}>
-            <button style={tabStyle(false)} onClick={() => setView('brands')}>
+            <button style={tabStyle(false)} onClick={() => { setView('brands'); setSelectedBrand(null) }}>
               <BoltIcon style={{ width: 13, height: 13 }} />
               ← Overview
             </button>
@@ -531,7 +562,7 @@ export default function AdminBatteries() {
                     </span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
-                    {localBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} />)}
+                    {localBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
                   </div>
                 </div>
 
@@ -546,12 +577,60 @@ export default function AdminBatteries() {
                     </span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
-                    {importedBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} />)}
+                    {importedBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
                     <SearchTile onClick={() => setView('search')} />
                   </div>
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* ── Brand detail view (read-only) ── */}
+        {view === 'brand-detail' && selectedBrand && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ width: 4, height: 28, borderRadius: 2, background: brandColor(selectedBrand) }} />
+              <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--adm-text-1)' }}>{selectedBrand}</span>
+              <span style={{ fontSize: '0.72rem', color: 'rgba(107,114,128,0.6)', background: 'var(--adm-subtle-bg)', borderRadius: '99px', padding: '0.2rem 0.7rem', border: '1px solid var(--adm-sep)' }}>
+                {brandItems.length} {brandItems.length === 1 ? 'battery' : 'batteries'}
+              </span>
+            </div>
+            <div style={{ ...CARD, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--adm-thead-bg)', borderBottom: '2px solid var(--adm-sep)' }}>
+                      {['Battery Code', 'Model Key', 'Ah', 'CCA EN', 'Technology'].map(h => (
+                        <th key={h} style={{ padding: '0.8rem 1.1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overviewLoading && (
+                      <tr><td colSpan={5} style={{ padding: '3rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>Loading…</td></tr>
+                    )}
+                    {!overviewLoading && brandItems.length === 0 && (
+                      <tr><td colSpan={5} style={{ padding: '3rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>No batteries found</td></tr>
+                    )}
+                    {!overviewLoading && brandItems.map((b, i) => (
+                      <tr
+                        key={b.id}
+                        style={{ borderTop: i > 0 ? '1px solid var(--adm-row-border)' : 'none', transition: 'background 0.1s' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--adm-subtle-bg)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'var(--adm-card-bg)')}
+                      >
+                        <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontWeight: 700, color: R, fontSize: '0.8rem' }}>{b.battery_code}</td>
+                        <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(17,24,39,0.7)' }}>{b.model_key}</td>
+                        <td style={{ padding: '0.8rem 1.1rem', fontWeight: 600, color: 'rgba(17,24,39,0.8)' }}>{b.ah}</td>
+                        <td style={{ padding: '0.8rem 1.1rem', color: b.cca_en ? 'rgba(17,24,39,0.7)' : 'rgba(107,114,128,0.4)' }}>{b.cca_en ?? '—'}</td>
+                        <td style={{ padding: '0.8rem 1.1rem' }}>{techBadge(b.technology)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -594,14 +673,14 @@ export default function AdminBatteries() {
                   </button>
                   <button
                     onClick={() => setShowUp(u => !u)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showUpload ? '#f4f5f7' : '#fff', color: 'rgba(17,24,39,0.75)', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showUpload ? 'var(--adm-subtle-bg)' : 'var(--adm-card-bg)', color: 'var(--adm-text-1)', border: '1px solid var(--adm-sep)', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
                   >
                     <ArrowUpTrayIcon style={{ width: 14, height: 14 }} /> {showUpload ? 'Hide Upload' : 'Upload .xlsx'}
                   </button>
                   <a
                     href={exportBatteriesUrl()}
                     download
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#fff', color: 'rgba(17,24,39,0.75)', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--adm-card-bg)', color: 'var(--adm-text-1)', border: '1px solid var(--adm-sep)', borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}
                   >
                     <ArrowDownTrayIcon style={{ width: 14, height: 14 }} /> Export .xlsx
                   </a>
@@ -637,7 +716,7 @@ export default function AdminBatteries() {
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
                 <div style={{ ...CARD, padding: '1.75rem', width: '100%', maxWidth: '400px', maxHeight: '90vh', overflow: 'auto' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                    <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'rgba(17,24,39,0.88)', margin: 0 }}>Edit Battery</h2>
+                    <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--adm-text-1)', margin: 0 }}>Edit Battery</h2>
                     <button onClick={() => setEditing(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: '2px' }}>
                       <XMarkIcon style={{ width: 18, height: 18 }} />
                     </button>
@@ -662,9 +741,9 @@ export default function AdminBatteries() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                   <thead>
-                    <tr style={{ background: '#f8f9fb', borderBottom: '2px solid #e2e4e9' }}>
+                    <tr style={{ background: 'var(--adm-thead-bg)', borderBottom: '2px solid var(--adm-sep)' }}>
                       {TABLE_COLS.map(h => (
-                        <th key={h} style={{ padding: '0.8rem 1.1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding: '0.8rem 1.1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -686,9 +765,9 @@ export default function AdminBatteries() {
                     {!loading && items.map((b, i) => (
                       <tr
                         key={b.id}
-                        style={{ borderTop: i > 0 ? '1px solid #f0f1f4' : 'none', transition: 'background 0.1s' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#fff8f8')}
-                        onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                        style={{ borderTop: i > 0 ? '1px solid var(--adm-row-border)' : 'none', transition: 'background 0.1s' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--adm-row-hover)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'var(--adm-card-bg)')}
                       >
                         <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontWeight: 700, color: R, fontSize: '0.8rem' }}>{b.battery_code}</td>
                         <td style={{ padding: '0.8rem 1.1rem', fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(17,24,39,0.7)' }}>{b.model_key}</td>
@@ -727,13 +806,13 @@ export default function AdminBatteries() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'rgba(107,114,128,0.8)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--adm-text-2)' }}>
                 <span>{searchTotal.toLocaleString()} total records</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid var(--adm-sep)', background: 'var(--adm-card-bg)', fontSize: '0.78rem', fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}
                   >
                     <ChevronLeftIcon style={{ width: 13, height: 13 }} /> Prev
                   </button>
@@ -743,7 +822,7 @@ export default function AdminBatteries() {
                   <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid var(--adm-sep)', background: 'var(--adm-card-bg)', fontSize: '0.78rem', fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}
                   >
                     Next <ChevronRightIcon style={{ width: 13, height: 13 }} />
                   </button>

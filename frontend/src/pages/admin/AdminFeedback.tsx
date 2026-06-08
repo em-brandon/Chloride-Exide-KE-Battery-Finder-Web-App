@@ -22,10 +22,10 @@ import { StarIcon as StarOutline } from '@heroicons/react/24/outline'
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const R    = '#CC0000'
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--adm-card-bg)',
   borderRadius: '14px',
-  border: '1px solid #e2e4e9',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+  border: '1px solid var(--adm-card-border)',
+  boxShadow: 'var(--adm-card-shadow)',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
 }
 
@@ -45,7 +45,7 @@ const ACCURACY_COLORS: Record<string, string> = {
 }
 
 function AccuracyBadge({ value }: { value: string | null }) {
-  if (!value) return <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>—</span>
+  if (!value) return <span style={{ color: 'var(--adm-text-2)', fontSize: '0.78rem' }}>—</span>
   return (
     <span style={{
       display: 'inline-block',
@@ -118,13 +118,13 @@ function SummaryStrip({ summary }: { summary: FeedbackSummary | null }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
       {/* Total */}
       <div style={{ ...CARD, padding: '1rem 1.25rem', borderTop: `3px solid ${R}` }}>
-        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: '0.4rem' }}>TOTAL RESPONSES</div>
+        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.4rem' }}>TOTAL RESPONSES</div>
         <div style={{ fontSize: '2.4rem', fontWeight: 900, color: R, lineHeight: 1 }}>{summary.total.toLocaleString()}</div>
       </div>
 
       {/* Avg satisfaction */}
       <div style={{ ...CARD, padding: '1rem 1.25rem', borderTop: '3px solid #f59e0b' }}>
-        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: '0.4rem' }}>AVG SATISFACTION</div>
+        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.4rem' }}>AVG SATISFACTION</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '2.4rem', fontWeight: 900, color: '#f59e0b', lineHeight: 1 }}>
             {summary.avg_satisfaction != null ? summary.avg_satisfaction.toFixed(1) : '—'}
@@ -138,11 +138,11 @@ function SummaryStrip({ summary }: { summary: FeedbackSummary | null }) {
             const pct = summary.total > 0 ? (count / summary.total) * 100 : 0
             return (
               <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '0.65rem', color: '#9ca3af', width: '10px', textAlign: 'right' }}>{s}</span>
-                <div style={{ flex: 1, height: '5px', background: '#f3f4f6', borderRadius: '99px', overflow: 'hidden' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--adm-text-2)', width: '10px', textAlign: 'right' }}>{s}</span>
+                <div style={{ flex: 1, height: '5px', background: 'var(--adm-sep)', borderRadius: '99px', overflow: 'hidden' }}>
                   <div style={{ width: `${pct}%`, height: '100%', background: '#f59e0b', transition: 'width 0.5s ease', borderRadius: '99px' }} />
                 </div>
-                <span style={{ fontSize: '0.65rem', color: '#9ca3af', width: '22px' }}>{count}</span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--adm-text-2)', width: '22px' }}>{count}</span>
               </div>
             )
           })}
@@ -151,7 +151,7 @@ function SummaryStrip({ summary }: { summary: FeedbackSummary | null }) {
 
       {/* Accuracy breakdown */}
       <div style={{ ...CARD, padding: '1rem 1.25rem', borderTop: '3px solid #6366f1', gridColumn: 'span 2' }}>
-        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: '0.75rem' }}>ACCURACY BREAKDOWN</div>
+        <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.75rem' }}>ACCURACY BREAKDOWN</div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {(['exact','close','wrong','unsure','not_given'] as const).map(key => {
             const count = summary.accuracy_breakdown[key] ?? 0
@@ -160,7 +160,7 @@ function SummaryStrip({ summary }: { summary: FeedbackSummary | null }) {
             return (
               <div key={key} style={{ textAlign: 'center', minWidth: '64px' }}>
                 <div style={{ fontSize: '1.5rem', fontWeight: 900, color }}>{count}</div>
-                <div style={{ fontSize: '0.65rem', color: '#9ca3af', marginBottom: '2px' }}>{ACCURACY_LABELS[key] ?? 'Not given'}</div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--adm-text-2)', marginBottom: '2px' }}>{ACCURACY_LABELS[key] ?? 'Not given'}</div>
                 <div style={{ fontSize: '0.7rem', fontWeight: 700, color }}>{pct}%</div>
               </div>
             )
@@ -244,18 +244,18 @@ export default function AdminFeedback() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <ChatBubbleLeftRightIcon style={{ width: '1.5rem', height: '1.5rem', color: R }} />
             <div>
-              <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#111827', margin: 0 }}>Feedback Report</h1>
-              <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: 0 }}>User-submitted results from the battery finder</p>
+              <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--adm-text-1)', margin: 0 }}>Feedback Report</h1>
+              <p style={{ fontSize: '0.78rem', color: 'var(--adm-text-2)', margin: 0 }}>User-submitted results from the battery finder</p>
             </div>
           </div>
 
           {/* Filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FunnelIcon style={{ width: '1rem', height: '1rem', color: '#9ca3af' }} />
+            <FunnelIcon style={{ width: '1rem', height: '1rem', color: 'var(--adm-text-2)' }} />
             <select
               value={accuracy}
               onChange={e => handleAccuracyFilter(e.target.value)}
-              style={{ borderRadius: '8px', border: '1px solid #d1d5db', background: '#fff', padding: '0.35rem 0.7rem', fontSize: '0.82rem', fontFamily: 'inherit', cursor: 'pointer' }}
+              style={{ borderRadius: '8px', border: '1px solid var(--adm-input-border)', background: 'var(--adm-input-bg)', color: 'var(--adm-text-1)', padding: '0.35rem 0.7rem', fontSize: '0.82rem', fontFamily: 'inherit', cursor: 'pointer' }}
             >
               <option value="">All accuracy</option>
               <option value="exact">Exact match</option>
@@ -282,8 +282,8 @@ export default function AdminFeedback() {
                 padding: '0.4rem 0.85rem',
                 borderRadius: '8px',
                 border: '1px solid #16a34a',
-                background: exportingCsv || total === 0 ? '#f9fafb' : '#16a34a',
-                color: exportingCsv || total === 0 ? '#9ca3af' : '#fff',
+                background: exportingCsv || total === 0 ? 'var(--adm-subtle-bg)' : '#16a34a',
+                color: exportingCsv || total === 0 ? 'var(--adm-text-2)' : '#fff',
                 cursor: exportingCsv || total === 0 ? 'default' : 'pointer',
                 fontSize: '0.82rem',
                 fontWeight: 600,
@@ -305,8 +305,8 @@ export default function AdminFeedback() {
                 padding: '0.4rem 0.85rem',
                 borderRadius: '8px',
                 border: `1px solid ${R}`,
-                background: exporting || total === 0 ? '#f9fafb' : R,
-                color: exporting || total === 0 ? '#9ca3af' : '#fff',
+                background: exporting || total === 0 ? 'var(--adm-subtle-bg)' : R,
+                color: exporting || total === 0 ? 'var(--adm-text-2)' : '#fff',
                 cursor: exporting || total === 0 ? 'default' : 'pointer',
                 fontSize: '0.82rem',
                 fontWeight: 600,
@@ -335,21 +335,21 @@ export default function AdminFeedback() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #e2e4e9', background: '#f9fafb' }}>
+                <tr style={{ borderBottom: '2px solid var(--adm-sep)', background: 'var(--adm-thead-bg)' }}>
                   {['User', 'Vehicle', 'Battery Returned', 'Input', 'Rating', 'Confidence', 'Match Type', 'Accuracy', 'Wrong parts flagged', 'Comments', 'Submitted'].map(h => (
-                    <th key={h} style={{ padding: '0.7rem 1rem', textAlign: 'left', fontWeight: 700, fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6b7280', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '0.7rem 1rem', textAlign: 'left', fontWeight: 700, fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--adm-text-2)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td colSpan={11} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>
+                  <tr><td colSpan={11} style={{ padding: '3rem', textAlign: 'center', color: 'var(--adm-text-2)' }}>Loading…</td></tr>
                 )}
                 {!loading && items.length === 0 && (
-                  <tr><td colSpan={11} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>No feedback entries found.</td></tr>
+                  <tr><td colSpan={11} style={{ padding: '3rem', textAlign: 'center', color: 'var(--adm-text-2)' }}>No feedback entries found.</td></tr>
                 )}
                 {!loading && items.map((row, i) => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                  <tr key={row.id} style={{ borderBottom: '1px solid var(--adm-row-border)', background: i % 2 === 0 ? 'var(--adm-card-bg)' : 'var(--adm-faint-bg)' }}>
                     <td style={{ padding: '0.7rem 1rem', whiteSpace: 'nowrap' }}>
                       {row.test_username
                         ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.55rem', borderRadius: '999px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', fontSize: '0.75rem', fontWeight: 700 }}>
@@ -359,7 +359,7 @@ export default function AdminFeedback() {
                         : <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>anonymous</span>
                       }
                     </td>
-                    <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: '#111827', maxWidth: '200px' }}>
+                    <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: 'var(--adm-text-1)', maxWidth: '200px' }}>
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.vehicle_label}>
                         {row.vehicle_label}
                       </div>
@@ -409,9 +409,9 @@ export default function AdminFeedback() {
                         ? <span style={{
                             display: 'inline-block', padding: '0.12rem 0.5rem', borderRadius: '999px',
                             fontSize: '0.7rem', fontWeight: 600,
-                            background: '#f9fafb',
-                            color: '#374151',
-                            border: '1px solid #e2e4e9',
+                            background: 'var(--adm-subtle-bg)',
+                            color: 'var(--adm-text-1)',
+                            border: '1px solid var(--adm-sep)',
                           }}>{row.match_type.replace(/_/g, ' ')}</span>
                         : <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>—</span>
                       }
@@ -422,13 +422,13 @@ export default function AdminFeedback() {
                     <td style={{ padding: '0.7rem 1rem' }}>
                       <WrongPartsChips parts={row.wrong_parts} />
                     </td>
-                    <td style={{ padding: '0.7rem 1rem', color: '#374151', maxWidth: '260px' }}>
+                    <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-1)', maxWidth: '260px' }}>
                       {row.comments
                         ? <span title={row.comments} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{row.comments}</span>
                         : <span style={{ color: '#d1d5db' }}>—</span>
                       }
                     </td>
-                    <td style={{ padding: '0.7rem 1rem', color: '#9ca3af', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
+                    <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
                       <span title={new Date(row.submitted_at).toLocaleString()}>{relativeTime(row.submitted_at)}</span>
                     </td>
                   </tr>
@@ -439,22 +439,22 @@ export default function AdminFeedback() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderTop: '1px solid #e2e4e9', background: '#f9fafb' }}>
-              <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderTop: '1px solid var(--adm-sep)', background: 'var(--adm-faint-bg)' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--adm-text-2)' }}>
                 {total} response{total !== 1 ? 's' : ''} — page {page} of {totalPages}
               </span>
               <div style={{ display: 'flex', gap: '0.4rem' }}>
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #e2e4e9', background: page === 1 ? '#f9fafb' : '#fff', cursor: page === 1 ? 'default' : 'pointer', color: page === 1 ? '#d1d5db' : '#374151' }}
+                  style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--adm-sep)', background: page === 1 ? 'var(--adm-subtle-bg)' : 'var(--adm-card-bg)', cursor: page === 1 ? 'default' : 'pointer', color: page === 1 ? 'var(--adm-text-2)' : 'var(--adm-text-1)' }}
                 >
                   <ChevronLeftIcon style={{ width: '1rem', height: '1rem' }} />
                 </button>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #e2e4e9', background: page === totalPages ? '#f9fafb' : '#fff', cursor: page === totalPages ? 'default' : 'pointer', color: page === totalPages ? '#d1d5db' : '#374151' }}
+                  style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--adm-sep)', background: page === totalPages ? 'var(--adm-subtle-bg)' : 'var(--adm-card-bg)', cursor: page === totalPages ? 'default' : 'pointer', color: page === totalPages ? 'var(--adm-text-2)' : 'var(--adm-text-1)' }}
                 >
                   <ChevronRightIcon style={{ width: '1rem', height: '1rem' }} />
                 </button>

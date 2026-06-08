@@ -13,10 +13,10 @@ import AdminLayout from '@/components/admin/AdminLayout'
 
 const R = '#CC0000'
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--adm-card-bg)',
   borderRadius: '14px',
-  border: '1px solid #e2e4e9',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+  border: '1px solid var(--adm-card-border)',
+  boxShadow: 'var(--adm-card-shadow)',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
 }
 
@@ -74,13 +74,13 @@ export default function AdminTestSessions() {
 
       {/* Header */}
       <header style={{
-        background: '#fff', borderBottom: '1px solid #e2e4e9',
+        background: 'var(--adm-header-bg)', borderBottom: '1px solid var(--adm-sep)',
         boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px',
         display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <UserGroupIcon style={{ width: 16, height: 16, color: R }} />
-          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>
+          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>
             Test Users &amp; Sessions
           </span>
         </div>
@@ -89,7 +89,7 @@ export default function AdminTestSessions() {
           <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.25rem 0.65rem', borderRadius: 20, background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
             {activeSessions.length} active session{activeSessions.length !== 1 ? 's' : ''}
           </span>
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.25rem 0.65rem', borderRadius: 20, background: '#f9fafb', color: '#6b7280', border: '1px solid #e2e4e9' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '0.25rem 0.65rem', borderRadius: 20, background: 'var(--adm-subtle-bg)', color: 'var(--adm-text-2)', border: '1px solid var(--adm-sep)' }}>
             {users.length} user{users.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -113,7 +113,7 @@ export default function AdminTestSessions() {
         )}
 
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #e2e4e9', paddingBottom: '0.1rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--adm-sep)', paddingBottom: '0.1rem' }}>
           {(['sessions', 'users'] as TabId[]).map(t => (
             <button
               key={t}
@@ -124,7 +124,7 @@ export default function AdminTestSessions() {
                 borderBottom: tab === t ? `2px solid ${R}` : '2px solid transparent',
                 background: 'transparent',
                 fontWeight: tab === t ? 700 : 500,
-                color: tab === t ? R : '#6b7280',
+                color: tab === t ? R : 'var(--adm-text-2)',
                 fontSize: '0.85rem',
                 cursor: 'pointer',
                 textTransform: 'capitalize',
@@ -139,7 +139,7 @@ export default function AdminTestSessions() {
         {tab === 'sessions' && (
           <>
             {/* Active */}
-            <SectionCard title={`Active (${activeSessions.length})`} color="#15803d" bg="#f0fdf4">
+            <SectionCard title={`Active (${activeSessions.length})`} color="#15803d">
               {activeSessions.length === 0
                 ? <EmptyRow text="No active sessions" />
                 : <SessionTable rows={activeSessions} revoking={revoking} onRevoke={handleRevoke} fmt={fmt} />
@@ -148,7 +148,7 @@ export default function AdminTestSessions() {
 
             {/* Expired */}
             {expiredSessions.length > 0 && (
-              <SectionCard title={`Expired (${expiredSessions.length})`} color="#9ca3af" bg="#f9fafb">
+              <SectionCard title={`Expired (${expiredSessions.length})`} color="var(--adm-text-2)">
                 <SessionTable rows={expiredSessions} revoking={null} onRevoke={null} fmt={fmt} dimmed />
               </SectionCard>
             )}
@@ -160,9 +160,9 @@ export default function AdminTestSessions() {
           <div style={{ ...CARD, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
               <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e2e4e9' }}>
+                <tr style={{ background: 'var(--adm-thead-bg)', borderBottom: '1px solid var(--adm-sep)' }}>
                   {['ID', 'Username', 'Email', 'Joined', 'Active Sessions', 'Status'].map(h => (
-                    <th key={h} style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <th key={h} style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: 700, color: 'var(--adm-text-2)', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {h}
                     </th>
                   ))}
@@ -170,13 +170,13 @@ export default function AdminTestSessions() {
               </thead>
               <tbody>
                 {users.length === 0
-                  ? <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>No test users yet</td></tr>
+                  ? <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--adm-text-2)' }}>No test users yet</td></tr>
                   : users.map((u, i) => (
-                    <tr key={u.id} style={{ borderBottom: i < users.length - 1 ? '1px solid #f3f4f6' : undefined }}>
-                      <td style={{ padding: '0.7rem 1rem', color: '#9ca3af' }}>{u.id}</td>
-                      <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: '#111827' }}>{u.username}</td>
-                      <td style={{ padding: '0.7rem 1rem', color: '#6b7280' }}>{u.email ?? '—'}</td>
-                      <td style={{ padding: '0.7rem 1rem', color: '#6b7280' }}>{fmt(u.created_at)}</td>
+                    <tr key={u.id} style={{ borderBottom: i < users.length - 1 ? '1px solid var(--adm-row-border)' : undefined }}>
+                      <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)' }}>{u.id}</td>
+                      <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: 'var(--adm-text-1)' }}>{u.username}</td>
+                      <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)' }}>{u.email ?? '—'}</td>
+                      <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)' }}>{fmt(u.created_at)}</td>
                       <td style={{ padding: '0.7rem 1rem' }}>
                         <span style={{ fontWeight: 700, color: u.active_sessions > 0 ? '#15803d' : '#9ca3af' }}>
                           {u.active_sessions}
@@ -210,12 +210,12 @@ export default function AdminTestSessions() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function SectionCard({ title, color, bg, children }: {
-  title: string; color: string; bg: string; children: React.ReactNode
+function SectionCard({ title, color, children }: {
+  title: string; color: string; children: React.ReactNode
 }) {
   return (
     <div style={{ ...CARD, overflow: 'hidden' }}>
-      <div style={{ padding: '0.7rem 1rem', borderBottom: '1px solid #e2e4e9', background: bg, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ padding: '0.7rem 1rem', borderBottom: '1px solid var(--adm-sep)', background: 'var(--adm-subtle-bg)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <span style={{ fontSize: '0.78rem', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {title}
         </span>
@@ -227,7 +227,7 @@ function SectionCard({ title, color, bg, children }: {
 
 function EmptyRow({ text }: { text: string }) {
   return (
-    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>
+    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--adm-text-2)', fontSize: '0.85rem' }}>
       {text}
     </div>
   )
@@ -244,9 +244,9 @@ function SessionTable({ rows, revoking, onRevoke, fmt, dimmed = false }: {
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem', opacity: dimmed ? 0.7 : 1 }}>
       <thead>
-        <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e2e4e9' }}>
+        <tr style={{ background: 'var(--adm-thead-bg)', borderBottom: '1px solid var(--adm-sep)' }}>
           {['User', 'IP Address', 'User Agent', 'Created', 'Last Seen', 'Expires', ''].map(h => (
-            <th key={h} style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <th key={h} style={{ padding: '0.6rem 1rem', textAlign: 'left', fontWeight: 700, color: 'var(--adm-text-2)', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               {h}
             </th>
           ))}
@@ -254,16 +254,16 @@ function SessionTable({ rows, revoking, onRevoke, fmt, dimmed = false }: {
       </thead>
       <tbody>
         {rows.map((s, i) => (
-          <tr key={s.id} style={{ borderBottom: i < rows.length - 1 ? '1px solid #f3f4f6' : undefined }}>
-            <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: '#111827' }}>{s.username}</td>
-            <td style={{ padding: '0.7rem 1rem', color: '#6b7280', fontFamily: 'monospace' }}>{s.ip_address ?? '—'}</td>
-            <td style={{ padding: '0.7rem 1rem', color: '#9ca3af', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          <tr key={s.id} style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--adm-row-border)' : undefined }}>
+            <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: 'var(--adm-text-1)' }}>{s.username}</td>
+            <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)', fontFamily: 'monospace' }}>{s.ip_address ?? '—'}</td>
+            <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
               title={s.user_agent ?? undefined}>
               {s.user_agent ? s.user_agent.slice(0, 48) + (s.user_agent.length > 48 ? '…' : '') : '—'}
             </td>
-            <td style={{ padding: '0.7rem 1rem', color: '#6b7280' }}>{fmt(s.created_at)}</td>
-            <td style={{ padding: '0.7rem 1rem', color: '#6b7280' }}>{fmt(s.last_seen_at)}</td>
-            <td style={{ padding: '0.7rem 1rem', color: '#6b7280' }}>{fmt(s.expires_at)}</td>
+            <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)' }}>{fmt(s.created_at)}</td>
+            <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)' }}>{fmt(s.last_seen_at)}</td>
+            <td style={{ padding: '0.7rem 1rem', color: 'var(--adm-text-2)' }}>{fmt(s.expires_at)}</td>
             <td style={{ padding: '0.7rem 1rem' }}>
               {onRevoke && !s.expired && (
                 <button

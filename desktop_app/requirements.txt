@@ -1,0 +1,4 @@
+PyQt6>=6.6.0
+qt-material>=2.14
+nicegui>=1.4
+pywebview>=5.0,<6.0

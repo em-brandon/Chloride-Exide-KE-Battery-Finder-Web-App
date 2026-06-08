@@ -24,16 +24,17 @@ import {
 const R   = '#CC0000'
 const RD  = '#990000'
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--adm-card-bg)',
   borderRadius: '14px',
-  border: '1px solid #e2e4e9',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+  border: '1px solid var(--adm-card-border)',
+  boxShadow: 'var(--adm-card-shadow)',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
 }
 const INPUT: React.CSSProperties = {
   borderRadius: '8px',
-  border: '1px solid #d1d5db',
-  background: '#fff',
+  border: '1px solid var(--adm-input-border)',
+  background: 'var(--adm-input-bg)',
+  color: 'var(--adm-text-1)',
   padding: '0.4rem 0.7rem',
   fontSize: '0.82rem',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
@@ -140,7 +141,7 @@ function actionStyle(action: AuditEntry['action']): React.CSSProperties {
     UPDATE: { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' },
     DELETE: { background: '#fff5f5', color: R,          border: `1px solid #f5c6c6` },
   }
-  return map[action] ?? { background: '#f4f5f7', color: 'rgba(107,114,128,0.85)', border: '1px solid #e2e4e9' }
+  return map[action] ?? { background: 'var(--adm-subtle-bg)', color: 'var(--adm-text-2)', border: '1px solid var(--adm-sep)' }
 }
 
 // ── Diff viewer ───────────────────────────────────────────────────────────────
@@ -246,15 +247,15 @@ export default function AdminAuditLog() {
     <AdminLayout>
 
       {/* ── Header ── */}
-      <header style={{ background: '#fff', borderBottom: '1px solid #e2e4e9', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
+      <header style={{ background: 'var(--adm-header-bg)', borderBottom: '1px solid var(--adm-sep)', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ClipboardDocumentListIcon style={{ width: 16, height: 16, color: R }} />
-          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>Audit Log</span>
+          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Audit Log</span>
         </div>
         {hasFilters && <span style={{ fontSize: '0.68rem', fontWeight: 700, background: '#fff5f5', color: R, border: '1px solid #f5c6c6', borderRadius: '99px', padding: '0.15rem 0.6rem' }}>Filtered</span>}
-        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'rgba(107,114,128,0.6)', background: '#f4f5f7', borderRadius: '99px', padding: '0.2rem 0.7rem', border: '1px solid #e2e4e9' }}>{total.toLocaleString()} entries</span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--adm-text-2)', background: 'var(--adm-subtle-bg)', borderRadius: '99px', padding: '0.2rem 0.7rem', border: '1px solid var(--adm-sep)' }}>{total.toLocaleString()} entries</span>
         <div style={{ display: 'flex', gap: '0.4rem' }}>
-          <button onClick={() => exportCSV(items)} title="Export current page as CSV" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 600, color: 'rgba(17,24,39,0.7)', background: '#fff', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.35rem 0.8rem', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.borderColor = '#1d4ed8'; e.currentTarget.style.color = '#1d4ed8' }} onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e4e9'; e.currentTarget.style.color = 'rgba(17,24,39,0.7)' }}>
+          <button onClick={() => exportCSV(items)} title="Export current page as CSV" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--adm-text-1)', background: 'var(--adm-card-bg)', border: '1px solid var(--adm-sep)', borderRadius: '8px', padding: '0.35rem 0.8rem', cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.borderColor = '#1d4ed8'; e.currentTarget.style.color = '#1d4ed8' }} onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e4e9'; e.currentTarget.style.color = 'rgba(17,24,39,0.7)' }}>
             <TableCellsIcon style={{ width: 13, height: 13 }} /> CSV
           </button>
           <button onClick={() => exportPDF(items)} title="Print / Save as PDF" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', fontWeight: 600, color: '#fff', background: R, border: 'none', borderRadius: '8px', padding: '0.35rem 0.85rem', cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = RD)} onMouseLeave={e => (e.currentTarget.style.background = R)}>
@@ -269,7 +270,7 @@ export default function AdminAuditLog() {
         <div style={{ ...CARD, padding: '1.1rem 1.4rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.9rem' }}>
             <FunnelIcon style={{ width: 13, height: 13, color: 'rgba(107,114,128,0.6)' }} />
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>Filters</span>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)' }}>Filters</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.85rem', alignItems: 'flex-end' }}>
 
@@ -320,7 +321,7 @@ export default function AdminAuditLog() {
             {/* Apply / Reset */}
             <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
               {hasFilters && (
-                <button onClick={resetFilters} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', fontWeight: 600, color: 'rgba(107,114,128,0.75)', background: '#f4f5f7', border: '1px solid #e2e4e9', borderRadius: '8px', padding: '0.42rem 0.9rem', cursor: 'pointer' }}>
+                <button onClick={resetFilters} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', fontWeight: 600, color: 'rgba(107,114,128,0.75)', background: 'var(--adm-subtle-bg)', border: '1px solid var(--adm-sep)', borderRadius: '8px', padding: '0.42rem 0.9rem', cursor: 'pointer' }}>
                   <XMarkIcon style={{ width: 12, height: 12 }} /> Reset
                 </button>
               )}
@@ -356,9 +357,9 @@ export default function AdminAuditLog() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
-                <tr style={{ background: '#f8f9fb', borderBottom: '2px solid #e2e4e9' }}>
+                <tr style={{ background: 'var(--adm-thead-bg)', borderBottom: '2px solid var(--adm-sep)' }}>
                   {['Action', 'Battery Code', 'Changed By', 'When', 'Fields', ''].map(h => (
-                    <th key={h} style={{ padding: '0.75rem 1.1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '0.75rem 1.1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -371,7 +372,7 @@ export default function AdminAuditLog() {
                   const code = batteryCode(e)
                   return (
                     <>
-                      <tr key={e.id} style={{ borderTop: i > 0 ? '1px solid #f0f1f4' : 'none', background: isExpanded ? '#fef9f9' : '#fff' }} onMouseEnter={ev => { if (!isExpanded) ev.currentTarget.style.background = '#fff8f8' }} onMouseLeave={ev => { if (!isExpanded) ev.currentTarget.style.background = '#fff' }}>
+                      <tr key={e.id} style={{ borderTop: i > 0 ? '1px solid var(--adm-row-border)' : 'none', background: isExpanded ? '#fef9f9' : 'var(--adm-card-bg)' }} onMouseEnter={ev => { if (!isExpanded) ev.currentTarget.style.background = 'var(--adm-row-hover)' }} onMouseLeave={ev => { if (!isExpanded) ev.currentTarget.style.background = 'var(--adm-card-bg)' }}>
 
                         {/* Action badge */}
                         <td style={{ padding: '0.8rem 1.1rem' }}>
@@ -433,14 +434,14 @@ export default function AdminAuditLog() {
 
         {/* ── Pagination ── */}
         {totalPages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'rgba(107,114,128,0.8)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--adm-text-2)' }}>
             <span>{total.toLocaleString()} total entries</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, color: 'rgba(17,24,39,0.7)' }} onMouseEnter={e => { if (page !== 1) { e.currentTarget.style.borderColor = R; e.currentTarget.style.color = R } }} onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e4e9'; e.currentTarget.style.color = 'rgba(17,24,39,0.7)' }}>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid var(--adm-sep)', background: 'var(--adm-card-bg)', fontSize: '0.78rem', fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, color: 'var(--adm-text-1)' }} onMouseEnter={e => { if (page !== 1) { e.currentTarget.style.borderColor = R; e.currentTarget.style.color = R } }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--adm-sep)'; e.currentTarget.style.color = 'var(--adm-text-1)' }}>
                 <ChevronLeftIcon style={{ width: 13, height: 13 }} /> Prev
               </button>
-              <span style={{ padding: '0 0.5rem', fontWeight: 700, color: 'rgba(17,24,39,0.75)' }}>{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid #e2e4e9', background: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, color: 'rgba(17,24,39,0.7)' }} onMouseEnter={e => { if (page !== totalPages) { e.currentTarget.style.borderColor = R; e.currentTarget.style.color = R } }} onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e4e9'; e.currentTarget.style.color = 'rgba(17,24,39,0.7)' }}>
+              <span style={{ padding: '0 0.5rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>{page} / {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '7px', border: '1px solid var(--adm-sep)', background: 'var(--adm-card-bg)', fontSize: '0.78rem', fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, color: 'var(--adm-text-1)' }} onMouseEnter={e => { if (page !== totalPages) { e.currentTarget.style.borderColor = R; e.currentTarget.style.color = R } }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--adm-sep)'; e.currentTarget.style.color = 'var(--adm-text-1)' }}>
                 Next <ChevronRightIcon style={{ width: 13, height: 13 }} />
               </button>
             </div>

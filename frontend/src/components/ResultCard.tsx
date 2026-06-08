@@ -6,10 +6,23 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
 import exideMaxxLogo from '@/assets/exide-max-logo.png'
+import sparkLogo     from '@/assets/spark-logo.jpg'
+import powerlastLogo from '@/assets/powerlast-logo.jpg'
+import supremeLogo   from '@/assets/supreme-logo.jpg'
+import sebangLogo    from '@/assets/sebang-logo.jpg'
+import exideAgmLogo  from '@/assets/exide-agm-logo.jpg'
+import sbFloodedLogo from '@/assets/sb-flooded-logo.jpg'
 
-function isExideMaxx(batteryCode: string): boolean {
-  const u = batteryCode.toUpperCase()
-  return u.includes('POWERLAST') || u.includes('SPARK') || u.includes('CHLORIDE EXIDE MAXX')
+function getBrandLogo(code: string): string | null {
+  const u = code.toUpperCase()
+  if (u.includes('MAXX'))                                    return exideMaxxLogo
+  if (u.includes('POWERLAST'))                               return powerlastLogo
+  if (u.includes('SPARK'))                                   return sparkLogo
+  if (u.includes('SUPREME'))                                 return supremeLogo
+  if (u.includes('SEBANG'))                                  return sebangLogo
+  if (u.includes('EXIDE') && !u.includes('CHLORIDE EXIDE')) return exideAgmLogo
+  if (u.includes('CHLORIDE EXIDE'))                          return sbFloodedLogo
+  return null
 }
 
 interface ResultCardProps {
@@ -35,6 +48,7 @@ export function ResultCard({ data }: ResultCardProps) {
   const [altsVisible, setAltsVisible] = useState(true)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const p = data.primary
+  const brandLogo = getBrandLogo(p.battery_code)
   const isFallback = !data.matched_make
   const vehicleLabel = data.matched_make
     ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
@@ -70,9 +84,9 @@ export function ResultCard({ data }: ResultCardProps) {
       {/* Primary battery */}
       <div className="rounded-lg border border-red-100 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 p-3 space-y-2.5">
         {/* Series logo */}
-        {isExideMaxx(p.battery_code) && (
+        {brandLogo && (
           <div className="flex items-center gap-2 pb-1 border-b border-red-100 dark:border-red-900/40">
-            <img src={exideMaxxLogo} alt="Exide Maxx" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+            <img src={brandLogo} alt="" style={{ height: 28, width: 'auto', maxWidth: 120, objectFit: 'contain' }} />
           </div>
         )}
         {/* Specs row */}

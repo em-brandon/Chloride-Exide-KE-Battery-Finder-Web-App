@@ -6,6 +6,13 @@ import { AccuracyBar } from '@/components/AccuracyBar'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { Search, MousePointerClick, Keyboard, Copy, Check } from 'lucide-react'
 import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
+import exideMaxxLogo from '@/assets/exide-max-logo.png'
+import sparkLogo     from '@/assets/spark-logo.jpg'
+import powerlastLogo from '@/assets/powerlast-logo.jpg'
+import supremeLogo   from '@/assets/supreme-logo.jpg'
+import sebangLogo    from '@/assets/sebang-logo.jpg'
+import sbFloodedLogo from '@/assets/sb-flooded-logo.jpg'
+import exideAgmLogo  from '@/assets/exide-agm-logo.jpg'
 
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
@@ -33,6 +40,18 @@ function techIconColor(tech?: string): string {
   if (t.includes('AGM')) return '#5b21b6'
   if (t.includes('SB') || t.includes('FLOOD')) return '#1d4ed8'
   return '#374151'
+}
+
+function getBrandLogo(code: string): string | null {
+  const u = code.toUpperCase()
+  if (u.includes('MAXX'))                                    return exideMaxxLogo
+  if (u.includes('POWERLAST'))                               return powerlastLogo
+  if (u.includes('SPARK'))                                   return sparkLogo
+  if (u.includes('SUPREME'))                                 return supremeLogo
+  if (u.includes('SEBANG'))                                  return sebangLogo
+  if (u.includes('CHLORIDE EXIDE'))                          return sbFloodedLogo
+  if (u.includes('EXIDE'))                                   return exideAgmLogo
+  return null
 }
 
 function CarBatteryIcon({ size = 40, color = '#374151' }: { size?: number; color?: string }) {
@@ -81,6 +100,7 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
   )
 
   const isFallback = !data.matched_make
+  const brandLogo = getBrandLogo(p.battery_code)
 
   return (
     <div className="result-card">
@@ -109,7 +129,10 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
 
       <div className="primary-card">
         <div className="primary-battery-icon">
-          <CarBatteryIcon size={42} color={techIconColor(p.technology)} />
+          {brandLogo
+            ? <img src={brandLogo} alt="" style={{ height: 42, width: 'auto', maxWidth: 80, objectFit: 'contain' }} />
+            : <CarBatteryIcon size={42} color={techIconColor(p.technology)} />
+          }
           <div className="primary-battery-icon-label" style={{ color: techIconColor(p.technology) }}>
             {p.technology ?? 'MF'}
           </div>

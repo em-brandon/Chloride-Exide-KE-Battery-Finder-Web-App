@@ -8,10 +8,10 @@ import AdminLayout from '@/components/admin/AdminLayout'
 // ── Design tokens (matching dashboard) ───────────────────────────────────────
 const R = '#CC0000'
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--adm-card-bg)',
   borderRadius: '14px',
-  border: '1px solid #e2e4e9',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+  border: '1px solid var(--adm-card-border)',
+  boxShadow: 'var(--adm-card-shadow)',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
 }
 
@@ -69,10 +69,10 @@ export default function AdminSessions() {
       <Toaster items={toasts} onDismiss={dismiss} />
 
       {/* Header */}
-      <header style={{ background: '#fff', borderBottom: '1px solid #e2e4e9', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
+      <header style={{ background: 'var(--adm-header-bg)', borderBottom: '1px solid var(--adm-sep)', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', gap: '1rem', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ShieldCheckIcon style={{ width: 16, height: 16, color: R }} />
-          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>Session Management</span>
+          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Session Management</span>
         </div>
         <button
           onClick={load}
@@ -95,57 +95,57 @@ export default function AdminSessions() {
         {/* Summary strip */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <div style={{ ...CARD, padding: '1rem 1.25rem', borderTop: `3px solid ${R}` }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', marginBottom: '0.4rem' }}>Active Sessions</div>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.4rem' }}>Active Sessions</div>
             <div style={{ fontSize: '2rem', fontWeight: 800, color: R, lineHeight: 1 }}>{loading ? '—' : activeSessions.length}</div>
           </div>
           <div style={{ ...CARD, padding: '1rem 1.25rem', borderTop: '3px solid #e2e4e9' }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', marginBottom: '0.4rem' }}>Expired Sessions</div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'rgba(107,114,128,0.7)', lineHeight: 1 }}>{loading ? '—' : expiredSessions.length}</div>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.4rem' }}>Expired Sessions</div>
+            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--adm-text-2)', lineHeight: 1 }}>{loading ? '—' : expiredSessions.length}</div>
           </div>
         </div>
 
         {/* Sessions table */}
         <div style={{ ...CARD, overflow: 'hidden' }}>
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e4e9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'rgba(17,24,39,0.8)' }}>All Sessions</span>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(107,114,128,0.7)' }}>{sessions.length} total</span>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--adm-sep)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>All Sessions</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--adm-text-2)' }}>{sessions.length} total</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
-                <tr style={{ background: '#f8f9fb' }}>
+                <tr style={{ background: 'var(--adm-thead-bg)' }}>
                   {['ID', 'IP Address', 'Created', 'Expires', 'Status', 'Action'].map(h => (
-                    <th key={h} style={{ padding: '0.7rem 1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '0.7rem 1rem', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-2)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.82rem' }}>
+                    <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--adm-text-2)', fontSize: '0.82rem' }}>
                       Loading sessions…
                     </td>
                   </tr>
                 )}
                 {!loading && sessions.length === 0 && !error && (
                   <tr>
-                    <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.82rem' }}>
+                    <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--adm-text-2)', fontSize: '0.82rem' }}>
                       No sessions found
                     </td>
                   </tr>
                 )}
                 {!loading && sessions.map((s, i) => (
-                  <tr key={s.id} style={{ borderTop: i > 0 ? '1px solid #f0f1f4' : 'none', background: s.expired ? '#fafafa' : '#fff' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = s.expired ? '#f5f5f5' : '#fff8f8')}
-                    onMouseLeave={e => (e.currentTarget.style.background = s.expired ? '#fafafa' : '#fff')}
+                  <tr key={s.id} style={{ borderTop: i > 0 ? '1px solid var(--adm-row-border)' : 'none', background: s.expired ? 'var(--adm-faint-bg)' : 'var(--adm-card-bg)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--adm-row-hover)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = s.expired ? 'var(--adm-faint-bg)' : 'var(--adm-card-bg)')}
                   >
-                    <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(107,114,128,0.9)' }}>#{s.id}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(17,24,39,0.7)' }}>{s.ip_address ?? '—'}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'rgba(107,114,128,0.8)', whiteSpace: 'nowrap' }}>{fmt(s.created_at)}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: s.expired ? 'rgba(107,114,128,0.6)' : 'rgba(107,114,128,0.8)', whiteSpace: 'nowrap' }}>{fmt(s.expires_at)}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--adm-text-2)' }}>#{s.id}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--adm-text-1)' }}>{s.ip_address ?? '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--adm-text-2)', whiteSpace: 'nowrap' }}>{fmt(s.created_at)}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--adm-text-2)', whiteSpace: 'nowrap' }}>{fmt(s.expires_at)}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       {s.expired ? (
-                        <span style={{ display: 'inline-block', padding: '0.2rem 0.65rem', borderRadius: '99px', background: '#f1f2f4', color: 'rgba(107,114,128,0.8)', fontSize: '0.7rem', fontWeight: 600 }}>Expired</span>
+                        <span style={{ display: 'inline-block', padding: '0.2rem 0.65rem', borderRadius: '99px', background: 'var(--adm-subtle-bg)', color: 'var(--adm-text-2)', fontSize: '0.7rem', fontWeight: 600 }}>Expired</span>
                       ) : (
                         <span style={{ display: 'inline-block', padding: '0.2rem 0.65rem', borderRadius: '99px', background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', fontSize: '0.7rem', fontWeight: 600 }}>● Active</span>
                       )}
@@ -155,7 +155,7 @@ export default function AdminSessions() {
                         <button
                           onClick={() => handleRevoke(s.id, s.ip_address)}
                           disabled={revoking === s.id}
-                          style={{ fontSize: '0.75rem', fontWeight: 600, color: revoking === s.id ? 'rgba(107,114,128,0.5)' : R, background: revoking === s.id ? 'transparent' : '#fff5f5', border: `1px solid ${revoking === s.id ? '#e2e4e9' : '#f5c6c6'}`, padding: '0.25rem 0.7rem', borderRadius: '6px', cursor: revoking === s.id ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}
+                          style={{ fontSize: '0.75rem', fontWeight: 600, color: revoking === s.id ? 'var(--adm-text-2)' : R, background: revoking === s.id ? 'transparent' : '#fff5f5', border: `1px solid ${revoking === s.id ? 'var(--adm-sep)' : '#f5c6c6'}`, padding: '0.25rem 0.7rem', borderRadius: '6px', cursor: revoking === s.id ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}
                         >
                           {revoking === s.id ? 'Revoking…' : 'Revoke'}
                         </button>

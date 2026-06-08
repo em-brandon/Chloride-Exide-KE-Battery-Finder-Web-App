@@ -65,10 +65,10 @@ import {
 const R  = '#CC0000'
 const RD = '#990000'
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--adm-card-bg)',
   borderRadius: '14px',
-  border: '1px solid #e2e4e9',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+  border: '1px solid var(--adm-card-border)',
+  boxShadow: 'var(--adm-card-shadow)',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
 }
 
@@ -472,7 +472,7 @@ function PipelineTab({
               fontSize: '0.75rem', fontWeight: 600,
               padding: '0.5rem 1rem', borderRadius: 10,
               border: '1px solid #e2e4e9', cursor: 'pointer',
-              background: '#fff', color: 'rgba(107,114,128,0.8)',
+              background: 'var(--adm-card-bg)', color: 'var(--adm-text-2)',
               transition: 'all 0.15s', whiteSpace: 'nowrap',
             }}
           >
@@ -483,7 +483,7 @@ function PipelineTab({
 
       {/* Progress overview pill */}
       {(running || allDone || anyError) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 1rem', background: '#fff', border: '1px solid #e2e4e9', borderRadius: 99, fontSize: '0.75rem', fontWeight: 600, color: anyError ? R : allDone ? '#15803d' : '#b45309' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 1rem', background: 'var(--adm-card-bg)', border: '1px solid var(--adm-sep)', borderRadius: 99, fontSize: '0.75rem', fontWeight: 600, color: anyError ? R : allDone ? '#15803d' : '#b45309' }}>
           {anyError
             ? <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline stopped — fix errors and retry</>
             : allDone
@@ -532,7 +532,7 @@ function PipelineTab({
             <ArrowDownTrayIcon style={{ width: 15, height: 15 }} /> Download Cleaned {dataset} CSV
           </button>
           <button
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', fontWeight: 700, padding: '0.65rem 1.25rem', borderRadius: 10, border: '1px solid #e2e4e9', cursor: 'pointer', background: '#fff', color: 'rgba(17,24,39,0.8)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', fontWeight: 700, padding: '0.65rem 1.25rem', borderRadius: 10, border: '1px solid var(--adm-sep)', cursor: 'pointer', background: 'var(--adm-card-bg)', color: 'var(--adm-text-1)' }}
           >
             <ClipboardDocumentListIcon style={{ width: 15, height: 15 }} /> View Full Report
           </button>
@@ -673,8 +673,8 @@ function LogPanel({ lines }: { lines: string[] }) {
     <div style={{ ...CARD, overflow: 'hidden' }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.4rem',
-        padding: '0.6rem 1rem', borderBottom: '1px solid #e2e4e9',
-        background: '#f9fafb',
+        padding: '0.6rem 1rem', borderBottom: '1px solid var(--adm-sep)',
+        background: 'var(--adm-faint-bg)',
       }}>
         <ClipboardDocumentListIcon style={{ width: 13, height: 13, color: '#9ca3af' }} />
         <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>
@@ -706,7 +706,7 @@ function WebValidateLoadingOverlay() {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      background: '#fff',
+      background: 'var(--adm-card-bg)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem',
     }}>
       <svg width="64" height="64" viewBox="0 0 24 24" fill="#CC0000" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'loaderPulse 1.2s ease-in-out infinite' }}>
@@ -1518,7 +1518,7 @@ function WebValidateTab() {
             fontSize: '0.75rem', fontWeight: 600,
             padding: '0.55rem 1rem', borderRadius: 10,
             border: '1px solid #e2e4e9', cursor: (isRunning || isPaused || loadingCacheReset) ? 'not-allowed' : 'pointer',
-            background: '#fff', color: 'rgba(107,114,128,0.8)',
+            background: 'var(--adm-card-bg)', color: 'var(--adm-text-2)',
             opacity: (isRunning || isPaused || loadingCacheReset) ? 0.5 : 1,
             marginLeft: 'auto', whiteSpace: 'nowrap', transition: 'all 0.15s',
           }}
@@ -1547,7 +1547,7 @@ function WebValidateTab() {
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {Object.entries(status.provider_counts).filter(([, n]) => n > 0).map(([p, n]) => (
-              <span key={p} style={{ fontSize: '0.7rem', background: '#f4f5f7', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'rgba(17,24,39,0.7)', fontWeight: 600 }}>
+              <span key={p} style={{ fontSize: '0.7rem', background: 'var(--adm-subtle-bg)', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'var(--adm-text-1)', fontWeight: 600 }}>
                 {PROVIDER_LABELS[p] ?? p}: {n}
               </span>
             ))}
@@ -1629,7 +1629,7 @@ function WebValidateTab() {
           {status && Object.values(status.provider_counts).some(n => n > 0) && (
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.6rem' }}>
               {Object.entries(status.provider_counts).filter(([, n]) => n > 0).map(([p, n]) => (
-                <span key={p} style={{ fontSize: '0.7rem', background: '#f4f5f7', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'rgba(17,24,39,0.7)', fontWeight: 600 }}>
+                <span key={p} style={{ fontSize: '0.7rem', background: 'var(--adm-subtle-bg)', borderRadius: 99, padding: '0.2rem 0.6rem', color: 'var(--adm-text-1)', fontWeight: 600 }}>
                   {PROVIDER_LABELS[p] ?? p}: {n}
                 </span>
               ))}
@@ -1713,7 +1713,7 @@ function WebValidateTab() {
                 { label: 'Invalid', val: stagingInfo.invalid_count, color: R },
                 { label: 'Conflicts', val: stagingInfo.conflict_count, color: '#f59e0b' },
               ].map(({ label, val, color }) => val > 0 && (
-                <span key={label} style={{ fontSize: '0.7rem', fontWeight: 700, background: '#fff', border: '1px solid #e2e4e9', borderRadius: 99, padding: '0.2rem 0.6rem', color }}>
+                <span key={label} style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--adm-card-bg)', border: '1px solid var(--adm-sep)', borderRadius: 99, padding: '0.2rem 0.6rem', color }}>
                   {val} {label}
                 </span>
               ))}
@@ -1835,11 +1835,11 @@ function WebValidateTab() {
                 {((stagingPage - 1) * 50) + 1}–{Math.min(stagingPage * 50, stagingInfo.total)} of {stagingInfo.total.toLocaleString()}
               </span>
               <button disabled={stagingPage === 1} onClick={() => handleStagingPageChange(stagingPage - 1)}
-                style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: stagingPage === 1 ? 'not-allowed' : 'pointer', opacity: stagingPage === 1 ? 0.4 : 1 }}>
+                style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: stagingPage === 1 ? 'not-allowed' : 'pointer', opacity: stagingPage === 1 ? 0.4 : 1 }}>
                 <ChevronLeftIcon style={{ width: 14, height: 14 }} />
               </button>
               <button disabled={stagingPage * 50 >= stagingInfo.total} onClick={() => handleStagingPageChange(stagingPage + 1)}
-                style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: stagingPage * 50 >= stagingInfo.total ? 'not-allowed' : 'pointer', opacity: stagingPage * 50 >= stagingInfo.total ? 0.4 : 1 }}>
+                style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: stagingPage * 50 >= stagingInfo.total ? 'not-allowed' : 'pointer', opacity: stagingPage * 50 >= stagingInfo.total ? 0.4 : 1 }}>
                 <ChevronRightIcon style={{ width: 14, height: 14 }} />
               </button>
             </div>
@@ -1854,7 +1854,7 @@ function WebValidateTab() {
                 display: 'flex', alignItems: 'center', gap: '0.4rem',
                 fontSize: '0.78rem', fontWeight: 700,
                 padding: '0.55rem 1.1rem', borderRadius: 9, cursor: discardLoading ? 'not-allowed' : 'pointer',
-                border: `1px solid ${R}`, background: '#fff', color: R, opacity: discardLoading ? 0.6 : 1,
+                border: `1px solid ${R}`, background: 'var(--adm-card-bg)', color: R, opacity: discardLoading ? 0.6 : 1,
               }}
             >
               <TrashIcon style={{ width: 13, height: 13 }} />
@@ -1903,7 +1903,7 @@ function WebValidateTab() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
                     <thead>
-                      <tr style={{ background: '#f4f5f7' }}>
+                      <tr style={{ background: 'var(--adm-thead-bg)' }}>
                         {['Version', 'Committed At', 'Committed By', 'Pipeline Run By', 'Committed', 'Removed', 'Conflicts', ''].map(col => (
                           <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: 'rgba(107,114,128,0.9)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                             {col}
@@ -1913,7 +1913,7 @@ function WebValidateTab() {
                     </thead>
                     <tbody>
                       {versions.map((v, i) => (
-                        <tr key={v.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e2e4e9' }}>
+                        <tr key={v.id} style={{ background: i % 2 === 0 ? 'var(--adm-card-bg)' : 'var(--adm-faint-bg)', borderBottom: '1px solid var(--adm-sep)' }}>
                           <td style={{ padding: '0.5rem 0.75rem', fontWeight: 700, color: '#3b82f6' }}>
                             #{v.version_number}
                             {v.notes && (
@@ -1963,11 +1963,11 @@ function WebValidateTab() {
                 {versionsTotal > 20 && (
                   <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
                     <button disabled={versionsPage === 1} onClick={() => fetchVersions(versionsPage - 1)}
-                      style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: versionsPage === 1 ? 'not-allowed' : 'pointer', opacity: versionsPage === 1 ? 0.4 : 1 }}>
+                      style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: versionsPage === 1 ? 'not-allowed' : 'pointer', opacity: versionsPage === 1 ? 0.4 : 1 }}>
                       <ChevronLeftIcon style={{ width: 14, height: 14 }} />
                     </button>
                     <button disabled={versionsPage * 20 >= versionsTotal} onClick={() => fetchVersions(versionsPage + 1)}
-                      style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: versionsPage * 20 >= versionsTotal ? 'not-allowed' : 'pointer', opacity: versionsPage * 20 >= versionsTotal ? 0.4 : 1 }}>
+                      style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: versionsPage * 20 >= versionsTotal ? 'not-allowed' : 'pointer', opacity: versionsPage * 20 >= versionsTotal ? 0.4 : 1 }}>
                       <ChevronRightIcon style={{ width: 14, height: 14 }} />
                     </button>
                   </div>
@@ -1977,12 +1977,12 @@ function WebValidateTab() {
 
             {/* Inline changelog drawer */}
             {openChangelog && (
-              <div style={{ marginTop: '1rem', background: '#f9fafb', border: '1px solid #e2e4e9', borderRadius: 10, padding: '1rem' }}>
+              <div style={{ marginTop: '1rem', background: 'var(--adm-faint-bg)', border: '1px solid var(--adm-sep)', borderRadius: 10, padding: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>
                     Changelog for Version #{openChangelog.version.version_number}
                   </span>
-                  <button onClick={() => setOpenChangelog(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}>
+                  <button onClick={() => setOpenChangelog(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--adm-text-2)' }}>
                     <XMarkIcon style={{ width: 14, height: 14 }} />
                   </button>
                 </div>
@@ -2072,7 +2072,7 @@ function WebValidateTab() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                     <thead>
-                      <tr style={{ background: '#f4f5f7' }}>
+                      <tr style={{ background: 'var(--adm-thead-bg)' }}>
                         {['Make', 'Model', 'Year', 'Ah', 'Technology', 'Source'].map(col => (
                           <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: 'rgba(107,114,128,0.9)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                             {col}
@@ -2107,14 +2107,14 @@ function WebValidateTab() {
                   <button
                     disabled={matchedPage === 1}
                     onClick={() => setMatchedPage(p => p - 1)}
-                    style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: matchedPage === 1 ? 'not-allowed' : 'pointer', opacity: matchedPage === 1 ? 0.4 : 1 }}
+                    style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: matchedPage === 1 ? 'not-allowed' : 'pointer', opacity: matchedPage === 1 ? 0.4 : 1 }}
                   >
                     <ChevronLeftIcon style={{ width: 14, height: 14 }} />
                   </button>
                   <button
                     disabled={matchedPage * 50 >= matchedData.total}
                     onClick={() => setMatchedPage(p => p + 1)}
-                    style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: matchedPage * 50 >= matchedData.total ? 'not-allowed' : 'pointer', opacity: matchedPage * 50 >= matchedData.total ? 0.4 : 1 }}
+                    style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: matchedPage * 50 >= matchedData.total ? 'not-allowed' : 'pointer', opacity: matchedPage * 50 >= matchedData.total ? 0.4 : 1 }}
                   >
                     <ChevronRightIcon style={{ width: 14, height: 14 }} />
                   </button>
@@ -2160,7 +2160,7 @@ function WebValidateTab() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                   <thead>
-                    <tr style={{ background: '#f4f5f7' }}>
+                    <tr style={{ background: 'var(--adm-thead-bg)' }}>
                       {['Make', 'Model', 'Year', 'Engine CC', 'Fuel Type'].map(col => (
                         <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: 'rgba(107,114,128,0.9)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                           {col}
@@ -2193,14 +2193,14 @@ function WebValidateTab() {
                   <button
                     disabled={coveragePage === 1}
                     onClick={() => setCoveragePage(p => p - 1)}
-                    style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: coveragePage === 1 ? 'not-allowed' : 'pointer', opacity: coveragePage === 1 ? 0.4 : 1 }}
+                    style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: coveragePage === 1 ? 'not-allowed' : 'pointer', opacity: coveragePage === 1 ? 0.4 : 1 }}
                   >
                     <ChevronLeftIcon style={{ width: 14, height: 14 }} />
                   </button>
                   <button
                     disabled={coveragePage === totalPages}
                     onClick={() => setCoveragePage(p => p + 1)}
-                    style={{ padding: '0.3rem', border: '1px solid #e2e4e9', borderRadius: 6, background: '#fff', cursor: coveragePage === totalPages ? 'not-allowed' : 'pointer', opacity: coveragePage === totalPages ? 0.4 : 1 }}
+                    style={{ padding: '0.3rem', border: '1px solid var(--adm-sep)', borderRadius: 6, background: 'var(--adm-card-bg)', cursor: coveragePage === totalPages ? 'not-allowed' : 'pointer', opacity: coveragePage === totalPages ? 0.4 : 1 }}
                   >
                     <ChevronRightIcon style={{ width: 14, height: 14 }} />
                   </button>
@@ -2305,7 +2305,7 @@ function WebValidateTab() {
               <button
                 onClick={() => setEditingRow(null)}
                 disabled={editSaving}
-                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}
+                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: '1px solid var(--adm-input-border)', background: 'var(--adm-input-bg)', color: 'var(--adm-text-1)', cursor: 'pointer', fontSize: '0.8rem' }}
               >
                 Cancel
               </button>
@@ -2402,7 +2402,7 @@ function WebValidateTab() {
 
                 <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button onClick={() => setCommitModalOpen(false)}
-                    style={{ padding: '0.6rem 1.1rem', borderRadius: 9, border: '1px solid #e2e4e9', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                    style={{ padding: '0.6rem 1.1rem', borderRadius: 9, border: '1px solid var(--adm-sep)', background: 'var(--adm-card-bg)', color: 'var(--adm-text-1)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
                     Cancel
                   </button>
                   <button
@@ -2436,7 +2436,7 @@ function WebValidateTab() {
             <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button
                 onClick={() => blocker.reset?.()}
-                style={{ padding: '0.6rem 1.1rem', borderRadius: 9, border: '1px solid #e2e4e9', background: '#fff', color: '#374151', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
+                style={{ padding: '0.6rem 1.1rem', borderRadius: 9, border: '1px solid var(--adm-sep)', background: 'var(--adm-card-bg)', color: 'var(--adm-text-1)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
               >
                 Stay on Page
               </button>
@@ -2507,7 +2507,7 @@ export default function AdminDataPipeline() {
         {/* Dataset tabs */}
         <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
           {/* Tab switcher */}
-          <div style={{ display: 'flex', gap: '0.5rem', background: '#f4f5f7', padding: '0.3rem', borderRadius: 99, width: 'fit-content', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--adm-subtle-bg)', padding: '0.3rem', borderRadius: 99, width: 'fit-content', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
             <button style={tabStyle('crsp')} onClick={() => setActiveTab('crsp')}>
               <TableCellsIcon style={{ width: 14, height: 14 }} /> CRSP Dataset
             </button>

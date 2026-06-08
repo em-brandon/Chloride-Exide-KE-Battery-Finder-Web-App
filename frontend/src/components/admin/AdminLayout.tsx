@@ -13,6 +13,8 @@ import {
   ArrowRightStartOnRectangleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  SunIcon,
+  MoonIcon,
 } from '@heroicons/react/20/solid'
 import { adminLogout } from '@/lib/adminApi'
 
@@ -46,6 +48,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsedState] = useState<boolean>(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
   )
+  const [dark, setDark] = useState<boolean>(
+    () => localStorage.getItem('admin_dark') === '1'
+  )
+
+  function toggleDark() {
+    setDark(prev => {
+      const next = !prev
+      localStorage.setItem('admin_dark', next ? '1' : '0')
+      return next
+    })
+  }
 
   function setCollapsed(value: boolean | ((prev: boolean) => boolean)) {
     setCollapsedState(prev => {
@@ -67,20 +80,54 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const sidebarW = collapsed ? SIDEBAR_W_ICON : SIDEBAR_W
 
+  const admVars = (dark ? {
+    '--adm-card-bg':     '#161b22',
+    '--adm-card-border': '#30363d',
+    '--adm-card-shadow': '0 2px 12px rgba(0,0,0,0.4)',
+    '--adm-header-bg':   '#161b22',
+    '--adm-subtle-bg':   '#21262d',
+    '--adm-faint-bg':    '#1e2329',
+    '--adm-input-bg':    '#0d1117',
+    '--adm-input-border':'#30363d',
+    '--adm-text-1':      'rgba(229,231,235,0.9)',
+    '--adm-text-2':      'rgba(156,163,175,0.7)',
+    '--adm-text-3':      'rgba(156,163,175,0.8)',
+    '--adm-row-hover':   '#21262d',
+    '--adm-row-border':  '#21262d',
+    '--adm-thead-bg':    '#1e2329',
+    '--adm-sep':         '#30363d',
+  } : {
+    '--adm-card-bg':     '#ffffff',
+    '--adm-card-border': '#e2e4e9',
+    '--adm-card-shadow': '0 2px 12px rgba(0,0,0,0.07)',
+    '--adm-header-bg':   '#ffffff',
+    '--adm-subtle-bg':   '#f4f5f7',
+    '--adm-faint-bg':    '#f9fafb',
+    '--adm-input-bg':    '#ffffff',
+    '--adm-input-border':'#d1d5db',
+    '--adm-text-1':      'rgba(17,24,39,0.88)',
+    '--adm-text-2':      'rgba(107,114,128,0.8)',
+    '--adm-text-3':      'rgba(107,114,128,0.9)',
+    '--adm-row-hover':   '#fff8f8',
+    '--adm-row-border':  '#f0f1f4',
+    '--adm-thead-bg':    '#f8f9fb',
+    '--adm-sep':         '#e2e4e9',
+  }) as React.CSSProperties
+
   async function handleLogout() {
     await adminLogout()
     navigate('/admin/login', { replace: true })
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div className={dark ? 'admin-dark' : ''} style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', system-ui, sans-serif", ...admVars }}>
 
       {/* ── Sidebar ── */}
-      <aside style={{
+      <aside className="admin-sidebar" style={{
         width: sidebarW,
         minWidth: sidebarW,
-        background: '#fff',
-        borderRight: '1px solid #e2e4e9',
+        background: dark ? '#161b22' : '#fff',
+        borderRight: dark ? '1px solid #30363d' : '1px solid #e2e4e9',
         boxShadow: '2px 0 12px rgba(0,0,0,0.05)',
         display: 'flex',
         flexDirection: 'column',
@@ -96,7 +143,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         {/* Brand */}
         <div style={{
           padding: collapsed ? '0.9rem 0' : '0.9rem 1rem',
-          borderBottom: '1px solid #e2e4e9',
+          borderBottom: dark ? '1px solid #30363d' : '1px solid #e2e4e9',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'flex-start',
@@ -157,8 +204,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   borderRadius: '10px',
                   fontSize: '0.85rem',
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? R : 'rgba(17,24,39,0.65)',
-                  background: isActive ? '#fff5f5' : 'transparent',
+                  color: isActive ? R : dark ? 'rgba(229,231,235,0.65)' : 'rgba(17,24,39,0.65)',
+                  background: isActive ? (dark ? '#2d1a1a' : '#fff5f5') : 'transparent',
                   textDecoration: 'none',
                   borderLeft: collapsed ? 'none' : `3px solid ${isActive ? R : 'transparent'}`,
                   borderRight: collapsed ? `3px solid ${isActive ? R : 'transparent'}` : 'none',
@@ -169,14 +216,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 }}
                 onMouseEnter={e => {
                   if (!isActive) {
-                    e.currentTarget.style.background = '#f4f5f7'
-                    e.currentTarget.style.color = 'rgba(17,24,39,0.85)'
+                    e.currentTarget.style.background = dark ? '#21262d' : '#f4f5f7'
+                    e.currentTarget.style.color = dark ? 'rgba(229,231,235,0.9)' : 'rgba(17,24,39,0.85)'
                   }
                 }}
                 onMouseLeave={e => {
                   if (!isActive) {
                     e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.color = 'rgba(17,24,39,0.65)'
+                    e.currentTarget.style.color = dark ? 'rgba(229,231,235,0.65)' : 'rgba(17,24,39,0.65)'
                   }
                 }}
               >
@@ -188,7 +235,36 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </nav>
 
         {/* Sign out + toggle */}
-        <div style={{ padding: collapsed ? '0.75rem 0' : '0.75rem', borderTop: '1px solid #e2e4e9', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ padding: collapsed ? '0.75rem 0' : '0.75rem', borderTop: dark ? '1px solid #30363d' : '1px solid #e2e4e9', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {/* Dark mode toggle */}
+          <button
+            onClick={toggleDark}
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              gap: collapsed ? 0 : '0.65rem',
+              padding: collapsed ? '0.5rem 0' : '0.5rem 0.85rem',
+              borderRadius: '10px',
+              fontSize: '0.78rem',
+              fontWeight: 500,
+              color: dark ? 'rgba(229,231,235,0.6)' : 'rgba(107,114,128,0.8)',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = dark ? '#21262d' : '#f4f5f7' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            {dark
+              ? <><SunIcon style={{ width: 16, height: 16, flexShrink: 0 }} />{!collapsed && <span>Light mode</span>}</>
+              : <><MoonIcon style={{ width: 16, height: 16, flexShrink: 0 }} />{!collapsed && <span>Dark mode</span>}</>
+            }
+          </button>
+
           {/* Collapse toggle */}
           <button
             onClick={() => {
@@ -206,13 +282,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               borderRadius: '10px',
               fontSize: '0.78rem',
               fontWeight: 500,
-              color: 'rgba(107,114,128,0.8)',
+              color: dark ? 'rgba(229,231,235,0.6)' : 'rgba(107,114,128,0.8)',
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f4f5f7' }}
+            onMouseEnter={e => { e.currentTarget.style.background = dark ? '#21262d' : '#f4f5f7' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
             {collapsed
@@ -253,11 +329,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* ── Content area ── */}
-      <div style={{
+      <div className="admin-main" style={{
         marginLeft: sidebarW,
         flex: 1,
         minHeight: '100vh',
-        background: BG,
+        background: dark ? '#0f1117' : BG,
         display: 'flex',
         flexDirection: 'column',
         transition: 'margin-left 0.2s ease',
@@ -267,7 +343,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           textAlign: 'center',
           padding: '1.5rem',
           fontSize: '0.7rem',
-          color: 'rgba(107,114,128,0.5)',
+          color: dark ? 'rgba(229,231,235,0.3)' : 'rgba(107,114,128,0.5)',
           marginTop: 'auto',
         }}>
           © 2026 Chloride Exide · Battery Finder Admin

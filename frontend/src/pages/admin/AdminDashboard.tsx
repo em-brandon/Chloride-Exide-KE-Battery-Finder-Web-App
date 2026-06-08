@@ -11,25 +11,27 @@ import {
   ChevronRightIcon,
   ExclamationCircleIcon,
   CheckCircleIcon,
-  TableCellsIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/20/solid'
 import {
   fetchAdminStats,
   fetchHealthStatus,
   refreshCache,
   exportBatteriesUrl,
+  getWebValidateCoverage,
   type AdminStats,
   type HealthStatus,
+  type CoverageInfo,
 } from '@/lib/adminApi'
 import AdminLayout from '@/components/admin/AdminLayout'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const R = '#CC0000'
 const CARD: React.CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--adm-card-bg)',
   borderRadius: '14px',
-  border: '1px solid #e2e4e9',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+  border: '1px solid var(--adm-card-border)',
+  boxShadow: 'var(--adm-card-shadow)',
   fontFamily: "'Segoe UI', system-ui, sans-serif",
 }
 
@@ -47,7 +49,7 @@ function InfoTooltip({ text }: { text: string }) {
         style={{
           width: 14, height: 14, borderRadius: '50%',
           border: `1px solid ${hovered ? R : 'rgba(107,114,128,0.35)'}`,
-          background: hovered ? '#fff5f5' : 'none',
+          background: hovered ? '#fff5f5' : 'var(--adm-card-bg)',
           cursor: 'default',
           fontSize: '0.55rem', fontWeight: 800,
           color: hovered ? R : 'rgba(107,114,128,0.55)',
@@ -60,8 +62,8 @@ function InfoTooltip({ text }: { text: string }) {
         <span style={{
           position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%',
           transform: 'translateX(-50%)',
-          background: '#ffffff', color: '#1f2937',
-          border: '1px solid #e2e4e9',
+          background: 'var(--adm-card-bg)', color: 'var(--adm-text-1)',
+          border: '1px solid var(--adm-card-border)',
           fontSize: '0.7rem', lineHeight: 1.45,
           padding: '0.55rem 0.8rem',
           borderRadius: '8px',
@@ -90,7 +92,7 @@ function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
       {/* Label + icon pinned to top */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.9)' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
             {label}
           </span>
           {tooltip && <InfoTooltip text={tooltip} />}
@@ -107,6 +109,56 @@ function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
           <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block' }}>{sub}</span>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── DataCoverageTile ──────────────────────────────────────────────────────────
+function DataCoverageTile({ stats, coverage }: { stats: AdminStats | null; coverage: CoverageInfo | null }) {
+  const accent = '#059669'
+  return (
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accent}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
+            Data Coverage
+          </span>
+          <InfoTooltip text="Inference: Dial-A-Battery sales data used as Layer 0 of the matching engine. Web Validation: vehicle combos with a confirmed battery spec from online research." />
+        </div>
+        <GlobeAltIcon style={{ width: 15, height: 15, color: accent }} />
+      </div>
+
+      {/* Inference section */}
+      <div style={{ flex: 1, paddingBottom: '0.75rem', borderBottom: '1px solid #e2e4e922' }}>
+        <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.55)', marginBottom: '0.3rem' }}>
+          Inference
+        </div>
+        <div style={{ fontSize: '2rem', fontWeight: 900, color: accent, lineHeight: 1, letterSpacing: '-0.02em' }}>
+          {stats?.counts.inference_makes != null
+            ? (stats.counts.inference_makes + stats.counts.inference_models).toLocaleString()
+            : '—'}
+        </div>
+        <div style={{ fontSize: '0.63rem', color: 'rgba(107,114,128,0.6)', marginTop: '0.35rem' }}>
+          {stats?.counts.inference_records != null
+            ? `${stats.counts.inference_records.toLocaleString()} records · ${stats.counts.inference_makes} makes · ${stats.counts.inference_models} models`
+            : 'Loading…'}
+        </div>
+      </div>
+
+      {/* Web Validation section */}
+      <div style={{ paddingTop: '0.75rem' }}>
+        <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.55)', marginBottom: '0.3rem' }}>
+          Web Validation
+        </div>
+        <div style={{ fontSize: '2rem', fontWeight: 900, color: accent, lineHeight: 1, letterSpacing: '-0.02em' }}>
+          {coverage?.pct_matched != null ? `${coverage.pct_matched.toFixed(1)}%` : '—'}
+        </div>
+        <div style={{ fontSize: '0.63rem', color: 'rgba(107,114,128,0.6)', marginTop: '0.35rem' }}>
+          {coverage != null
+            ? `${coverage.master_count.toLocaleString()} validated of ${coverage.total.toLocaleString()}`
+            : 'Loading…'}
+        </div>
+      </div>
     </div>
   )
 }
@@ -165,7 +217,7 @@ function HealthCard({ status, latency_ms, pool_size, pool_checked_out, pool_usag
   return (
     <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: `3px solid ${borderColor}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.9)' }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
           Database Health
         </span>
         <SignalIcon style={{ width: 15, height: 15, color: 'rgba(107,114,128,0.5)' }} />
@@ -173,18 +225,18 @@ function HealthCard({ status, latency_ms, pool_size, pool_checked_out, pool_usag
 
       <SpeedometerGauge status={status} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'rgba(107,114,128,0.8)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--adm-text-2)' }}>
         <span>Latency</span>
         <span style={{ fontWeight: 600, color: latency_ms !== null && latency_ms > 200 ? R : 'rgba(17,24,39,0.7)' }}>
           {latency_ms !== null ? `${latency_ms} ms` : 'n/a'}
         </span>
       </div>
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(107,114,128,0.8)', marginBottom: '0.3rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--adm-text-2)', marginBottom: '0.3rem' }}>
           <span>Connection pool</span>
           <span>{pool_checked_out} / {pool_size} ({usagePct}%)</span>
         </div>
-        <div style={{ height: 6, borderRadius: 99, background: '#e2e4e9', overflow: 'hidden' }}>
+        <div style={{ height: 6, borderRadius: 99, background: 'var(--adm-sep)', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${Math.min(usagePct, 100)}%`, background: usagePct > 80 ? R : usagePct > 50 ? '#f59e0b' : '#22c55e', borderRadius: 99, transition: 'width 0.6s ease' }} />
         </div>
       </div>
@@ -201,22 +253,22 @@ function ActionCard({ icon, label, desc, onClick, href, download, primary }: {
     ...CARD,
     padding: '1rem 1.2rem',
     display: 'flex', alignItems: 'center', gap: '1rem',
-    textDecoration: 'none', cursor: 'pointer', border: '1px solid #e2e4e9',
+    textDecoration: 'none', cursor: 'pointer', border: '1px solid var(--adm-card-border)',
     width: '100%', textAlign: 'left',
-    borderLeft: `4px solid ${primary ? R : '#e2e4e9'}`,
+    borderLeft: `4px solid ${primary ? R : 'var(--adm-card-border)'}`,
     transition: 'box-shadow 0.15s, border-color 0.15s',
-    background: '#fff',
+    background: 'var(--adm-card-bg)',
   }
   const iconWrap: React.CSSProperties = {
-    width: 38, height: 38, borderRadius: 10, background: primary ? '#fff5f5' : '#f4f5f7',
+    width: 38, height: 38, borderRadius: 10, background: primary ? '#fff5f5' : 'var(--adm-subtle-bg)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   }
   const content = (
     <>
       <span style={iconWrap}>{icon}</span>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: primary ? R : 'rgba(17,24,39,0.88)' }}>{label}</div>
-        <div style={{ fontSize: '0.72rem', color: 'rgba(107,114,128,0.8)', marginTop: '0.1rem' }}>{desc}</div>
+        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: primary ? R : 'var(--adm-text-1)' }}>{label}</div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--adm-text-2)', marginTop: '0.1rem' }}>{desc}</div>
       </div>
       <ChevronRightIcon style={{ width: 16, height: 16, color: 'rgba(107,114,128,0.4)' }} />
     </>
@@ -226,8 +278,8 @@ function ActionCard({ icon, label, desc, onClick, href, download, primary }: {
     e.currentTarget.style.borderLeftColor = R
   }
   const unhover = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
-    e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'
-    e.currentTarget.style.borderLeftColor = primary ? R : '#e2e4e9'
+    e.currentTarget.style.boxShadow = 'var(--adm-card-shadow)'
+    e.currentTarget.style.borderLeftColor = primary ? R : 'var(--adm-card-border)'
   }
   if (href) return <a href={href} download={download} style={base} onMouseEnter={hover} onMouseLeave={unhover}>{content}</a>
   return <button onClick={onClick} style={base} onMouseEnter={hover} onMouseLeave={unhover}>{content}</button>
@@ -237,13 +289,14 @@ function ActionCard({ icon, label, desc, onClick, href, download, primary }: {
 export default function AdminDashboard() {
   const [stats,    setStats]    = useState<AdminStats | null>(null)
   const [health,   setHealth]   = useState<HealthStatus | null>(null)
+  const [coverage, setCoverage] = useState<CoverageInfo | null>(null)
   const [loadErr,  setLoadErr]  = useState<string | null>(null)
   const [cacheMsg, setCacheMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const [s, h] = await Promise.all([fetchAdminStats(), fetchHealthStatus()])
-      setStats(s); setHealth(h)
+      const [s, h, cov] = await Promise.all([fetchAdminStats(), fetchHealthStatus(), getWebValidateCoverage()])
+      setStats(s); setHealth(h); setCoverage(cov)
     } catch (err) {
       setLoadErr(err instanceof Error ? err.message : 'Failed to load dashboard')
     }
@@ -298,8 +351,8 @@ export default function AdminDashboard() {
         {/* ── Welcome strip ── */}
         <div style={{ ...CARD, padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.25rem', borderLeft: `5px solid ${R}` }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'rgba(17,24,39,0.88)' }}>Welcome back</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(107,114,128,0.85)', marginTop: '0.2rem' }}>
+            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--adm-text-1)' }}>Welcome back</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--adm-text-2)', marginTop: '0.2rem' }}>
               Dashboard auto-refreshes every 30 seconds.
               {stats && <> Last loaded: <strong>{new Date().toLocaleTimeString()}</strong></>}
             </div>
@@ -325,26 +378,13 @@ export default function AdminDashboard() {
             icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
           />
           <StatCard accentColor="#7e22ce" label="Recommend Calls" value={stats?.db_reads ?? '—'} sub="cumulative /recommend requests" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
-          <StatCard
-            accentColor="#059669"
-            label="Inference Table"
-            value={
-              stats?.counts.inference_makes != null && stats?.counts.inference_models != null
-                ? stats.counts.inference_makes + stats.counts.inference_models
-                : '—'
-            }
-            sub={stats?.counts.inference_records != null
-              ? `${stats.counts.inference_records.toLocaleString()} records · ${stats.counts.inference_makes} makes · ${stats.counts.inference_models} models`
-              : undefined}
-            icon={<TableCellsIcon style={{ width: 18, height: 18 }} />}
-            tooltip="Layer 0 of the matching engine uses real-world battery sales data (Dial-A-Battery) to recommend batteries before any rule-based logic runs. This shows how many distinct vehicle models and makes are covered by that dataset."
-          />
+          <DataCoverageTile stats={stats} coverage={coverage} />
           {health && <HealthCard {...health} />}
         </div>
 
         {/* ── Quick actions ── */}
         <div>
-          <h2 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)', marginBottom: '0.75rem' }}>
+          <h2 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.75rem' }}>
             Quick Actions
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
