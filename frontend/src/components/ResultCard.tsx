@@ -20,7 +20,7 @@ function getBrandLogo(code: string): string | null {
   if (u.includes('SPARK'))                                   return sparkLogo
   if (u.includes('SUPREME'))                                 return supremeLogo
   if (u.includes('SEBANG'))                                  return sebangLogo
-  if (u.includes('EXIDE') && !u.includes('CHLORIDE EXIDE')) return exideAgmLogo
+  if (u.includes('EXIDE') && !u.includes('CHLORIDE EXIDE') && !u.includes('EFB')) return exideAgmLogo
   if (u.includes('CHLORIDE EXIDE'))                          return sbFloodedLogo
   return null
 }
@@ -137,7 +137,7 @@ export function ResultCard({ data }: ResultCardProps) {
       )}
 
       {/* Feedback trigger */}
-      <div className="flex justify-center pt-2 pb-1">
+      <div className="flex justify-start pt-2 pb-1">
         <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
           {/* Pulse ring */}
           <span style={{

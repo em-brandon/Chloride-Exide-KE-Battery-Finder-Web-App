@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { submitFeedback } from '@/lib/api'
 import { useTestUser } from '@/lib/TestUserContext'
 import {
@@ -203,7 +204,7 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
 
   const commentQ = (accuracy === 'close' || accuracy === 'wrong') ? '4.' : '3.'
 
-  return (
+  const drawer = (
     <div className={`fb-drawer${open ? ' fb-drawer--open' : ''}`} role="dialog" aria-modal="true" aria-labelledby="fb-title">
       {/* Header */}
       <div className="fb-header">
@@ -342,4 +343,6 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
       )}
     </div>
   )
+
+  return createPortal(drawer, document.body)
 }
