@@ -11,7 +11,7 @@ import AdminDashboard   from '@/pages/admin/AdminDashboard'
 import AdminBatteries   from '@/pages/admin/AdminBatteries'
 import AdminAuditLog    from '@/pages/admin/AdminAuditLog'
 import AdminSessions    from '@/pages/admin/AdminSessions'
-import AdminDataPipeline from '@/pages/admin/AdminDataPipeline'
+import AdminCoverage    from '@/pages/admin/AdminCoverage'
 import AdminFeedback      from '@/pages/admin/AdminFeedback'
 import AdminTestSessions from '@/pages/admin/AdminTestSessions'
 import TestUserLogin     from '@/pages/TestUserLogin'
@@ -224,7 +224,7 @@ function PublicApp({
           </button>
           <span className="page-footer__sep">·</span>
           <button className="page-footer__link" onClick={() => setVersionOpen(true)}>
-            Build Version Beta 1.16.7
+            Build Version Beta v1.1.2
           </button>
         </footer>
 
@@ -296,7 +296,7 @@ function App() {
       <Route path="/admin/batteries" element={<ProtectedRoute><AdminBatteries /></ProtectedRoute>} />
       <Route path="/admin/audit"     element={<ProtectedRoute><AdminAuditLog  /></ProtectedRoute>} />
       <Route path="/admin/sessions"  element={<ProtectedRoute><AdminSessions  /></ProtectedRoute>} />
-      <Route path="/admin/pipeline"  element={<ProtectedRoute><AdminDataPipeline /></ProtectedRoute>} />
+      <Route path="/admin/coverage"  element={<ProtectedRoute><AdminCoverage  /></ProtectedRoute>} />
       <Route path="/admin/feedback"      element={<ProtectedRoute><AdminFeedback      /></ProtectedRoute>} />
       <Route path="/admin/test-sessions" element={<ProtectedRoute><AdminTestSessions /></ProtectedRoute>} />
       {/* ── Test user login ── */}

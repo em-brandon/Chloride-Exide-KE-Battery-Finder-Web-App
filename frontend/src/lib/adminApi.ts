@@ -486,6 +486,7 @@ export interface MatchedVehicleRow {
   make_n:       string
   model_n:      string
   year:         number
+  battery_code: string | null
   ah:           number | null
   technology:   string | null
   source:       string | null

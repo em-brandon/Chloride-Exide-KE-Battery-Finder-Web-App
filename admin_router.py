@@ -1459,7 +1459,7 @@ def get_web_validate_matched(
         """), {"q": like}).scalar() or 0
 
         rows = conn.execute(_text("""
-            SELECT make_n, model_n, year, ah, technology, source, validated_at
+            SELECT make_n, model_n, year, battery_code, ah, technology, source, validated_at
             FROM web_battery_validation
             WHERE (UPPER(make_n) LIKE :q OR UPPER(model_n) LIKE :q)
             ORDER BY make_n, model_n, year

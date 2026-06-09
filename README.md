@@ -18,6 +18,7 @@ The project is organized into three distinct layers:
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Running the App](#running-the-app)
+- [Pipeline App](#pipeline-app)
 - [API Reference](#api-reference)
 - [Matching Engine](#matching-engine)
 - [Admin Dashboard](#admin-dashboard)
@@ -101,7 +102,7 @@ The project is organized into three distinct layers:
 │   │   │   ├── Notification.tsx        # Toast notification system
 │   │   │   ├── PageLoader.tsx          # Animated battery splash screen
 │   │   │   └── admin/
-│   │   │       ├── AdminLayout.tsx     # Admin panel shell
+│   │   │       ├── AdminLayout.tsx     # Admin panel shell (sidebar nav)
 │   │   │       └── ProtectedRoute.tsx  # Auth guard for admin routes
 │   │   ├── pages/
 │   │   │   ├── admin/
@@ -111,7 +112,7 @@ The project is organized into three distinct layers:
 │   │   │   │   ├── AdminAuditLog.tsx
 │   │   │   │   ├── AdminSessions.tsx
 │   │   │   │   ├── AdminTestSessions.tsx
-│   │   │   │   ├── AdminDataPipeline.tsx
+│   │   │   │   ├── AdminCoverage.tsx   # Battery coverage stats + unmatched table
 │   │   │   │   └── AdminLogin.tsx
 │   │   │   └── TestUserLogin.tsx
 │   │   ├── lib/
@@ -124,6 +125,28 @@ The project is organized into three distinct layers:
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.app.json
+│
+├── pipeline_app/               # Standalone pipeline browser app (separate from admin)
+│   ├── app.py                  # FastAPI backend — pipeline routes only, port 8001
+│   ├── requirements.txt
+│   └── frontend/               # Vite/React pipeline UI, port 5175
+│       ├── src/
+│       │   ├── App.tsx         # Auth shell — Login → Web Validate / CRSP tabs
+│       │   ├── pages/
+│       │   │   ├── WebValidatePage.tsx  # Web Validate pipeline control + staging area
+│       │   │   ├── CrspPage.tsx         # CRSP dataset pipeline
+│       │   │   └── LoginPage.tsx
+│       │   └── lib/
+│       │       └── api.ts      # Typed fetch wrappers (Bearer token)
+│       ├── package.json
+│       ├── vite.config.ts
+│       └── index.html
+│
+├── pipelines/                  # Data pipeline scripts
+│   ├── dataprep.py             # Pipeline 1: CRSP Excel → vehicles_raw
+│   ├── nts_dataprep.py         # Pipeline 2: NTS workbook → nts_vehicles_clean
+│   ├── enrich_years.py         # Pipeline 3: enrich with production years
+│   └── dial_battery_clean.py   # Pipeline 4: Dial-A-Battery inference table
 │
 ├── scripts/                    # Accuracy and failure mode analysis scripts
 ├── requirements.txt            # Python dependencies
@@ -197,6 +220,43 @@ cd frontend && bun run dev
 ```
 
 Frontend dev server: **http://localhost:5173**
+
+---
+
+## Pipeline App
+
+The pipeline app is a **standalone browser application** that runs separately from the main admin dashboard. It connects directly to the same PostgreSQL database and is designed to be used locally during data preparation.
+
+> In production, point `DATABASE_URL` in `.env` to your AWS RDS instance — no other changes needed.
+
+The pipeline app shares the same `.env` (and therefore the same `DATABASE_URL`) as the main app. No additional environment setup is needed beyond what is already configured.
+
+### Running the Pipeline App
+
+```bash
+# Terminal 1 — pipeline backend (port 8001)
+cd pipeline_app
+pip install -r requirements.txt
+uvicorn app:app --port 8001 --reload
+
+# Terminal 2 — pipeline frontend (port 5175, proxies /api to port 8001)
+cd pipeline_app/frontend
+bun install
+bun run dev
+```
+
+Open **<http://localhost:5175>** and sign in with the same admin credentials created during [Getting Started](#getting-started).
+
+### Pipeline App Features
+
+| Tab | Description |
+|---|---|
+| **Web Validate** | Run the web battery validation pipeline — toggle providers, choose phase (Phase 1 prefetch / Phase 2 lookup / Both), monitor live progress, review the staging area, fix suspicious Ah values, resolve conflicts, and commit to master |
+| **CRSP Dataset** | Run the CRSP data prep pipeline — specify the Excel file path, stream stage progress (Loading → Schema → Normalizing → Dedup → Saving), and review the output summary |
+
+### Accessing from Admin Dashboard
+
+Once the pipeline app is running, the admin dashboard sidebar shows a **Pipeline App ↗** link that opens `http://localhost:5175` in a new tab. The URL can be overridden by setting `VITE_PIPELINE_APP_URL` in the frontend `.env`.
 
 ---
 

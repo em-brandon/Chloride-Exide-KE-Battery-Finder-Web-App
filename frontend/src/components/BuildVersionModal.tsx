@@ -40,7 +40,7 @@ export function BuildVersionModal({ open, onClose }: BuildVersionModalProps) {
           <div className="version-modal__body">
             <div className="version-modal__row">
               <span className="version-modal__label">Version</span>
-              <span className="version-modal__value">Beta 1.16.7</span>
+              <span className="version-modal__value">Beta v1.1.2</span>
             </div>
             <div className="version-modal__row">
               <span className="version-modal__label">Status</span>
@@ -48,11 +48,11 @@ export function BuildVersionModal({ open, onClose }: BuildVersionModalProps) {
             </div>
             <div className="version-modal__row">
               <span className="version-modal__label">Released</span>
-              <span className="version-modal__value">May 2026</span>
+              <span className="version-modal__value">9th June 2026</span>
             </div>
             <div className="version-modal__row">
               <span className="version-modal__label">Vehicle Data</span>
-              <span className="version-modal__value">May 2026</span>
+              <span className="version-modal__value">9th June 2026</span>
             </div>
             <p className="version-modal__note">
               This is a pre-release build of the Chloride Exide Battery Finder.

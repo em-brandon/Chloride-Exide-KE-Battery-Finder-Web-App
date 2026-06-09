@@ -1,0 +1,42 @@
+{
+  "AUDI|A 4 35 TFSI MEISTERSTUECK|2015": {
+    "ah": 58,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 30 TFSI ADVANCED|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK S LINE TECHNO LIMITED|2010": {
+    "ah": 54,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 2.0 TFSI QUATTRO TUXEDO STYLE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 5 SPORTBACK 45 TFSI QUATTRO S LINE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 55 TFSI QUATTRO S LINE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 40 TDI QUATTRO SPORT|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 6 AVANT 45 TFSI QUATTRO S LINE|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  }
+}

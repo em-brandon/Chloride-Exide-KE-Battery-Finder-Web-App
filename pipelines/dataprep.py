@@ -1,140 +1,181 @@
-import pandas as pd
+"""
+dataprep.py — CRSP Excel → vehicles_raw table + CSV
+
+Can be run standalone:
+    python pipelines/dataprep.py data/My-CRSP-File.xlsx
+
+Or called programmatically:
+    from pipelines.dataprep import main
+    result = main("data/My-CRSP-File.xlsx", log_callback=..., progress_callback=...)
+"""
+from __future__ import annotations
+
 import re
+import sys
 import time
+from pathlib import Path
+from typing import Callable, Optional
 
-# =========================
-# CONFIG
-# =========================
-INPUT_FILE = "New-CRSP---July-2025.xlsx"
-OUTPUT_CSV = "battery_lookup_dataset.csv"
-OUTPUT_EXCEL = "battery_lookup_dataset.xlsx"
-LOG_EVERY_N_ROWS = 500  # adjust depending on dataset size
-
-# =========================
-# TIMER UTILITY
-# =========================
-def log_section(title):
-    print(f"\n[START] {title}")
-    return time.time()
-
-def end_section(start_time, title):
-    elapsed = time.time() - start_time
-    print(f"[END] {title} | Time taken: {elapsed:.2f}s")
+import pandas as pd
 
 
-# =========================
-# LOAD DATA
-# =========================
-start = log_section("Loading dataset")
-df = pd.read_excel(INPUT_FILE)
-end_section(start, "Loading dataset")
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-# =========================
-# CLEAN COLUMN NAMES
-# =========================
-start = log_section("Cleaning column names")
-df.columns = df.columns.str.strip().str.lower().str.replace(r'[\s\n]+', '_', regex=True)
-print("Columns detected:", df.columns.tolist())
-end_section(start, "Cleaning column names")
-
-# =========================
-# HELPER FUNCTIONS
-# =========================
-
-def extract_years(year_value):
+def extract_years(year_value) -> list[int]:
     if pd.isna(year_value):
         return []
-
-    year_value = str(year_value)
-    match = re.findall(r"\d{4}", year_value)
-
+    match = re.findall(r"\d{4}", str(year_value))
     return [int(y) for y in match] if match else []
 
 
-def split_batteries(battery_value):
+def split_batteries(battery_value) -> list[str]:
     if pd.isna(battery_value):
         return []
-
     battery_value = str(battery_value).upper()
     parts = re.split(r"[\/,;]", battery_value)
-
-    return [
-        p.strip().replace(" ", "")
-        for p in parts if p.strip()
-    ]
+    return [p.strip().replace(" ", "") for p in parts if p.strip()]
 
 
-def normalize_battery(battery):
+def normalize_battery(battery: str) -> str:
     return battery.upper().replace(" ", "") if battery else ""
 
 
-# =========================
-# REQUIRED COLUMNS CHECK
-# =========================
-start = log_section("Validating required columns")
+# ── Main callable ─────────────────────────────────────────────────────────────
 
-required_cols = ["make", "model"]
-missing = [col for col in required_cols if col not in df.columns]
+def main(
+    input_file: str,
+    log_callback: Optional[Callable[[str], None]] = None,
+    progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    cancel_event=None,
+) -> dict:
+    """
+    Process a CRSP Excel file and write to vehicles_raw + CSV output.
 
-if missing:
-    raise Exception(f"Missing required columns: {missing}")
+    Args:
+        input_file:         Path to the source Excel file.
+        log_callback:       Called with a log line string at each stage.
+        progress_callback:  Called with (stage_name, current, total).
+        cancel_event:       threading.Event; if set mid-run, processing stops early.
 
-end_section(start, "Validating required columns")
+    Returns:
+        dict with keys: total_rows, clean_rows, rejected, duplicates, output_csv
+    """
 
-# =========================
-# DATA PREPARATION
-# =========================
-start = log_section("Preparing dataset")
+    def log(msg: str) -> None:
+        if log_callback:
+            log_callback(msg)
+        else:
+            print(msg)
 
-output_cols = ["make", "model", "model_number", "engine_capacity", "fuel"]
-present_cols = [c for c in output_cols if c in df.columns]
+    def progress(stage: str, current: int, total: int) -> None:
+        if progress_callback:
+            progress_callback(stage, current, total)
 
-rows = []
-total_rows = len(df)
+    def cancelled() -> bool:
+        return cancel_event is not None and cancel_event.is_set()
 
-for idx, (_, row) in enumerate(df.iterrows(), start=1):
-    record = {c: str(row.get(c, "")).strip() for c in present_cols}
-    # Skip completely empty rows
-    if not record.get("make") or record["make"].lower() == "nan":
-        continue
-    # Skip electric vehicles
-    if record.get("fuel", "").lower() == "electric":
-        continue
-    rows.append(record)
+    input_path = Path(input_file)
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input file not found: {input_file}")
 
-    if idx % LOG_EVERY_N_ROWS == 0 or idx == total_rows:
-        print(f"Processed {idx}/{total_rows} rows ({(idx/total_rows)*100:.2f}%)")
+    output_csv   = str(input_path.parent / "battery_lookup_dataset.csv")
+    output_excel = str(input_path.parent / "battery_lookup_dataset.xlsx")
 
-end_section(start, "Preparing dataset")
+    # ── Stage 1: Load ─────────────────────────────────────────────────────────
+    log(f"[STAGE] Loading dataset: {input_path.name}")
+    progress("Loading", 0, 1)
+    t0 = time.time()
+    df = pd.read_excel(input_file)
+    log(f"[OK] Loaded {len(df)} rows in {time.time()-t0:.2f}s")
+    progress("Loading", 1, 1)
 
-# =========================
-# FINAL DATAFRAME
-# =========================
-start = log_section("Building final dataset")
+    if cancelled():
+        return {"status": "cancelled"}
 
-final_df = pd.DataFrame(rows, columns=present_cols)
-print(f"Initial records generated: {len(final_df)}")
+    # ── Stage 2: Clean columns ────────────────────────────────────────────────
+    log("[STAGE] Cleaning column names")
+    progress("Schema", 0, 1)
+    df.columns = df.columns.str.strip().str.lower().str.replace(r'[\s\n]+', '_', regex=True)
+    log(f"[OK] Columns: {df.columns.tolist()}")
 
-final_df = final_df.drop_duplicates()
-print(f"After removing duplicates: {len(final_df)}")
+    required_cols = ["make", "model"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+    progress("Schema", 1, 1)
 
-final_df = final_df.sort_values(by=["make", "model"])
+    if cancelled():
+        return {"status": "cancelled"}
 
-end_section(start, "Building final dataset")
+    # ── Stage 3: Normalize ────────────────────────────────────────────────────
+    log("[STAGE] Normalizing fields")
+    output_cols  = ["make", "model", "model_number", "engine_capacity", "fuel"]
+    present_cols = [c for c in output_cols if c in df.columns]
+    total_rows   = len(df)
+    rows         = []
+    rejected     = 0
 
-# =========================
-# SAVE OUTPUT
-# =========================
-start = log_section("Saving output files")
+    for idx, (_, row) in enumerate(df.iterrows(), start=1):
+        if cancelled():
+            return {"status": "cancelled"}
 
-final_df.to_csv(OUTPUT_CSV, index=False)
-print(f"CSV saved: {OUTPUT_CSV}")
+        record = {c: str(row.get(c, "")).strip() for c in present_cols}
+        if not record.get("make") or record["make"].lower() == "nan":
+            rejected += 1
+            continue
+        if record.get("fuel", "").lower() == "electric":
+            rejected += 1
+            continue
+        rows.append(record)
 
-final_df.to_excel(OUTPUT_EXCEL, index=False)
-print(f"Excel saved: {OUTPUT_EXCEL}")
+        if idx % 500 == 0 or idx == total_rows:
+            progress("Normalizing", idx, total_rows)
+            log(f"[PROGRESS] Normalized {idx}/{total_rows} rows")
 
-end_section(start, "Saving output files")
+    log(f"[OK] {len(rows)} valid rows, {rejected} rejected")
+    progress("Normalizing", total_rows, total_rows)
 
-print("\nProcess complete")
-print(f"Final record count: {len(final_df)}")
+    # ── Stage 4: Deduplicate ──────────────────────────────────────────────────
+    log("[STAGE] Deduplicating")
+    progress("Dedup", 0, 1)
+    final_df   = pd.DataFrame(rows, columns=present_cols)
+    before_ded = len(final_df)
+    final_df   = final_df.drop_duplicates()
+    duplicates = before_ded - len(final_df)
+    final_df   = final_df.sort_values(by=["make", "model"])
+    log(f"[OK] {duplicates} duplicates removed → {len(final_df)} clean rows")
+    progress("Dedup", 1, 1)
 
+    if cancelled():
+        return {"status": "cancelled"}
+
+    # ── Stage 5: Write output ─────────────────────────────────────────────────
+    log(f"[STAGE] Saving output to {output_csv}")
+    progress("Saving", 0, 2)
+    final_df.to_csv(output_csv, index=False)
+    log(f"[OK] CSV saved: {output_csv}")
+    progress("Saving", 1, 2)
+    final_df.to_excel(output_excel, index=False)
+    log(f"[OK] Excel saved: {output_excel}")
+    progress("Saving", 2, 2)
+
+    log(f"[DONE] Final record count: {len(final_df)}")
+
+    return {
+        "status":     "done",
+        "total_rows": total_rows,
+        "clean_rows": len(final_df),
+        "rejected":   rejected,
+        "duplicates": duplicates,
+        "output_csv": output_csv,
+    }
+
+
+# ── CLI entry point ───────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <path/to/CRSP.xlsx>")
+        sys.exit(1)
+    result = main(sys.argv[1])
+    print(result)
