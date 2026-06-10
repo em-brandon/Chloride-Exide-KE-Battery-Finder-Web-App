@@ -1323,30 +1323,39 @@ def _populate_staging(run_id: str) -> tuple[int, int, int]:
     return staged, invalid, conflicts
 
 
-@router.get("/pipeline/quotas", summary="Get API provider quota usage for current month")
+@router.get("/pipeline/quotas", summary="Get API provider quota usage for active 30-day period")
 def get_pipeline_quotas(
     admin: AdminUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     from sqlalchemy import text as _text
-    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    now = datetime.now(timezone.utc)
 
     rows = db.execute(
-        _text("SELECT provider, calls_made, quota_limit FROM api_usage_quota WHERE month = :m"),
-        {"m": month},
+        _text("""
+            SELECT DISTINCT ON (provider)
+                provider, calls_made, quota_limit, period_end
+            FROM api_usage_quota
+            WHERE period_end IS NULL OR period_end > :now
+            ORDER BY provider, period_start DESC NULLS LAST
+        """),
+        {"now": now},
     ).fetchall()
 
     result = []
-    for provider, calls_made, quota_limit in rows:
-        if quota_limit == -1:
-            pct = 0.0
-        else:
-            pct = round(calls_made / max(quota_limit, 1) * 100, 1)
+    for r in rows:
+        period_end = r.period_end
+        days_until_reset = (
+            max(0, (period_end - now).days) if period_end else None
+        )
+        pct = 0.0 if r.quota_limit == -1 else round(r.calls_made / max(r.quota_limit, 1) * 100, 1)
         result.append({
-            "provider":    provider,
-            "calls_made":  calls_made,
-            "quota_limit": quota_limit,
-            "pct_used":    pct,
+            "provider":         r.provider,
+            "calls_made":       r.calls_made,
+            "quota_limit":      r.quota_limit,
+            "pct_used":         pct,
+            "period_end":       period_end.isoformat() if period_end else None,
+            "days_until_reset": days_until_reset,
         })
     return result
 

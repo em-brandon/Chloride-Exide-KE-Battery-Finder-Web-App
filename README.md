@@ -137,7 +137,7 @@ The project is organized into three distinct layers:
 │       │   │   ├── CrspPage.tsx         # CRSP dataset pipeline
 │       │   │   └── LoginPage.tsx
 │       │   └── lib/
-│       │       └── api.ts      # Typed fetch wrappers (Bearer token)
+│       │       └── api.ts      # Typed fetch wrappers (HttpOnly cookie session)
 │       ├── package.json
 │       ├── vite.config.ts
 │       └── index.html
@@ -168,10 +168,25 @@ The project is organized into three distinct layers:
 - PostgreSQL running and accessible
 - `.env` file configured (see [Environment Variables](#environment-variables))
 
+### Set Up Python Virtual Environment
+
+```bash
+# Create the virtual environment (first time only)
+python -m venv .venv
+
+# Activate it — PowerShell
+.venv\Scripts\Activate.ps1
+
+# Activate it — bash / Git Bash
+source .venv/Scripts/activate
+```
+
+> You must activate the virtual environment in every new terminal session before running `uvicorn`, `python`, or `alembic`.
+
 ### Install Dependencies
 
 ```bash
-# Python
+# Python (with .venv active)
 pip install -r requirements.txt
 
 # Frontend
@@ -187,13 +202,13 @@ alembic upgrade head
 ### Create First Admin User
 
 ```bash
-python create_admin.py --username admin --password yourpassword
+python scripts/create_admin.py --username admin --password yourpassword
 ```
 
 Use `--force` to update an existing password:
 
 ```bash
-python create_admin.py --username admin --password newpassword --force
+python scripts/create_admin.py --username admin --password newpassword --force
 ```
 
 ---
@@ -203,7 +218,11 @@ python create_admin.py --username admin --password newpassword --force
 ### Production
 
 ```bash
+# Build the frontend
 cd frontend && bun run build && cd ..
+
+# Start the backend (serves built frontend from frontend/dist/)
+source .venv/Scripts/activate   # or .venv\Scripts\Activate.ps1 on PowerShell
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
@@ -212,10 +231,14 @@ The app starts on **http://localhost:8000**. Static frontend assets are served d
 ### Development (hot reload)
 
 ```bash
-# Terminal 1 — backend
+# Activate the virtual environment first (every new terminal session)
+source .venv/Scripts/activate        # bash / Git Bash
+# .venv\Scripts\Activate.ps1         # PowerShell
+
+# Terminal 1 — backend (port 8000)
 uvicorn app:app --reload
 
-# Terminal 2 — frontend (proxies /api to port 8000)
+# Terminal 2 — frontend (port 5173, proxies /api to port 8000)
 cd frontend && bun run dev
 ```
 
@@ -235,13 +258,15 @@ The pipeline app shares the same `.env` (and therefore the same `DATABASE_URL`) 
 
 ```bash
 # Terminal 1 — pipeline backend (port 8001)
+source .venv/Scripts/activate        # bash / Git Bash
+# .venv\Scripts\Activate.ps1         # PowerShell
 cd pipeline_app
-pip install -r requirements.txt
+pip install -r requirements.txt      # first time only
 uvicorn app:app --port 8001 --reload
 
 # Terminal 2 — pipeline frontend (port 5175, proxies /api to port 8001)
 cd pipeline_app/frontend
-bun install
+bun install                          # first time only
 bun run dev
 ```
 
@@ -257,6 +282,43 @@ Open **<http://localhost:5175>** and sign in with the same admin credentials cre
 ### Accessing from Admin Dashboard
 
 Once the pipeline app is running, the admin dashboard sidebar shows a **Pipeline App ↗** link that opens `http://localhost:5175` in a new tab. The URL can be overridden by setting `VITE_PIPELINE_APP_URL` in the frontend `.env`.
+
+### Building the Desktop `.exe` (Windows)
+
+The pipeline app can be packaged as a standalone Windows desktop application using PyInstaller and pywebview. The resulting `.exe` opens the React UI in a native Edge WebView2 window — no browser, no address bar.
+
+**Prerequisites (developer only):**
+
+- [Inno Setup](https://jrsoftware.org/isdl.php) installed (free)
+- Python virtual environment active
+
+**Build steps:**
+
+```bash
+# 1. Compile the React frontend
+bun --cwd pipeline_app/frontend run build
+
+# 2. Install PyInstaller and pywebview (first time only)
+pip install pyinstaller pywebview
+
+# 3. Bundle into a single .exe
+cd pipeline_app
+pyinstaller pipeline_app.spec
+# → dist/PipelineApp.exe (~50 MB)
+
+# 4. Fill in pipeline.env with the real values (do NOT commit this file)
+#    DATABASE_URL=postgresql://user:password@your-rds-endpoint:5432/batteryfinderdev?sslmode=require
+#    BRAVE_SEARCH_API_KEY=...
+#    TAVILY_API_KEY=...
+
+# 5. Compile the Windows installer
+iscc installer.iss
+# → dist/PipelineApp-Setup-1.0.0.exe
+```
+
+**End-user experience:** double-click `PipelineApp-Setup-1.0.0.exe`, follow the standard Windows installer, then launch from the Desktop shortcut. No terminal, no config files, no browser needed.
+
+> The `.exe` reads `pipeline.env` from the same directory — `DATABASE_URL` and API keys are never bundled inside the binary. The installer copies `pipeline.env.example` as `pipeline.env` on first install only; edit it with the real credentials before distributing to users.
 
 ---
 

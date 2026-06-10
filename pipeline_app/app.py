@@ -22,7 +22,6 @@ import uuid
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
 # Allow importing from the project root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -30,16 +29,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-import bcrypt
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy import text
 
 from db import SessionLocal, engine
+from admin_auth import (
+    require_admin,
+    create_session,
+    set_session_cookie,
+    clear_session_cookie,
+    delete_session,
+    verify_password,
+)
+from models import AdminUser, AdminSession
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -63,28 +69,6 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# In-memory session store  (token → {username, expires_at})
-# ---------------------------------------------------------------------------
-
-_sessions: dict[str, dict] = {}
-_SESSION_TTL_HOURS = 24
-_bearer = HTTPBearer(auto_error=False)
-
-
-def _require_auth(creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer)) -> str:
-    if not creds:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
-    token = creds.credentials
-    session = _sessions.get(token)
-    if not session:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    if datetime.now(timezone.utc) > session["expires_at"]:
-        _sessions.pop(token, None)
-        raise HTTPException(status_code=401, detail="Session expired")
-    return session["username"]
-
-
-# ---------------------------------------------------------------------------
 # Auth endpoints
 # ---------------------------------------------------------------------------
 
@@ -94,39 +78,84 @@ class LoginBody(BaseModel):
 
 
 @app.post("/api/auth/login")
-def login(body: LoginBody):
-    with engine.connect() as conn:
-        row = conn.execute(
-            text("SELECT username, password_hash FROM admin_users WHERE username = :u"),
-            {"u": body.username},
-        ).fetchone()
-    if not row:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+def login(body: LoginBody, request: Request):
+    db = SessionLocal()
     try:
-        valid = bcrypt.checkpw(body.password.encode(), row.password_hash.encode())
-    except Exception:
-        valid = False
-    if not valid:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    token = secrets.token_hex(32)
-    _sessions[token] = {
-        "username":   body.username,
-        "expires_at": datetime.now(timezone.utc) + timedelta(hours=_SESSION_TTL_HOURS),
-    }
-    return {"token": token, "username": body.username}
+        user = db.query(AdminUser).filter(AdminUser.username == body.username).first()
+        if not user or not verify_password(body.password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        token = create_session(db, user, request.client.host if request.client else None)
+    finally:
+        db.close()
+    response = JSONResponse({"username": body.username})
+    set_session_cookie(response, token)
+    return response
 
 
 @app.post("/api/auth/logout")
-def logout(username: str = Depends(_require_auth), creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer)):
-    if creds:
-        _sessions.pop(creds.credentials, None)
-    return {"detail": "Logged out"}
+def logout(request: Request):
+    token = request.cookies.get("admin_session")
+    if token:
+        db = SessionLocal()
+        try:
+            delete_session(db, token)
+        finally:
+            db.close()
+    response = JSONResponse({"detail": "Logged out"})
+    clear_session_cookie(response)
+    return response
 
 
 @app.get("/api/auth/me")
-def me(username: str = Depends(_require_auth)):
-    return {"username": username}
+def me(admin: AdminUser = Depends(require_admin)):
+    return {"username": admin.username}
+
+
+@app.get("/api/auth/sessions")
+def list_sessions(request: Request, admin: AdminUser = Depends(require_admin)):
+    now = datetime.now(timezone.utc)
+    current_token = request.cookies.get("admin_session")
+    db = SessionLocal()
+    try:
+        sessions = (
+            db.query(AdminSession)
+            .filter(AdminSession.admin_id == admin.id, AdminSession.expires_at > now)
+            .order_by(AdminSession.created_at.desc())
+            .all()
+        )
+        return [
+            {
+                "id":         s.id,
+                "created_at": s.created_at.isoformat(),
+                "expires_at": s.expires_at.isoformat(),
+                "ip_address": s.ip_address,
+                "is_current": s.session_token == current_token,
+            }
+            for s in sessions
+        ]
+    finally:
+        db.close()
+
+
+@app.delete("/api/auth/sessions/{session_id}")
+def revoke_session(session_id: int, request: Request, admin: AdminUser = Depends(require_admin)):
+    current_token = request.cookies.get("admin_session")
+    db = SessionLocal()
+    try:
+        session = (
+            db.query(AdminSession)
+            .filter(AdminSession.id == session_id, AdminSession.admin_id == admin.id)
+            .first()
+        )
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if session.session_token == current_token:
+            raise HTTPException(status_code=400, detail="Cannot revoke current session — use logout")
+        db.delete(session)
+        db.commit()
+    finally:
+        db.close()
+    return {"detail": "Session revoked"}
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +188,7 @@ _wv_state: dict = {
 
 def _wv_thread(run_id: str, cancel_ev: threading.Event, pause_ev: threading.Event,
                enabled_providers, phase: str, username: str) -> None:
-    from pipelines.web_battery_validate import main as _run_wv
+    from web_battery_validate import main as _run_wv
 
     def _progress(processed, total, provider, combo=""):
         with _wv_lock:
@@ -174,9 +203,14 @@ def _wv_thread(run_id: str, cancel_ev: threading.Event, pause_ev: threading.Even
             if _wv_state["phase2_started_at"] is None and processed > 0:
                 _wv_state["phase2_started_at"] = datetime.now(timezone.utc).isoformat()
 
-    def _log(line: str):
+    def _log(msg: str, level: str = "info"):
+        from datetime import datetime, timezone
         with _wv_lock:
-            _wv_state["logs"].append(line)
+            _wv_state["logs"].append({
+                "level": level,
+                "message": msg,
+                "ts": datetime.now(timezone.utc).isoformat(),
+            })
 
     def _phase1(fetched, total):
         with _wv_lock:
@@ -216,7 +250,7 @@ class RunWVBody(BaseModel):
 
 
 @app.post("/api/pipeline/web-validate/run")
-def wv_run(body: RunWVBody = RunWVBody(), username: str = Depends(_require_auth)):
+def wv_run(body: RunWVBody = RunWVBody(), admin: AdminUser = Depends(require_admin)):
     with _wv_lock:
         if _wv_state["status"] == "running":
             raise HTTPException(status_code=409, detail="Pipeline already running")
@@ -234,18 +268,18 @@ def wv_run(body: RunWVBody = RunWVBody(), username: str = Depends(_require_auth)
             "phase2_started_at": None, "finished_at": None,
             "error_detail": None,
             "cancel_event": cancel_ev, "pause_event": pause_ev,
-            "initiated_by": username,
+            "initiated_by": admin.username,
         })
     threading.Thread(
         target=_wv_thread,
-        args=(run_id, cancel_ev, pause_ev, body.enabled_providers, body.phase, username),
+        args=(run_id, cancel_ev, pause_ev, body.enabled_providers, body.phase, admin.username),
         daemon=True,
     ).start()
     return {"run_id": run_id}
 
 
 @app.get("/api/pipeline/web-validate/status")
-def wv_status(username: str = Depends(_require_auth)):
+def wv_status(admin: AdminUser = Depends(require_admin)):
     with _wv_lock:
         state = dict(_wv_state)
         state["logs"] = list(state["logs"])
@@ -255,7 +289,7 @@ def wv_status(username: str = Depends(_require_auth)):
 
 
 @app.post("/api/pipeline/web-validate/pause")
-def wv_pause(username: str = Depends(_require_auth)):
+def wv_pause(admin: AdminUser = Depends(require_admin)):
     with _wv_lock:
         if _wv_state["status"] != "running":
             raise HTTPException(status_code=400, detail="Pipeline not running")
@@ -267,7 +301,7 @@ def wv_pause(username: str = Depends(_require_auth)):
 
 
 @app.post("/api/pipeline/web-validate/resume")
-def wv_resume(username: str = Depends(_require_auth)):
+def wv_resume(admin: AdminUser = Depends(require_admin)):
     with _wv_lock:
         if _wv_state["status"] != "paused":
             raise HTTPException(status_code=400, detail="Pipeline not paused")
@@ -279,7 +313,7 @@ def wv_resume(username: str = Depends(_require_auth)):
 
 
 @app.post("/api/pipeline/web-validate/cancel")
-def wv_cancel(username: str = Depends(_require_auth)):
+def wv_cancel(admin: AdminUser = Depends(require_admin)):
     with _wv_lock:
         if _wv_state["status"] not in ("running", "paused"):
             raise HTTPException(status_code=400, detail="Pipeline not running or paused")
@@ -310,7 +344,7 @@ def wv_cancel(username: str = Depends(_require_auth)):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/pipeline/web-validate/providers")
-def wv_providers(username: str = Depends(_require_auth)):
+def wv_providers(admin: AdminUser = Depends(require_admin)):
     return [
         {"provider": "duckduckgo", "configured": True,                                    "always_available": True},
         {"provider": "searxng",    "configured": bool(os.getenv("SEARXNG_URL")),          "always_available": False},
@@ -320,7 +354,7 @@ def wv_providers(username: str = Depends(_require_auth)):
 
 
 @app.get("/api/pipeline/web-validate/coverage")
-def wv_coverage(username: str = Depends(_require_auth)):
+def wv_coverage(admin: AdminUser = Depends(require_admin)):
     from matcher import _norm_model_key as _nk
 
     veh = pd.read_sql(
@@ -352,7 +386,7 @@ def wv_coverage(username: str = Depends(_require_auth)):
     validated["bucket"] = (validated["year"] // 5) * 5
     resolved_buckets    = int(validated.groupby(["make_n", "model_n", "bucket"]).ngroups)
 
-    web_cache_path = Path(__file__).resolve().parent.parent / "cache" / "web_model_cache.json"
+    web_cache_path = Path(__file__).resolve().parent / "cache" / "web_model_cache.json"
     try:
         with open(web_cache_path) as f:
             web_cache_size = len(json.load(f))
@@ -379,7 +413,7 @@ def wv_coverage(username: str = Depends(_require_auth)):
 
 
 @app.get("/api/pipeline/web-validate/matched")
-def wv_matched(page: int = 1, page_size: int = 50, search: str = "", username: str = Depends(_require_auth)):
+def wv_matched(page: int = 1, page_size: int = 50, search: str = "", admin: AdminUser = Depends(require_admin)):
     offset = (page - 1) * page_size
     like = f"%{search.upper()}%" if search else "%"
     with engine.connect() as conn:
@@ -388,7 +422,7 @@ def wv_matched(page: int = 1, page_size: int = 50, search: str = "", username: s
             " WHERE (UPPER(make_n) LIKE :q OR UPPER(model_n) LIKE :q)"
         ), {"q": like}).scalar() or 0
         rows = conn.execute(text(
-            "SELECT make_n, model_n, year, ah, technology, source, validated_at"
+            "SELECT id, make_n, model_n, year, battery_code, ah, technology, source, validated_at"
             " FROM web_battery_validation"
             " WHERE (UPPER(make_n) LIKE :q OR UPPER(model_n) LIKE :q)"
             " ORDER BY make_n, model_n, year LIMIT :lim OFFSET :off"
@@ -396,9 +430,103 @@ def wv_matched(page: int = 1, page_size: int = 50, search: str = "", username: s
     return {"total": total, "page": page, "page_size": page_size, "items": [dict(r._mapping) for r in rows]}
 
 
+@app.patch("/api/pipeline/web-validate/master/{record_id}")
+def patch_master_record(record_id: int, body: MasterEditBody, admin: AdminUser = Depends(require_admin)):
+    now = datetime.now(timezone.utc)
+    with engine.begin() as conn:
+        row = conn.execute(text(
+            "SELECT make_n, model_n, year, battery_code, ah, technology"
+            " FROM web_battery_validation WHERE id=:id"
+        ), {"id": record_id}).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Record not found")
+
+        new_bc   = body.battery_code if body.battery_code is not None else row.battery_code
+        new_ah   = body.ah           if body.ah           is not None else row.ah
+        new_tech = body.technology   if body.technology   is not None else row.technology
+
+        if body.scope == "bucket":
+            bucket_start = (row.year // 5) * 5
+            bucket_end   = bucket_start + 4
+            targets = conn.execute(text(
+                "SELECT id, year, battery_code, ah, technology FROM web_battery_validation"
+                " WHERE make_n=:mn AND model_n=:mo AND year BETWEEN :ys AND :ye"
+            ), {"mn": row.make_n, "mo": row.model_n, "ys": bucket_start, "ye": bucket_end}).fetchall()
+        else:
+            targets = conn.execute(text(
+                "SELECT id, year, battery_code, ah, technology FROM web_battery_validation WHERE id=:id"
+            ), {"id": record_id}).fetchall()
+
+        max_ver = conn.execute(text(
+            "SELECT COALESCE(MAX(version_number),0) FROM web_battery_validation_versions"
+        )).scalar() or 0
+        vid = str(uuid.uuid4())
+        scope_note = (
+            f"Bucket edit ({bucket_start}–{bucket_end}): {row.make_n} {row.model_n}"
+            if body.scope == "bucket"
+            else f"Manual edit: {row.make_n} {row.model_n} {row.year}"
+        )
+        conn.execute(text(
+            "INSERT INTO web_battery_validation_versions"
+            " (id,version_number,committed_at,run_id,committed_count,removed_count,"
+            "  conflict_count,committed_by,initiated_by,notes)"
+            " VALUES (:vid,:vn,:now,NULL,:cnt,0,0,:by,:by,:notes)"
+        ), {"vid": vid, "vn": max_ver + 1, "now": now, "by": admin.username,
+            "cnt": len(targets), "notes": scope_note})
+
+        new_vals = {"battery_code": new_bc, "ah": new_ah, "technology": new_tech}
+        for t in targets:
+            old_vals = {"battery_code": t.battery_code, "ah": t.ah, "technology": t.technology}
+            conn.execute(text(
+                "INSERT INTO web_battery_validation_changelog"
+                " (version_id,make_n,model_n,year,change_type,old_values,new_values)"
+                " VALUES (:vid,:mn,:mo,:yr,'updated',:ov,:nv)"
+            ), {"vid": vid, "mn": row.make_n, "mo": row.model_n, "yr": t.year,
+                "ov": json.dumps(old_vals), "nv": json.dumps(new_vals)})
+            conn.execute(text(
+                "UPDATE web_battery_validation"
+                " SET battery_code=:bc, ah=:ah, technology=:tech, validated_at=:now, version_id=:vid"
+                " WHERE id=:id"
+            ), {"bc": new_bc, "ah": new_ah, "tech": new_tech, "now": now, "vid": vid, "id": t.id})
+
+    return {"ok": True, "version_number": max_ver + 1, "rows_updated": len(targets)}
+
+
+@app.delete("/api/pipeline/web-validate/master/{record_id}")
+def delete_master_record(record_id: int, admin: AdminUser = Depends(require_admin)):
+    now = datetime.now(timezone.utc)
+    with engine.begin() as conn:
+        row = conn.execute(text(
+            "SELECT make_n, model_n, year, battery_code, ah, technology"
+            " FROM web_battery_validation WHERE id=:id"
+        ), {"id": record_id}).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Record not found")
+        old_vals = {"battery_code": row.battery_code, "ah": row.ah, "technology": row.technology}
+        max_ver = conn.execute(text(
+            "SELECT COALESCE(MAX(version_number),0) FROM web_battery_validation_versions"
+        )).scalar() or 0
+        vid = str(uuid.uuid4())
+        conn.execute(text(
+            "INSERT INTO web_battery_validation_versions"
+            " (id,version_number,committed_at,run_id,committed_count,removed_count,"
+            "  conflict_count,committed_by,initiated_by,notes)"
+            " VALUES (:vid,:vn,:now,NULL,0,1,0,:by,:by,:notes)"
+        ), {"vid": vid, "vn": max_ver + 1, "now": now, "by": admin.username,
+            "notes": f"Manual delete: {row.make_n} {row.model_n} {row.year}"})
+        conn.execute(text(
+            "INSERT INTO web_battery_validation_changelog"
+            " (version_id,make_n,model_n,year,change_type,old_values,new_values)"
+            " VALUES (:vid,:mn,:mo,:yr,'removed',:ov,NULL)"
+        ), {"vid": vid, "mn": row.make_n, "mo": row.model_n, "yr": row.year,
+            "ov": json.dumps(old_vals), "nv": None})
+        conn.execute(text("DELETE FROM web_battery_validation WHERE id=:id"), {"id": record_id})
+    return {"ok": True, "version_number": max_ver + 1}
+
+
 @app.post("/api/pipeline/web-validate/reset-cache")
-def wv_reset_cache(username: str = Depends(_require_auth)):
-    cache_path = Path(__file__).resolve().parent.parent / "cache" / "battery_validate_cache.json"
+def wv_reset_cache(admin: AdminUser = Depends(require_admin)):
+    cache_path = Path(__file__).resolve().parent / "cache" / "battery_validate_cache.json"
     deleted = False
     if cache_path.exists():
         cache_path.unlink()
@@ -409,7 +537,7 @@ def wv_reset_cache(username: str = Depends(_require_auth)):
 
 
 @app.get("/api/pipeline/web-validate/staleness")
-def wv_staleness(username: str = Depends(_require_auth)):
+def wv_staleness(admin: AdminUser = Depends(require_admin)):
     with engine.connect() as conn:
         last_run = conn.execute(text(
             "SELECT finished_at FROM pipeline_run_log WHERE status='completed'"
@@ -441,22 +569,32 @@ def wv_staleness(username: str = Depends(_require_auth)):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/pipeline/quotas")
-def get_quotas(username: str = Depends(_require_auth)):
-    month = datetime.now(timezone.utc).strftime("%Y-%m")
+def get_quotas(admin: AdminUser = Depends(require_admin)):
+    now = datetime.now(timezone.utc)
     with engine.connect() as conn:
-        rows = conn.execute(text(
-            "SELECT provider, calls_made, quota_limit FROM api_usage_quota WHERE month=:m"
-        ), {"m": month}).fetchall()
-    return [
-        {
-            "provider":    r.provider,
-            "calls_made":  r.calls_made,
-            "quota_limit": r.quota_limit,
-            "pct_used":    0.0 if r.quota_limit == -1
-                           else round(r.calls_made / max(r.quota_limit, 1) * 100, 1),
-        }
-        for r in rows
-    ]
+        rows = conn.execute(text("""
+            SELECT DISTINCT ON (provider)
+                provider, calls_made, quota_limit, period_end
+            FROM api_usage_quota
+            WHERE period_end IS NULL OR period_end > :now
+            ORDER BY provider, period_start DESC NULLS LAST
+        """), {"now": now}).fetchall()
+    result = []
+    for r in rows:
+        period_end = r.period_end
+        days_until_reset = (
+            max(0, (period_end - now).days) if period_end else None
+        )
+        result.append({
+            "provider":         r.provider,
+            "calls_made":       r.calls_made,
+            "quota_limit":      r.quota_limit,
+            "pct_used":         0.0 if r.quota_limit == -1
+                                else round(r.calls_made / max(r.quota_limit, 1) * 100, 1),
+            "period_end":       period_end.isoformat() if period_end else None,
+            "days_until_reset": days_until_reset,
+        })
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -532,7 +670,7 @@ def _populate_staging(run_id: str) -> tuple[int, int, int]:
 # ---------------------------------------------------------------------------
 
 @app.get("/api/pipeline/web-validate/staging")
-def get_staging(page: int = 1, page_size: int = 50, filter: str = "all", username: str = Depends(_require_auth)):
+def get_staging(page: int = 1, page_size: int = 50, filter: str = "all", admin: AdminUser = Depends(require_admin)):
     offset = (page - 1) * page_size
     where = {
         "valid":     "WHERE is_valid=TRUE AND conflict=FALSE",
@@ -571,8 +709,15 @@ class PatchRowBody(BaseModel):
     technology: str   | None = None
 
 
+class MasterEditBody(BaseModel):
+    ah:           float | None = None
+    technology:   str   | None = None
+    battery_code: str   | None = None
+    scope:        str          = "single"  # "single" | "bucket"
+
+
 @app.patch("/api/pipeline/web-validate/staging/{row_id}")
-def patch_staging_row(row_id: int, body: PatchRowBody, username: str = Depends(_require_auth)):
+def patch_staging_row(row_id: int, body: PatchRowBody, admin: AdminUser = Depends(require_admin)):
     with engine.begin() as conn:
         row = conn.execute(text("SELECT * FROM web_battery_staging WHERE id=:id"), {"id": row_id}).fetchone()
         if not row:
@@ -598,7 +743,7 @@ def patch_staging_row(row_id: int, body: PatchRowBody, username: str = Depends(_
 
 
 @app.get("/api/pipeline/web-validate/staging/pre-commit")
-def staging_pre_commit(username: str = Depends(_require_auth)):
+def staging_pre_commit(admin: AdminUser = Depends(require_admin)):
     with engine.begin() as conn:
         staging_rows = conn.execute(text(
             "SELECT run_id, make_n, model_n, year, ah, technology, source FROM web_battery_staging"
@@ -646,7 +791,7 @@ class CommitBody(BaseModel):
 
 
 @app.post("/api/pipeline/web-validate/staging/commit")
-def commit_staging(body: CommitBody = CommitBody(), username: str = Depends(_require_auth)):
+def commit_staging(body: CommitBody = CommitBody(), admin: AdminUser = Depends(require_admin)):
     resolution_map = {(r.make_n, r.model_n, r.year): r.keep for r in body.conflict_resolutions}
     committed = removed_invalid = conflicts_resolved = 0
     changelog_entries: list[dict] = []
@@ -725,7 +870,7 @@ def commit_staging(body: CommitBody = CommitBody(), username: str = Depends(_req
             " VALUES (:id,:vn,:now,:rid,:cc,:rc,:cfc,:cby,:iby)"
         ), {"id": version_id, "vn": version_number, "now": now, "rid": run_id,
             "cc": committed, "rc": removed_invalid, "cfc": conflicts_resolved,
-            "cby": username, "iby": _wv_state.get("initiated_by")})
+            "cby": admin.username, "iby": _wv_state.get("initiated_by")})
         for entry in changelog_entries:
             conn.execute(text(
                 "INSERT INTO web_battery_validation_changelog"
@@ -738,11 +883,11 @@ def commit_staging(body: CommitBody = CommitBody(), username: str = Depends(_req
 
     return {"version_id": version_id, "version_number": version_number,
             "committed": committed, "removed_invalid": removed_invalid,
-            "conflicts_resolved": conflicts_resolved, "committed_by": username}
+            "conflicts_resolved": conflicts_resolved, "committed_by": admin.username}
 
 
 @app.post("/api/pipeline/web-validate/staging/discard")
-def discard_staging(username: str = Depends(_require_auth)):
+def discard_staging(admin: AdminUser = Depends(require_admin)):
     with engine.begin() as conn:
         run_id_row = conn.execute(text("SELECT run_id FROM web_battery_staging LIMIT 1")).scalar()
         if not run_id_row:
@@ -782,9 +927,9 @@ def _is_suspicious(make_n: str, ah) -> bool:
 
 
 @app.post("/api/pipeline/web-validate/staging/fix-ah")
-def fix_staging_ah(username: str = Depends(_require_auth)):
-    from pipelines.web_battery_validate import (
-        _duckduckgo_lookup, _check_quota, _increment_quota, _current_month,
+def fix_staging_ah(admin: AdminUser = Depends(require_admin)):
+    from web_battery_validate import (
+        _duckduckgo_lookup, _check_quota, _increment_quota,
         REQUEST_DELAY,
     )
 
@@ -796,7 +941,6 @@ def fix_staging_ah(username: str = Depends(_require_auth)):
     if not rows:
         return {"fixed": 0, "unchanged": 0, "failed": 0}
 
-    month     = _current_month()
     fixed     = 0
     unchanged = 0
     failed    = 0
@@ -808,21 +952,21 @@ def fix_staging_ah(username: str = Depends(_require_auth)):
         result = None
         # Try DDG first (always available, no quota cost per spec)
         try:
-            if _check_quota(engine, "duckduckgo", month):
+            if _check_quota(engine, "duckduckgo"):
                 result = _duckduckgo_lookup(r.make_n, r.model_n, r.year)
                 if result:
-                    _increment_quota(engine, "duckduckgo", month)
+                    _increment_quota(engine, "duckduckgo")
         except Exception as exc:
             logger.warning("DDG lookup failed for %s %s %s: %s", r.make_n, r.model_n, r.year, exc)
 
         # Fallback: SearXNG
         if not result:
             try:
-                from pipelines.web_battery_validate import _searxng_lookup
-                if os.getenv("SEARXNG_URL") and _check_quota(engine, "searxng", month):
+                from web_battery_validate import _searxng_lookup
+                if os.getenv("SEARXNG_URL") and _check_quota(engine, "searxng"):
                     result = _searxng_lookup(r.make_n, r.model_n, r.year)
                     if result:
-                        _increment_quota(engine, "searxng", month)
+                        _increment_quota(engine, "searxng")
             except Exception as exc:
                 logger.warning("SearXNG lookup failed: %s", exc)
 
@@ -854,7 +998,7 @@ def fix_staging_ah(username: str = Depends(_require_auth)):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/pipeline/web-validate/versions")
-def get_versions(page: int = 1, page_size: int = 20, username: str = Depends(_require_auth)):
+def get_versions(page: int = 1, page_size: int = 20, admin: AdminUser = Depends(require_admin)):
     offset = (page - 1) * page_size
     with engine.connect() as conn:
         total = conn.execute(text("SELECT COUNT(*) FROM web_battery_validation_versions")).scalar() or 0
@@ -869,7 +1013,7 @@ def get_versions(page: int = 1, page_size: int = 20, username: str = Depends(_re
 
 @app.get("/api/pipeline/web-validate/versions/{version_id}/changelog")
 def get_version_changelog(version_id: str, page: int = 1, page_size: int = 100,
-                           username: str = Depends(_require_auth)):
+                           admin: AdminUser = Depends(require_admin)):
     offset = (page - 1) * page_size
     with engine.connect() as conn:
         ver = conn.execute(text(
@@ -901,7 +1045,7 @@ def get_version_changelog(version_id: str, page: int = 1, page_size: int = 100,
 
 
 @app.post("/api/pipeline/web-validate/versions/{version_id}/revert")
-def revert_version(version_id: str, username: str = Depends(_require_auth)):
+def revert_version(version_id: str, admin: AdminUser = Depends(require_admin)):
     with engine.connect() as conn:
         ver = conn.execute(text(
             "SELECT id, version_number, committed_count, removed_count FROM web_battery_validation_versions WHERE id=:vid"
@@ -964,7 +1108,7 @@ def revert_version(version_id: str, username: str = Depends(_require_auth)):
             "  conflict_count,committed_by,initiated_by,notes)"
             " VALUES (:id,:vn,:now,NULL,:cc,:rc,0,:cby,NULL,:notes)"
         ), {"id": new_vid, "vn": next_vn, "now": now, "cc": restored, "rc": reverted,
-            "cby": username, "notes": f"Revert of version #{ver.version_number}"})
+            "cby": admin.username, "notes": f"Revert of version #{ver.version_number}"})
         for entry in revert_cl:
             conn.execute(text(
                 "INSERT INTO web_battery_validation_changelog"
@@ -976,7 +1120,7 @@ def revert_version(version_id: str, username: str = Depends(_require_auth)):
 
     return {"version_id": new_vid, "version_number": next_vn,
             "reverted_version_number": ver.version_number,
-            "committed_by": username, "changes": reverted + restored}
+            "committed_by": admin.username, "changes": reverted + restored}
 
 
 # ---------------------------------------------------------------------------
@@ -1001,7 +1145,7 @@ _crsp_state: dict = {
 
 
 def _crsp_thread(input_file: str, cancel_ev: threading.Event) -> None:
-    from pipelines.dataprep import main as _run_crsp
+    from dataprep import main as _run_crsp
 
     def _log(line: str):
         with _crsp_lock:
@@ -1043,7 +1187,7 @@ _UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 
 
 @app.post("/api/pipeline/crsp/upload")
-async def crsp_upload(file: UploadFile = File(...), username: str = Depends(_require_auth)):
+async def crsp_upload(file: UploadFile = File(...), admin: AdminUser = Depends(require_admin)):
     """Save uploaded XLSX to the uploads directory and return its server-side path."""
     _UPLOAD_DIR.mkdir(exist_ok=True)
     suffix = Path(file.filename or "crsp.xlsx").suffix.lower()
@@ -1060,7 +1204,7 @@ class RunCRSPBody(BaseModel):
 
 
 @app.post("/api/pipeline/crsp/run")
-def crsp_run(body: RunCRSPBody, username: str = Depends(_require_auth)):
+def crsp_run(body: RunCRSPBody, admin: AdminUser = Depends(require_admin)):
     with _crsp_lock:
         if _crsp_state["status"] == "running":
             raise HTTPException(status_code=409, detail="CRSP pipeline already running")
@@ -1078,7 +1222,7 @@ def crsp_run(body: RunCRSPBody, username: str = Depends(_require_auth)):
 
 
 @app.get("/api/pipeline/crsp/status")
-def crsp_status(username: str = Depends(_require_auth)):
+def crsp_status(admin: AdminUser = Depends(require_admin)):
     with _crsp_lock:
         state = dict(_crsp_state)
         state["logs"] = list(state["logs"])
@@ -1087,7 +1231,7 @@ def crsp_status(username: str = Depends(_require_auth)):
 
 
 @app.post("/api/pipeline/crsp/cancel")
-def crsp_cancel(username: str = Depends(_require_auth)):
+def crsp_cancel(admin: AdminUser = Depends(require_admin)):
     with _crsp_lock:
         if _crsp_state["status"] != "running":
             raise HTTPException(status_code=400, detail="CRSP pipeline not running")

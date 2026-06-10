@@ -3,7 +3,8 @@ import { api } from './lib/api'
 import { LoginPage } from './pages/LoginPage'
 import { WebValidatePage } from './pages/WebValidatePage'
 import { CrspPage } from './pages/CrspPage'
-import { ArrowRightOnRectangleIcon, GlobeAltIcon, TableCellsIcon } from '@heroicons/react/20/solid'
+import { MasterRecordsPage } from './pages/MasterRecordsPage'
+import { ArrowRightOnRectangleIcon, GlobeAltIcon, TableCellsIcon, CircleStackIcon } from '@heroicons/react/20/solid'
 import chlorideExideBrandLogo from '@/assets/chlorideexidebrandlogo.png'
 
 const R = '#CC0000'
@@ -11,14 +12,10 @@ const R = '#CC0000'
 export default function App() {
   const [username, setUsername] = useState<string | null>(null)
   const [checking, setChecking]  = useState(true)
-  const [tab, setTab] = useState<'web-validate' | 'crsp'>('web-validate')
+  const [tab, setTab] = useState<'web-validate' | 'crsp' | 'master-records'>('web-validate')
 
   useEffect(() => {
-    const token = localStorage.getItem('pipeline_token')
-    if (!token) { setChecking(false); return }
-    api.me().then(r => setUsername(r.username)).catch(() => {
-      localStorage.removeItem('pipeline_token')
-    }).finally(() => setChecking(false))
+    api.me().then(r => setUsername(r.username)).catch(() => {}).finally(() => setChecking(false))
   }, [])
 
   if (checking) return (
@@ -28,7 +25,7 @@ export default function App() {
   )
 
   if (!username) return (
-    <LoginPage onLogin={(u, token) => { localStorage.setItem('pipeline_token', token); setUsername(u) }} />
+    <LoginPage onLogin={(u) => setUsername(u)} />
   )
 
   return (
@@ -51,7 +48,7 @@ export default function App() {
 
           {/* Tabs — segmented control */}
           <div style={{ display: 'flex', background: '#f0f1f4', borderRadius: 10, padding: 3, gap: 2 }}>
-            {(['web-validate', 'crsp'] as const).map(t => (
+            {(['web-validate', 'crsp', 'master-records'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
                 display: 'flex', alignItems: 'center', gap: '0.35rem',
                 background: tab === t ? '#fff' : 'transparent',
@@ -65,9 +62,11 @@ export default function App() {
               }}>
                 {t === 'web-validate'
                   ? <GlobeAltIcon style={{ width: 13, height: 13 }} />
-                  : <TableCellsIcon style={{ width: 13, height: 13 }} />
+                  : t === 'crsp'
+                  ? <TableCellsIcon style={{ width: 13, height: 13 }} />
+                  : <CircleStackIcon style={{ width: 13, height: 13 }} />
                 }
-                {t === 'web-validate' ? 'Web Validate' : 'CRSP Dataset'}
+                {t === 'web-validate' ? 'Web Validate' : t === 'crsp' ? 'CRSP Dataset' : 'Master Records'}
               </button>
             ))}
           </div>
@@ -78,7 +77,6 @@ export default function App() {
           <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151' }}>{username}</span>
           <button onClick={async () => {
             await api.logout().catch(() => {})
-            localStorage.removeItem('pipeline_token')
             setUsername(null)
           }} style={{
             display: 'flex', alignItems: 'center', gap: '0.35rem',
@@ -94,7 +92,12 @@ export default function App() {
 
       {/* Content */}
       <main style={{ padding: '1.5rem', maxWidth: 1200, margin: '0 auto' }}>
-        {tab === 'web-validate' ? <WebValidatePage /> : <CrspPage />}
+        {tab === 'web-validate'
+          ? <WebValidatePage />
+          : tab === 'crsp'
+          ? <CrspPage />
+          : <MasterRecordsPage />
+        }
       </main>
     </div>
   )

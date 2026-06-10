@@ -71,8 +71,8 @@ Migrations live in `alembic/versions/`. Always run `alembic upgrade head` after 
 
 ### Frontend (`frontend/src/`)
 React 19 + TypeScript + Vite + Tailwind CSS v4. Key areas:
-- `components/VehicleFinderForm.tsx` — main search form (Select vs Type input modes)
-- `components/ResultCard.tsx` — battery recommendation display
+- `components/VehicleFinderForm.tsx` — main search form AND result card; the battery recommendation result is rendered as an inline sub-component inside this file (look for `className="result-card"`), **not** in `ResultCard.tsx`. Uses **inline `style={{}}` props throughout** — always extend with inline styles, not Tailwind utility classes.
+- `components/ResultCard.tsx` — legacy/unused component; do not edit for live UI changes
 - `lib/api.ts` / `lib/adminApi.ts` — typed fetch wrappers for public and admin APIs
 - `lib/TestUserContext.tsx` — React context for test-user session
 - `pages/admin/` — admin dashboard pages (Batteries, Audit, Sessions, Feedback, DataPipeline)

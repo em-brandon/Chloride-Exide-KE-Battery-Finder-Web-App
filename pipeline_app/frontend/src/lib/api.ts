@@ -1,17 +1,10 @@
 const BASE = '/api'
 
-function getToken(): string | null {
-  return localStorage.getItem('pipeline_token')
-}
-
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = getToken()
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -21,12 +14,40 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return res.json() as Promise<T>
 }
 
+export type LogEntry = {
+  level: 'info' | 'success' | 'warn' | 'error' | 'milestone'
+  message: string
+  ts: string
+}
+
+export type SessionInfo = {
+  id: number
+  created_at: string
+  expires_at: string
+  ip_address: string | null
+  is_current: boolean
+}
+
+export type MasterRecord = {
+  id: number
+  make_n: string
+  model_n: string
+  year: number
+  battery_code: string | null
+  ah: number | null
+  technology: string | null
+  source: string | null
+  validated_at: string | null
+}
+
 export const api = {
   // Auth
-  login:  (username: string, password: string) =>
-    req<{ token: string; username: string }>('POST', '/auth/login', { username, password }),
-  logout: () => req<void>('POST', '/auth/logout'),
-  me:     () => req<{ username: string }>('GET', '/auth/me'),
+  login:         (username: string, password: string) =>
+    req<{ username: string }>('POST', '/auth/login', { username, password }),
+  logout:        () => req<void>('POST', '/auth/logout'),
+  me:            () => req<{ username: string }>('GET', '/auth/me'),
+  sessions:      () => req<SessionInfo[]>('GET', '/auth/sessions'),
+  revokeSession: (id: number) => req<void>('DELETE', `/auth/sessions/${id}`),
 
   // Web Validate
   wvRun:        (enabled_providers: string[] | null, phase: string) =>
@@ -38,12 +59,16 @@ export const api = {
   wvProviders:  () => req<{ provider: string; configured: boolean; always_available: boolean }[]>('GET', '/pipeline/web-validate/providers'),
   wvCoverage:   () => req<Record<string, unknown>>('GET', '/pipeline/web-validate/coverage'),
   wvMatched:    (page: number, pageSize: number, search: string) =>
-    req<{ total: number; items: Record<string, unknown>[] }>('GET', `/pipeline/web-validate/matched?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
+    req<{ total: number; items: MasterRecord[] }>('GET', `/pipeline/web-validate/matched?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
+  patchMaster:  (id: number, body: { ah?: number | null; technology?: string | null; battery_code?: string | null; scope?: 'single' | 'bucket' }) =>
+    req<{ ok: boolean; version_number: number; rows_updated: number }>('PATCH', `/pipeline/web-validate/master/${id}`, body),
+  deleteMaster: (id: number) =>
+    req<{ ok: boolean }>('DELETE', `/pipeline/web-validate/master/${id}`),
   wvResetCache: () => req<{ deleted: boolean; rows_cleared: number }>('POST', '/pipeline/web-validate/reset-cache'),
   wvStaleness:  () => req<{ stale: boolean; new_vehicles_since_last_run: number }>('GET', '/pipeline/web-validate/staleness'),
 
   // Quotas
-  quotas: () => req<{ provider: string; calls_made: number; quota_limit: number; pct_used: number }[]>('GET', '/pipeline/quotas'),
+  quotas: () => req<{ provider: string; calls_made: number; quota_limit: number; pct_used: number; period_end: string | null; days_until_reset: number | null }[]>('GET', '/pipeline/quotas'),
 
   // Staging
   staging:      (page: number, filter: string) =>
@@ -66,12 +91,11 @@ export const api = {
 
   // CRSP
   crspUpload: async (file: File): Promise<{ file_path: string }> => {
-    const token = getToken()
     const form = new FormData()
     form.append('file', file)
     const res = await fetch(`${BASE}/pipeline/crsp/upload`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
       body: form,
     })
     if (!res.ok) {

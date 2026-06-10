@@ -6,7 +6,7 @@ import chlorideExideLogo from '@/assets/chloride_exide_transparent.png'
 const R = '#CC0000'
 
 interface Props {
-  onLogin: (username: string, token: string) => void
+  onLogin: (username: string) => void
 }
 
 export function LoginPage({ onLogin }: Props) {
@@ -21,7 +21,7 @@ export function LoginPage({ onLogin }: Props) {
     setLoading(true)
     try {
       const r = await api.login(username, password)
-      onLogin(r.username, r.token)
+      onLogin(r.username)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {

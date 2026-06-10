@@ -27,7 +27,7 @@ import socket
 import sys
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -403,21 +403,30 @@ def _current_month() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-def _ensure_quota_row(eng, provider: str, month: str) -> None:
+def _ensure_quota_row(eng, provider: str) -> None:
+    """Create an active 30-day quota row for *provider* if none exists."""
     quota_limit = _PROVIDER_DEFAULT_QUOTA.get(provider, -1)
     now = datetime.now(timezone.utc)
+    month = now.strftime("%Y-%m")
+    period_end = now + timedelta(days=30)
     with eng.begin() as conn:
         conn.execute(text("""
-            INSERT INTO api_usage_quota (provider, month, calls_made, quota_limit, updated_at)
-            VALUES (:provider, :month, 0, :quota_limit, :now)
+            INSERT INTO api_usage_quota
+                (provider, month, calls_made, quota_limit, updated_at, period_start, period_end)
+            VALUES
+                (:provider, :month, 0, :quota_limit, :now, :period_start, :period_end)
             ON CONFLICT (provider, month) DO NOTHING
-        """), {"provider": provider, "month": month, "quota_limit": quota_limit, "now": now})
+        """), {
+            "provider": provider, "month": month, "quota_limit": quota_limit,
+            "now": now, "period_start": now, "period_end": period_end,
+        })
 
 
-def _check_quota(eng, provider: str, month: str) -> bool:
+def _check_quota(eng, provider: str) -> bool:
     """Return True if the provider has remaining quota (or is unlimited).
     Returns False immediately for providers whose API keys are not configured —
     this prevents phantom quota rows being created for unconfigured services.
+    Automatically starts a new 30-day period if the previous one has expired.
     """
     if provider == "brave" and not BRAVE_SEARCH_API_KEY:
         return False
@@ -425,25 +434,33 @@ def _check_quota(eng, provider: str, month: str) -> bool:
         return False
     if provider == "tavily" and not TAVILY_API_KEY:
         return False
-    _ensure_quota_row(eng, provider, month)
+
+    now = datetime.now(timezone.utc)
     with eng.connect() as conn:
-        row = conn.execute(text(
-            "SELECT calls_made, quota_limit FROM api_usage_quota WHERE provider=:p AND month=:m"
-        ), {"p": provider, "m": month}).fetchone()
+        row = conn.execute(text("""
+            SELECT calls_made, quota_limit FROM api_usage_quota
+            WHERE provider = :p AND (period_end IS NULL OR period_end > :now)
+            ORDER BY period_start DESC NULLS LAST LIMIT 1
+        """), {"p": provider, "now": now}).fetchone()
+
     if row is None:
+        # No active period — create one and allow the call
+        _ensure_quota_row(eng, provider)
         return True
+
     calls_made, quota_limit = row
     return quota_limit == -1 or calls_made < quota_limit
 
 
-def _increment_quota(eng, provider: str, month: str) -> None:
+def _increment_quota(eng, provider: str) -> None:
     now = datetime.now(timezone.utc)
     with eng.begin() as conn:
         conn.execute(text("""
             UPDATE api_usage_quota
             SET calls_made = calls_made + 1, updated_at = :now
-            WHERE provider = :p AND month = :m
-        """), {"p": provider, "m": month, "now": now})
+            WHERE provider = :p
+              AND (period_end IS NULL OR period_end > :now)
+        """), {"p": provider, "now": now})
 
 
 # ---------------------------------------------------------------------------
@@ -602,7 +619,6 @@ def main(
     _net_ok_event.set()  # reset network state at start of each run
 
     _log("[START] web_battery_validate.py")
-    month = _current_month()
 
     _ep = set(enabled_providers) if enabled_providers is not None else None
 
@@ -612,9 +628,9 @@ def main(
     if _ep is not None:
         _log(f"  [CONFIG] enabled providers: {', '.join(sorted(_ep))}")
 
-    # Pre-seed all quota rows once so concurrent threads only do SELECTs later
+    # Pre-seed quota rows for all providers
     for _p in ["duckduckgo", "searxng", "brave", "tavily", "carquery"]:
-        _ensure_quota_row(engine, _p, month)
+        _ensure_quota_row(engine, _p)
 
     # Log which providers will actually be used this run
     for _pn in ["duckduckgo", "searxng", "brave", "tavily"]:
@@ -626,8 +642,8 @@ def main(
             _log(f"  [CONFIG] {_pn}: no API key — will be skipped")
         elif _pn == "tavily" and not TAVILY_API_KEY:
             _log(f"  [CONFIG] {_pn}: no API key — will be skipped")
-        elif not _check_quota(engine, _pn, month):
-            _log(f"  [CONFIG] {_pn}: quota exhausted for {month} — will be skipped")
+        elif not _check_quota(engine, _pn):
+            _log(f"  [CONFIG] {_pn}: quota exhausted — will be skipped")
         else:
             _log(f"  [CONFIG] {_pn}: active")
 
@@ -727,27 +743,28 @@ def main(
             src = None
             any_net_error = False
 
-            # DDG — always attempted first
-            if _is_enabled("duckduckgo") and _check_quota(engine, "duckduckgo", month):
+            # Brave — primary paid provider
+            if _is_enabled("brave") and _check_quota(engine, "brave"):
                 try:
-                    web_parsed = _duckduckgo_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "duckduckgo", month)
+                    web_parsed = _brave_lookup(make, model, rep_year, cancel_event)
+                    _increment_quota(engine, "brave")
                     if web_parsed:
-                        src = "duckduckgo"
+                        src = "brave"
                         with _prov_lock:
-                            provider_counts["duckduckgo"] += 1
+                            provider_counts["brave"] += 1
                 except Exception as exc:
                     if _is_net_error(exc):
                         any_net_error = True
                     else:
                         err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
-                        _log(f"    [WEB-ERR] DDG {make} {model} ({bucket}–{bucket+4}): {err_msg}")
+                        _log(f"    [WEB-ERR] Brave {make} {model} ({bucket}–{bucket+4}): {err_msg}")
+                _interruptible_sleep(REQUEST_DELAY, cancel_event)
 
             if _is_cancelled():
                 return
 
-            # SearXNG — first if configured (localhost/self-hosted); no quota consumed
-            if web_parsed is None and _is_enabled("searxng") and _check_quota(engine, "searxng", month):
+            # SearXNG — second if configured (localhost/self-hosted); no quota consumed
+            if web_parsed is None and _is_enabled("searxng") and _check_quota(engine, "searxng"):
                 try:
                     web_parsed = _searxng_lookup(make, model, rep_year, cancel_event)
                     if web_parsed:
@@ -765,31 +782,11 @@ def main(
             if _is_cancelled():
                 return
 
-            # Brave — cascade if DDG/SearXNG missed; _check_quota returns False instantly if no key/quota
-            if web_parsed is None and _is_enabled("brave") and _check_quota(engine, "brave", month):
-                try:
-                    web_parsed = _brave_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "brave", month)
-                    if web_parsed:
-                        src = "brave"
-                        with _prov_lock:
-                            provider_counts["brave"] += 1
-                except Exception as exc:
-                    if _is_net_error(exc):
-                        any_net_error = True
-                    else:
-                        err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
-                        _log(f"    [WEB-ERR] Brave {make} {model} ({bucket}–{bucket+4}): {err_msg}")
-                _interruptible_sleep(REQUEST_DELAY, cancel_event)
-
-            if _is_cancelled():
-                return
-
-            # Tavily — last resort; _check_quota returns False instantly if no key/quota
-            if web_parsed is None and _is_enabled("tavily") and _check_quota(engine, "tavily", month):
+            # Tavily — second paid fallback; _check_quota returns False instantly if no key/quota
+            if web_parsed is None and _is_enabled("tavily") and _check_quota(engine, "tavily"):
                 try:
                     web_parsed = _tavily_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "tavily", month)
+                    _increment_quota(engine, "tavily")
                     if web_parsed:
                         src = "tavily"
                         with _prov_lock:
@@ -801,6 +798,25 @@ def main(
                         err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
                         _log(f"    [WEB-ERR] Tavily {make} {model} ({bucket}–{bucket+4}): {err_msg}")
                 _interruptible_sleep(REQUEST_DELAY, cancel_event)
+
+            if _is_cancelled():
+                return
+
+            # DDG — last resort, free and unlimited
+            if web_parsed is None and _is_enabled("duckduckgo") and _check_quota(engine, "duckduckgo"):
+                try:
+                    web_parsed = _duckduckgo_lookup(make, model, rep_year, cancel_event)
+                    _increment_quota(engine, "duckduckgo")
+                    if web_parsed:
+                        src = "duckduckgo"
+                        with _prov_lock:
+                            provider_counts["duckduckgo"] += 1
+                except Exception as exc:
+                    if _is_net_error(exc):
+                        any_net_error = True
+                    else:
+                        err_msg = str(exc).split("(")[0].strip().rstrip(":").strip() or type(exc).__name__
+                        _log(f"    [WEB-ERR] DDG {make} {model} ({bucket}–{bucket+4}): {err_msg}")
 
             # Trigger network-down path only if at least one provider got a net error
             # and no provider found a result — wait for reconnect then retry the bucket once
@@ -906,9 +922,9 @@ def main(
 
             try:
                 # carquery: fill missing engine_cc only
-                if not engine_cc and _check_quota(engine, "carquery", month):
+                if not engine_cc and _check_quota(engine, "carquery"):
                     cq = _carquery_lookup(make_n, model_n, year, cancel_event)
-                    _increment_quota(engine, "carquery", month)
+                    _increment_quota(engine, "carquery")
                     if cq:
                         engine_cc = cq.get("engine_cc")
                         if not fuel_type:

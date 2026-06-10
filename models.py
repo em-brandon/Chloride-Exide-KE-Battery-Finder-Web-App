@@ -266,21 +266,25 @@ class AdminStats(Base):
 
 class ApiUsageQuota(Base):
     """
-    Monthly API call counter for the web_battery_validate pipeline providers.
+    30-day rolling API call counter for the web_battery_validate pipeline providers.
 
     One row per (provider, month). quota_limit=-1 means unlimited.
+    period_start/period_end define the 30-day window; after period_end a new row
+    is created automatically by _ensure_quota_row().
     Written by: pipelines/web_battery_validate.py (incremented per call).
     Read by:    GET /api/admin/pipeline/quotas (admin dashboard).
     """
 
     __tablename__ = "api_usage_quota"
 
-    id          = Column(Integer,              primary_key=True, autoincrement=True)
-    provider    = Column(String(50),           nullable=False)   # "carapi" | "duckduckgo" | "google_cse" | "tavily"
-    month       = Column(String(7),            nullable=False)   # "YYYY-MM"
-    calls_made  = Column(Integer,              nullable=False, default=0)
-    quota_limit = Column(Integer,              nullable=False, default=-1)  # -1 = unlimited
-    updated_at  = Column(DateTime(timezone=True), nullable=False)
+    id           = Column(Integer,               primary_key=True, autoincrement=True)
+    provider     = Column(String(50),            nullable=False)
+    month        = Column(String(7),             nullable=False)   # "YYYY-MM" of period_start
+    calls_made   = Column(Integer,               nullable=False, default=0)
+    quota_limit  = Column(Integer,               nullable=False, default=-1)  # -1 = unlimited
+    updated_at   = Column(DateTime(timezone=True), nullable=False)
+    period_start = Column(DateTime(timezone=True), nullable=True)
+    period_end   = Column(DateTime(timezone=True), nullable=True)  # period_start + 30 days
 
     __table_args__ = (
         UniqueConstraint("provider", "month", name="uq_api_usage_quota_provider_month"),

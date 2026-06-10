@@ -4,7 +4,8 @@ import { AccuracyBar } from '@/components/AccuracyBar'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
-import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
+import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import ReactCountryFlag from 'react-country-flag'
 import exideMaxxLogo from '@/assets/exide-max-logo.png'
 import sparkLogo     from '@/assets/spark-logo.jpg'
 import powerlastLogo from '@/assets/powerlast-logo.jpg'
@@ -60,14 +61,89 @@ export function ResultCard({ data }: ResultCardProps) {
 
   return (
     <div className="mt-5 animate-slide-up rounded-xl border border-border border-l-4 [border-left-color:#1A35C0] bg-card shadow-md p-4 space-y-3">
-      {/* Header */}
-      <div>
-        <h2 className="text-base font-bold text-card-foreground">Battery Recommendation</h2>
-        {!isFallback && (
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {data.matched_make} {data.matched_model} · {data.matched_year}
-          </p>
-        )}
+
+      {/* Header — title left, action buttons right */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+        <div>
+          <h2 className="text-base font-bold text-card-foreground">Battery Recommendation</h2>
+          {!isFallback && (
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {data.matched_make} {data.matched_model} · {data.matched_year}
+            </p>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+              background: '#fff', border: '1.5px solid #CC0000', color: '#CC0000',
+              borderRadius: 6, padding: '0.3rem 0.9rem',
+              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget as HTMLButtonElement
+              b.style.background = '#CC0000'
+              b.style.color = '#fff'
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget as HTMLButtonElement
+              b.style.background = '#fff'
+              b.style.color = '#CC0000'
+            }}
+          >
+            <StarIcon style={{ width: 15, height: 15 }} />
+            Rate this result
+          </button>
+          <a
+            href="https://www.chlorideexide.com/category/all-products"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+              background: '#CC0000', color: '#fff',
+              borderRadius: 6, padding: '0.3rem 0.9rem',
+              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', textDecoration: 'none',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#990000' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#CC0000' }}
+          >
+            <ShoppingBagIcon style={{ width: 15, height: 15 }} />
+            Shop Now
+          </a>
+        </div>
+      </div>
+
+      {/* Dial a Battery */}
+      <div style={{
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+        gap: '0.4rem 0.9rem',
+        background: '#f9fafb',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        padding: '0.45rem 0.75rem',
+        fontSize: '0.72rem',
+      }}>
+        <span style={{ fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>📞 Dial a Battery</span>
+        <span style={{ color: '#d1d5db' }}>·</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+          <ReactCountryFlag countryCode="KE" svg style={{ width: '1.1em', height: '1.1em' }} />
+          <span style={{ color: '#CC0000', fontWeight: 600 }}>0719 080 000</span>
+        </span>
+        <span style={{ color: '#d1d5db' }}>·</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+          <ReactCountryFlag countryCode="TZ" svg style={{ width: '1.1em', height: '1.1em' }} />
+          <span style={{ color: '#111827', fontWeight: 600 }}>0677 484 631</span>
+        </span>
+        <span style={{ color: '#d1d5db' }}>·</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+          <ReactCountryFlag countryCode="UG" svg style={{ width: '1.1em', height: '1.1em' }} />
+          <span style={{ color: '#16a34a', fontWeight: 600 }}>0200 400 900</span>
+        </span>
       </div>
 
       {/* Fallback warning — only shown when no model was matched */}
@@ -83,13 +159,11 @@ export function ResultCard({ data }: ResultCardProps) {
 
       {/* Primary battery */}
       <div className="rounded-lg border border-red-100 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 p-3 space-y-2.5">
-        {/* Series logo */}
         {brandLogo && (
           <div className="flex items-center gap-2 pb-1 border-b border-red-100 dark:border-red-900/40">
             <img src={brandLogo} alt="" style={{ height: 28, width: 'auto', maxWidth: 120, objectFit: 'contain' }} />
           </div>
         )}
-        {/* Specs row */}
         <div className="flex items-center gap-0 flex-wrap">
           <Stat label="Ah" value={p.ah} />
           <div className="w-px self-stretch bg-red-200 dark:bg-red-800/40 mx-3" />
@@ -99,7 +173,6 @@ export function ResultCard({ data }: ResultCardProps) {
             {p.technology ?? 'MF'}
           </Badge>
         </div>
-        {/* Battery name */}
         <div>
           <div className="font-bold text-base text-card-foreground">{p.battery_code}</div>
           {p.model_key && (
@@ -110,6 +183,16 @@ export function ResultCard({ data }: ResultCardProps) {
 
       {/* Accuracy bar */}
       <AccuracyBar data={data} />
+
+      <FeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        vehicleLabel={vehicleLabel}
+        inputType="dropdown"
+        matchConfidence={data.confidence}
+        matchType={data.match_type}
+        recommendedBattery={data.primary?.battery_code ?? undefined}
+      />
 
       {/* Alternatives — same technology only, horizontal scrolling row */}
       {sameTeachAlts.length > 0 && (
@@ -135,63 +218,6 @@ export function ResultCard({ data }: ResultCardProps) {
           )}
         </div>
       )}
-
-      {/* Feedback trigger */}
-      <div className="flex justify-start pt-2 pb-1">
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Pulse ring */}
-          <span style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: '999px',
-            background: 'rgba(204,0,0,0.18)',
-            animation: 'ratePulse 1.8s ease-out infinite',
-            pointerEvents: 'none',
-          }} />
-          <button
-            type="button"
-            onClick={() => setFeedbackOpen(true)}
-            className="group inline-flex items-center gap-2 text-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{
-              position: 'relative',
-              background: '#CC0000',
-              boxShadow: '0 3px 12px rgba(204,0,0,0.45)',
-              borderRadius: '999px',
-              padding: '0.6rem 1.5rem',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              letterSpacing: '0.01em',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background 0.15s, box-shadow 0.15s, transform 0.1s',
-              fontFamily: 'inherit',
-            }}
-            onMouseEnter={e => {
-              const b = e.currentTarget as HTMLButtonElement
-              b.style.background = '#990000'
-              b.style.boxShadow = '0 6px 20px rgba(204,0,0,0.55)'
-            }}
-            onMouseLeave={e => {
-              const b = e.currentTarget as HTMLButtonElement
-              b.style.background = '#CC0000'
-              b.style.boxShadow = '0 3px 12px rgba(204,0,0,0.45)'
-            }}
-          >
-            <ChatBubbleLeftEllipsisIcon className="w-5 h-5 transition-transform duration-150 group-hover:scale-110" />
-            Rate this result
-          </button>
-        </div>
-      </div>
-
-      <FeedbackModal
-        open={feedbackOpen}
-        onClose={() => setFeedbackOpen(false)}
-        vehicleLabel={vehicleLabel}
-        inputType="dropdown"
-        matchConfidence={data.confidence}
-        matchType={data.match_type}
-        recommendedBattery={data.primary?.battery_code ?? undefined}
-      />
     </div>
   )
 }

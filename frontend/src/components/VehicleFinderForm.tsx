@@ -5,7 +5,8 @@ import { useToast, Toaster } from '@/components/Notification'
 import { AccuracyBar } from '@/components/AccuracyBar'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { Search, MousePointerClick, Keyboard, Copy, Check } from 'lucide-react'
-import { ChatBubbleLeftEllipsisIcon } from '@heroicons/react/24/outline'
+import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import ReactCountryFlag from 'react-country-flag'
 import exideMaxxLogo from '@/assets/exide-max-logo.png'
 import sparkLogo     from '@/assets/spark-logo.jpg'
 import powerlastLogo from '@/assets/powerlast-logo.jpg'
@@ -104,13 +105,77 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
 
   return (
     <div className="result-card">
-      <div className="result-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.15rem' }}>
-        <h2 className="result-title">Battery Recommendation</h2>
-        {!isFallback && (
-          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted-foreground, #6b7280)' }}>
-            {data.matched_make} {data.matched_model} · {data.matched_year}
-          </p>
-        )}
+      <div className="result-header" style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+          <h2 className="result-title">Battery Recommendation</h2>
+          {!isFallback && (
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted-foreground, #6b7280)' }}>
+              {data.matched_make} {data.matched_model} · {data.matched_year}
+            </p>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+              background: '#fff', border: '1.5px solid #CC0000', color: '#CC0000',
+              borderRadius: 6, padding: '0.3rem 0.9rem',
+              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#CC0000'; e.currentTarget.style.color = '#fff' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#CC0000' }}
+          >
+            <StarIcon style={{ width: '1rem', height: '1rem' }} />
+            Rate this result
+          </button>
+          <a
+            href="https://www.chlorideexide.com/category/all-products"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+              background: '#CC0000', color: '#fff',
+              borderRadius: 6, padding: '0.3rem 0.9rem',
+              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', textDecoration: 'none',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#990000' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#CC0000' }}
+          >
+            <ShoppingBagIcon style={{ width: '1rem', height: '1rem' }} />
+            Shop Now
+          </a>
+        </div>
+      </div>
+
+      {/* Dial a Battery */}
+      <div style={{
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+        gap: '0.4rem 0.9rem',
+        background: '#f9fafb', border: '1px solid #e5e7eb',
+        borderRadius: 8, padding: '0.45rem 0.75rem',
+        fontSize: '0.72rem', marginBottom: '0.25rem',
+      }}>
+        <span style={{ fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>📞 Dial a Battery</span>
+        <span style={{ color: '#d1d5db' }}>·</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+          <ReactCountryFlag countryCode="KE" svg style={{ width: '1.1em', height: '1.1em' }} />
+          <span style={{ color: '#CC0000', fontWeight: 600 }}>0719 080 000</span>
+        </span>
+        <span style={{ color: '#d1d5db' }}>·</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+          <ReactCountryFlag countryCode="TZ" svg style={{ width: '1.1em', height: '1.1em' }} />
+          <span style={{ color: '#111827', fontWeight: 600 }}>0677 484 631</span>
+        </span>
+        <span style={{ color: '#d1d5db' }}>·</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+          <ReactCountryFlag countryCode="UG" svg style={{ width: '1.1em', height: '1.1em' }} />
+          <span style={{ color: '#16a34a', fontWeight: 600 }}>0200 400 900</span>
+        </span>
       </div>
 
       {isFallback && (
@@ -189,26 +254,6 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
           )}
         </div>
       )}
-
-      {/* Feedback trigger */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
-        <button
-          type="button"
-          onClick={() => setFeedbackOpen(true)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-            background: 'none', border: '1px solid var(--border, #d1d5db)',
-            borderRadius: '0.5rem', padding: '0.375rem 0.75rem',
-            fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer',
-            color: 'var(--muted-foreground, #6b7280)',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--foreground, #111827)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted-foreground, #6b7280)')}
-        >
-          <ChatBubbleLeftEllipsisIcon style={{ width: '1rem', height: '1rem' }} />
-          Rate this result
-        </button>
-      </div>
 
       <FeedbackModal
         open={feedbackOpen}

@@ -4,7 +4,7 @@ import {
   PencilSquareIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon,
   ChevronDownIcon, ChevronRightIcon, ArrowUturnLeftIcon, GlobeAltIcon,
 } from '@heroicons/react/24/solid'
-import { api } from '../lib/api'
+import { api, type LogEntry, type SessionInfo, type MasterRecord } from '../lib/api'
 
 const R = '#CC0000'
 const CARD: React.CSSProperties = {
@@ -25,7 +25,7 @@ interface WvState {
   phase2_started_at: string | null
   current_provider: string | null
   current_combo: string | null
-  logs: string[]
+  logs: LogEntry[]
   error_detail: string | null
   finished_at: string | null
   has_staging?: boolean
@@ -41,18 +41,8 @@ interface StagingRow {
 }
 interface StagingResp { has_staging: boolean; total: number; valid_count: number; invalid_count: number; conflict_count: number; items: StagingRow[]; page: number }
 interface VersionRow { id: string; version_number: number; committed_at: string; committed_count: number; removed_count: number; conflict_count: number; committed_by: string }
-interface QuotaRow { provider: string; calls_made: number; quota_limit: number; pct_used: number }
-
-// ── Log colours ────────────────────────────────────────────────────────────────
-
-function logColor(line: string): string {
-  if (line.includes('[OK]') || line.includes('✓')) return '#15803d'
-  if (line.includes('[ERROR]') || line.includes('✗')) return '#dc2626'
-  if (line.includes('[WARN]'))  return '#b45309'
-  if (line.includes('Phase 2')) return '#1d4ed8'
-  if (line.includes('Phase 1')) return '#7c3aed'
-  return '#374151'
-}
+interface QuotaRow { provider: string; calls_made: number; quota_limit: number; pct_used: number; period_end: string | null; days_until_reset: number | null }
+interface MatchedResp { total: number; items: MasterRecord[] }
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -80,6 +70,22 @@ export function WebValidatePage() {
   const [fixResult, setFixResult] = useState<{ fixed: number; unchanged: number; failed: number } | null>(null)
   const [showCommitModal, setShowCommitModal] = useState(false)
   const [preCommitData, setPreCommitData] = useState<{ conflict_count: number; conflicts: unknown[] } | null>(null)
+  const [matched, setMatched]           = useState<MatchedResp | null>(null)
+  const [matchedPage, setMatchedPage]   = useState(1)
+  const [matchedSearch, setMatchedSearch] = useState('')
+  const [matchedLoading, setMatchedLoading] = useState(false)
+  const [showMatched, setShowMatched]   = useState(false)
+  const [sessions, setSessions]         = useState<SessionInfo[]>([])
+  const [showSessions, setShowSessions] = useState(false)
+  const [revokingId, setRevokingId]     = useState<number | null>(null)
+  const [editMasterRow, setEditMasterRow]         = useState<MasterRecord | null>(null)
+  const [editMasterAh, setEditMasterAh]           = useState('')
+  const [editMasterTech, setEditMasterTech]       = useState('')
+  const [editMasterBc, setEditMasterBc]           = useState('')
+  const [editMasterScope, setEditMasterScope]     = useState<'single' | 'bucket'>('single')
+  const [masterSaveResult, setMasterSaveResult]   = useState<number | null>(null)
+  const [savingMasterEdit, setSavingMasterEdit]   = useState(false)
+  const [deletingMasterId, setDeletingMasterId]   = useState<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
   void polling
@@ -97,6 +103,7 @@ export function WebValidatePage() {
     api.wvCoverage().then(c => setCoverage(c)).catch(() => {}).finally(() => setCoverageLoading(false))
     api.quotas().then(q => setQuotas(q)).catch(() => {})
     api.staging(1, 'all').then(s => setStaging(s as unknown as StagingResp)).catch(() => {})
+    api.sessions().then(setSessions).catch(() => {})
   }, [])
 
   function startPolling() {
@@ -192,6 +199,38 @@ export function WebValidatePage() {
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Save failed')
     } finally { setSavingEdit(false) }
+  }
+
+  async function handleSaveMasterEdit() {
+    if (!editMasterRow) return
+    setSavingMasterEdit(true)
+    try {
+      const res = await api.patchMaster(editMasterRow.id, {
+        ah: editMasterAh ? parseFloat(editMasterAh) : null,
+        technology: editMasterTech || null,
+        battery_code: editMasterBc || null,
+        scope: editMasterScope,
+      })
+      setMasterSaveResult(res.rows_updated)
+      setMatchedLoading(true)
+      try { setMatched(await api.wvMatched(matchedPage, 50, matchedSearch)) } catch {} finally { setMatchedLoading(false) }
+      api.wvCoverage().then(c => setCoverage(c)).catch(() => {})
+      if (editMasterScope === 'single') setEditMasterRow(null)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Save failed')
+    } finally { setSavingMasterEdit(false) }
+  }
+
+  async function handleDeleteMaster(row: MasterRecord) {
+    if (!confirm(`Delete ${row.make_n} ${row.model_n} ${row.year} from master? This cannot be undone.`)) return
+    setDeletingMasterId(row.id)
+    try {
+      await api.deleteMaster(row.id)
+      setMatched(prev => prev ? { ...prev, total: prev.total - 1, items: prev.items.filter(r => r.id !== row.id) } : null)
+      api.wvCoverage().then(c => setCoverage(c)).catch(() => {})
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Delete failed')
+    } finally { setDeletingMasterId(null) }
   }
 
   const running = state?.status === 'running'
@@ -428,18 +467,40 @@ export function WebValidatePage() {
         <div style={CARD}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
             <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#374151' }}>Pipeline Logs</div>
-            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{state.logs.length} lines</span>
+            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{state.logs.length} entries</span>
           </div>
           <div ref={logRef} style={{
             background: '#f8f9fb', border: '1px solid #e2e4e9', borderRadius: 8,
-            padding: '0.85rem 1rem', height: 220, overflowY: 'auto',
-            fontSize: '0.71rem', fontFamily: "'Consolas', 'Courier New', monospace", lineHeight: 1.85,
+            padding: '0.6rem 0.75rem', height: 260, overflowY: 'auto',
+            fontSize: '0.71rem', fontFamily: "'Consolas', 'Courier New', monospace", lineHeight: 1.75,
           }}>
-            {state.logs.map((line, i) => (
-              <div key={i} style={{ color: logColor(line), borderBottom: i < state.logs.length - 1 ? '1px solid #f1f3f5' : 'none', paddingBottom: '0.1rem' }}>
-                {line}
-              </div>
-            ))}
+            {state.logs.map((entry, i) => {
+              if (entry.level === 'milestone') {
+                return (
+                  <div key={i} style={{
+                    background: '#eff6ff', border: '1px solid #bfdbfe', borderLeft: '3px solid #2563eb',
+                    borderRadius: 6, padding: '0.35rem 0.6rem', margin: '0.5rem 0',
+                    fontWeight: 700, color: '#1e40af',
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  }}>
+                    <span>📊</span>
+                    <span style={{ flex: 1 }}>{entry.message}</span>
+                    <span style={{ fontSize: '0.62rem', color: '#93c5fd', fontWeight: 400 }}>{new Date(entry.ts).toLocaleTimeString()}</span>
+                  </div>
+                )
+              }
+              const color = entry.level === 'success' ? '#15803d' : entry.level === 'error' ? '#dc2626' : entry.level === 'warn' ? '#b45309' : '#374151'
+              const prefix = entry.level === 'success' ? '✓ ' : entry.level === 'error' ? '✗ ' : entry.level === 'warn' ? '⚠ ' : ''
+              return (
+                <div key={i} style={{
+                  color, borderBottom: i < state.logs.length - 1 ? '1px solid #f1f3f5' : 'none',
+                  paddingBottom: '0.1rem', display: 'flex', justifyContent: 'space-between', gap: '0.5rem',
+                }}>
+                  <span>{prefix}{entry.message}</span>
+                  <span style={{ color: '#9ca3af', fontSize: '0.62rem', flexShrink: 0 }}>{new Date(entry.ts).toLocaleTimeString()}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -486,6 +547,14 @@ export function WebValidatePage() {
                         : `${q.calls_made.toLocaleString()} / ${q.quota_limit.toLocaleString()}`
                       }
                     </div>
+                    {q.period_end && (
+                      <div style={{
+                        fontSize: '0.6rem', marginTop: '0.2rem', fontWeight: 500,
+                        color: (q.days_until_reset ?? 30) < 3 ? '#dc2626' : (q.days_until_reset ?? 30) < 7 ? '#b45309' : '#9ca3af',
+                      }}>
+                        Resets{q.days_until_reset != null ? ` in ${q.days_until_reset}d` : ''} · {new Date(q.period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -685,6 +754,174 @@ export function WebValidatePage() {
         </div>
       )}
 
+      {/* ── Matched Vehicles ──────────────────────────────────────────────────── */}
+      <div style={CARD}>
+        <button onClick={async () => {
+          const next = !showMatched; setShowMatched(next)
+          if (next && !matched) {
+            setMatchedLoading(true)
+            try { setMatched(await api.wvMatched(1, 50, '') as unknown as MatchedResp) } catch {} finally { setMatchedLoading(false) }
+          }
+        }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#374151', padding: 0, width: '100%' }}>
+          {showMatched ? <ChevronDownIcon style={{ width: 16, height: 16 }} /> : <ChevronRightIcon style={{ width: 16, height: 16 }} />}
+          <GlobeAltIcon style={{ width: 15, height: 15, color: '#22c55e' }} />
+          <span style={{ fontWeight: 700 }}>Matched Vehicles</span>
+          {matched && <span style={{ fontSize: '0.72rem', color: '#6b7280', marginLeft: '0.25rem' }}>({matched.total.toLocaleString()} records)</span>}
+        </button>
+        {showMatched && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.65rem' }}>
+              <input
+                placeholder="Search make, model…"
+                value={matchedSearch}
+                onChange={async e => {
+                  const q = e.target.value; setMatchedSearch(q); setMatchedPage(1)
+                  setMatchedLoading(true)
+                  try { setMatched(await api.wvMatched(1, 50, q) as unknown as MatchedResp) } catch {} finally { setMatchedLoading(false) }
+                }}
+                style={{ flex: 1, padding: '0.4rem 0.65rem', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.8rem' }}
+              />
+            </div>
+            {matchedLoading ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: '#9ca3af', fontSize: '0.8rem' }}>Loading…</div>
+            ) : matched && matched.items.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: '#9ca3af', fontSize: '0.8rem' }}>No matched records yet. Run Phase 2 and commit staging to populate.</div>
+            ) : matched && (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f8f9fb' }}>
+                        {['Make', 'Model', 'Year', 'Battery Code', 'Ah', 'Technology', 'Source', 'Validated', ''].map(h => (
+                          <th key={h} style={{ padding: '0.45rem 0.6rem', textAlign: 'left', fontWeight: 600, color: '#374151', borderBottom: '1px solid #e2e4e9', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matched.items.map((row) => {
+                        const src = row.source ?? ''
+                        const srcColor = src === 'brave' ? '#b45309' : src === 'tavily' ? '#4f46e5' : src === 'duckduckgo' ? '#2563eb' : src === 'carquery' ? '#15803d' : '#6b7280'
+                        const srcBg = src === 'brave' ? '#fef3c7' : src === 'tavily' ? '#ede9fe' : src === 'duckduckgo' ? '#dbeafe' : src === 'carquery' ? '#dcfce7' : '#f3f4f6'
+                        return (
+                          <tr key={row.id} style={{ borderBottom: '1px solid #f1f3f5' }}>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#111827' }}>{row.make_n}</td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#111827' }}>{row.model_n}</td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#374151' }}>{row.year}</td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#374151', fontFamily: 'monospace', fontSize: '0.73rem' }}>{row.battery_code ?? '—'}</td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#374151' }}>{row.ah != null ? `${row.ah} Ah` : '—'}</td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#374151' }}>{row.technology ?? '—'}</td>
+                            <td style={{ padding: '0.4rem 0.6rem' }}>
+                              <span style={{ background: srcBg, color: srcColor, borderRadius: 99, padding: '0.15rem 0.5rem', fontSize: '0.68rem', fontWeight: 600, textTransform: 'capitalize' }}>{src || '—'}</span>
+                            </td>
+                            <td style={{ padding: '0.4rem 0.6rem', color: '#9ca3af', fontSize: '0.72rem' }}>
+                              {row.validated_at ? new Date(row.validated_at).toLocaleDateString() : '—'}
+                            </td>
+                            <td style={{ padding: '0.4rem 0.6rem' }}>
+                              <div style={{ display: 'flex', gap: '0.2rem' }}>
+                                <button
+                                  onClick={() => { setEditMasterRow(row); setEditMasterAh(String(row.ah ?? '')); setEditMasterTech(row.technology ?? 'MF'); setEditMasterBc(row.battery_code ?? ''); setEditMasterScope('single'); setMasterSaveResult(null) }}
+                                  title="Edit"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem', color: '#6b7280', display: 'flex' }}>
+                                  <PencilSquareIcon style={{ width: 15, height: 15 }} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMaster(row)}
+                                  disabled={deletingMasterId === row.id}
+                                  title="Delete"
+                                  style={{ background: 'none', border: 'none', cursor: deletingMasterId === row.id ? 'not-allowed' : 'pointer', padding: '0.15rem', color: deletingMasterId === row.id ? '#9ca3af' : R, display: 'flex' }}>
+                                  <TrashIcon style={{ width: 15, height: 15 }} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.65rem', justifyContent: 'flex-end' }}>
+                  <button disabled={matchedPage === 1} onClick={async () => {
+                    const p = matchedPage - 1; setMatchedPage(p); setMatchedLoading(true)
+                    try { setMatched(await api.wvMatched(p, 50, matchedSearch) as unknown as MatchedResp) } catch {} finally { setMatchedLoading(false) }
+                  }} style={paginationBtn(matchedPage === 1)}>← Prev</button>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Page {matchedPage} / {Math.ceil((matched.total || 1) / 50)}</span>
+                  <button disabled={matchedPage * 50 >= matched.total} onClick={async () => {
+                    const p = matchedPage + 1; setMatchedPage(p); setMatchedLoading(true)
+                    try { setMatched(await api.wvMatched(p, 50, matchedSearch) as unknown as MatchedResp) } catch {} finally { setMatchedLoading(false) }
+                  }} style={paginationBtn(matchedPage * 50 >= matched.total)}>Next →</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Sessions ─────────────────────────────────────────────────────────── */}
+      <div style={CARD}>
+        <button onClick={async () => {
+          const next = !showSessions; setShowSessions(next)
+          if (next) api.sessions().then(setSessions).catch(() => {})
+        }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#374151', padding: 0, width: '100%' }}>
+          {showSessions ? <ChevronDownIcon style={{ width: 16, height: 16 }} /> : <ChevronRightIcon style={{ width: 16, height: 16 }} />}
+          <span style={{ fontWeight: 700 }}>Active Sessions</span>
+          {sessions.length > 0 && <span style={{ fontSize: '0.72rem', color: '#6b7280', marginLeft: '0.25rem' }}>({sessions.length})</span>}
+        </button>
+        {showSessions && (
+          <div style={{ marginTop: '0.75rem' }}>
+            {sessions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '1rem', color: '#9ca3af', fontSize: '0.8rem' }}>No active sessions found.</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8f9fb' }}>
+                    {['Created', 'Expires', 'IP Address', '', ''].map((h, i) => (
+                      <th key={i} style={{ padding: '0.45rem 0.6rem', textAlign: 'left', fontWeight: 600, color: '#374151', borderBottom: '1px solid #e2e4e9' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map(s => (
+                    <tr key={s.id} style={{ borderBottom: '1px solid #f1f3f5' }}>
+                      <td style={{ padding: '0.4rem 0.6rem', color: '#374151' }}>{new Date(s.created_at).toLocaleString()}</td>
+                      <td style={{ padding: '0.4rem 0.6rem', color: '#374151' }}>{new Date(s.expires_at).toLocaleString()}</td>
+                      <td style={{ padding: '0.4rem 0.6rem', color: '#9ca3af', fontFamily: 'monospace' }}>{s.ip_address ?? '—'}</td>
+                      <td style={{ padding: '0.4rem 0.6rem' }}>
+                        {s.is_current && (
+                          <span style={{ background: '#dcfce7', color: '#15803d', borderRadius: 99, padding: '0.15rem 0.5rem', fontSize: '0.68rem', fontWeight: 600 }}>Current</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right' }}>
+                        <button
+                          disabled={s.is_current || revokingId === s.id}
+                          onClick={async () => {
+                            if (!confirm('Revoke this session?')) return
+                            setRevokingId(s.id)
+                            try {
+                              await api.revokeSession(s.id)
+                              setSessions(prev => prev.filter(x => x.id !== s.id))
+                            } catch (err: unknown) {
+                              alert(err instanceof Error ? err.message : 'Revoke failed')
+                            } finally { setRevokingId(null) }
+                          }}
+                          style={{
+                            background: s.is_current ? '#f3f4f6' : '#fee2e2',
+                            color: s.is_current ? '#9ca3af' : '#dc2626',
+                            border: 'none', borderRadius: 6, padding: '0.25rem 0.6rem',
+                            fontSize: '0.72rem', fontWeight: 600, cursor: s.is_current ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {revokingId === s.id ? '…' : s.is_current ? 'Use Logout' : 'Revoke'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* ── Edit row modal ─────────────────────────────────────────────────────── */}
       {editRow && (
         <Modal title={`Edit: ${editRow.make_n} ${editRow.model_n} ${editRow.year}`} onClose={() => setEditRow(null)}>
@@ -719,6 +956,62 @@ export function WebValidatePage() {
           onCancel={() => setShowCommitModal(false)}
           onCommit={handleCommit}
         />
+      )}
+
+      {/* ── Edit master record modal ──────────────────────────────────────────── */}
+      {editMasterRow && (
+        <Modal title={`${editMasterRow.make_n} ${editMasterRow.model_n} ${editMasterRow.year}`} onClose={() => setEditMasterRow(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {/* Scope selector */}
+            <div style={{ background: '#f8f9fb', border: '1px solid #e2e4e9', borderRadius: 10, padding: '0.65rem 0.75rem' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.45rem' }}>Update scope</div>
+              {(['single', 'bucket'] as const).map(s => {
+                const bs = Math.floor(editMasterRow.year / 5) * 5
+                const label = s === 'single' ? `This year only (${editMasterRow.year})` : `All ${bs}–${bs + 4} bucket records`
+                return (
+                  <label key={s} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', color: '#374151', cursor: 'pointer', padding: '0.2rem 0' }}>
+                    <input type="radio" name="masterScope" value={s} checked={editMasterScope === s}
+                      onChange={() => { setEditMasterScope(s); setMasterSaveResult(null) }}
+                      style={{ accentColor: R, width: 14, height: 14, flexShrink: 0 }} />
+                    <span style={{ fontWeight: editMasterScope === s ? 600 : 400 }}>{label}</span>
+                    {s === 'bucket' && <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '0.58rem', fontWeight: 700, borderRadius: 99, padding: '0.1rem 0.35rem' }}>Bulk</span>}
+                  </label>
+                )
+              })}
+            </div>
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.3rem' }}>Battery Code</label>
+              <input value={editMasterBc} onChange={e => setEditMasterBc(e.target.value)} placeholder="e.g. NS60L"
+                style={{ width: '100%', padding: '0.5rem', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.9rem', fontFamily: 'monospace', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.3rem' }}>Ah Capacity</label>
+              <input type="number" value={editMasterAh} onChange={e => setEditMasterAh(e.target.value)} min={20} max={250}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '0.3rem' }}>Technology</label>
+              <select value={editMasterTech} onChange={e => setEditMasterTech(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.9rem', boxSizing: 'border-box' }}>
+                {['MF', 'AGM', 'EFB', 'GEL', 'WET'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            {masterSaveResult !== null && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.78rem', color: '#15803d' }}>
+                <CheckCircleIcon style={{ width: 14, height: 14 }} />
+                Updated {masterSaveResult} record{masterSaveResult !== 1 ? 's' : ''}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditMasterRow(null)} style={btnStyle('#f3f4f6', '#374151')}>{masterSaveResult !== null ? 'Close' : 'Cancel'}</button>
+              {masterSaveResult === null && (
+                <button onClick={handleSaveMasterEdit} disabled={savingMasterEdit} style={btnStyle(R, '#fff')}>
+                  {savingMasterEdit ? 'Saving…' : editMasterScope === 'bucket' ? 'Update bucket' : 'Save'}
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )
