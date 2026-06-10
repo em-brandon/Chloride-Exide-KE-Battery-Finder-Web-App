@@ -27,14 +27,18 @@ bun run build
 bun run preview
 ```
 
-### Data Pipelines (run in order when refreshing dataset)
+### Data Pipelines
+
+CRSP pipeline runs in two stages (triggered via admin UI at /admin/data-pipeline):
 ```bash
-python pipelines/dataprep.py            # CRSP Excel → vehicles_raw table + CSV
-python pipelines/nts_dataprep.py        # NTS workbook → nts_vehicles_clean.csv
-python pipelines/enrich_years.py        # Enrich vehicles with production years (hits NHTSA, CarAPI, fueleconomy.gov, Wikidata)
-python pipelines/dial_battery_clean.py  # Clean Dial-A-Battery data → dial_battery_inference table
-python pipelines/fill_cca.py            # Fill missing CCA values in battery_specs
+python pipelines/dataprep.py            # Stage 1: CRSP Excel → battery_lookup_dataset.csv (clean + dedupe)
+python pipelines/enrich_years.py        # Stage 2: multi-source year enrichment → vehicle_years_staging (review before commit)
+python pipelines/dial_battery_clean.py  # Dial-A-Battery data → dial_battery_inference table
 ```
+
+Enrichment sources (fueleconomy.gov CSV, NHTSA VPIC, CarAPI, Wikipedia, Wikidata) are cached in
+`cache/year_cache.json` and `cache/fueleconomy_vehicles.csv`. The admin UI shows dataset age and
+surfaces a refresh button when the cache is >330 days old.
 
 ### CI/CD (Jenkinsfile)
 Stages: Checkout → Setup Python → Setup Node.js & Bun → Lint Frontend → Build Frontend → Test Python (pytest) → Archive Artifacts

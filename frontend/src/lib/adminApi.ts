@@ -708,3 +708,240 @@ export async function setMaintenanceMode(enabled: boolean): Promise<MaintenanceM
     body: JSON.stringify({ enabled }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// CRSP pipeline — run / status / control
+// ---------------------------------------------------------------------------
+
+export interface CrspStatus {
+  run_id:           string | null
+  status:           'idle' | 'running' | 'paused' | 'done' | 'cancelled' | 'error'
+  stage:            'dataprep' | 'enrich' | null
+  current_make:     string | null
+  current_model:    string | null
+  total_models:     number
+  processed_models: number
+  enriched_rows:    number
+  source_counts:    Record<string, number>
+  logs:             string[]
+  started_at:       string | null
+  finished_at:      string | null
+  error_detail:     string | null
+  initiated_by:     string | null
+}
+
+export async function runCrspPipeline(input_csv = 'battery_lookup_dataset.csv'): Promise<{ run_id: string }> {
+  return adminFetch('/api/admin/pipeline/crsp/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input_csv }),
+  })
+}
+
+export async function getCrspStatus(): Promise<CrspStatus> {
+  return adminFetch('/api/admin/pipeline/crsp/status')
+}
+
+export async function pauseCrsp(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/crsp/pause', { method: 'POST' })
+}
+
+export async function resumeCrsp(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/crsp/resume', { method: 'POST' })
+}
+
+export async function cancelCrsp(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/crsp/cancel', { method: 'POST' })
+}
+
+// ---------------------------------------------------------------------------
+// CRSP staging
+// ---------------------------------------------------------------------------
+
+export interface CrspStagingRow {
+  id:              number
+  run_id:          string
+  make:            string
+  model:           string
+  year:            number
+  engine_capacity: number | null
+  fuel:            string | null
+  source:          string | null
+  is_valid:        boolean
+  invalid_reason:  string | null
+  conflict:        boolean
+  conflict_detail: { current: Record<string, unknown>; staged: Record<string, unknown> } | null
+  staged_at:       string | null
+}
+
+export interface CrspStagingResponse {
+  total:     number
+  page:      number
+  page_size: number
+  rows:      CrspStagingRow[]
+}
+
+export interface CrspConflictResolution {
+  make:       string
+  model:      string
+  year:       number
+  resolution: 'staged' | 'current'
+}
+
+export interface CrspCommitResult {
+  version_id:     string
+  version_number: number
+  committed:      number
+  updated:        number
+  conflict_kept:  number
+}
+
+export interface CrspPreCommitResult {
+  rows_rescanned:  number
+  rows_updated:    number
+  total_conflicts: number
+}
+
+export async function getCrspStaging(
+  filter: 'all' | 'conflicts' | 'new' = 'all',
+  page = 1,
+  page_size = 50,
+): Promise<CrspStagingResponse> {
+  return adminFetch(`/api/admin/pipeline/crsp/staging?filter=${filter}&page=${page}&page_size=${page_size}`)
+}
+
+export async function patchCrspStagingRow(
+  rowId: number,
+  data: { engine_capacity?: number | null; fuel?: string | null },
+): Promise<{ detail: string }> {
+  return adminFetch(`/api/admin/pipeline/crsp/staging/${rowId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function crspPreCommit(): Promise<CrspPreCommitResult> {
+  return adminFetch('/api/admin/pipeline/crsp/staging/pre-commit')
+}
+
+export async function commitCrspStaging(
+  conflict_resolutions: CrspConflictResolution[] = [],
+): Promise<CrspCommitResult> {
+  return adminFetch('/api/admin/pipeline/crsp/staging/commit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conflict_resolutions }),
+  })
+}
+
+export async function discardCrspStaging(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/crsp/staging/discard', { method: 'POST' })
+}
+
+// ---------------------------------------------------------------------------
+// CRSP version history
+// ---------------------------------------------------------------------------
+
+export interface CrspVersion {
+  id:              string
+  version_number:  number
+  committed_at:    string | null
+  run_id:          string | null
+  committed_count: number
+  updated_count:   number
+  removed_count:   number
+  conflict_count:  number
+  committed_by:    string | null
+  initiated_by:    string | null
+  notes:           string | null
+}
+
+export interface CrspVersionsResponse {
+  total:    number
+  page:     number
+  versions: CrspVersion[]
+}
+
+export interface CrspChangelogEntry {
+  id:          number
+  make:        string
+  model:       string
+  year:        number
+  change_type: 'added' | 'updated' | 'removed'
+  old_values:  Record<string, unknown> | null
+  new_values:  Record<string, unknown> | null
+}
+
+export interface CrspChangelogResponse {
+  version_id:     string
+  version_number: number
+  committed_at:   string | null
+  committed_by:   string | null
+  entries:        CrspChangelogEntry[]
+}
+
+export interface CrspRevertResult {
+  reverted_version_id:     string
+  reverted_version_number: number
+  new_version_id:          string
+  new_version_number:      number
+  rows_reversed:           number
+}
+
+export async function getCrspVersions(page = 1, page_size = 20): Promise<CrspVersionsResponse> {
+  return adminFetch(`/api/admin/pipeline/crsp/versions?page=${page}&page_size=${page_size}`)
+}
+
+export async function getCrspVersionChangelog(versionId: string): Promise<CrspChangelogResponse> {
+  return adminFetch(`/api/admin/pipeline/crsp/versions/${versionId}/changelog`)
+}
+
+export async function revertCrspVersion(versionId: string): Promise<CrspRevertResult> {
+  return adminFetch(`/api/admin/pipeline/crsp/versions/${versionId}/revert`, { method: 'POST' })
+}
+
+// ---------------------------------------------------------------------------
+// CRSP stats + cache
+// ---------------------------------------------------------------------------
+
+export interface CrspMakeStats {
+  make:        string
+  model_count: number
+  year_min:    number | null
+  year_max:    number | null
+}
+
+export interface CrspStats {
+  total_rows:          number
+  total_makes:         number
+  total_combinations:  number
+  staging_pending:     number
+  by_make:             CrspMakeStats[]
+}
+
+export interface CrspCacheDataset {
+  downloaded_at:   string | null
+  age_days:        number | null
+  file_size_bytes: number | null
+  record_count:    number | null
+  stale:           boolean
+  overdue:         boolean
+}
+
+export interface CrspCacheStatus {
+  fueleconomy_csv: CrspCacheDataset
+  year_cache:      CrspCacheDataset
+}
+
+export async function getCrspStats(): Promise<CrspStats> {
+  return adminFetch('/api/admin/pipeline/crsp/stats')
+}
+
+export async function getCrspCacheStatus(): Promise<CrspCacheStatus> {
+  return adminFetch('/api/admin/pipeline/crsp/cache-status')
+}
+
+export async function refreshCrspCache(): Promise<{ detail: string; actions: string[] }> {
+  return adminFetch('/api/admin/pipeline/crsp/cache/refresh', { method: 'POST' })
+}

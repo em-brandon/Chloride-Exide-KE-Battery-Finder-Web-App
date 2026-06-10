@@ -59,6 +59,31 @@ import {
   type ValidationVersion,
   type VersionChangelogResponse,
   type StalenessInfo,
+  // CRSP pipeline
+  runCrspPipeline,
+  getCrspStatus,
+  pauseCrsp,
+  resumeCrsp,
+  cancelCrsp,
+  getCrspStaging,
+  patchCrspStagingRow,
+  crspPreCommit,
+  commitCrspStaging,
+  discardCrspStaging,
+  getCrspVersions,
+  getCrspVersionChangelog,
+  revertCrspVersion,
+  getCrspStats,
+  getCrspCacheStatus,
+  refreshCrspCache,
+  type CrspStatus,
+  type CrspStagingResponse,
+  type CrspConflictResolution,
+  type CrspCommitResult,
+  type CrspVersionsResponse,
+  type CrspChangelogResponse,
+  type CrspStats,
+  type CrspCacheStatus,
 } from '@/lib/adminApi'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -74,7 +99,7 @@ const CARD: React.CSSProperties = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type StageStatus = 'idle' | 'ready' | 'running' | 'done' | 'error'
-type DatasetTab  = 'crsp' | 'ntsa' | 'webvalidate'
+type DatasetTab  = 'crsp' | 'webvalidate'
 
 interface PipelineStage {
   id: string
@@ -94,76 +119,37 @@ const CRSP_STAGES: PipelineStage[] = [
   {
     id: 'validate',
     label: 'Validate Schema',
-    description: 'Check that required columns (make, model, year, capacity_ah, technology) are present and non-empty.',
+    description: 'Check that required columns (make, model, engine_capacity, fuel) are present and non-empty.',
     icon: <DocumentMagnifyingGlassIcon style={{ width: 16, height: 16 }} />,
   },
   {
     id: 'normalize',
     label: 'Normalize Fields',
-    description: 'Uppercase make/model, strip whitespace, cast numeric fields, unify technology labels (e.g. "EFB" → "EFB").',
+    description: 'Uppercase make/model, strip whitespace, cast numeric fields, drop electric vehicles.',
     icon: <AdjustmentsHorizontalIcon style={{ width: 16, height: 16 }} />,
   },
   {
     id: 'deduplicate',
     label: 'Deduplicate',
-    description: 'Remove duplicate rows by (make, model, year, battery_code). Last occurrence wins.',
+    description: 'Remove exact duplicate make/model/engine/fuel rows. Last occurrence wins.',
     icon: <FunnelIcon style={{ width: 16, height: 16 }} />,
   },
   {
     id: 'enrich',
     label: 'Enrich Years',
-    description: 'Expand year-range entries (e.g. 2015–2019) into individual yearly rows.',
+    description: 'Query fueleconomy.gov → CarAPI → Wikipedia → Wikidata → NHTSA to find production year ranges for each make/model.',
     icon: <ClipboardDocumentListIcon style={{ width: 16, height: 16 }} />,
   },
   {
-    id: 'export',
-    label: 'Export / Commit',
-    description: 'Write the cleaned dataset to the database or export as a normalised CSV.',
-    icon: <ArrowDownTrayIcon style={{ width: 16, height: 16 }} />,
-  },
-]
-
-const NTSA_STAGES: PipelineStage[] = [
-  {
-    id: 'parse',
-    label: 'Parse & Load',
-    description: 'Read the raw NTSA vehicle registration CSV/Excel file into memory.',
-    icon: <TableCellsIcon style={{ width: 16, height: 16 }} />,
+    id: 'stage',
+    label: 'Stage & Review',
+    description: 'Enriched rows are written to vehicle_years_staging. Duplicates are detected and conflicts flagged for admin review.',
+    icon: <ArchiveBoxIcon style={{ width: 16, height: 16 }} />,
   },
   {
-    id: 'validate',
-    label: 'Validate Schema',
-    description: 'Verify required columns (plate_number, make, model, year_of_manufacture, fuel_type) exist and are non-empty.',
-    icon: <DocumentMagnifyingGlassIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'normalize',
-    label: 'Normalize Fields',
-    description: 'Standardise plate formats, uppercase make/model, normalise fuel type labels, cast year as integer.',
-    icon: <AdjustmentsHorizontalIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'filter',
-    label: 'Filter Invalid Records',
-    description: 'Drop records with year < 1970 or > current year, unknown fuel types, or clearly erroneous plate numbers.',
-    icon: <FunnelIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'deduplicate',
-    label: 'Deduplicate',
-    description: 'Remove duplicate registrations by plate_number, keeping the most recent record.',
-    icon: <ClipboardDocumentListIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'merge',
-    label: 'Merge with CRSP',
-    description: 'Left-join NTSA vehicles against the cleaned CRSP dataset on (make, model, year) to attach battery recommendations.',
-    icon: <AdjustmentsHorizontalIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'export',
-    label: 'Export / Commit',
-    description: 'Write the enriched NTSA dataset to the database or export as a normalised CSV.',
+    id: 'commit',
+    label: 'Commit to DB',
+    description: 'After admin review, approved rows are merged into vehicle_years with a version record created for rollback.',
     icon: <ArrowDownTrayIcon style={{ width: 16, height: 16 }} />,
   },
 ]
@@ -203,78 +189,6 @@ function ArrowSpinner() {
       <circle cx="8" cy="8" r="6" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"
         strokeDasharray="28" strokeDashoffset="10" />
     </svg>
-  )
-}
-
-// ── DropZone ──────────────────────────────────────────────────────────────────
-function DropZone({
-  label,
-  accept,
-  file,
-  onFile,
-  onClear,
-}: {
-  label: string
-  accept: string
-  file: File | null
-  onFile: (f: File) => void
-  onClear: () => void
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    const dropped = e.dataTransfer.files[0]
-    if (dropped) onFile(dropped)
-  }
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = e.target.files?.[0]
-    if (picked) onFile(picked)
-  }
-
-  const border = dragging ? `2px dashed ${R}` : file ? '2px dashed #22c55e' : '2px dashed #d1d5db'
-  const bg     = dragging ? '#fff5f5' : file ? '#f0fdf4' : '#f9fafb'
-
-  return (
-    <div
-      style={{ borderRadius: 12, border, background: bg, padding: '1.75rem 1.5rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
-      onDragOver={e => { e.preventDefault(); setDragging(true) }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
-      onClick={() => !file && inputRef.current?.click()}
-    >
-      <input ref={inputRef} type="file" accept={accept} style={{ display: 'none' }} onChange={handleChange} />
-      {file ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
-          <CheckCircleIcon style={{ width: 22, height: 22, color: '#22c55e', flexShrink: 0 }} />
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>{file.name}</div>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(107,114,128,0.8)' }}>
-              {(file.size / 1024).toFixed(1)} KB · {file.type || 'unknown type'}
-            </div>
-          </div>
-          <button
-            onClick={e => { e.stopPropagation(); onClear() }}
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: 4, borderRadius: 6 }}
-            title="Remove file"
-          >
-            <TrashIcon style={{ width: 15, height: 15 }} />
-          </button>
-        </div>
-      ) : (
-        <>
-          <CloudArrowUpIcon style={{ width: 32, height: 32, color: '#d1d5db', marginBottom: '0.6rem' }} />
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(17,24,39,0.7)' }}>{label}</div>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(107,114,128,0.6)', marginTop: '0.3rem' }}>
-            Drag & drop or <span style={{ color: R, fontWeight: 600 }}>browse</span>
-          </div>
-          <div style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.45)', marginTop: '0.3rem' }}>{accept}</div>
-        </>
-      )}
-    </div>
   )
 }
 
@@ -349,221 +263,6 @@ function SummaryBadge({ label, value, color }: { label: string; value: string | 
       <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(107,114,128,0.7)', marginTop: '0.2rem' }}>{label}</div>
     </div>
   )
-}
-
-// ── PipelineTab ───────────────────────────────────────────────────────────────
-function PipelineTab({
-  dataset,
-  stages,
-  fileAccept,
-  dropLabel,
-  info,
-}: {
-  dataset: 'CRSP' | 'NTSA'
-  stages: PipelineStage[]
-  fileAccept: string
-  dropLabel: string
-  info: string
-}) {
-  const [file,     setFile]     = useState<File | null>(null)
-  const [statuses, setStatuses] = useState<StageStatus[]>(() => stages.map(() => 'idle'))
-  const [logs,     setLogs]     = useState<(string | undefined)[]>(() => stages.map(() => undefined))
-  const [running,  setRunning]  = useState(false)
-  const [summary,  setSummary]  = useState<{ total: number; clean: number; rejected: number; dupes: number } | null>(null)
-
-  // Simulated demo run — replace with real API calls later
-  function handleRun() {
-    if (!file || running) return
-    setRunning(true)
-    setSummary(null)
-    const fresh: StageStatus[] = stages.map(() => 'idle')
-    setStatuses(fresh)
-    setLogs(stages.map(() => undefined))
-
-    let current = 0
-
-    function advance() {
-      if (current >= stages.length) {
-        setRunning(false)
-        // Show a mock summary
-        setSummary({ total: 0, clean: 0, rejected: 0, dupes: 0 })
-        return
-      }
-      setStatuses(prev => {
-        const next = [...prev]
-        next[current] = 'running'
-        return next
-      })
-      // Each stage "runs" for 1–1.5 s in the demo
-      const delay = 900 + Math.random() * 600
-      setTimeout(() => {
-        setStatuses(prev => {
-          const next = [...prev]
-          next[current] = 'done'
-          return next
-        })
-        setLogs(prev => {
-          const next = [...prev]
-          next[current] = stageDemoLog(stages[current].id, dataset)
-          return next
-        })
-        current++
-        advance()
-      }, delay)
-    }
-
-    advance()
-  }
-
-  function handleReset() {
-    setFile(null)
-    setStatuses(stages.map(() => 'idle'))
-    setLogs(stages.map(() => undefined))
-    setSummary(null)
-    setRunning(false)
-  }
-
-  const allDone = statuses.every(s => s === 'done')
-  const anyError = statuses.some(s => s === 'error')
-  const currentStageIdx = statuses.findIndex(s => s === 'running')
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-
-      {/* Info banner */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.75rem 1rem' }}>
-        <InformationCircleIcon style={{ width: 16, height: 16, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
-        <p style={{ margin: 0, fontSize: '0.75rem', color: '#1d4ed8', lineHeight: 1.6 }}>{info}</p>
-      </div>
-
-      {/* Upload + controls row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'start' }}>
-        <DropZone
-          label={dropLabel}
-          accept={fileAccept}
-          file={file}
-          onFile={setFile}
-          onClear={handleReset}
-        />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingTop: 2 }}>
-          <button
-            onClick={handleRun}
-            disabled={!file || running}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.45rem',
-              fontSize: '0.82rem', fontWeight: 700,
-              padding: '0.6rem 1.1rem', borderRadius: 10, border: 'none', cursor: !file || running ? 'not-allowed' : 'pointer',
-              background: !file || running ? '#e2e4e9' : R,
-              color: !file || running ? 'rgba(107,114,128,0.7)' : '#fff',
-              transition: 'background 0.15s',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={e => { if (file && !running) e.currentTarget.style.background = RD }}
-            onMouseLeave={e => { if (file && !running) e.currentTarget.style.background = R }}
-          >
-            <PlayIcon style={{ width: 14, height: 14 }} />
-            {running ? `Running…` : 'Run Pipeline'}
-          </button>
-          <button
-            onClick={handleReset}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.45rem',
-              fontSize: '0.75rem', fontWeight: 600,
-              padding: '0.5rem 1rem', borderRadius: 10,
-              border: '1px solid #e2e4e9', cursor: 'pointer',
-              background: 'var(--adm-card-bg)', color: 'var(--adm-text-2)',
-              transition: 'all 0.15s', whiteSpace: 'nowrap',
-            }}
-          >
-            <TrashIcon style={{ width: 13, height: 13 }} /> Reset
-          </button>
-        </div>
-      </div>
-
-      {/* Progress overview pill */}
-      {(running || allDone || anyError) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 1rem', background: 'var(--adm-card-bg)', border: '1px solid var(--adm-sep)', borderRadius: 99, fontSize: '0.75rem', fontWeight: 600, color: anyError ? R : allDone ? '#15803d' : '#b45309' }}>
-          {anyError
-            ? <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline stopped — fix errors and retry</>
-            : allDone
-            ? <><CheckCircleIcon style={{ width: 14, height: 14 }} /> All {stages.length} stages completed successfully</>
-            : <><ArrowSpinner /> Stage {(currentStageIdx + 1)} of {stages.length} — {stages[currentStageIdx]?.label}</>
-          }
-        </div>
-      )}
-
-      {/* Summary cards */}
-      {allDone && summary && (
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <SummaryBadge label="Total Rows"  value="—" />
-          <SummaryBadge label="Clean"       value="—" color="#22c55e" />
-          <SummaryBadge label="Rejected"    value="—" color={R} />
-          <SummaryBadge label="Duplicates"  value="—" color="#f59e0b" />
-          <SummaryBadge label="Exported"    value="—" color="#3b82f6" />
-        </div>
-      )}
-
-      {/* Pipeline stages */}
-      <div style={{ ...CARD, padding: '1.25rem 1.25rem 1rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
-          Pipeline Stages
-        </h3>
-        <div>
-          {stages.map((stage, idx) => (
-            <StageCard
-              key={stage.id}
-              stage={stage}
-              status={statuses[idx]}
-              index={idx}
-              total={stages.length}
-              log={logs[idx]}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Export button (enabled when done) */}
-      {allDone && (
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', fontWeight: 700, padding: '0.65rem 1.25rem', borderRadius: 10, border: 'none', cursor: 'pointer', background: '#1d4ed8', color: '#fff' }}
-          >
-            <ArrowDownTrayIcon style={{ width: 15, height: 15 }} /> Download Cleaned {dataset} CSV
-          </button>
-          <button
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', fontWeight: 700, padding: '0.65rem 1.25rem', borderRadius: 10, border: '1px solid var(--adm-sep)', cursor: 'pointer', background: 'var(--adm-card-bg)', color: 'var(--adm-text-1)' }}
-          >
-            <ClipboardDocumentListIcon style={{ width: 15, height: 15 }} /> View Full Report
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Demo log messages per stage ───────────────────────────────────────────────
-function stageDemoLog(stageId: string, dataset: 'CRSP' | 'NTSA'): string {
-  const logs: Record<string, Record<string, string>> = {
-    CRSP: {
-      parse:       '✓ Loaded file successfully\n  → Backend will read the uploaded file here',
-      validate:    '✓ Schema check passed\n  → Required columns will be verified here',
-      normalize:   '✓ Normalization complete\n  → Fields will be standardised here',
-      deduplicate: '✓ Deduplication complete\n  → Duplicate rows will be removed here',
-      enrich:      '✓ Year enrichment complete\n  → Year ranges will be expanded here',
-      export:      '✓ Ready to commit\n  → Clean data will be written to DB here',
-    },
-    NTSA: {
-      parse:       '✓ Loaded file successfully\n  → Backend will read the uploaded file here',
-      validate:    '✓ Schema check passed\n  → Required columns will be verified here',
-      normalize:   '✓ Normalization complete\n  → Plate numbers & fuel types standardised here',
-      filter:      '✓ Invalid records filtered\n  → Out-of-range years & bad plates removed here',
-      deduplicate: '✓ Deduplication complete\n  → Duplicate plates removed here',
-      merge:       '✓ CRSP merge complete\n  → Battery recommendations attached here',
-      export:      '✓ Ready to commit\n  → Enriched data will be written to DB here',
-    },
-  }
-  return logs[dataset]?.[stageId] ?? '✓ Stage complete'
 }
 
 // ── Web Validate helpers ──────────────────────────────────────────────────────
@@ -2469,6 +2168,754 @@ function getProgressBarColor(pct: number, paused: boolean): string {
   return `rgb(${Math.round(59 + (34 - 59) * t)},${Math.round(130 + (197 - 130) * t)},${Math.round(246 + (94 - 246) * t)})`
 }
 
+// ── CrspTab ───────────────────────────────────────────────────────────────────
+const SOURCE_LABELS: Record<string, string> = {
+  fueleconomy: 'fueleconomy.gov',
+  carapi:      'CarAPI',
+  wikipedia:   'Wikipedia',
+  wikidata:    'Wikidata',
+  nhtsa:       'NHTSA VPIC',
+  not_found:   'Not Found',
+}
+
+function CacheStatusBadge({ onRefresh }: { onRefresh: () => void }) {
+  const [cache, setCache] = useState<CrspCacheStatus | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    getCrspCacheStatus().then(setCache).catch(() => null)
+  }, [])
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    setMsg(null)
+    try {
+      await refreshCrspCache()
+      setMsg('Cache cleared — next run will re-download all datasets')
+      const fresh = await getCrspCacheStatus()
+      setCache(fresh)
+      onRefresh()
+    } catch {
+      setMsg('Failed to clear cache')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  if (!cache) return null
+
+  const fe   = cache.fueleconomy_csv
+  const yc   = cache.year_cache
+  const overdue = fe.overdue || yc.overdue
+  const stale   = fe.stale   || yc.stale
+
+  const chipColor = overdue ? R : stale ? '#b45309' : '#15803d'
+  const chipBg    = overdue ? '#fff5f5' : stale ? '#fffbeb' : '#f0fdf4'
+  const chipBorder= overdue ? '#fca5a5' : stale ? '#fde68a' : '#bbf7d0'
+
+  const oldestAge = Math.max(fe.age_days ?? 0, yc.age_days ?? 0)
+  const label = fe.downloaded_at
+    ? (overdue ? 'Dataset overdue — refresh required' : stale ? 'Dataset aging — refresh recommended' : `Dataset: ${oldestAge} days old`)
+    : 'Dataset: not yet downloaded'
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.4rem',
+        padding: '0.3rem 0.75rem', borderRadius: 99,
+        background: chipBg, border: `1px solid ${chipBorder}`,
+        fontSize: '0.72rem', fontWeight: 700, color: chipColor,
+      }}>
+        <ClockIcon style={{ width: 12, height: 12, flexShrink: 0 }} />
+        {label}
+      </div>
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        title="Force re-download on next pipeline run"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '0.35rem',
+          padding: '0.3rem 0.7rem', borderRadius: 99, border: '1px solid #e2e4e9',
+          background: 'var(--adm-card-bg)', fontSize: '0.7rem', fontWeight: 600,
+          cursor: refreshing ? 'not-allowed' : 'pointer', color: 'var(--adm-text-2)',
+        }}
+      >
+        <ArrowPathIcon style={{ width: 12, height: 12 }} />
+        {refreshing ? 'Clearing…' : 'Refresh Cache'}
+      </button>
+      {msg && <span style={{ fontSize: '0.7rem', color: overdue ? R : '#15803d' }}>{msg}</span>}
+    </div>
+  )
+}
+
+function CrspStatsPanel() {
+  const [stats, setStats] = useState<CrspStats | null>(null)
+
+  useEffect(() => {
+    getCrspStats().then(setStats).catch(() => null)
+  }, [])
+
+  if (!stats) return null
+
+  return (
+    <div style={{ ...CARD, padding: '1.1rem 1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        <ServerStackIcon style={{ width: 14, height: 14, color: '#6b7280' }} />
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>
+          Vehicle Years Database
+        </span>
+        {stats.staging_pending > 0 && (
+          <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 99, padding: '0.1rem 0.5rem' }}>
+            {stats.staging_pending} rows pending review
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+        <SummaryBadge label="Total Rows"   value={stats.total_rows.toLocaleString()} />
+        <SummaryBadge label="Makes"        value={stats.total_makes.toLocaleString()} />
+        <SummaryBadge label="Combinations" value={stats.total_combinations.toLocaleString()} color="#3b82f6" />
+      </div>
+      {stats.by_make.length > 0 && (
+        <div style={{ maxHeight: 220, overflowY: 'auto', borderTop: '1px solid var(--adm-sep)', paddingTop: '0.5rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+            <thead>
+              <tr>
+                {['Make', 'Models', 'Years'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '0.25rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.6rem' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {stats.by_make.map(r => (
+                <tr key={r.make} style={{ borderTop: '1px solid var(--adm-sep)' }}>
+                  <td style={{ padding: '0.3rem 0.5rem', fontWeight: 700 }}>{r.make}</td>
+                  <td style={{ padding: '0.3rem 0.5rem', color: '#374151' }}>{r.model_count}</td>
+                  <td style={{ padding: '0.3rem 0.5rem', color: '#6b7280' }}>
+                    {r.year_min && r.year_max ? `${r.year_min}–${r.year_max}` : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CrspStagingPanel({
+  onCommit,
+  onDiscard,
+}: {
+  onCommit: (result: CrspCommitResult) => void
+  onDiscard: () => void
+}) {
+  const [data, setData]               = useState<CrspStagingResponse | null>(null)
+  const [filter, setFilter]           = useState<'all' | 'conflicts' | 'new'>('all')
+  const [page, setPage]               = useState(1)
+  const [loading, setLoading]         = useState(false)
+  const [editingId, setEditingId]     = useState<number | null>(null)
+  const [editEc, setEditEc]           = useState('')
+  const [editFuel, setEditFuel]       = useState('')
+  const [editSaving, setEditSaving]   = useState(false)
+  const [commitLoading, setCommitLoading] = useState(false)
+  const [discardLoading, setDiscardLoading] = useState(false)
+  const [resolutions, setResolutions] = useState<Record<string, 'staged' | 'current'>>({})
+  const [toast, setToast]             = useState<string | null>(null)
+
+  const PAGE_SIZE = 50
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const d = await getCrspStaging(filter, page, PAGE_SIZE)
+      setData(d)
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
+  }, [filter, page])
+
+  useEffect(() => { load() }, [load])
+
+  async function saveEdit(rowId: number) {
+    setEditSaving(true)
+    try {
+      await patchCrspStagingRow(rowId, {
+        engine_capacity: editEc !== '' ? parseInt(editEc) : null,
+        fuel: editFuel || null,
+      })
+      setEditingId(null)
+      load()
+    } catch { /* ignore */ }
+    finally { setEditSaving(false) }
+  }
+
+  async function handlePreCommit() {
+    const r = await crspPreCommit()
+    setToast(`Re-scanned ${r.rows_rescanned} rows — ${r.total_conflicts} conflicts`)
+    load()
+  }
+
+  async function handleCommit() {
+    setCommitLoading(true)
+    try {
+      const cr: CrspConflictResolution[] = Object.entries(resolutions).map(([key, resolution]) => {
+        const [make, model, year] = key.split('|')
+        return { make, model, year: parseInt(year), resolution }
+      })
+      const result = await commitCrspStaging(cr)
+      onCommit(result)
+    } catch { /* ignore */ }
+    finally { setCommitLoading(false) }
+  }
+
+  async function handleDiscard() {
+    setDiscardLoading(true)
+    try {
+      await discardCrspStaging()
+      onDiscard()
+    } catch { /* ignore */ }
+    finally { setDiscardLoading(false) }
+  }
+
+  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1
+  const conflictCount = data?.rows.filter(r => r.conflict).length ?? 0
+
+  return (
+    <div style={{ ...CARD, padding: '1.1rem 1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ArchiveBoxIcon style={{ width: 14, height: 14, color: '#6b7280' }} />
+          <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+            Stage & Review{data ? ` — ${data.total.toLocaleString()} rows staged` : ''}
+          </span>
+          {conflictCount > 0 && (
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 99, padding: '0.1rem 0.5rem' }}>
+              {conflictCount} conflicts
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {(['all', 'conflicts', 'new'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => { setFilter(f); setPage(1) }}
+              style={{
+                fontSize: '0.7rem', fontWeight: 600, padding: '0.25rem 0.65rem', borderRadius: 99,
+                border: '1px solid', cursor: 'pointer',
+                borderColor: filter === f ? R : '#e2e4e9',
+                background: filter === f ? '#fff5f5' : 'var(--adm-card-bg)',
+                color: filter === f ? R : 'var(--adm-text-2)',
+              }}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {toast && (
+        <div style={{ fontSize: '0.72rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.4rem 0.75rem', marginBottom: '0.5rem' }}>
+          {toast}
+        </div>
+      )}
+
+      <div style={{ overflowX: 'auto', marginBottom: '0.75rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+          <thead>
+            <tr>
+              {['Make', 'Model', 'Year', 'Engine CC', 'Fuel', 'Source', 'Status', ''].map(h => (
+                <th key={h} style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: '#9ca3af', fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? <tr><td colSpan={8} style={{ padding: '1rem', color: '#9ca3af', textAlign: 'center' }}>Loading…</td></tr>
+              : !data?.rows.length
+              ? <tr><td colSpan={8} style={{ padding: '1rem', color: '#9ca3af', textAlign: 'center', fontStyle: 'italic' }}>No rows</td></tr>
+              : data.rows.map(row => {
+                  const rowBg = row.conflict ? '#fffbeb' : !row.is_valid ? '#fff5f5' : 'transparent'
+                  const resKey = `${row.make}|${row.model}|${row.year}`
+                  return (
+                    <tr key={row.id} style={{ borderTop: '1px solid var(--adm-sep)', background: rowBg }}>
+                      <td style={{ padding: '0.3rem 0.5rem', fontWeight: 700 }}>{row.make}</td>
+                      <td style={{ padding: '0.3rem 0.5rem' }}>{row.model}</td>
+                      <td style={{ padding: '0.3rem 0.5rem' }}>{row.year}</td>
+                      <td style={{ padding: '0.3rem 0.5rem' }}>
+                        {editingId === row.id
+                          ? <input value={editEc} onChange={e => setEditEc(e.target.value)} style={{ width: 60, fontSize: '0.72rem', padding: '0.15rem 0.35rem', border: '1px solid #d1d5db', borderRadius: 5 }} />
+                          : row.engine_capacity ?? <span style={{ color: '#9ca3af' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '0.3rem 0.5rem' }}>
+                        {editingId === row.id
+                          ? <input value={editFuel} onChange={e => setEditFuel(e.target.value)} style={{ width: 70, fontSize: '0.72rem', padding: '0.15rem 0.35rem', border: '1px solid #d1d5db', borderRadius: 5 }} />
+                          : row.fuel ?? <span style={{ color: '#9ca3af' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '0.3rem 0.5rem', color: '#6b7280' }}>{row.source ? (SOURCE_LABELS[row.source] ?? row.source) : '—'}</td>
+                      <td style={{ padding: '0.3rem 0.5rem' }}>
+                        {row.conflict
+                          ? <span style={{ color: '#b45309', fontWeight: 700, fontSize: '0.65rem' }}>⚠ Conflict</span>
+                          : !row.is_valid
+                          ? <span style={{ color: R, fontSize: '0.65rem' }}>{row.invalid_reason ?? 'Invalid'}</span>
+                          : <span style={{ color: '#15803d', fontSize: '0.65rem' }}>✓ New</span>}
+                      </td>
+                      <td style={{ padding: '0.3rem 0.5rem', whiteSpace: 'nowrap' }}>
+                        {row.conflict && (
+                          <select
+                            value={resolutions[resKey] ?? 'staged'}
+                            onChange={e => setResolutions(prev => ({ ...prev, [resKey]: e.target.value as 'staged' | 'current' }))}
+                            style={{ fontSize: '0.65rem', padding: '0.15rem 0.3rem', border: '1px solid #e2e4e9', borderRadius: 5, marginRight: 4 }}
+                          >
+                            <option value="staged">Use new</option>
+                            <option value="current">Keep existing</option>
+                          </select>
+                        )}
+                        {editingId === row.id ? (
+                          <>
+                            <button onClick={() => saveEdit(row.id)} disabled={editSaving} style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: 5, border: 'none', background: '#22c55e', color: '#fff', cursor: 'pointer', marginRight: 3 }}>
+                              {editSaving ? '…' : 'Save'}
+                            </button>
+                            <button onClick={() => setEditingId(null)} style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: 5, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}>
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingId(row.id); setEditEc(row.engine_capacity?.toString() ?? ''); setEditFuel(row.fuel ?? '') }}
+                            style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: 5, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+            }
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <button disabled={page === 1} onClick={() => setPage(p => p - 1)} style={{ padding: '0.2rem 0.5rem', border: '1px solid #e2e4e9', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', background: 'var(--adm-card-bg)' }}>
+            <ChevronLeftIcon style={{ width: 12, height: 12 }} />
+          </button>
+          <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Page {page} / {totalPages}</span>
+          <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} style={{ padding: '0.2rem 0.5rem', border: '1px solid #e2e4e9', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer', background: 'var(--adm-card-bg)' }}>
+            <ChevronRightIcon style={{ width: 12, height: 12 }} />
+          </button>
+        </div>
+      )}
+
+      {/* Action row */}
+      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--adm-sep)', paddingTop: '0.75rem' }}>
+        <button onClick={handlePreCommit} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.45rem 0.9rem', borderRadius: 8, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer', color: 'var(--adm-text-1)' }}>
+          Re-check Conflicts
+        </button>
+        <button onClick={handleDiscard} disabled={discardLoading} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.45rem 0.9rem', borderRadius: 8, border: `1px solid ${R}`, background: 'var(--adm-card-bg)', cursor: 'pointer', color: R }}>
+          {discardLoading ? 'Discarding…' : 'Discard All'}
+        </button>
+        <button onClick={handleCommit} disabled={commitLoading} style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.45rem 0.9rem', borderRadius: 8, border: 'none', background: R, cursor: 'pointer', color: '#fff' }}>
+          {commitLoading ? 'Committing…' : 'Commit to vehicle_years'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function CrspVersionHistoryPanel() {
+  const [open, setOpen]                 = useState(false)
+  const [data, setData]                 = useState<CrspVersionsResponse | null>(null)
+  const [page, setPage]                 = useState(1)
+  const [loading, setLoading]           = useState(false)
+  const [openChangelog, setOpenChangelog] = useState<CrspChangelogResponse | null>(null)
+  const [changelogLoading, setChangelogLoading] = useState(false)
+  const [revertingId, setRevertingId]   = useState<string | null>(null)
+
+  async function loadVersions(p = 1) {
+    setLoading(true)
+    try {
+      const d = await getCrspVersions(p)
+      setData(d)
+      setPage(p)
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { if (open) loadVersions(1) }, [open])
+
+  async function loadChangelog(versionId: string) {
+    setChangelogLoading(true)
+    try {
+      const cl = await getCrspVersionChangelog(versionId)
+      setOpenChangelog(cl)
+    } catch { /* ignore */ }
+    finally { setChangelogLoading(false) }
+  }
+
+  async function handleRevert(versionId: string) {
+    if (!confirm('Revert vehicle_years to the state before this version? This creates a new version record.')) return
+    setRevertingId(versionId)
+    try {
+      await revertCrspVersion(versionId)
+      loadVersions(1)
+    } catch { /* ignore */ }
+    finally { setRevertingId(null) }
+  }
+
+  return (
+    <div style={{ ...CARD, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.85rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ClockIcon style={{ width: 14, height: 14, color: '#6b7280' }} />
+          <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Version History</span>
+        </div>
+        <ChevronRightIcon style={{ width: 14, height: 14, color: '#9ca3af', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+      </button>
+
+      {open && (
+        <div style={{ borderTop: '1px solid var(--adm-sep)', padding: '0.75rem 1.25rem' }}>
+          {loading
+            ? <div style={{ color: '#9ca3af', fontSize: '0.75rem', padding: '0.5rem 0' }}>Loading versions…</div>
+            : !data?.versions.length
+            ? <div style={{ color: '#9ca3af', fontSize: '0.75rem', fontStyle: 'italic' }}>No versions yet</div>
+            : (
+              <div>
+                {data.versions.map(v => (
+                  <div key={v.id} style={{ borderBottom: '1px solid var(--adm-sep)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      <div>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 800 }}>v{v.version_number}</span>
+                        <span style={{ fontSize: '0.7rem', color: '#6b7280', marginLeft: 8 }}>
+                          {v.committed_at ? new Date(v.committed_at).toLocaleString() : '—'}
+                        </span>
+                        {v.notes && <span style={{ fontSize: '0.65rem', color: '#9ca3af', marginLeft: 8, fontStyle: 'italic' }}>{v.notes}</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button onClick={() => openChangelog?.version_id === v.id ? setOpenChangelog(null) : loadChangelog(v.id)} style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: 6, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}>
+                          {changelogLoading ? '…' : openChangelog?.version_id === v.id ? 'Hide' : 'Changelog'}
+                        </button>
+                        <button onClick={() => handleRevert(v.id)} disabled={revertingId === v.id} style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: 6, border: `1px solid ${R}`, background: 'var(--adm-card-bg)', color: R, cursor: 'pointer' }}>
+                          {revertingId === v.id ? 'Reverting…' : 'Revert'}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.4rem' }}>
+                      {[['Added', v.committed_count, '#15803d'], ['Updated', v.updated_count, '#1d4ed8'], ['Conflicts', v.conflict_count, '#b45309']].map(([label, val, color]) => (
+                        <span key={label as string} style={{ fontSize: '0.65rem', color: color as string, fontWeight: 700 }}>
+                          {val} {label}
+                        </span>
+                      ))}
+                      {v.committed_by && <span style={{ fontSize: '0.65rem', color: '#9ca3af' }}>by {v.committed_by}</span>}
+                    </div>
+
+                    {/* Inline changelog */}
+                    {openChangelog?.version_id === v.id && (
+                      <div style={{ marginTop: '0.6rem', maxHeight: 200, overflowY: 'auto', background: '#f9fafb', borderRadius: 8, padding: '0.5rem 0' }}>
+                        {openChangelog.entries.map(e => (
+                          <div key={e.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'baseline', padding: '0.2rem 0.75rem', fontSize: '0.68rem' }}>
+                            <span style={{ minWidth: 52, fontWeight: 700, color: e.change_type === 'added' ? '#15803d' : e.change_type === 'removed' ? R : '#1d4ed8' }}>
+                              {e.change_type}
+                            </span>
+                            <span>{e.make} {e.model} {e.year}</span>
+                            {e.old_values && e.new_values && (
+                              <span style={{ color: '#9ca3af' }}>
+                                {JSON.stringify(e.old_values)} → {JSON.stringify(e.new_values)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Version pagination */}
+                {data.total > 20 && (
+                  <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', marginTop: '0.25rem' }}>
+                    <button disabled={page === 1} onClick={() => loadVersions(page - 1)} style={{ padding: '0.2rem 0.5rem', border: '1px solid #e2e4e9', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', background: 'var(--adm-card-bg)' }}>
+                      <ChevronLeftIcon style={{ width: 12, height: 12 }} />
+                    </button>
+                    <span style={{ fontSize: '0.7rem', color: '#6b7280', alignSelf: 'center' }}>p{page}</span>
+                    <button disabled={page * 20 >= data.total} onClick={() => loadVersions(page + 1)} style={{ padding: '0.2rem 0.5rem', border: '1px solid #e2e4e9', borderRadius: 6, cursor: page * 20 >= data.total ? 'not-allowed' : 'pointer', background: 'var(--adm-card-bg)' }}>
+                      <ChevronRightIcon style={{ width: 12, height: 12 }} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          }
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CrspTab() {
+  const [status, setStatus]           = useState<CrspStatus | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [runLoading, setRunLoading]   = useState(false)
+  const [action, setAction]           = useState<'pause' | 'resume' | 'cancel' | null>(null)
+  const [commitResult, setCommitResult] = useState<CrspCommitResult | null>(null)
+  const [showStaging, setShowStaging] = useState(false)
+  const [stagingKey, setStagingKey]   = useState(0)
+  const [cacheRefreshKey, setCacheRefreshKey] = useState(0)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stagingAvailable = status?.status === 'done' || status?.status === 'cancelled'
+
+  function startPolling() {
+    if (pollingRef.current) return
+    pollingRef.current = setInterval(async () => {
+      const s = await getCrspStatus().catch(() => null)
+      if (!s) return
+      setStatus(s)
+      if (s.status !== 'running' && s.status !== 'paused') {
+        clearInterval(pollingRef.current!)
+        pollingRef.current = null
+        if (s.status === 'done' || s.status === 'cancelled') setShowStaging(true)
+      }
+    }, 1000)
+  }
+
+  useEffect(() => {
+    getCrspStatus()
+      .then(s => { setStatus(s); if (s.status === 'running' || s.status === 'paused') startPolling() })
+      .catch(() => null)
+      .finally(() => setLoading(false))
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [])
+
+  async function handleRun() {
+    setRunLoading(true)
+    setActionError(null)
+    setCommitResult(null)
+    setShowStaging(false)
+    try {
+      await runCrspPipeline()
+      const s = await getCrspStatus()
+      setStatus(s)
+      startPolling()
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Failed to start pipeline')
+    } finally {
+      setRunLoading(false)
+    }
+  }
+
+  async function handleAction(act: 'pause' | 'resume' | 'cancel') {
+    setAction(act)
+    try {
+      if (act === 'pause')  await pauseCrsp()
+      if (act === 'resume') await resumeCrsp()
+      if (act === 'cancel') {
+        await cancelCrsp()
+        setShowStaging(true)
+        if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null }
+      }
+      const s = await getCrspStatus()
+      setStatus(s)
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Action failed')
+    } finally {
+      setAction(null)
+    }
+  }
+
+  if (loading) return <div style={{ padding: '2rem', color: '#9ca3af', textAlign: 'center' }}>Loading…</div>
+
+  const isActive  = status?.status === 'running' || status?.status === 'paused'
+  const isDone    = status?.status === 'done'
+  const isError   = status?.status === 'error'
+  const isIdle    = !status || status.status === 'idle'
+  const pct       = status?.total_models ? Math.round((status.processed_models / status.total_models) * 100) : 0
+
+  // Determine stage status for the stage cards
+  function getStageStatus(stageId: string): StageStatus {
+    if (isIdle) return 'idle'
+    if (isError && stageId === 'enrich') return 'error'
+    const stageOrder = ['parse', 'validate', 'normalize', 'deduplicate', 'enrich', 'stage', 'commit']
+    const currentStageId = status?.status === 'running' || status?.status === 'paused' ? 'enrich' : isDone ? 'commit' : 'idle'
+    const currentIdx = stageOrder.indexOf(currentStageId)
+    const thisIdx    = stageOrder.indexOf(stageId)
+    if (commitResult && stageId === 'commit') return 'done'
+    if (showStaging && stageId === 'stage') return 'done'
+    if (thisIdx < currentIdx) return 'done'
+    if (thisIdx === currentIdx) return status?.status === 'running' ? 'running' : status?.status === 'paused' ? 'running' : 'done'
+    return 'idle'
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+      {/* Cache status + info row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flex: 1, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.65rem 1rem' }}>
+          <InformationCircleIcon style={{ width: 15, height: 15, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
+          <p style={{ margin: 0, fontSize: '0.72rem', color: '#1d4ed8', lineHeight: 1.6 }}>
+            Stage 1 (dataprep.py) cleans the CRSP Excel into <code>battery_lookup_dataset.csv</code> first. Stage 2 queries 5 external sources for production years and writes to staging for review before committing to <code>vehicle_years</code>.
+          </p>
+        </div>
+      </div>
+
+      <CacheStatusBadge key={cacheRefreshKey} onRefresh={() => setCacheRefreshKey(k => k + 1)} />
+
+      {/* Run controls */}
+      <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        {(isIdle || isDone || isError || status?.status === 'cancelled') && (
+          <button
+            onClick={handleRun}
+            disabled={runLoading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.45rem',
+              fontSize: '0.82rem', fontWeight: 700,
+              padding: '0.6rem 1.2rem', borderRadius: 10, border: 'none',
+              cursor: runLoading ? 'not-allowed' : 'pointer',
+              background: runLoading ? '#e2e4e9' : R,
+              color: runLoading ? 'rgba(107,114,128,0.7)' : '#fff',
+            }}
+          >
+            <PlayIcon style={{ width: 14, height: 14 }} />
+            {runLoading ? 'Starting…' : 'Run CRSP Pipeline'}
+          </button>
+        )}
+
+        {isActive && (
+          <>
+            <button
+              onClick={() => handleAction(status?.status === 'paused' ? 'resume' : 'pause')}
+              disabled={action !== null}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}
+            >
+              {status?.status === 'paused' ? <PlayIcon style={{ width: 13, height: 13 }} /> : <PauseIcon style={{ width: 13, height: 13 }} />}
+              {action === 'pause' ? 'Pausing…' : action === 'resume' ? 'Resuming…' : status?.status === 'paused' ? 'Resume' : 'Pause'}
+            </button>
+            <button
+              onClick={() => handleAction('cancel')}
+              disabled={action !== null}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: `1px solid ${R}`, background: '#fff5f5', color: R, cursor: 'pointer' }}
+            >
+              <StopIcon style={{ width: 13, height: 13 }} />
+              {action === 'cancel' ? 'Cancelling…' : 'Cancel'}
+            </button>
+          </>
+        )}
+
+        {stagingAvailable && (
+          <button
+            onClick={() => setShowStaging(s => !s)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: showStaging ? '#fffbeb' : 'var(--adm-card-bg)', cursor: 'pointer' }}
+          >
+            <ArchiveBoxIcon style={{ width: 13, height: 13 }} />
+            {showStaging ? 'Hide Staging' : 'Review Staged Rows'}
+          </button>
+        )}
+      </div>
+
+      {actionError && (
+        <div style={{ fontSize: '0.75rem', color: R, background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.5rem 0.75rem' }}>
+          {actionError}
+        </div>
+      )}
+
+      {/* Progress */}
+      {isActive && status && (
+        <div style={{ ...CARD, padding: '1rem 1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+              {status.status === 'paused' ? '⏸ Paused' : `Enriching — ${status.current_make ?? ''} ${status.current_model ?? ''}`}
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>
+              {status.processed_models} / {status.total_models || '?'} pairs
+            </span>
+          </div>
+          {status.total_models > 0 && (
+            <div style={{ width: '100%', background: '#e2e4e9', borderRadius: 99, height: 6, overflow: 'hidden', marginBottom: '0.75rem' }}>
+              <div style={{ width: `${pct}%`, background: status.status === 'paused' ? '#f59e0b' : R, height: '100%', borderRadius: 99, transition: 'width 0.4s' }} />
+            </div>
+          )}
+          {/* Source breakdown */}
+          {Object.keys(status.source_counts).length > 0 && (
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+              {Object.entries(status.source_counts).map(([src, count]) => (
+                <span key={src} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: 99, background: '#f3f4f6', color: '#374151', fontWeight: 700 }}>
+                  {SOURCE_LABELS[src] ?? src}: {count}
+                </span>
+              ))}
+            </div>
+          )}
+          <LogPanel lines={status.logs} />
+        </div>
+      )}
+
+      {/* Finished status */}
+      {(isDone || status?.status === 'cancelled' || isError) && status && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '0.6rem',
+          padding: '0.55rem 1rem', background: 'var(--adm-card-bg)',
+          border: '1px solid var(--adm-sep)', borderRadius: 99,
+          fontSize: '0.75rem', fontWeight: 600,
+          color: isError ? R : isDone ? '#15803d' : '#b45309',
+        }}>
+          {isError
+            ? <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline error — {status.error_detail}</>
+            : isDone
+            ? <><CheckCircleIcon style={{ width: 14, height: 14 }} /> Enrichment complete — {status.enriched_rows?.toLocaleString() ?? 0} rows staged for review</>
+            : <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline cancelled — partial results staged for review</>
+          }
+        </div>
+      )}
+
+      {/* Stage pipeline diagram */}
+      <div style={{ ...CARD, padding: '1.25rem 1.25rem 1rem' }}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
+          Pipeline Stages
+        </h3>
+        <div>
+          {CRSP_STAGES.map((stage, idx) => (
+            <StageCard
+              key={stage.id}
+              stage={stage}
+              status={getStageStatus(stage.id)}
+              index={idx}
+              total={CRSP_STAGES.length}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Commit result */}
+      {commitResult && (
+        <div style={{ fontSize: '0.75rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.6rem 0.9rem' }}>
+          ✓ Committed to vehicle_years — v{commitResult.version_number}: {commitResult.committed} added, {commitResult.updated} updated, {commitResult.conflict_kept} conflicts kept.
+        </div>
+      )}
+
+      {/* Staging review panel */}
+      {showStaging && (
+        <CrspStagingPanel
+          key={stagingKey}
+          onCommit={result => { setCommitResult(result); setShowStaging(false); setStagingKey(k => k + 1) }}
+          onDiscard={() => { setShowStaging(false); setStagingKey(k => k + 1) }}
+        />
+      )}
+
+      {/* Version history */}
+      <CrspVersionHistoryPanel />
+
+      {/* DB stats */}
+      <CrspStatsPanel />
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminDataPipeline() {
   const [activeTab, setActiveTab] = useState<DatasetTab>('crsp')
@@ -2497,9 +2944,9 @@ export default function AdminDataPipeline() {
             <FunnelIcon style={{ width: 22, height: 22, color: R }} />
           </div>
           <div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'rgba(17,24,39,0.88)' }}>Vehicle Dataset Cleaning Pipeline</div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'rgba(17,24,39,0.88)' }}>Vehicle Dataset Pipeline</div>
             <div style={{ fontSize: '0.78rem', color: 'rgba(107,114,128,0.85)', marginTop: '0.2rem' }}>
-              Upload a raw CRSP or NTSA dataset to validate, normalize, deduplicate, and export clean vehicle data.
+              Run the CRSP pipeline to clean, enrich, and commit vehicle year data — or run web validation to find battery matches online.
             </div>
           </div>
         </div>
@@ -2509,10 +2956,7 @@ export default function AdminDataPipeline() {
           {/* Tab switcher */}
           <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--adm-subtle-bg)', padding: '0.3rem', borderRadius: 99, width: 'fit-content', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
             <button style={tabStyle('crsp')} onClick={() => setActiveTab('crsp')}>
-              <TableCellsIcon style={{ width: 14, height: 14 }} /> CRSP Dataset
-            </button>
-            <button style={tabStyle('ntsa')} onClick={() => setActiveTab('ntsa')}>
-              <DocumentMagnifyingGlassIcon style={{ width: 14, height: 14 }} /> NTSA Dataset
+              <TableCellsIcon style={{ width: 14, height: 14 }} /> CRSP Pipeline
             </button>
             <button style={tabStyle('webvalidate')} onClick={() => setActiveTab('webvalidate')}>
               <GlobeAltIcon style={{ width: 14, height: 14 }} /> Web Validate
@@ -2520,23 +2964,7 @@ export default function AdminDataPipeline() {
           </div>
 
           {activeTab === 'crsp' ? (
-            <PipelineTab
-              key="crsp"
-              dataset="CRSP"
-              stages={CRSP_STAGES}
-              fileAccept=".xlsx,.xls,.csv"
-              dropLabel="Drop your CRSP vehicles dataset here"
-              info="The CRSP pipeline validates make/model/year/battery fields, normalises technology labels, expands year ranges, and deduplicates rows before committing clean records to the database."
-            />
-          ) : activeTab === 'ntsa' ? (
-            <PipelineTab
-              key="ntsa"
-              dataset="NTSA"
-              stages={NTSA_STAGES}
-              fileAccept=".xlsx,.xls,.csv"
-              dropLabel="Drop your NTSA vehicle registration dataset here"
-              info="The NTSA pipeline validates plate numbers, normalises fuel types and make/model fields, filters invalid year-of-manufacture values, deduplicates by plate number, and merges battery recommendations from the cleaned CRSP data."
-            />
+            <CrspTab />
           ) : (
             <WebValidateTab />
           )}

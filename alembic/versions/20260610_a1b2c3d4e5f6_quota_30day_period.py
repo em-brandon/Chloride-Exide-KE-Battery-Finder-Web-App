@@ -1,6 +1,6 @@
 """quota 30-day rolling period columns
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 606962de4978
 Revises: 6259d46ad841
 Create Date: 2026-06-10 00:00:00.000000+00:00
 
@@ -13,7 +13,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "a1b2c3d4e5f6"
+revision: str = "606962de4978"
 down_revision: Union[str, None] = "6259d46ad841"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

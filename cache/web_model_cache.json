@@ -11798,5 +11798,75 @@
     "ah": 70,
     "technology": "MF",
     "region": null
+  },
+  "AUDI|A 3 SEDAN 1.4 TFSI|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 1.4 TFSI|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN 30 TFSI ADVANCED|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN S LINE BLACK STYLING|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI S LINE|2010": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SEDAN S LINE BLACK STYLING|2020": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 30 TFSI SPORT|2015": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 40 TFSI QUATTRO S LINE|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 3 SPORTBACK 40 TFSI QUATTRO ADVANCED|2015": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 35 TDI S LINE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "AUDI|A 4 2.0 TFSI QUATTRO TUXEDO STYLE|2020": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI ADVANCED|2020": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI MEISTERSTUECK|2010": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 4 35 TFSI MEISTERSTUECK|2020": {
+    "ah": 37,
+    "technology": "MF",
+    "region": null
   }
 }
