@@ -10,6 +10,7 @@ import {
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
   UserGroupIcon,
+  CogIcon,
   ArrowRightStartOnRectangleIcon,
   ArrowTopRightOnSquareIcon,
   ChevronLeftIcon,
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { to: '/admin/coverage',      label: 'Coverage',   Icon: ChartBarIcon },
   { to: '/admin/feedback',      label: 'Feedback',   Icon: ChatBubbleLeftRightIcon },
   { to: '/admin/test-sessions', label: 'Test Users', Icon: UserGroupIcon },
+  { to: '/admin/settings',      label: 'Settings',   Icon: CogIcon },
 ]
 
 const PIPELINE_APP_URL = (import.meta.env as Record<string, string>)['VITE_PIPELINE_APP_URL'] ?? 'http://localhost:5175'

@@ -688,3 +688,23 @@ export interface StalenessInfo {
 export async function getPipelineStaleness(): Promise<StalenessInfo> {
   return adminFetch('/api/admin/pipeline/web-validate/staleness')
 }
+
+// ---------------------------------------------------------------------------
+// Maintenance mode
+// ---------------------------------------------------------------------------
+
+export interface MaintenanceModeStatus {
+  enabled: boolean
+}
+
+export async function getMaintenanceMode(): Promise<MaintenanceModeStatus> {
+  return adminFetch('/api/admin/maintenance')
+}
+
+export async function setMaintenanceMode(enabled: boolean): Promise<MaintenanceModeStatus> {
+  return adminFetch('/api/admin/maintenance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  })
+}
