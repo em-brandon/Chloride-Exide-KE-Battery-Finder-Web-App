@@ -264,6 +264,28 @@ class AdminStats(Base):
         return f"<AdminStats {self.stat_key}={self.stat_value}>"
 
 
+class AppSettings(Base):
+    """
+    Generic key-value store for runtime-toggleable app settings.
+
+    Keys:
+      'maintenance_mode' — 'true' / 'false'; served by spa_fallback in app.py.
+    """
+
+    __tablename__ = "app_settings"
+
+    id            = Column(Integer,                  primary_key=True, autoincrement=True)
+    setting_key   = Column(String(100),              nullable=False, unique=True)
+    setting_value = Column(String(500),              nullable=False, default='')
+    updated_at    = Column(DateTime(timezone=True),  nullable=False)
+    updated_by    = Column(String(100),              nullable=True)
+
+    __table_args__ = (Index("ix_app_settings_key", "setting_key", unique=True),)
+
+    def __repr__(self) -> str:
+        return f"<AppSettings {self.setting_key}={self.setting_value}>"
+
+
 class ApiUsageQuota(Base):
     """
     30-day rolling API call counter for the web_battery_validate pipeline providers.

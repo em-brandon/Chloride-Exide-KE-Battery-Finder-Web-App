@@ -11,7 +11,7 @@ from admin_router import router as admin_router
 from db import SessionLocal, engine
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from models import AdminStats, TestUser, TestUserSession, UserFeedback
 from pydantic import BaseModel, Field
@@ -112,6 +112,13 @@ async def lifespan(_app: FastAPI):
     # Schedule daily midnight reset of the API reads counter
     threading.Timer(_seconds_until_midnight(), _reset_daily_reads).start()
     logger.info("Daily reads reset scheduled (next midnight in %.0fs).", _seconds_until_midnight())
+    # Load persisted maintenance mode state from DB
+    from app_state import set_maintenance_mode
+    from models import AppSettings
+    with SessionLocal() as _db:
+        _row = _db.query(AppSettings).filter_by(setting_key="maintenance_mode").first()
+        if _row:
+            set_maintenance_mode(_row.setting_value == "true")
     yield
 
 
@@ -149,6 +156,24 @@ async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
             "retry_after": exc.args[0].replace("rate limit exceeded: ", ""),
         }
     )
+
+
+# ------------------------------------------------------------------
+# Maintenance mode middleware — runs outermost, intercepts every request
+# ------------------------------------------------------------------
+@app.middleware("http")
+async def maintenance_mode_middleware(request: Request, call_next):
+    from app_state import is_maintenance_mode
+    if is_maintenance_mode():
+        path = request.url.path
+        # Admin API and admin frontend paths always pass through
+        if not (path.startswith("/api/admin") or path.startswith("/admin") or path.startswith("/static/")):
+            _base = os.path.dirname(__file__)
+            return FileResponse(
+                os.path.join(_base, "static", "maintenance.html"),
+                status_code=503,
+            )
+    return await call_next(request)
 
 
 # ------------------------------------------------------------------
@@ -439,59 +464,12 @@ def me_test_user(request: Request):
 # ------------------------------------------------------------------
 # Serve frontend — mount last so API routes take priority
 # ------------------------------------------------------------------
-@app.get("/api/makes", summary="List all car makes")
-@limiter.limit("20/minute")
-def list_makes(request: Request):
-    assert request  # consumed by slowapi rate limiter
-    return {"makes": matcher.get_makes()}
-
-
-@app.get("/api/models/{make}", summary="List models for a given make")
-@limiter.limit("20/minute")
-def list_models(request: Request, make: str):
-    assert request  # consumed by slowapi rate limiter
-    models = matcher.get_models(make)
-    if not models:
-        raise HTTPException(status_code=404, detail=f"No models found for make: {make}")
-    return {"models": models}
-
-
-@app.get("/api/years", summary="List available years for a given make and model")
-@limiter.limit("20/minute")
-def list_years(request: Request, make: str, model: str):
-    assert request  # consumed by slowapi rate limiter
-    years = matcher.get_years(make, model)
-    if not years:
-        raise HTTPException(status_code=404, detail=f"No years found for {make} {model}")
-    return {"years": years}
-
-
-@app.post("/api/recommend", summary="Get a battery recommendation")
-@limiter.limit("10/minute")
-def recommend(request: Request, req: RecommendRequest):
-    assert request  # consumed by slowapi rate limiter
-    result = matcher.recommend(
-        req.make,
-        req.model,
-        req.year,
-        req.engine_cc,
-        req.fuel_type,
-        stop_start=req.stop_start,
-    )
-    return result
-
-
-# ------------------------------------------------------------------
-# Serve frontend — mount last so API routes take priority
-# ------------------------------------------------------------------
 dist_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 
 _frontend_dir = dist_dir if os.path.isdir(dist_dir) else static_dir
 
 # Catch-all: serve index.html for any non-API path (React Router SPA)
-from fastapi.responses import FileResponse
-
 @app.get("/{full_path:path}", include_in_schema=False)
 async def spa_fallback(full_path: str):
     _base = os.path.dirname(__file__)
@@ -501,8 +479,6 @@ async def spa_fallback(full_path: str):
         static_root = os.path.normpath(os.path.join(_base, "static"))
         if candidate.startswith(static_root) and os.path.isfile(candidate):
             return FileResponse(candidate)
-    if os.getenv("MAINTENANCE_MODE", "false").lower() == "true":
-        return FileResponse(os.path.join(_base, "static", "maintenance.html"))
     index = os.path.join(_frontend_dir, "index.html")
     file_path = os.path.join(_frontend_dir, full_path)
     # Serve the actual file if it exists (JS, CSS, assets, etc.)

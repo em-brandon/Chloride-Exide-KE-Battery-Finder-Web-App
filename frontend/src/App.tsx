@@ -14,6 +14,7 @@ import AdminSessions    from '@/pages/admin/AdminSessions'
 import AdminCoverage    from '@/pages/admin/AdminCoverage'
 import AdminFeedback      from '@/pages/admin/AdminFeedback'
 import AdminTestSessions from '@/pages/admin/AdminTestSessions'
+import AdminSettings     from '@/pages/admin/AdminSettings'
 import TestUserLogin     from '@/pages/TestUserLogin'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
 import { FaqModal } from '@/components/FaqModal'
@@ -299,6 +300,7 @@ function App() {
       <Route path="/admin/coverage"  element={<ProtectedRoute><AdminCoverage  /></ProtectedRoute>} />
       <Route path="/admin/feedback"      element={<ProtectedRoute><AdminFeedback      /></ProtectedRoute>} />
       <Route path="/admin/test-sessions" element={<ProtectedRoute><AdminTestSessions /></ProtectedRoute>} />
+      <Route path="/admin/settings"      element={<ProtectedRoute><AdminSettings     /></ProtectedRoute>} />
       {/* ── Test user login ── */}
       <Route path="/login" element={<TestUserLogin />} />
     </Routes>

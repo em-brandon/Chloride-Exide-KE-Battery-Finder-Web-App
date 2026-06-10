@@ -52,7 +52,7 @@ from admin_auth import (
 from db import SessionLocal, engine
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
-from models import AdminSession, AdminStats, AdminUser, BatteryAuditLog, BatterySpec, UserFeedback, TestUser, TestUserSession
+from models import AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec, UserFeedback, TestUser, TestUserSession
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -599,6 +599,46 @@ def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._inference()
     logger.info("Matcher cache refreshed by %s", admin.username)
     return {"detail": "Cache refreshed"}
+
+
+# ---------------------------------------------------------------------------
+# Maintenance mode
+# ---------------------------------------------------------------------------
+
+class MaintenanceModeRequest(BaseModel):
+    enabled: bool
+
+
+@router.get("/maintenance")
+def get_maintenance_mode(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    from app_state import is_maintenance_mode
+    return {"enabled": is_maintenance_mode()}
+
+
+@router.post("/maintenance")
+def set_maintenance_mode_route(
+    body: MaintenanceModeRequest,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app_state import set_maintenance_mode
+    row = db.query(AppSettings).filter_by(setting_key="maintenance_mode").first()
+    now = datetime.now(timezone.utc)
+    if row:
+        row.setting_value = "true" if body.enabled else "false"
+        row.updated_at    = now
+        row.updated_by    = admin.username
+    else:
+        db.add(AppSettings(
+            setting_key="maintenance_mode",
+            setting_value="true" if body.enabled else "false",
+            updated_at=now,
+            updated_by=admin.username,
+        ))
+    db.commit()
+    set_maintenance_mode(body.enabled)
+    logger.info("Maintenance mode set to %s by %s", body.enabled, admin.username)
+    return {"enabled": body.enabled}
 
 
 # ---------------------------------------------------------------------------

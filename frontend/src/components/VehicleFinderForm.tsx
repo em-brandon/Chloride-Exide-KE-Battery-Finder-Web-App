@@ -160,7 +160,9 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
         borderRadius: 8, padding: '0.45rem 0.75rem',
         fontSize: '0.72rem', marginBottom: '0.25rem',
       }}>
-        <span style={{ fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>📞 Dial a Battery</span>
+        <span style={{ fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>
+          <span className="dial-ring">📞</span>{' '}Dial a Battery
+        </span>
         <span style={{ color: '#d1d5db' }}>·</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
           <ReactCountryFlag countryCode="KE" svg style={{ width: '1.1em', height: '1.1em' }} />
