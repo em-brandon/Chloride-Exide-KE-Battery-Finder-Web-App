@@ -52,7 +52,11 @@ from admin_auth import (
 from db import SessionLocal, engine
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
-from models import AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec, UserFeedback, TestUser, TestUserSession
+from models import (
+    AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
+    UserFeedback, TestUser, TestUserSession,
+    VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog, EnrichmentCacheMeta,
+)
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -2229,3 +2233,705 @@ def get_pipeline_staleness(admin: AdminUser = Depends(require_admin)):
         "new_vehicles_since_last_run": int(new_count_row),
         "stale":                     stale,
     }
+
+
+# ===========================================================================
+# CRSP PIPELINE — run / staging / versioning / cache
+# ===========================================================================
+
+_crsp_lock = threading.Lock()
+_crsp_state: dict = {
+    "run_id":           None,
+    "status":           "idle",   # idle | running | paused | done | cancelled | error
+    "stage":            None,     # "dataprep" | "enrich"
+    "current_make":     None,
+    "current_model":    None,
+    "total_models":     0,
+    "processed_models": 0,
+    "enriched_rows":    0,
+    "source_counts":    {},
+    "logs":             deque(maxlen=50),
+    "started_at":       None,
+    "finished_at":      None,
+    "error_detail":     None,
+    "cancel_event":     None,
+    "pause_event":      None,
+    "initiated_by":     None,
+}
+
+
+# ---------------------------------------------------------------------------
+# Background thread
+# ---------------------------------------------------------------------------
+
+def _crsp_thread(run_id: str, cancel_ev: threading.Event, pause_ev: threading.Event,
+                 input_csv: str, initiated_by: str) -> None:
+    from pipelines.enrich_years import main as _enrich_main
+
+    def _log(line: str) -> None:
+        with _crsp_lock:
+            _crsp_state["logs"].append(line)
+        logger.debug("[CRSP] %s", line)
+
+    def _progress(processed: int, total: int, make: str, model: str) -> None:
+        with _crsp_lock:
+            _crsp_state["processed_models"] = processed
+            _crsp_state["total_models"]     = total
+            _crsp_state["current_make"]     = make
+            _crsp_state["current_model"]    = model
+
+    db = SessionLocal()
+    try:
+        with _crsp_lock:
+            _crsp_state["stage"] = "enrich"
+
+        result = _enrich_main(
+            run_id=run_id,
+            db=db,
+            input_csv=input_csv,
+            log_callback=_log,
+            progress_callback=_progress,
+            cancel_event=cancel_ev,
+            pause_event=pause_ev,
+        )
+
+        with _crsp_lock:
+            _crsp_state["status"]        = "cancelled" if cancel_ev.is_set() else "done"
+            _crsp_state["enriched_rows"] = result.get("expanded_rows", 0)
+            _crsp_state["source_counts"] = result.get("source_counts", {})
+            _crsp_state["finished_at"]   = datetime.now(timezone.utc).isoformat()
+            _crsp_state["error_detail"]  = None
+
+    except InterruptedError:
+        with _crsp_lock:
+            _crsp_state["status"]       = "cancelled"
+            _crsp_state["finished_at"]  = datetime.now(timezone.utc).isoformat()
+    except Exception as exc:
+        with _crsp_lock:
+            _crsp_state["status"]       = "error"
+            _crsp_state["finished_at"]  = datetime.now(timezone.utc).isoformat()
+            _crsp_state["error_detail"] = str(exc)
+        logger.exception("CRSP pipeline error: %s", exc)
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Run / control endpoints
+# ---------------------------------------------------------------------------
+
+class CrspRunBody(BaseModel):
+    input_csv: str = Field(default="battery_lookup_dataset.csv")
+
+
+@router.post("/pipeline/crsp/run", summary="Launch the CRSP year-enrichment pipeline")
+def run_crsp_pipeline(
+    body: CrspRunBody = Body(default_factory=CrspRunBody),
+    admin: AdminUser = Depends(require_admin),
+):
+    with _crsp_lock:
+        if _crsp_state["status"] == "running":
+            raise HTTPException(status_code=409, detail="CRSP pipeline is already running")
+
+        run_id    = str(uuid.uuid4())
+        cancel_ev = threading.Event()
+        pause_ev  = threading.Event()
+        _crsp_state.update({
+            "run_id":           run_id,
+            "status":           "running",
+            "stage":            None,
+            "current_make":     None,
+            "current_model":    None,
+            "total_models":     0,
+            "processed_models": 0,
+            "enriched_rows":    0,
+            "source_counts":    {},
+            "logs":             deque(maxlen=50),
+            "started_at":       datetime.now(timezone.utc).isoformat(),
+            "finished_at":      None,
+            "error_detail":     None,
+            "cancel_event":     cancel_ev,
+            "pause_event":      pause_ev,
+            "initiated_by":     admin.username,
+        })
+
+    t = threading.Thread(
+        target=_crsp_thread,
+        args=(run_id, cancel_ev, pause_ev, body.input_csv, admin.username),
+        daemon=True,
+        name=f"crsp-{run_id[:8]}",
+    )
+    t.start()
+    logger.info("CRSP pipeline started by %s run_id=%s", admin.username, run_id)
+    return {"run_id": run_id}
+
+
+@router.get("/pipeline/crsp/status", summary="Get CRSP pipeline status")
+def get_crsp_status(admin: AdminUser = Depends(require_admin)):
+    with _crsp_lock:
+        state = dict(_crsp_state)
+        state["logs"] = list(state["logs"])
+        state.pop("cancel_event", None)
+        state.pop("pause_event", None)
+    return state
+
+
+@router.post("/pipeline/crsp/pause", summary="Pause the running CRSP pipeline")
+def pause_crsp(admin: AdminUser = Depends(require_admin)):
+    with _crsp_lock:
+        if _crsp_state["status"] != "running":
+            raise HTTPException(status_code=400, detail="CRSP pipeline is not running")
+        pause_ev = _crsp_state.get("pause_event")
+        _crsp_state["status"] = "paused"
+    if pause_ev:
+        pause_ev.set()
+    return {"detail": "Pause signal sent"}
+
+
+@router.post("/pipeline/crsp/resume", summary="Resume a paused CRSP pipeline")
+def resume_crsp(admin: AdminUser = Depends(require_admin)):
+    with _crsp_lock:
+        if _crsp_state["status"] != "paused":
+            raise HTTPException(status_code=400, detail="CRSP pipeline is not paused")
+        pause_ev = _crsp_state.get("pause_event")
+        _crsp_state["status"] = "running"
+    if pause_ev:
+        pause_ev.clear()
+    return {"detail": "Resume signal sent"}
+
+
+@router.post("/pipeline/crsp/cancel", summary="Cancel the running CRSP pipeline")
+def cancel_crsp(admin: AdminUser = Depends(require_admin)):
+    with _crsp_lock:
+        if _crsp_state["status"] not in ("running", "paused"):
+            raise HTTPException(status_code=400, detail="CRSP pipeline is not running or paused")
+        cancel_ev = _crsp_state.get("cancel_event")
+        pause_ev  = _crsp_state.get("pause_event")
+
+    if pause_ev:
+        pause_ev.clear()
+    if cancel_ev:
+        cancel_ev.set()
+
+    # Wait up to 3 s for thread to settle
+    deadline = time.time() + 3.0
+    while time.time() < deadline:
+        with _crsp_lock:
+            if _crsp_state["status"] not in ("running", "paused"):
+                break
+        time.sleep(0.1)
+
+    with _crsp_lock:
+        _crsp_state["status"] = "cancelled"
+
+    logger.info("CRSP pipeline cancelled by %s", admin.username)
+    return {"detail": "CRSP pipeline cancelled. Staged rows (if any) are now available for review."}
+
+
+# ---------------------------------------------------------------------------
+# Staging endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/pipeline/crsp/staging", summary="List staged vehicle_years rows pending review")
+def get_crsp_staging(
+    filter: str = "all",   # all | conflicts | new
+    page: int = 1,
+    page_size: int = 50,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    q = db.query(VehicleYearStaging)
+    if filter == "conflicts":
+        q = q.filter(VehicleYearStaging.conflict == 1)
+    elif filter == "new":
+        q = q.filter(VehicleYearStaging.conflict == 0, VehicleYearStaging.is_valid == 1)
+    total = q.count()
+    rows  = q.order_by(VehicleYearStaging.make, VehicleYearStaging.model, VehicleYearStaging.year) \
+             .offset((page - 1) * page_size).limit(page_size).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "rows": [
+            {
+                "id":              r.id,
+                "run_id":          r.run_id,
+                "make":            r.make,
+                "model":           r.model,
+                "year":            r.year,
+                "engine_capacity": r.engine_capacity,
+                "fuel":            r.fuel,
+                "source":          r.source,
+                "is_valid":        bool(r.is_valid),
+                "invalid_reason":  r.invalid_reason,
+                "conflict":        bool(r.conflict),
+                "conflict_detail": json.loads(r.conflict_detail) if r.conflict_detail else None,
+                "staged_at":       r.staged_at.isoformat() if r.staged_at else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+class PatchCrspStagingBody(BaseModel):
+    engine_capacity: Optional[int] = None
+    fuel:            Optional[str] = None
+
+
+@router.patch("/pipeline/crsp/staging/{row_id}", summary="Edit engine_capacity or fuel on a staged row")
+def patch_crsp_staging_row(
+    row_id: int,
+    body: PatchCrspStagingBody,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.query(VehicleYearStaging).filter(VehicleYearStaging.id == row_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Staged row not found")
+    if body.engine_capacity is not None:
+        row.engine_capacity = body.engine_capacity
+    if body.fuel is not None:
+        row.fuel = body.fuel
+    db.commit()
+    return {"detail": "Updated"}
+
+
+@router.get("/pipeline/crsp/staging/pre-commit", summary="Re-run conflict detection against current vehicle_years")
+def crsp_pre_commit(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    staging_rows = db.query(VehicleYearStaging).all()
+    existing = {
+        (r.make, r.model, r.year): {"engine_capacity": r.engine_capacity, "fuel": r.fuel}
+        for r in db.query(VehicleYear).all()
+    }
+
+    updated = 0
+    for row in staging_rows:
+        key     = (row.make, row.model, row.year)
+        current = existing.get(key)
+        if current is None:
+            if row.conflict:
+                row.conflict        = 0
+                row.conflict_detail = None
+                updated += 1
+        else:
+            ec_same   = current["engine_capacity"] == row.engine_capacity
+            fuel_same = (current["fuel"] or "").lower() == (row.fuel or "").lower()
+            now_conflict = not (ec_same and fuel_same)
+            if now_conflict != bool(row.conflict):
+                row.conflict = 1 if now_conflict else 0
+                row.conflict_detail = json.dumps({
+                    "current": current,
+                    "staged": {"engine_capacity": row.engine_capacity, "fuel": row.fuel},
+                }) if now_conflict else None
+                updated += 1
+
+    db.commit()
+    total_conflicts = db.query(VehicleYearStaging).filter(VehicleYearStaging.conflict == 1).count()
+    return {"rows_rescanned": len(staging_rows), "rows_updated": updated, "total_conflicts": total_conflicts}
+
+
+class CrspConflictResolution(BaseModel):
+    make:  str
+    model: str
+    year:  int
+    resolution: str   # 'staged' | 'current'
+
+
+class CommitCrspBody(BaseModel):
+    conflict_resolutions: list[CrspConflictResolution] = []
+
+
+@router.post("/pipeline/crsp/staging/commit", summary="Commit staged rows to vehicle_years")
+def commit_crsp_staging(
+    body: CommitCrspBody = Body(default_factory=CommitCrspBody),
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    staging_rows = db.query(VehicleYearStaging).all()
+    if not staging_rows:
+        raise HTTPException(status_code=400, detail="No staged rows to commit")
+
+    resolution_map = {
+        (r.make.upper(), r.model.upper(), r.year): r.resolution
+        for r in body.conflict_resolutions
+    }
+
+    version_id     = str(uuid.uuid4())
+    version_number = (db.query(func.max(VehicleYearVersion.version_number)).scalar() or 0) + 1
+    run_id         = staging_rows[0].run_id if staging_rows else None
+    initiated_by   = _crsp_state.get("initiated_by")
+
+    committed = updated = conflict_count = 0
+    now = datetime.now(timezone.utc)
+
+    for row in staging_rows:
+        key = (row.make.upper(), row.model.upper(), row.year)
+        resolution = resolution_map.get(key, "staged")
+
+        if row.conflict and resolution == "current":
+            conflict_count += 1
+            continue
+
+        existing = db.query(VehicleYear).filter(
+            VehicleYear.make == row.make,
+            VehicleYear.model == row.model,
+            VehicleYear.year == row.year,
+        ).first()
+
+        old_vals = None
+        if existing:
+            old_vals = json.dumps({
+                "engine_capacity": existing.engine_capacity,
+                "fuel": existing.fuel,
+                "source": existing.source,
+            })
+            existing.engine_capacity = row.engine_capacity
+            existing.fuel            = row.fuel
+            existing.source          = row.source
+            change_type = "updated"
+            updated += 1
+        else:
+            existing = VehicleYear(
+                make=row.make, model=row.model, year=row.year,
+                engine_capacity=row.engine_capacity, fuel=row.fuel, source=row.source,
+            )
+            db.add(existing)
+            change_type = "added"
+            committed += 1
+
+        db.add(VehicleYearChangelog(
+            version_id  = version_id,
+            make        = row.make,
+            model       = row.model,
+            year        = row.year,
+            change_type = change_type,
+            old_values  = old_vals,
+            new_values  = json.dumps({
+                "engine_capacity": row.engine_capacity,
+                "fuel": row.fuel,
+                "source": row.source,
+            }),
+        ))
+
+    db.add(VehicleYearVersion(
+        id              = version_id,
+        version_number  = version_number,
+        committed_at    = now,
+        run_id          = run_id,
+        committed_count = committed,
+        updated_count   = updated,
+        removed_count   = 0,
+        conflict_count  = conflict_count,
+        committed_by    = admin.username,
+        initiated_by    = initiated_by,
+    ))
+
+    # Clear staging
+    db.query(VehicleYearStaging).delete()
+    db.commit()
+
+    logger.info(
+        "CRSP staging committed by %s — v%d added=%d updated=%d conflicts_kept=%d",
+        admin.username, version_number, committed, updated, conflict_count,
+    )
+    return {
+        "version_id":    version_id,
+        "version_number": version_number,
+        "committed":     committed,
+        "updated":       updated,
+        "conflict_kept": conflict_count,
+    }
+
+
+@router.post("/pipeline/crsp/staging/discard", summary="Discard all staged rows without committing")
+def discard_crsp_staging(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    deleted = db.query(VehicleYearStaging).delete()
+    db.commit()
+    logger.info("CRSP staging discarded by %s (%d rows)", admin.username, deleted)
+    return {"detail": f"Discarded {deleted} staged rows"}
+
+
+# ---------------------------------------------------------------------------
+# Version history endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/pipeline/crsp/versions", summary="List CRSP version history")
+def get_crsp_versions(
+    page: int = 1,
+    page_size: int = 20,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    total = db.query(VehicleYearVersion).count()
+    rows  = db.query(VehicleYearVersion) \
+              .order_by(VehicleYearVersion.version_number.desc()) \
+              .offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "versions": [
+            {
+                "id":              v.id,
+                "version_number":  v.version_number,
+                "committed_at":    v.committed_at.isoformat() if v.committed_at else None,
+                "run_id":          v.run_id,
+                "committed_count": v.committed_count,
+                "updated_count":   v.updated_count,
+                "removed_count":   v.removed_count,
+                "conflict_count":  v.conflict_count,
+                "committed_by":    v.committed_by,
+                "initiated_by":    v.initiated_by,
+                "notes":           v.notes,
+            }
+            for v in rows
+        ],
+    }
+
+
+@router.get("/pipeline/crsp/versions/{version_id}/changelog", summary="Row-level diffs for a version")
+def get_crsp_version_changelog(
+    version_id: str,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    version = db.query(VehicleYearVersion).filter(VehicleYearVersion.id == version_id).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    entries = db.query(VehicleYearChangelog) \
+                .filter(VehicleYearChangelog.version_id == version_id) \
+                .order_by(VehicleYearChangelog.make, VehicleYearChangelog.model, VehicleYearChangelog.year) \
+                .all()
+    return {
+        "version_id":     version_id,
+        "version_number": version.version_number,
+        "committed_at":   version.committed_at.isoformat() if version.committed_at else None,
+        "committed_by":   version.committed_by,
+        "entries": [
+            {
+                "id":          e.id,
+                "make":        e.make,
+                "model":       e.model,
+                "year":        e.year,
+                "change_type": e.change_type,
+                "old_values":  json.loads(e.old_values) if e.old_values else None,
+                "new_values":  json.loads(e.new_values) if e.new_values else None,
+            }
+            for e in entries
+        ],
+    }
+
+
+@router.post("/pipeline/crsp/versions/{version_id}/revert", summary="Revert vehicle_years to state before this version")
+def revert_crsp_version(
+    version_id: str,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    version = db.query(VehicleYearVersion).filter(VehicleYearVersion.id == version_id).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    entries = db.query(VehicleYearChangelog) \
+                .filter(VehicleYearChangelog.version_id == version_id).all()
+
+    new_version_id     = str(uuid.uuid4())
+    new_version_number = (db.query(func.max(VehicleYearVersion.version_number)).scalar() or 0) + 1
+    reverted = 0
+    now      = datetime.now(timezone.utc)
+
+    for entry in entries:
+        existing = db.query(VehicleYear).filter(
+            VehicleYear.make == entry.make,
+            VehicleYear.model == entry.model,
+            VehicleYear.year == entry.year,
+        ).first()
+
+        if entry.change_type == "added":
+            # Reverse: delete the row
+            if existing:
+                db.delete(existing)
+            db.add(VehicleYearChangelog(
+                version_id=new_version_id, make=entry.make, model=entry.model, year=entry.year,
+                change_type="removed",
+                old_values=entry.new_values,
+                new_values=None,
+            ))
+        elif entry.change_type == "removed":
+            # Reverse: restore the row
+            old = json.loads(entry.old_values) if entry.old_values else {}
+            if not existing:
+                db.add(VehicleYear(
+                    make=entry.make, model=entry.model, year=entry.year,
+                    engine_capacity=old.get("engine_capacity"),
+                    fuel=old.get("fuel"),
+                    source=old.get("source"),
+                ))
+            db.add(VehicleYearChangelog(
+                version_id=new_version_id, make=entry.make, model=entry.model, year=entry.year,
+                change_type="added",
+                old_values=None,
+                new_values=entry.old_values,
+            ))
+        elif entry.change_type == "updated":
+            # Reverse: restore old values
+            old = json.loads(entry.old_values) if entry.old_values else {}
+            if existing:
+                existing.engine_capacity = old.get("engine_capacity")
+                existing.fuel            = old.get("fuel")
+                existing.source          = old.get("source")
+            db.add(VehicleYearChangelog(
+                version_id=new_version_id, make=entry.make, model=entry.model, year=entry.year,
+                change_type="updated",
+                old_values=entry.new_values,
+                new_values=entry.old_values,
+            ))
+        reverted += 1
+
+    db.add(VehicleYearVersion(
+        id              = new_version_id,
+        version_number  = new_version_number,
+        committed_at    = now,
+        run_id          = None,
+        committed_count = reverted,
+        updated_count   = 0,
+        removed_count   = 0,
+        conflict_count  = 0,
+        committed_by    = admin.username,
+        initiated_by    = None,
+        notes           = f"Revert of version #{version.version_number}",
+    ))
+    db.commit()
+
+    logger.info(
+        "CRSP version %s reverted by %s — new v%d, %d rows reversed",
+        version_id, admin.username, new_version_number, reverted,
+    )
+    return {
+        "reverted_version_id":     version_id,
+        "reverted_version_number": version.version_number,
+        "new_version_id":          new_version_id,
+        "new_version_number":      new_version_number,
+        "rows_reversed":           reverted,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Stats + cache endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/pipeline/crsp/stats", summary="DB counts for vehicle_years makes/models")
+def get_crsp_stats(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    total_rows    = db.query(func.count(VehicleYear.id)).scalar() or 0
+    total_makes   = db.query(func.count(func.distinct(VehicleYear.make))).scalar() or 0
+    total_combos  = db.query(
+        func.count(func.distinct(func.concat(VehicleYear.make, '|', VehicleYear.model)))
+    ).scalar() or 0
+
+    by_make_rows = db.execute(
+        text(
+            "SELECT make, "
+            "       COUNT(DISTINCT model) AS model_count, "
+            "       MIN(year) AS year_min, "
+            "       MAX(year) AS year_max "
+            "FROM vehicle_years "
+            "GROUP BY make "
+            "ORDER BY make"
+        )
+    ).fetchall()
+
+    return {
+        "total_rows":   total_rows,
+        "total_makes":  total_makes,
+        "total_combinations": total_combos,
+        "staging_pending": db.query(func.count(VehicleYearStaging.id)).scalar() or 0,
+        "by_make": [
+            {
+                "make":        r.make,
+                "model_count": r.model_count,
+                "year_min":    r.year_min,
+                "year_max":    r.year_max,
+            }
+            for r in by_make_rows
+        ],
+    }
+
+
+@router.get("/pipeline/crsp/cache-status", summary="Check age of enrichment cache datasets")
+def get_crsp_cache_status(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    now  = datetime.now(timezone.utc)
+    rows = db.query(EnrichmentCacheMeta).all()
+    meta = {r.key: r for r in rows}
+
+    def _age(key: str) -> dict:
+        m = meta.get(key)
+        if m is None or m.downloaded_at is None:
+            return {"downloaded_at": None, "age_days": None, "file_size_bytes": None,
+                    "record_count": None, "stale": False, "overdue": True}
+        age_days = (now - m.downloaded_at).days
+        return {
+            "downloaded_at":   m.downloaded_at.isoformat(),
+            "age_days":        age_days,
+            "file_size_bytes": m.file_size_bytes,
+            "record_count":    m.record_count,
+            "stale":           age_days > 330,
+            "overdue":         age_days > 365,
+        }
+
+    return {
+        "fueleconomy_csv": _age("fueleconomy_csv"),
+        "year_cache":      _age("year_cache"),
+    }
+
+
+@router.post("/pipeline/crsp/cache/refresh", summary="Clear enrichment caches to force re-download on next run")
+def refresh_crsp_cache(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    results = []
+
+    # Delete fueleconomy CSV
+    fe_path = Path("cache/fueleconomy_vehicles.csv")
+    if fe_path.exists():
+        fe_path.unlink()
+        results.append("Deleted cache/fueleconomy_vehicles.csv")
+    else:
+        results.append("cache/fueleconomy_vehicles.csv not found (already absent)")
+
+    # Clear NHTSA + CarAPI sections of year_cache.json (preserve 'years' to avoid re-querying)
+    cache_path = Path("cache/year_cache.json")
+    if cache_path.exists():
+        try:
+            with cache_path.open("r", encoding="utf-8") as f:
+                year_cache = json.load(f)
+            year_cache["nhtsa"]  = {}
+            year_cache["carapi"] = {}
+            with cache_path.open("w", encoding="utf-8") as f:
+                json.dump(year_cache, f)
+            results.append("Cleared nhtsa + carapi sections from cache/year_cache.json (years preserved)")
+        except Exception as e:
+            results.append(f"Could not clear year_cache.json: {e}")
+    else:
+        results.append("cache/year_cache.json not found")
+
+    # Reset cache meta timestamps
+    now = datetime.now(timezone.utc)
+    for key in ("fueleconomy_csv", "year_cache"):
+        row = db.query(EnrichmentCacheMeta).filter(EnrichmentCacheMeta.key == key).first()
+        if row:
+            row.downloaded_at   = None
+            row.file_size_bytes = None
+            row.record_count    = None
+            row.updated_at      = now
+    db.commit()
+
+    logger.info("CRSP enrichment cache cleared by %s", admin.username)
+    return {"detail": "Cache cleared. Next pipeline run will re-download all datasets.", "actions": results}

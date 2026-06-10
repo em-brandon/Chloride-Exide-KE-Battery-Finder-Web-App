@@ -67,7 +67,7 @@ class VehicleYear(Base):
     Primary runtime lookup table — one row per make/model/year combination,
     including the typical engine capacity and fuel type for that trim year.
 
-    Written by: enrich_years.py (upserts by make+model+year)
+    Written by: admin_router.py (commit from vehicle_years_staging after admin review)
     Read by:    matcher.py (loaded once into a DataFrame at startup)
     """
 
@@ -79,6 +79,7 @@ class VehicleYear(Base):
     year             = Column(Integer,     nullable=False)
     engine_capacity  = Column(Integer,     nullable=True)
     fuel             = Column(String(50),  nullable=True)
+    source           = Column(String(50),  nullable=True)  # fueleconomy|carapi|wikipedia|wikidata|nhtsa
 
     __table_args__ = (
         UniqueConstraint("make", "model", "year", name="uq_vehicle_years"),
@@ -410,3 +411,122 @@ class TestUserSession(Base):
     def __repr__(self) -> str:
         return f"<TestUserSession user_id={self.user_id} expires={self.expires_at}>"
 
+
+# ---------------------------------------------------------------------------
+# CRSP pipeline staging + versioning
+# ---------------------------------------------------------------------------
+
+class VehicleYearStaging(Base):
+    """
+    Temporary hold for enriched rows from enrich_years.py pending admin review.
+
+    Written by: pipelines/enrich_years.py (via admin_router.py background thread)
+    Read/committed by: admin_router.py CRSP staging endpoints
+    """
+
+    __tablename__ = "vehicle_years_staging"
+
+    id               = Column(Integer, primary_key=True, autoincrement=True)
+    run_id           = Column(Text,        nullable=False)
+    make             = Column(String(100), nullable=False)
+    model            = Column(String(200), nullable=False)
+    year             = Column(Integer,     nullable=False)
+    engine_capacity  = Column(Integer,     nullable=True)
+    fuel             = Column(String(50),  nullable=True)
+    source           = Column(String(50),  nullable=True)  # fueleconomy|carapi|wikipedia|wikidata|nhtsa
+    staged_at        = Column(DateTime(timezone=True), nullable=True)
+    is_valid         = Column(Integer,     nullable=False, default=1)   # 1=valid, 0=invalid
+    invalid_reason   = Column(Text,        nullable=True)
+    conflict         = Column(Integer,     nullable=False, default=0)   # 1=conflict with existing row
+    conflict_detail  = Column(Text,        nullable=True)               # JSON {current:{...}, staged:{...}}
+
+    __table_args__ = (
+        UniqueConstraint("make", "model", "year", name="uq_vehicle_years_staging_key"),
+        Index("ix_vehicle_years_staging_run_id",  "run_id"),
+        Index("ix_vehicle_years_staging_conflict", "conflict"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<VehicleYearStaging {self.make} {self.model} {self.year} run={self.run_id[:8]}>"
+
+
+class VehicleYearVersion(Base):
+    """
+    One record per admin-approved merge of staged rows into vehicle_years.
+
+    Enables version history and rollback.
+    Written by: admin_router.py CRSP staging/commit endpoint.
+    """
+
+    __tablename__ = "vehicle_years_versions"
+
+    id               = Column(Text,    primary_key=True)   # UUID
+    version_number   = Column(Integer, nullable=False)
+    committed_at     = Column(DateTime(timezone=True), nullable=True)
+    run_id           = Column(Text,    nullable=True)
+    committed_count  = Column(Integer, nullable=False, default=0)  # rows added/updated
+    updated_count    = Column(Integer, nullable=False, default=0)
+    removed_count    = Column(Integer, nullable=False, default=0)
+    conflict_count   = Column(Integer, nullable=False, default=0)
+    committed_by     = Column(String(100), nullable=True)
+    initiated_by     = Column(String(100), nullable=True)
+    notes            = Column(Text,    nullable=True)
+
+    __table_args__ = (
+        Index("ix_vehicle_years_versions_committed_at", "committed_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<VehicleYearVersion v{self.version_number} by={self.committed_by}>"
+
+
+class VehicleYearChangelog(Base):
+    """
+    Row-level diff for each VehicleYearVersion commit.
+
+    Stores old/new values as JSON so individual rows can be reverted.
+    Written by: admin_router.py (on commit and revert).
+    """
+
+    __tablename__ = "vehicle_years_changelog"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    version_id   = Column(Text,    ForeignKey("vehicle_years_versions.id"), nullable=False)
+    make         = Column(String(100), nullable=False)
+    model        = Column(String(200), nullable=False)
+    year         = Column(Integer,     nullable=False)
+    change_type  = Column(Text,        nullable=False)   # 'added' | 'updated' | 'removed'
+    old_values   = Column(Text,        nullable=True)    # JSON {engine_capacity, fuel, source}
+    new_values   = Column(Text,        nullable=True)    # JSON {engine_capacity, fuel, source}
+
+    __table_args__ = (
+        Index("ix_vehicle_years_changelog_version_id", "version_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<VehicleYearChangelog {self.change_type} {self.make} {self.model} {self.year}>"
+
+
+class EnrichmentCacheMeta(Base):
+    """
+    Tracks last-downloaded timestamps for external enrichment datasets.
+
+    Keys:
+      'fueleconomy_csv' — fueleconomy.gov EPA bulk CSV (cache/fueleconomy_vehicles.csv)
+      'year_cache'      — NHTSA VPIC + CarAPI model lists (cache/year_cache.json)
+
+    Written by: pipelines/enrich_years.py (after each download).
+    Read by:    GET /api/admin/pipeline/crsp/cache-status.
+    """
+
+    __tablename__ = "enrichment_cache_meta"
+
+    key             = Column(Text,       primary_key=True)   # 'fueleconomy_csv' | 'year_cache'
+    downloaded_at   = Column(DateTime(timezone=True), nullable=True)
+    file_size_bytes = Column(BigInteger, nullable=True)
+    record_count    = Column(Integer,    nullable=True)
+    notes           = Column(Text,       nullable=True)
+    updated_at      = Column(DateTime(timezone=True), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<EnrichmentCacheMeta {self.key} downloaded={self.downloaded_at}>"
