@@ -19,6 +19,7 @@ build/
 
 # Environment variables
 .env
+pipeline_app/pipeline.env
 
 # OS files
 .DS_Store
