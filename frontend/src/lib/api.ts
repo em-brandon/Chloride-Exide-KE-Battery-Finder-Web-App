@@ -45,6 +45,28 @@ export async function fetchRecommendation(
   return handleResponse<RecommendationResult>(res)
 }
 
+export interface BatterySpecResult {
+  battery_code: string
+  model_key: string
+  ah: number | null
+  cca: number | null
+  technology: string | null
+  brand: string | null
+  origin: string | null
+  match_type: 'direct' | 'close'
+}
+
+export async function searchBatteryBySpecs(
+  ah?: number,
+  cca?: number,
+): Promise<{ results: BatterySpecResult[]; count: number }> {
+  const params = new URLSearchParams()
+  if (ah  != null) params.set('ah',  String(ah))
+  if (cca != null) params.set('cca', String(cca))
+  const res = await fetch(`/api/batteries/search?${params}`)
+  return handleResponse<{ results: BatterySpecResult[]; count: number }>(res)
+}
+
 export interface FeedbackPayload {
   vehicle_label: string
   satisfaction: number

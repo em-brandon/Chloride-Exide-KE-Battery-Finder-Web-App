@@ -7,12 +7,12 @@ import { ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import ReactCountryFlag from 'react-country-flag'
 import exideMaxxLogo from '@/assets/exide-max-logo.png'
-import sparkLogo     from '@/assets/spark-logo.jpg'
-import powerlastLogo from '@/assets/powerlast-logo.jpg'
+import sparkLogo     from '@/assets/spark-logo.png'
+import powerlastLogo from '@/assets/powerlast-logo.png'
 import supremeLogo   from '@/assets/supreme-logo.jpg'
 import sebangLogo    from '@/assets/sebang-logo.jpg'
-import exideAgmLogo  from '@/assets/exide-agm-logo.jpg'
-import sbFloodedLogo from '@/assets/sb-flooded-logo.jpg'
+import exideAgmLogo  from '@/assets/exide-agm-logo.png'
+import sbFloodedLogo from '@/assets/sb-flooded-logo.png'
 
 function getBrandLogo(code: string): string | null {
   const u = code.toUpperCase()
