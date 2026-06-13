@@ -1,19 +1,21 @@
 import { useEffect, useState, useRef } from 'react'
-import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
+import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs } from '@/lib/api'
+import type { BatterySpecResult } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { useToast, Toaster } from '@/components/Notification'
 import { AccuracyBar } from '@/components/AccuracyBar'
 import { FeedbackModal } from '@/components/FeedbackModal'
-import { Search, MousePointerClick, Keyboard, Copy, Check } from 'lucide-react'
+import { Search, MousePointerClick, Keyboard, Copy, Check, Car, Battery, Phone } from 'lucide-react'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import ReactCountryFlag from 'react-country-flag'
-import exideMaxxLogo from '@/assets/exide-max-logo.png'
-import sparkLogo     from '@/assets/spark-logo.jpg'
-import powerlastLogo from '@/assets/powerlast-logo.jpg'
-import supremeLogo   from '@/assets/supreme-logo.jpg'
-import sebangLogo    from '@/assets/sebang-logo.jpg'
-import sbFloodedLogo from '@/assets/sb-flooded-logo.jpg'
-import exideAgmLogo  from '@/assets/exide-agm-logo.jpg'
+import exideMaxxLogo    from '@/assets/exide-max-logo.png'
+import sparkLogo        from '@/assets/spark-logo.png'
+import powerlastLogo    from '@/assets/powerlast-logo.png'
+import supremeLogo      from '@/assets/supreme-logo.jpg'
+import sebangLogo       from '@/assets/sebang-logo.jpg'
+import sbFloodedLogo    from '@/assets/sb-flooded-logo.png'
+import exideAgmLogo     from '@/assets/exide-agm-logo.png'
+import chlorideExideLogo from '@/assets/chloride_exide_transparent.png'
 
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
@@ -39,7 +41,7 @@ function techIconColor(tech?: string): string {
   const t = tech.toUpperCase()
   if (t.includes('EFB')) return '#c2410c'
   if (t.includes('AGM')) return '#5b21b6'
-  if (t.includes('SB') || t.includes('FLOOD')) return '#1d4ed8'
+  if (t.includes('SB') || t.includes('FLOOD')) return '#374151'
   return '#374151'
 }
 
@@ -270,6 +272,207 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
   )
 }
 
+// ── Shared: Dial-A-Battery banner ────────────────────────────────
+// TODO: replace href="#" with the actual Dial-A-Battery shop URL
+function DialABatteryBanner() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      marginTop: '0.75rem', padding: '0.55rem 0.75rem',
+      borderRadius: '0.5rem',
+      background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
+      color: '#fff', gap: '0.5rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+        <Phone size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em' }}>Dial-A-Battery</div>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.15rem 0.55rem', marginTop: '0.18rem' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
+              <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ fontSize: '0.67rem', fontWeight: 600, opacity: 0.95 }}>0719 080 000</span>
+            </span>
+            <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>·</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
+              <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ fontSize: '0.67rem', fontWeight: 600, opacity: 0.95 }}>0677 484 631</span>
+            </span>
+            <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>·</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
+              <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ fontSize: '0.67rem', fontWeight: 600, opacity: 0.95 }}>0200 400 900</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <a
+        href="https://www.chlorideexide.com/category/all-products"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+          padding: '0.3rem 0.65rem', borderRadius: '0.375rem',
+          background: '#fff', color: '#CC0000',
+          fontWeight: 700, fontSize: '0.73rem', textDecoration: 'none',
+          whiteSpace: 'nowrap', flexShrink: 0,
+        }}
+      >
+        <ShoppingBagIcon style={{ width: '0.85rem', height: '0.85rem' }} />
+        Shop Now
+      </a>
+    </div>
+  )
+}
+
+// ── Battery spec search results ───────────────────────────────────
+function brandColor(brand: string | null): string {
+  if (!brand) return '#6b7280'
+  let h = 0
+  for (let i = 0; i < brand.length; i++) h = brand.charCodeAt(i) + ((h << 5) - h)
+  return `hsl(${Math.abs(h) % 360}, 55%, 38%)`
+}
+
+function getBrandLogoByName(brand: string | null): string | null {
+  if (!brand) return null
+  const u = brand.toUpperCase()
+  if (u.includes('MAXX'))           return exideMaxxLogo
+  if (u.includes('POWERLAST'))      return powerlastLogo
+  if (u.includes('SPARK'))          return sparkLogo
+  if (u.includes('SUPREME'))        return supremeLogo
+  if (u.includes('SEBANG'))         return sebangLogo
+  if (u.includes('CHLORIDE EXIDE')) return chlorideExideLogo
+  if (u.includes('EXIDE'))          return exideAgmLogo
+  if (u.includes('SB') || u.includes('FLOODED')) return sbFloodedLogo
+  return null
+}
+
+function BrandAvatar({ brand }: { brand: string | null }) {
+  const logo = getBrandLogoByName(brand)
+  if (logo) {
+    return (
+      <div style={{ width: '32px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px', overflow: 'hidden' }}>
+        <img src={logo} alt={brand ?? ''} style={{ maxWidth: '100%', maxHeight: '22px', objectFit: 'contain' }} />
+      </div>
+    )
+  }
+  return (
+    <div style={{
+      width: '26px', height: '26px', borderRadius: '50%',
+      background: brandColor(brand), color: '#fff',
+      fontSize: '0.6rem', fontWeight: 700, flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      textTransform: 'uppercase', letterSpacing: '0.03em',
+    }}>
+      {(brand ?? '?').slice(0, 2)}
+    </div>
+  )
+}
+
+function BatteryTableRow({ r }: { r: BatterySpecResult }) {
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border, #f3f4f6)' }}>
+      <td style={{ padding: '0.3rem 0.4rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <BrandAvatar brand={r.brand} />
+          <span style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--foreground, #111827)', whiteSpace: 'nowrap' }}>
+            {r.brand ?? '—'}
+          </span>
+        </div>
+      </td>
+      <td style={{ padding: '0.3rem 0.4rem', fontSize: '0.72rem', color: 'var(--muted-foreground, #6b7280)', whiteSpace: 'nowrap' }}>
+        {r.battery_code}
+      </td>
+      <td style={{ padding: '0.3rem 0.4rem', fontSize: '0.75rem', fontWeight: 500, textAlign: 'right' }}>
+        {r.ah != null ? r.ah : '—'}
+      </td>
+      <td style={{ padding: '0.3rem 0.4rem', fontSize: '0.75rem', textAlign: 'right', color: 'var(--muted-foreground, #6b7280)' }}>
+        {r.cca != null ? r.cca : '—'}
+      </td>
+      <td style={{ padding: '0.3rem 0.4rem' }}>
+        <span className={techClass(r.technology ?? undefined)} style={{ fontSize: '0.65rem' }}>
+          {r.technology ?? 'MF'}
+        </span>
+      </td>
+    </tr>
+  )
+}
+
+function BatteryResultsPanel({
+  results,
+  onClear,
+}: {
+  results: BatterySpecResult[]
+  onClear: () => void
+}) {
+  const direct = results.filter(r => r.match_type === 'direct')
+  const close  = results.filter(r => r.match_type === 'close')
+  const thBase: React.CSSProperties = {
+    padding: '0.3rem 0.4rem', fontWeight: 600, fontSize: '0.67rem',
+    textTransform: 'uppercase', letterSpacing: '0.05em',
+    color: 'var(--muted-foreground, #6b7280)', background: 'var(--surface-alt, #f9fafb)',
+    position: 'sticky', top: 0, whiteSpace: 'nowrap',
+  }
+  return (
+    <div className="result-card">
+      <div className="result-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.15rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <h2 className="result-title">Battery Results</h2>
+          <button type="button" onClick={onClear} className="btn-mode" style={{ fontSize: '0.75rem' }}>
+            Clear
+          </button>
+        </div>
+        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted-foreground, #6b7280)' }}>
+          {results.length} {results.length === 1 ? 'battery' : 'batteries'} found
+        </p>
+      </div>
+
+      {results.length === 0 ? (
+        <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground, #6b7280)', textAlign: 'center', padding: '1.5rem 0' }}>
+          No batteries found — try widening your search.
+        </p>
+      ) : (
+        <div style={{ overflowY: 'auto', maxHeight: '55vh', marginTop: '0.25rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thBase}>Brand</th>
+                <th style={thBase}>Code</th>
+                <th style={{ ...thBase, textAlign: 'right' }}>Ah</th>
+                <th style={{ ...thBase, textAlign: 'right' }}>CCA</th>
+                <th style={thBase}>Tech</th>
+              </tr>
+            </thead>
+            <tbody>
+              {direct.length > 0 && (
+                <>
+                  <tr>
+                    <td colSpan={5} style={{ padding: '0.4rem 0.4rem 0.2rem', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#16a34a' }}>
+                      Direct Match ({direct.length})
+                    </td>
+                  </tr>
+                  {direct.map(r => <BatteryTableRow key={r.battery_code} r={r} />)}
+                </>
+              )}
+              {close.length > 0 && (
+                <>
+                  <tr>
+                    <td colSpan={5} style={{ padding: '0.4rem 0.4rem 0.2rem', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#d97706' }}>
+                      Close Match ({close.length})
+                    </td>
+                  </tr>
+                  {close.map(r => <BatteryTableRow key={r.battery_code} r={r} />)}
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <DialABatteryBanner />
+    </div>
+  )
+}
+
 // ── Main form ─────────────────────────────────────────────────────
 export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange }: VehicleFinderFormProps) {
   const { toasts, push: pushToast, dismiss: dismissToast } = useToast()
@@ -305,6 +508,14 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
   const [loadingYears, setLoadingYears]   = useState(false)
   const [submitting, setSubmitting]       = useState(false)
   const [, setFormReady]         = useState(false)
+
+  // Battery spec search tab
+  const [searchTab, setSearchTab]           = useState<'vehicle' | 'battery'>('vehicle')
+  const [batteryAh, setBatteryAh]           = useState('')
+  const [batteryCca, setBatteryCca]         = useState('')
+  const [batteryResults, setBatteryResults] = useState<BatterySpecResult[] | null>(null)
+  const [batteryError, setBatteryError]     = useState('')
+  const [batterySubmitting, setBatterySubmitting] = useState(false)
 
   // Close i-stop tooltip on outside click
   useEffect(() => {
@@ -463,12 +674,35 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
     }
   }
 
+  const handleBatterySearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBatteryResults(null)
+    setBatteryError('')
+    const ah  = batteryAh  ? parseFloat(batteryAh)  : undefined
+    const cca = batteryCca ? parseFloat(batteryCca) : undefined
+    if (!ah && !cca) {
+      pushToast('error', 'Enter at least one value', 'Please enter AH or CCA to search.')
+      return
+    }
+    setBatterySubmitting(true)
+    try {
+      const data = await searchBatteryBySpecs(ah, cca)
+      setBatteryResults(data.results)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      setBatteryError(msg)
+      pushToast('error', 'Search failed', msg)
+    } finally {
+      setBatterySubmitting(false)
+    }
+  }
+
   // Can submit?
   const canSubmit = typeMode
     ? !!makeText.trim() && !!modelText.trim() && !!yearText.trim()
     : !!make && !!model && !!year
 
-  const sideBySize = !!result
+  const sideBySize = (searchTab === 'vehicle' && !!result) || (searchTab === 'battery' && batteryResults !== null)
 
   return (
     <div className="finder-wrapper">
@@ -477,6 +711,37 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       <div className={`finder-layout${sideBySize ? ' has-result' : ''}`}>
       {/* Form column */}
       <div className="finder-card">
+      {/* Search mode tabs */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border, #e5e7eb)', marginBottom: '1rem' }}>
+        {([
+          { id: 'vehicle' as const, label: 'Find by Vehicle', Icon: Car },
+          { id: 'battery' as const, label: 'Find by Battery', Icon: Battery },
+        ]).map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSearchTab(id)}
+            style={{
+              flex: 1,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              padding: '0.6rem 0.25rem',
+              border: 'none',
+              borderBottom: searchTab === id ? `2px solid ${id === 'battery' ? '#1A35C0' : 'var(--red, #CC0000)'}` : '2px solid transparent',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontWeight: searchTab === id ? 700 : 400,
+              fontSize: '0.85rem',
+              color: searchTab === id ? (id === 'battery' ? '#1A35C0' : 'var(--red, #CC0000)') : 'var(--muted-foreground, #6b7280)',
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
+          >
+            <Icon size={15} strokeWidth={1.75} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {searchTab === 'vehicle' && (
       <form onSubmit={handleSubmit} noValidate>
         <div className="form-card-heading">
           <p className="form-tagline">Enter your vehicle details to get the right battery recommendation</p>
@@ -742,22 +1007,80 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
           <div className="error-block">{errorMsg}</div>
         )}
       </form>
+      )}
+
+      {searchTab === 'battery' && (
+        <form onSubmit={handleBatterySearch} noValidate>
+          <div className="form-card-heading">
+            <p className="form-tagline">Enter battery specs to find all matching batteries across all brands</p>
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="battery-ah">
+                Capacity (Ah) <span className="optional">(optional)</span>
+              </label>
+              <input
+                id="battery-ah"
+                type="number"
+                className="form-input"
+                placeholder="e.g. 45"
+                value={batteryAh}
+                onChange={e => setBatteryAh(e.target.value)}
+                min={1} max={300}
+                step={0.5}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="battery-cca">
+                CCA (Cold Cranking Amps) <span className="optional">(optional)</span>
+              </label>
+              <input
+                id="battery-cca"
+                type="number"
+                className="form-input"
+                placeholder="e.g. 350"
+                value={batteryCca}
+                onChange={e => setBatteryCca(e.target.value)}
+                min={1} max={2000}
+              />
+            </div>
+          </div>
+          <div className="hint-box" style={{ marginBottom: '0.75rem' }}>
+            Enter either or both values. Results show all brands within ±15% of your input, ranked by closeness.
+          </div>
+          <button
+            type="submit"
+            className="btn-submit"
+            disabled={(!batteryAh && !batteryCca) || batterySubmitting}
+          >
+            {batterySubmitting
+              ? <><span className="spinner" /> Searching…</>
+              : <><Search size={15} /> Find Batteries</>}
+          </button>
+          {batteryError && <div className="error-block">{batteryError}</div>}
+        </form>
+      )}
       </div>
 
       {/* Result column on the right */}
-      {submitting && !result && (
+      {searchTab === 'vehicle' && submitting && !result && (
         <div className="result-side-card result-loader-card">
           <CarBatteryIcon size={52} color="var(--red)" />
           <p className="result-loader-text">Finding your battery…</p>
         </div>
       )}
-      {result && (
+      {searchTab === 'vehicle' && result && (
         <div className="result-side-card animate-slide-up">
           <ResultPanel
             data={result}
             inputType={typeMode ? 'type' : 'select'}
             typedLabel={typeMode ? `${makeText.trim()} ${modelText.trim()} ${yearText.trim()}`.trim() : undefined}
           />
+        </div>
+      )}
+      {searchTab === 'battery' && batteryResults !== null && (
+        <div className="result-side-card">
+          <BatteryResultsPanel results={batteryResults} onClear={() => { setBatteryResults(null); setBatteryAh(''); setBatteryCca('') }} />
         </div>
       )}
       </div> {/* end finder-layout */}

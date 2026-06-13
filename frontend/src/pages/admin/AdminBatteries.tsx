@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef, type DragEvent, type FormEven
 import { useSearchParams } from 'react-router-dom'
 import { BoltIcon, MagnifyingGlassIcon, ArrowUpTrayIcon, ArrowDownTrayIcon, PlusIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid'
 import exideMaxLogo    from '@/assets/exide-max-logo.png'
-import sparkLogo       from '@/assets/spark-logo.jpg'
-import powerlastLogo   from '@/assets/powerlast-logo.jpg'
+import sparkLogo       from '@/assets/spark-logo.png'
+import powerlastLogo   from '@/assets/powerlast-logo.png'
 import supremeLogo     from '@/assets/supreme-logo.jpg'
 import sebangLogo      from '@/assets/sebang-logo.jpg'
-import exideAgmLogo    from '@/assets/exide-agm-logo.jpg'
-import sbFloodedLogo   from '@/assets/sb-flooded-logo.jpg'
+import exideAgmLogo    from '@/assets/exide-agm-logo.png'
+import sbFloodedLogo   from '@/assets/sb-flooded-logo.png'
 import {
   fetchBatteries,
   addBattery,

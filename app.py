@@ -9,7 +9,7 @@ from typing import Optional
 import matcher
 from admin_router import router as admin_router
 from db import SessionLocal, engine
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -301,6 +301,20 @@ def recommend(request: Request, req: RecommendRequest):
         stop_start=req.stop_start,
     )
     return result
+
+
+@app.get("/api/batteries/search", summary="Search batteries by AH and/or CCA")
+@limiter.limit("20/minute")
+def search_batteries_by_specs(
+    request: Request,
+    ah:  Optional[float] = Query(None, ge=1,   le=300,  description="Target Ampere-hours"),
+    cca: Optional[float] = Query(None, ge=1,   le=2000, description="Target Cold Cranking Amps"),
+):
+    assert request
+    if ah is None and cca is None:
+        raise HTTPException(status_code=422, detail="Provide at least one of: ah, cca")
+    results = matcher.search_by_specs(ah=ah, cca=cca)
+    return {"results": results, "count": len(results)}
 
 
 @app.post("/api/feedback", summary="Submit user feedback on a battery recommendation", status_code=201)

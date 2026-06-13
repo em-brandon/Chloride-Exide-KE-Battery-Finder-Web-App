@@ -133,6 +133,10 @@ body {
 /* ── Dark mode — outside + nav + card ──────────────────────────── */
 .page-wrapper.page-dark {
   --text: rgba(229, 231, 235, 0.95);
+  --foreground: rgba(229, 231, 235, 0.88);
+  --muted-foreground: rgba(229, 231, 235, 0.5);
+  --surface-alt: #1a1d26;
+  --border: #2a2d3a;
   background: #0f1117;
   background-image: none;
 }
@@ -735,7 +739,7 @@ body {
 .tech-efb { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
 .tech-agm { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
 .tech-mf  { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
-.tech-sb  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.tech-sb  { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
 
 /* ── Confidence bar ─────────────────────────────────────────────── */
 .confidence-section .conf-row {
