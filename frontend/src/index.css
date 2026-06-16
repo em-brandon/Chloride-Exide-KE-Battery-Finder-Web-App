@@ -1192,6 +1192,12 @@ body {
   background: linear-gradient(90deg, hsl(217 33% 17%) 25%, hsl(217 33% 22%) 50%, hsl(217 33% 17%) 75%);
   background-size: 400px 100%;
 }
+/* Admin-specific skeleton — uses admin CSS tokens set via inline vars on AdminLayout */
+.adm-skeleton {
+  background: linear-gradient(90deg, var(--adm-sep, #e2e4e9) 25%, var(--adm-subtle-bg, #f4f5f7) 50%, var(--adm-sep, #e2e4e9) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
 
 /* Battery pulse loader for result column */
 .result-loader-card {

@@ -24,6 +24,7 @@ import {
   type CoverageInfo,
 } from '@/lib/adminApi'
 import AdminLayout from '@/components/admin/AdminLayout'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const R = '#CC0000'
@@ -292,6 +293,7 @@ export default function AdminDashboard() {
   const [coverage, setCoverage] = useState<CoverageInfo | null>(null)
   const [loadErr,  setLoadErr]  = useState<string | null>(null)
   const [cacheMsg, setCacheMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [loading,  setLoading]  = useState(true)
 
   const load = useCallback(async () => {
     try {
@@ -299,6 +301,8 @@ export default function AdminDashboard() {
       setStats(s); setHealth(h); setCoverage(cov)
     } catch (err) {
       setLoadErr(err instanceof Error ? err.message : 'Failed to load dashboard')
+    } finally {
+      setLoading(false)
     }
   }, [])
 
@@ -340,96 +344,104 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-
-        {loadErr && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '10px', background: '#fff5f5', border: '1px solid #f5c6c6', padding: '0.75rem 1rem', fontSize: '0.82rem', color: R }}>
-            <ExclamationCircleIcon style={{ width: 15, height: 15 }} /> {loadErr}
-          </div>
-        )}
-
-        {/* ── Welcome strip ── */}
-        <div style={{ ...CARD, padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.25rem', borderLeft: `5px solid ${R}` }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--adm-text-1)' }}>Welcome back</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--adm-text-2)', marginTop: '0.2rem' }}>
-              Dashboard auto-refreshes every 30 seconds.
-              {stats && <> Last loaded: <strong>{new Date().toLocaleTimeString()}</strong></>}
-            </div>
-          </div>
-          <button
-            onClick={load}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 600, color: R, background: '#fff5f5', border: '1px solid #f5c6c6', padding: '0.4rem 0.9rem', borderRadius: '8px', cursor: 'pointer' }}
-          >
-            <ArrowPathIcon style={{ width: 13, height: 13 }} /> Refresh now
-          </button>
+      {loading && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={chlorideExideLogo} alt="Chloride Exide" className="loader-battery-svg" style={{ width: 110, height: 'auto' }} />
         </div>
+      )}
 
-        {/* ── Stat cards — all five in one row ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
-          <StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} />
-          <StatCard
-            accentColor="#1d4ed8"
-            label="Makes & Models"
-            value={stats?.counts.vehicle_years ?? '—'}
-            sub={stats?.counts.vehicle_years != null
-              ? `${stats.counts.vehicle_years.toLocaleString()} pairs · ${stats.counts.vehicles_raw.toLocaleString()} raw · ${(stats.counts.vehicle_years + stats.counts.vehicles_raw).toLocaleString()} total`
-              : undefined}
-            icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
-          />
-          <StatCard accentColor="#7e22ce" label="Recommend Calls" value={stats?.db_reads ?? '—'} sub="cumulative /recommend requests" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
-          <DataCoverageTile stats={stats} coverage={coverage} />
-          {health && <HealthCard {...health} />}
-        </div>
+      {!loading && (
+        <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
-        {/* ── Quick actions ── */}
-        <div>
-          <h2 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.75rem' }}>
-            Quick Actions
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
-            <ActionCard primary
-              icon={<BoltIcon style={{ width: 18, height: 18, color: R }} />}
-              label="Manage Batteries"
-              desc="Add, edit, delete or bulk-upload battery records"
-              href="/admin/batteries?manage=true"
-            />
-            <ActionCard
-              icon={<ArrowDownTrayIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
-              label="Export Dataset"
-              desc="Download the full battery dataset as .xlsx"
-              href={exportBatteriesUrl()}
-              download
-            />
-            <ActionCard
-              icon={<ArrowPathIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
-              label="Refresh Matcher Cache"
-              desc="Force-reload the in-memory vehicle-to-battery matcher"
-              onClick={handleCacheRefresh}
-            />
-            <ActionCard
-              icon={<ClipboardDocumentListIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
-              label="View Audit Log"
-              desc="Browse change history and field-level diffs"
-              href="/admin/audit"
-            />
-            <ActionCard
-              icon={<FunnelIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
-              label="Data Pipeline"
-              desc="Clean and normalise CRSP and NTSA vehicle datasets"
-              href="/admin/pipeline"
-            />
-          </div>
-
-          {cacheMsg && (
-            <div style={{ marginTop: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 600, color: cacheMsg.ok ? '#15803d' : R, padding: '0.45rem 0.85rem', background: cacheMsg.ok ? '#f0fdf4' : '#fff5f5', border: `1px solid ${cacheMsg.ok ? '#bbf7d0' : '#f5c6c6'}`, borderRadius: '8px' }}>
-              {cacheMsg.ok ? <CheckCircleIcon style={{ width: 14, height: 14 }} /> : <ExclamationCircleIcon style={{ width: 14, height: 14 }} />}
-              {cacheMsg.text}
+          {loadErr && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '10px', background: '#fff5f5', border: '1px solid #f5c6c6', padding: '0.75rem 1rem', fontSize: '0.82rem', color: R }}>
+              <ExclamationCircleIcon style={{ width: 15, height: 15 }} /> {loadErr}
             </div>
           )}
-        </div>
 
-      </main>
+          {/* ── Welcome strip ── */}
+          <div style={{ ...CARD, padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.25rem', borderLeft: `5px solid ${R}` }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--adm-text-1)' }}>Welcome back</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--adm-text-2)', marginTop: '0.2rem' }}>
+                Dashboard auto-refreshes every 30 seconds.
+                {stats && <> Last loaded: <strong>{new Date().toLocaleTimeString()}</strong></>}
+              </div>
+            </div>
+            <button
+              onClick={load}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 600, color: R, background: '#fff5f5', border: '1px solid #f5c6c6', padding: '0.4rem 0.9rem', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              <ArrowPathIcon style={{ width: 13, height: 13 }} /> Refresh now
+            </button>
+          </div>
+
+          {/* ── Stat cards — all five in one row ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
+            <StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} />
+            <StatCard
+              accentColor="#1d4ed8"
+              label="Makes & Models"
+              value={stats?.counts.vehicle_years ?? '—'}
+              sub={stats?.counts.vehicle_years != null
+                ? `${stats.counts.vehicle_years.toLocaleString()} pairs · ${stats.counts.vehicles_raw.toLocaleString()} raw · ${(stats.counts.vehicle_years + stats.counts.vehicles_raw).toLocaleString()} total`
+                : undefined}
+              icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
+            />
+            <StatCard accentColor="#7e22ce" label="Recommend Calls" value={stats?.db_reads ?? '—'} sub="cumulative /recommend requests" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
+            <DataCoverageTile stats={stats} coverage={coverage} />
+            {health && <HealthCard {...health} />}
+          </div>
+
+          {/* ── Quick actions ── */}
+          <div>
+            <h2 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.75rem' }}>
+              Quick Actions
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+              <ActionCard primary
+                icon={<BoltIcon style={{ width: 18, height: 18, color: R }} />}
+                label="Manage Batteries"
+                desc="Add, edit, delete or bulk-upload battery records"
+                href="/admin/batteries?manage=true"
+              />
+              <ActionCard
+                icon={<ArrowDownTrayIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
+                label="Export Dataset"
+                desc="Download the full battery dataset as .xlsx"
+                href={exportBatteriesUrl()}
+                download
+              />
+              <ActionCard
+                icon={<ArrowPathIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
+                label="Refresh Matcher Cache"
+                desc="Force-reload the in-memory vehicle-to-battery matcher"
+                onClick={handleCacheRefresh}
+              />
+              <ActionCard
+                icon={<ClipboardDocumentListIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
+                label="View Audit Log"
+                desc="Browse change history and field-level diffs"
+                href="/admin/audit"
+              />
+              <ActionCard
+                icon={<FunnelIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
+                label="Data Pipeline"
+                desc="Clean and normalise CRSP and NTSA vehicle datasets"
+                href="/admin/pipeline"
+              />
+            </div>
+
+            {cacheMsg && (
+              <div style={{ marginTop: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 600, color: cacheMsg.ok ? '#15803d' : R, padding: '0.45rem 0.85rem', background: cacheMsg.ok ? '#f0fdf4' : '#fff5f5', border: `1px solid ${cacheMsg.ok ? '#bbf7d0' : '#f5c6c6'}`, borderRadius: '8px' }}>
+                {cacheMsg.ok ? <CheckCircleIcon style={{ width: 14, height: 14 }} /> : <ExclamationCircleIcon style={{ width: 14, height: 14 }} />}
+                {cacheMsg.text}
+              </div>
+            )}
+          </div>
+
+        </main>
+      )}
     </AdminLayout>
   )
 }

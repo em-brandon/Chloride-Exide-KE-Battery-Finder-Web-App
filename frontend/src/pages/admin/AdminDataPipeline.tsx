@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 import {
   ClipboardDocumentListIcon,
   CloudArrowUpIcon,
@@ -24,6 +25,8 @@ import {
   ArchiveBoxIcon,
   ServerStackIcon,
   XMarkIcon,
+  PencilIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/20/solid'
 import AdminLayout from '@/components/admin/AdminLayout'
 import {
@@ -41,7 +44,12 @@ import {
   getStagingPreCommit,
   commitStagingArea,
   discardStagingArea,
+  fixStagingAh,
   patchStagingRow,
+  patchMasterRecord,
+  deleteMasterRecord,
+  crspUpload,
+  type MasterRecordPatch,
   getValidationVersions,
   getVersionChangelog,
   revertVersion,
@@ -406,12 +414,9 @@ function WebValidateLoadingOverlay() {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
       background: 'var(--adm-card-bg)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="#CC0000" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'loaderPulse 1.2s ease-in-out infinite' }}>
-        <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
-      </svg>
-      <span style={{ fontSize: '1.05rem', fontWeight: 600, color: '#374151', fontFamily: "'Segoe UI',system-ui,sans-serif" }}>Loading…</span>
+      <img src={chlorideExideLogo} alt="Loading" className="loader-battery-svg" style={{ width: 120, height: 'auto' }} />
     </div>
   )
 }
@@ -490,6 +495,17 @@ function WebValidateTab() {
   const [discardLoading, setDiscardLoading]       = useState(false)
   const [conflictResolutions, setConflictResolutions] = useState<Record<string, 'staging' | 'current'>>({})
   const [preCommitConflicts, setPreCommitConflicts] = useState<{ make_n: string; model_n: string; year: number; conflict_detail: { current: { ah: number|null; technology: string|null; source: string }; staged: { ah: number|null; technology: string|null; source: string } } }[]>([])
+
+  // Master record edit/delete
+  const [editMasterRow, setEditMasterRow]         = useState<{ id: number; make_n: string; model_n: string; year: number; ah: number|null; technology: string|null; battery_code: string|null } | null>(null)
+  const [editMasterPatch, setEditMasterPatch]     = useState<MasterRecordPatch>({})
+  const [editMasterScope, setEditMasterScope]     = useState<'single' | 'bucket'>('single')
+  const [editMasterSaving, setEditMasterSaving]   = useState(false)
+  const [editMasterError, setEditMasterError]     = useState<string | null>(null)
+
+  // Fix-Ah
+  const [fixAhLoading, setFixAhLoading]           = useState(false)
+  const [fixAhToast, setFixAhToast]               = useState<string | null>(null)
 
   // Version history state
   const [showVersions, setShowVersions]           = useState(false)
@@ -1081,47 +1097,43 @@ function WebValidateTab() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
         {!isRunning && !isPaused ? (
           /* ── Idle state: Phase 1 + conditional Phase 2 buttons ── */
+          (loadingRun || loadingRunP2) ? (
+            <img src={chlorideExideLogo} alt="Starting…" className="loader-battery-svg" style={{ width: 64, height: 'auto' }} />
+          ) : (
           <>
             <button
               onClick={handleRun}
-              disabled={loadingRun || loadingRunP2}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.45rem',
                 fontSize: '0.82rem', fontWeight: 700,
                 padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-                cursor: (loadingRun || loadingRunP2) ? 'not-allowed' : 'pointer',
-                background: loadingRun ? '#e2e4e9' : R,
-                color: loadingRun ? 'rgba(107,114,128,0.7)' : '#fff',
-                transition: 'background 0.15s',
+                cursor: 'pointer', background: R, color: '#fff', transition: 'background 0.15s',
               }}
-              onMouseEnter={e => { if (!loadingRun && !loadingRunP2) e.currentTarget.style.background = RD }}
-              onMouseLeave={e => { if (!loadingRun && !loadingRunP2) e.currentTarget.style.background = R }}
+              onMouseEnter={e => { e.currentTarget.style.background = RD }}
+              onMouseLeave={e => { e.currentTarget.style.background = R }}
             >
               <PlayIcon style={{ width: 14, height: 14 }} />
-              {loadingRun ? 'Starting…' : 'Run Phase 1'}
+              Run Phase 1
             </button>
             {/* Phase 2 button — shown when Phase 1 has run but Phase 2 hasn't */}
             {(status?.phase1_total ?? 0) > 0 && (status?.processed ?? 0) === 0 && (
               <button
                 onClick={handleRunPhase2}
-                disabled={loadingRunP2 || loadingRun}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.45rem',
                   fontSize: '0.82rem', fontWeight: 700,
                   padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-                  cursor: (loadingRunP2 || loadingRun) ? 'not-allowed' : 'pointer',
-                  background: loadingRunP2 ? '#e2e4e9' : '#3b82f6',
-                  color: loadingRunP2 ? 'rgba(107,114,128,0.7)' : '#fff',
-                  transition: 'background 0.15s',
+                  cursor: 'pointer', background: '#3b82f6', color: '#fff', transition: 'background 0.15s',
                 }}
-                onMouseEnter={e => { if (!loadingRunP2 && !loadingRun) e.currentTarget.style.background = '#2563eb' }}
-                onMouseLeave={e => { if (!loadingRunP2 && !loadingRun) e.currentTarget.style.background = '#3b82f6' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#2563eb' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#3b82f6' }}
               >
                 <PlayIcon style={{ width: 14, height: 14 }} />
-                {loadingRunP2 ? 'Starting…' : 'Run Phase 2'}
+                Run Phase 2
               </button>
             )}
           </>
+          )
         ) : isPaused ? (
           /* ── Paused state: Resume + Stop ── */
           <>
@@ -1348,21 +1360,23 @@ function WebValidateTab() {
           Battery Coverage
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          {/* Left: stacked label rows */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.38rem' }}>
+          {/* Coverage stat tiles */}
+          <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '0.55rem', alignItems: 'flex-start' }}>
             {([
-              { label: 'Total Combos',        value: totalCount.toLocaleString(),                                  Icon: TableCellsIcon,       color: '#9ca3af' },
-              { label: 'Matched',             value: matchedCount.toLocaleString(),                               Icon: CheckCircleIcon,       color: '#22c55e' },
-              { label: 'Unmatched',           value: unmatchedCount.toLocaleString(),                             Icon: ExclamationCircleIcon, color: unmatchedCount > 0 ? R : '#22c55e' },
-              { label: 'Committed to Master', value: (coverage?.master_count ?? 0).toLocaleString(),              Icon: CloudArrowUpIcon,      color: '#16a34a' },
-              ...((coverage?.staging_count ?? 0) > 0 ? [{ label: 'In Staging', value: (coverage!.staging_count).toLocaleString(), Icon: ArchiveBoxIcon, color: '#f59e0b' }] : []),
-              { label: 'Buckets Remaining',   value: (coverage?.remaining_buckets ?? 0).toLocaleString(),         Icon: FunnelIcon,            color: '#6366f1' },
-              { label: 'In Web Cache',        value: (coverage?.web_cache_size ?? 0).toLocaleString(),            Icon: GlobeAltIcon,          color: '#0ea5e9' },
-            ] as { label: string; value: string; Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; color: string }[]).map(({ label, value, Icon, color }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Icon style={{ width: 12, height: 12, color, flexShrink: 0 }} />
-                <span style={{ fontSize: '0.75rem', color: 'rgba(107,114,128,0.85)' }}>{label}</span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)', fontVariantNumeric: 'tabular-nums', marginLeft: '0.2rem' }}>{value}</span>
+              { label: 'Total Combos',        value: totalCount.toLocaleString(),                                  color: '#9ca3af' },
+              { label: 'Matched',             value: matchedCount.toLocaleString(),                               color: '#22c55e' },
+              { label: 'Unmatched',           value: unmatchedCount.toLocaleString(),                             color: unmatchedCount > 0 ? R : '#22c55e' },
+              { label: 'Committed to Master', value: (coverage?.master_count ?? 0).toLocaleString(),              color: '#16a34a' },
+              ...((coverage?.staging_count ?? 0) > 0 ? [{ label: 'In Staging', value: (coverage!.staging_count).toLocaleString(), color: '#f59e0b' }] : []),
+              { label: 'Buckets Remaining',   value: (coverage?.remaining_buckets ?? 0).toLocaleString(),         color: '#6366f1' },
+              { label: 'In Web Cache',        value: (coverage?.web_cache_size ?? 0).toLocaleString(),            color: '#0ea5e9' },
+            ] as { label: string; value: string; color: string }[]).map(({ label, value, color }) => (
+              <div key={label} style={{
+                background: 'var(--adm-subtle-bg)', border: '1px solid var(--adm-card-border)',
+                borderRadius: 10, padding: '0.55rem 0.9rem', minWidth: 90, textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+                <div style={{ fontSize: '0.62rem', color: 'var(--adm-text-2)', marginTop: 4, fontWeight: 500 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -1546,6 +1560,33 @@ function WebValidateTab() {
 
           {/* Action buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '1rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            {fixAhToast && (
+              <span style={{ fontSize: '0.72rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '0.3rem 0.6rem' }}>
+                {fixAhToast}
+              </span>
+            )}
+            <button
+              disabled={fixAhLoading}
+              onClick={async () => {
+                setFixAhLoading(true); setFixAhToast(null)
+                try {
+                  const r = await fixStagingAh()
+                  setFixAhToast(`Fixed ${r.fixed} · ${r.unchanged} unchanged · ${r.failed} failed`)
+                  const s = await getStagingArea(stagingPage, 50, stagingFilter)
+                  setStagingInfo(s)
+                } catch (e) { alert(e instanceof Error ? e.message : 'Fix Ah failed') }
+                finally { setFixAhLoading(false) }
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                fontSize: '0.78rem', fontWeight: 700,
+                padding: '0.55rem 1.1rem', borderRadius: 9, cursor: fixAhLoading ? 'not-allowed' : 'pointer',
+                border: '1px solid #d97706', background: 'var(--adm-card-bg)', color: '#d97706', opacity: fixAhLoading ? 0.6 : 1,
+              }}
+            >
+              <WrenchScrewdriverIcon style={{ width: 13, height: 13 }} />
+              {fixAhLoading ? 'Fixing…' : 'Fix Suspicious Ah'}
+            </button>
             <button
               onClick={() => { if (window.confirm('Discard all staged data? This will remove the staged records from the master table and cannot be undone.')) handleDiscard() }}
               disabled={discardLoading}
@@ -1772,7 +1813,7 @@ function WebValidateTab() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                     <thead>
                       <tr style={{ background: 'var(--adm-thead-bg)' }}>
-                        {['Make', 'Model', 'Year', 'Ah', 'Technology', 'Source'].map(col => (
+                        {['Make', 'Model', 'Year', 'Ah', 'Technology', 'Source', ''].map(col => (
                           <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: 'rgba(107,114,128,0.9)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                             {col}
                           </th>
@@ -1781,7 +1822,7 @@ function WebValidateTab() {
                     </thead>
                     <tbody>
                       {(matchedData?.items.length ?? 0) === 0 ? (
-                        <tr><td colSpan={6} style={{ padding: '1rem', textAlign: 'center', color: '#9ca3af' }}>No results</td></tr>
+                        <tr><td colSpan={7} style={{ padding: '1rem', textAlign: 'center', color: '#9ca3af' }}>No results</td></tr>
                       ) : matchedData!.items.map((v, i) => (
                         <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e2e4e9' }}>
                           <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{v.make_n}</td>
@@ -1790,6 +1831,27 @@ function WebValidateTab() {
                           <td style={{ padding: '0.5rem 0.75rem', color: '#22c55e', fontWeight: 600 }}>{v.ah != null ? `${v.ah} Ah` : '—'}</td>
                           <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{v.technology ?? '—'}</td>
                           <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{v.source ? (PROVIDER_LABELS[v.source] ?? v.source) : '—'}</td>
+                          <td style={{ padding: '0.35rem 0.5rem', whiteSpace: 'nowrap' }}>
+                            <button
+                              title="Edit"
+                              onClick={() => { setEditMasterRow({ id: v.id, make_n: v.make_n, model_n: v.model_n, year: v.year, ah: v.ah, technology: v.technology, battery_code: v.battery_code }); setEditMasterPatch({}); setEditMasterScope('single'); setEditMasterError(null) }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '0.2rem', borderRadius: 4 }}
+                            ><PencilIcon style={{ width: 13, height: 13 }} /></button>
+                            <button
+                              title="Delete"
+                              onClick={async () => {
+                                if (!window.confirm(`Delete ${v.make_n} ${v.model_n} ${v.year}? This creates a version record.`)) return
+                                try {
+                                  await deleteMasterRecord(v.id)
+                                  const md = await getWebValidateMatched(matchedPage, 50, matchedSearch)
+                                  setMatchedData(md)
+                                  const cov = await getWebValidateCoverage()
+                                  setCoverage(cov)
+                                } catch (e) { alert(e instanceof Error ? e.message : 'Delete failed') }
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0.2rem', borderRadius: 4 }}
+                            ><TrashIcon style={{ width: 13, height: 13 }} /></button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2014,6 +2076,77 @@ function WebValidateTab() {
                 style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: 'none', background: '#3b82f6', color: '#fff', cursor: editSaving ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: editSaving ? 0.7 : 1 }}
               >
                 {editSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Master Record Modal ── */}
+      {editMasterRow && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ ...CARD, padding: '1.5rem', maxWidth: 380, width: '100%' }}>
+            <h2 style={{ margin: '0 0 0.1rem', fontSize: '0.95rem', fontWeight: 700, color: '#111827' }}>Edit Master Record</h2>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.72rem', color: '#6b7280' }}>
+              {editMasterRow.make_n} {editMasterRow.model_n} {editMasterRow.year}
+            </p>
+
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Scope</label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              {(['single', 'bucket'] as const).map(s => (
+                <button key={s} onClick={() => setEditMasterScope(s)}
+                  style={{ flex: 1, padding: '0.35rem', borderRadius: 6, border: `1px solid ${editMasterScope === s ? R : '#d1d5db'}`, background: editMasterScope === s ? '#fff5f5' : 'transparent', color: editMasterScope === s ? R : '#374151', fontSize: '0.75rem', cursor: 'pointer', fontWeight: editMasterScope === s ? 600 : 400 }}>
+                  {s === 'single' ? 'Single row' : `5-yr bucket (${Math.floor(editMasterRow.year/5)*5}–${Math.floor(editMasterRow.year/5)*5+4})`}
+                </button>
+              ))}
+            </div>
+
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Battery Code</label>
+            <input type="text"
+              defaultValue={editMasterRow.battery_code ?? ''}
+              onChange={e => setEditMasterPatch(p => ({ ...p, battery_code: e.target.value || null }))}
+              placeholder="e.g. NS60"
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '0.82rem', marginBottom: '0.75rem' }} />
+
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Ah (20–250)</label>
+            <input type="number"
+              defaultValue={editMasterRow.ah ?? ''}
+              onChange={e => setEditMasterPatch(p => ({ ...p, ah: e.target.value ? Number(e.target.value) : null }))}
+              min={20} max={250} step={1}
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '0.82rem', marginBottom: '0.75rem' }} />
+
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Technology</label>
+            <select
+              defaultValue={editMasterRow.technology ?? ''}
+              onChange={e => setEditMasterPatch(p => ({ ...p, technology: e.target.value || null }))}
+              style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '0.82rem', marginBottom: '1rem' }}>
+              <option value="">— none —</option>
+              {['MF', 'AGM', 'EFB', 'GEL', 'WET'].map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+
+            {editMasterError && (
+              <p style={{ margin: '0 0 0.75rem', fontSize: '0.72rem', color: '#dc2626', background: '#fee2e2', borderRadius: 6, padding: '0.4rem 0.6rem' }}>{editMasterError}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditMasterRow(null)} disabled={editMasterSaving}
+                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: '1px solid var(--adm-input-border)', background: 'var(--adm-input-bg)', color: 'var(--adm-text-1)', cursor: 'pointer', fontSize: '0.8rem' }}>
+                Cancel
+              </button>
+              <button
+                disabled={editMasterSaving}
+                onClick={async () => {
+                  setEditMasterSaving(true); setEditMasterError(null)
+                  try {
+                    await patchMasterRecord(editMasterRow!.id, { ...editMasterPatch, scope: editMasterScope })
+                    setEditMasterRow(null)
+                    const md = await getWebValidateMatched(matchedPage, 50, matchedSearch)
+                    setMatchedData(md)
+                  } catch (e) { setEditMasterError(e instanceof Error ? e.message : 'Save failed') }
+                  finally { setEditMasterSaving(false) }
+                }}
+                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: 'none', background: '#3b82f6', color: '#fff', cursor: editMasterSaving ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: editMasterSaving ? 0.7 : 1 }}>
+                {editMasterSaving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
@@ -2669,6 +2802,12 @@ function CrspTab() {
   const [cacheRefreshKey, setCacheRefreshKey] = useState(0)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // CRSP upload (Stage 1)
+  const [crspFile, setCrspFile]                   = useState<File | null>(null)
+  const [crspUploadLoading, setCrspUploadLoading] = useState(false)
+  const [crspUploadedPath, setCrspUploadedPath]   = useState<string | null>(null)
+  const [crspUploadError, setCrspUploadError]     = useState<string | null>(null)
+
   const stagingAvailable = status?.status === 'done' || status?.status === 'cancelled'
 
   function startPolling() {
@@ -2699,7 +2838,7 @@ function CrspTab() {
     setCommitResult(null)
     setShowStaging(false)
     try {
-      await runCrspPipeline()
+      await runCrspPipeline(crspUploadedPath ?? 'battery_lookup_dataset.csv')
       const s = await getCrspStatus()
       setStatus(s)
       startPolling()
@@ -2766,6 +2905,52 @@ function CrspTab() {
       </div>
 
       <CacheStatusBadge key={cacheRefreshKey} onRefresh={() => setCacheRefreshKey(k => k + 1)} />
+
+      {/* CRSP Excel upload */}
+      <div style={{ ...CARD, padding: '1rem 1.25rem' }}>
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>
+          Upload CRSP Excel (Stage 1)
+        </p>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: 1.5 }}>
+          Upload a raw CRSP <code>.xlsx</code> file to process it through Stage 1 (dataprep). The cleaned CSV will be used for Stage 2 when you click Run below.
+          Skip this if <code>battery_lookup_dataset.csv</code> is already up to date.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <label style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.45rem 0.9rem', borderRadius: 8, border: '1px solid #d1d5db',
+            background: 'var(--adm-input-bg)', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--adm-text-1)',
+          }}>
+            <CloudArrowUpIcon style={{ width: 14, height: 14 }} />
+            {crspFile ? crspFile.name : 'Choose .xlsx file'}
+            <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
+              onChange={e => { setCrspFile(e.target.files?.[0] ?? null); setCrspUploadedPath(null); setCrspUploadError(null) }} />
+          </label>
+          {crspFile && !crspUploadedPath && (
+            <button
+              disabled={crspUploadLoading}
+              onClick={async () => {
+                setCrspUploadLoading(true); setCrspUploadError(null)
+                try {
+                  const r = await crspUpload(crspFile!)
+                  setCrspUploadedPath(r.file_path)
+                } catch (e) { setCrspUploadError(e instanceof Error ? e.message : 'Upload failed') }
+                finally { setCrspUploadLoading(false) }
+              }}
+              style={{ padding: '0.45rem 0.9rem', borderRadius: 8, border: 'none', background: '#3b82f6', color: '#fff', cursor: crspUploadLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, opacity: crspUploadLoading ? 0.7 : 1 }}>
+              {crspUploadLoading ? 'Uploading…' : 'Upload'}
+            </button>
+          )}
+          {crspUploadedPath && (
+            <span style={{ fontSize: '0.7rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '0.3rem 0.6rem' }}>
+              ✓ Uploaded — will be used for Stage 2
+            </span>
+          )}
+          {crspUploadError && (
+            <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>{crspUploadError}</span>
+          )}
+        </div>
+      </div>
 
       {/* Run controls */}
       <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>

@@ -30,6 +30,7 @@ import io
 import json
 import logging
 import os
+import shutil
 import threading
 import time
 import uuid
@@ -1512,7 +1513,7 @@ def get_web_validate_matched(
         """), {"q": like}).scalar() or 0
 
         rows = conn.execute(_text("""
-            SELECT make_n, model_n, year, battery_code, ah, technology, source, validated_at
+            SELECT id, make_n, model_n, year, battery_code, ah, technology, source, validated_at
             FROM web_battery_validation
             WHERE (UPPER(make_n) LIKE :q OR UPPER(model_n) LIKE :q)
             ORDER BY make_n, model_n, year
@@ -1525,6 +1526,118 @@ def get_web_validate_matched(
         "page_size": page_size,
         "items":     [dict(r._mapping) for r in rows],
     }
+
+
+class MasterEditBody(BaseModel):
+    ah:           Optional[float] = None
+    technology:   Optional[str]   = None
+    battery_code: Optional[str]   = None
+    scope:        str             = Field(default="single", pattern="^(single|bucket)$")
+
+
+@router.patch("/pipeline/web-validate/master/{record_id}", summary="Edit a committed master record (single or 5-year bucket)")
+def patch_master_record(
+    record_id: int,
+    body: MasterEditBody,
+    admin: AdminUser = Depends(require_admin),
+):
+    from sqlalchemy import text as _text
+    now = datetime.now(timezone.utc)
+    with engine.begin() as conn:
+        row = conn.execute(_text(
+            "SELECT make_n, model_n, year, battery_code, ah, technology"
+            " FROM web_battery_validation WHERE id=:id"
+        ), {"id": record_id}).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Record not found")
+
+        new_bc   = body.battery_code if body.battery_code is not None else row.battery_code
+        new_ah   = body.ah           if body.ah           is not None else row.ah
+        new_tech = body.technology   if body.technology   is not None else row.technology
+
+        if body.scope == "bucket":
+            bucket_start = (row.year // 5) * 5
+            bucket_end   = bucket_start + 4
+            targets = conn.execute(_text(
+                "SELECT id, year, battery_code, ah, technology FROM web_battery_validation"
+                " WHERE make_n=:mn AND model_n=:mo AND year BETWEEN :ys AND :ye"
+            ), {"mn": row.make_n, "mo": row.model_n, "ys": bucket_start, "ye": bucket_end}).fetchall()
+        else:
+            targets = conn.execute(_text(
+                "SELECT id, year, battery_code, ah, technology FROM web_battery_validation WHERE id=:id"
+            ), {"id": record_id}).fetchall()
+
+        max_ver = conn.execute(_text(
+            "SELECT COALESCE(MAX(version_number),0) FROM web_battery_validation_versions"
+        )).scalar() or 0
+        vid = str(uuid.uuid4())
+        scope_note = (
+            f"Bucket edit ({bucket_start}–{bucket_end}): {row.make_n} {row.model_n}"
+            if body.scope == "bucket"
+            else f"Manual edit: {row.make_n} {row.model_n} {row.year}"
+        )
+        conn.execute(_text(
+            "INSERT INTO web_battery_validation_versions"
+            " (id,version_number,committed_at,run_id,committed_count,removed_count,"
+            "  conflict_count,committed_by,initiated_by,notes)"
+            " VALUES (:vid,:vn,:now,NULL,:cnt,0,0,:by,:by,:notes)"
+        ), {"vid": vid, "vn": max_ver + 1, "now": now, "by": admin.username,
+            "cnt": len(targets), "notes": scope_note})
+
+        new_vals = {"battery_code": new_bc, "ah": new_ah, "technology": new_tech}
+        for t in targets:
+            old_vals = {"battery_code": t.battery_code, "ah": t.ah, "technology": t.technology}
+            conn.execute(_text(
+                "INSERT INTO web_battery_validation_changelog"
+                " (version_id,make_n,model_n,year,change_type,old_values,new_values)"
+                " VALUES (:vid,:mn,:mo,:yr,'updated',:ov,:nv)"
+            ), {"vid": vid, "mn": row.make_n, "mo": row.model_n, "yr": t.year,
+                "ov": json.dumps(old_vals), "nv": json.dumps(new_vals)})
+            conn.execute(_text(
+                "UPDATE web_battery_validation"
+                " SET battery_code=:bc, ah=:ah, technology=:tech, validated_at=:now, version_id=:vid"
+                " WHERE id=:id"
+            ), {"bc": new_bc, "ah": new_ah, "tech": new_tech, "now": now, "vid": vid, "id": t.id})
+
+    return {"ok": True, "version_number": max_ver + 1, "rows_updated": len(targets)}
+
+
+@router.delete("/pipeline/web-validate/master/{record_id}", summary="Delete a committed master record")
+def delete_master_record(
+    record_id: int,
+    admin: AdminUser = Depends(require_admin),
+):
+    from sqlalchemy import text as _text
+    now = datetime.now(timezone.utc)
+    with engine.begin() as conn:
+        row = conn.execute(_text(
+            "SELECT make_n, model_n, year, battery_code, ah, technology"
+            " FROM web_battery_validation WHERE id=:id"
+        ), {"id": record_id}).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Record not found")
+
+        old_vals = {"battery_code": row.battery_code, "ah": row.ah, "technology": row.technology}
+        max_ver = conn.execute(_text(
+            "SELECT COALESCE(MAX(version_number),0) FROM web_battery_validation_versions"
+        )).scalar() or 0
+        vid = str(uuid.uuid4())
+        conn.execute(_text(
+            "INSERT INTO web_battery_validation_versions"
+            " (id,version_number,committed_at,run_id,committed_count,removed_count,"
+            "  conflict_count,committed_by,initiated_by,notes)"
+            " VALUES (:vid,:vn,:now,NULL,0,1,0,:by,:by,:notes)"
+        ), {"vid": vid, "vn": max_ver + 1, "now": now, "by": admin.username,
+            "notes": f"Manual delete: {row.make_n} {row.model_n} {row.year}"})
+        conn.execute(_text(
+            "INSERT INTO web_battery_validation_changelog"
+            " (version_id,make_n,model_n,year,change_type,old_values,new_values)"
+            " VALUES (:vid,:mn,:mo,:yr,'removed',:ov,NULL)"
+        ), {"vid": vid, "mn": row.make_n, "mo": row.model_n, "yr": row.year,
+            "ov": json.dumps(old_vals)})
+        conn.execute(_text("DELETE FROM web_battery_validation WHERE id=:id"), {"id": record_id})
+
+    return {"ok": True, "version_number": max_ver + 1}
 
 
 @router.post("/pipeline/web-validate/reset-cache", summary="Delete the battery validate lookup cache file and all matched vehicle rows")
@@ -1941,6 +2054,97 @@ def discard_staging(admin: AdminUser = Depends(require_admin)):
 
 
 # ---------------------------------------------------------------------------
+# Fix suspicious Ah values in web-battery staging
+# ---------------------------------------------------------------------------
+
+_MAKE_MIN_AH: dict[str, int] = {
+    "AUDI": 60, "BMW": 60, "MERCEDES": 70, "MERCEDES-BENZ": 70,
+    "VOLKSWAGEN": 60, "PORSCHE": 70, "VOLVO": 60,
+    "LAND ROVER": 70, "LANDROVER": 70, "JAGUAR": 60, "LEXUS": 60,
+}
+_KNOWN_BAD_AH = frozenset({28, 30, 37})
+_GLOBAL_MIN_AH = 28
+
+
+def _is_suspicious_ah(make_n: str, ah) -> bool:
+    if ah is None:
+        return False
+    ah_int = int(ah)
+    if ah_int < _GLOBAL_MIN_AH:
+        return True
+    if ah_int in _KNOWN_BAD_AH:
+        return True
+    floor = _MAKE_MIN_AH.get(make_n.upper())
+    return bool(floor and ah_int < floor)
+
+
+@router.post("/pipeline/web-validate/staging/fix-ah", summary="Auto-fix suspicious Ah values in staging via web lookup")
+def fix_staging_ah(admin: AdminUser = Depends(require_admin)):
+    from sqlalchemy import text as _text
+    from pipelines.web_battery_validate import (
+        _duckduckgo_lookup, _check_quota, _increment_quota, REQUEST_DELAY,
+    )
+
+    with engine.connect() as conn:
+        rows = conn.execute(_text(
+            "SELECT id, make_n, model_n, year, ah FROM web_battery_staging"
+        )).fetchall()
+
+    if not rows:
+        return {"fixed": 0, "unchanged": 0, "failed": 0}
+
+    fixed = unchanged = failed = 0
+
+    for r in rows:
+        if not _is_suspicious_ah(r.make_n, r.ah):
+            continue
+
+        result = None
+        try:
+            if _check_quota(engine, "duckduckgo"):
+                result = _duckduckgo_lookup(r.make_n, r.model_n, r.year)
+                if result:
+                    _increment_quota(engine, "duckduckgo")
+        except Exception as exc:
+            logger.warning("DDG lookup failed for %s %s %s: %s", r.make_n, r.model_n, r.year, exc)
+
+        if not result:
+            try:
+                from pipelines.web_battery_validate import _searxng_lookup
+                if os.getenv("SEARXNG_URL") and _check_quota(engine, "searxng"):
+                    result = _searxng_lookup(r.make_n, r.model_n, r.year)
+                    if result:
+                        _increment_quota(engine, "searxng")
+            except Exception as exc:
+                logger.warning("SearXNG lookup failed: %s", exc)
+
+        if not result or result.get("ah") is None:
+            failed += 1
+            continue
+
+        new_ah   = result["ah"]
+        new_tech = result.get("technology") or "MF"
+
+        if int(new_ah) == int(r.ah or 0):
+            unchanged += 1
+            continue
+
+        is_valid = (20 <= new_ah <= 250)
+        invalid_reason = None if is_valid else f"Ah out of range: {new_ah}"
+        with engine.begin() as conn:
+            conn.execute(_text(
+                "UPDATE web_battery_staging SET ah=:ah, technology=:tech,"
+                " is_valid=:iv, invalid_reason=:ir WHERE id=:id"
+            ), {"ah": new_ah, "tech": new_tech, "iv": is_valid, "ir": invalid_reason, "id": r.id})
+        fixed += 1
+        time.sleep(REQUEST_DELAY)
+
+    logger.info("fix-ah completed by %s: fixed=%d unchanged=%d failed=%d",
+                admin.username, fixed, unchanged, failed)
+    return {"fixed": fixed, "unchanged": unchanged, "failed": failed}
+
+
+# ---------------------------------------------------------------------------
 # Versioning endpoints
 # ---------------------------------------------------------------------------
 
@@ -2319,6 +2523,25 @@ def _crsp_thread(run_id: str, cancel_ev: threading.Event, pause_ev: threading.Ev
 # ---------------------------------------------------------------------------
 # Run / control endpoints
 # ---------------------------------------------------------------------------
+
+_CRSP_UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+
+
+@router.post("/pipeline/crsp/upload", summary="Upload a raw CRSP Excel file for processing")
+async def crsp_upload(
+    file: UploadFile = File(...),
+    admin: AdminUser = Depends(require_admin),
+):
+    _CRSP_UPLOAD_DIR.mkdir(exist_ok=True)
+    suffix = Path(file.filename or "crsp.xlsx").suffix.lower()
+    if suffix not in {".xlsx", ".xls"}:
+        raise HTTPException(status_code=400, detail="Only .xlsx / .xls files are accepted")
+    dest = _CRSP_UPLOAD_DIR / f"crsp_{uuid.uuid4().hex[:8]}{suffix}"
+    with dest.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
+    logger.info("CRSP file uploaded by %s → %s", admin.username, dest)
+    return {"file_path": str(dest)}
+
 
 class CrspRunBody(BaseModel):
     input_csv: str = Field(default="battery_lookup_dataset.csv")

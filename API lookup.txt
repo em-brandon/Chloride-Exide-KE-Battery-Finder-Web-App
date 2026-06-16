@@ -1,0 +1,155 @@
+Ready for review
+Select text to add comments on the plan
+Plan: Web Battery Validation Layer
+Context
+The dial_battery_inference table records what was historically sold, which creates a recency problem: a battery sold in 2018 for a TOYOTA COROLLA may not be the correct recommendation for the same model in 2026. The table has no year dimension, so stale sales data propagates to current queries without correction.
+
+The fix: add a separate web validation layer above inference. An offline pipeline queries external sources (carapi.app + Brave Search) to find the internet-accepted battery for each make/model, and the matcher checks this first. Inference is only used when no web validation exists — and even then, web data wins on conflict.
+
+This means the matcher priority becomes:
+
+Layer 0a: web_battery_validation (internet-accepted)   → confidence 90
+Layer 0b: dial_battery_inference  (historical sales)   → confidence 95 / 80
+Layer 1–3: fuzzy match + rule-based                    → confidence 40–100
+Pre-implementation Step (user requested first)
+Commit all current uncommitted frontend changes before touching any pipeline or matcher code.
+
+Files to include:
+
+frontend/src/App.tsx
+frontend/src/index.css
+frontend/src/components/BuildVersionModal.tsx
+frontend/src/components/CopyrightModal.tsx
+frontend/src/components/FaqModal.tsx
+frontend/src/components/PrivacyModal.tsx
+frontend/src/components/TermsGate.tsx
+Files to Create / Modify
+File	Action
+alembic/versions/<ts>_add_web_battery_validation.py	New migration — new table
+pipelines/web_battery_validate.py	New pipeline script
+matcher.py	Add _web_validation() loader + Layer 0a in recommend()
+.env	Add BRAVE_API_KEY=
+Step 1 — New DB Table: web_battery_validation
+Alembic migration creates:
+
+CREATE TABLE web_battery_validation (
+    id          SERIAL PRIMARY KEY,
+    make_n      TEXT NOT NULL,
+    model_n     TEXT NOT NULL,
+    battery_code TEXT NOT NULL,
+    ah          INTEGER,
+    technology  TEXT,
+    source      TEXT NOT NULL,   -- 'carapi', 'brave_search'
+    validated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (make_n, model_n)
+);
+Separate from dial_battery_inference — no risk of corrupting real sales history.
+UNIQUE(make_n, model_n) — one current answer per vehicle line; re-running the pipeline updates it.
+Step 2 — Pipeline: pipelines/web_battery_validate.py
+Pattern (follows enrich_years.py)
+Module-level constants: API endpoints, cache path (cache/battery_validate_cache.json), REQUEST_DELAY = 1.0.
+File-based JSON cache to skip already-fetched combos.
+if __name__ == "__main__": main() entry.
+DB write via engine.begin() + upsert (INSERT ... ON CONFLICT DO UPDATE).
+Algorithm
+1. Load all unique (make_n, model_n) from vehicle_years
+2. Load cache
+
+For each (make_n, model_n):
+  a. Check cache → skip if already validated
+  b. SOURCE 1: carapi.app
+     GET https://carapi.app/api/trims?make={make}&model={model}&verbose=yes
+     If response includes battery_voltage / battery_capacity fields → parse Ah + tech
+  c. SOURCE 2 (fallback): Brave Search API
+     GET https://api.search.brave.com/res/v1/web/search
+     query = f"{make} {model} battery AH specifications"
+     Parse top 3 result snippets:
+       Ah   → regex \b(\d{2,3})\s*[Aa][Hh]\b
+       CCA  → regex \b(\d{3,4})\s*[Cc][Cc][Aa]\b
+       tech → keyword scan: AGM / EFB / MF / Flooded
+       std  → keyword scan: NS / DIN / JIS
+  d. If Ah found:
+     → region = _make_region(make_n)
+     → primary, _ = _select_batteries(ah, tech, region)
+     → battery_code = primary["battery_code"]
+     → UPSERT into web_battery_validation
+  e. Cache result
+  f. Sleep REQUEST_DELAY
+
+3. Print: N upserted, M cached, K no-result
+Reused from matcher.py
+_make_region(make) — NS vs DIN
+_select_batteries(target_ah, tech, region) — resolves Ah+tech to a real battery_code
+_norm_model_key(s) — normalise model before writing
+_batteries() — battery_specs cache
+Import: from matcher import _make_region, _select_batteries, _norm_model_key
+
+Rate-limit handling
+Brave 429 → wait 30s, retry once; second failure → log and skip.
+carapi 429 → wait 15s (same as enrich_years.py).
+Timeout: 15s per request.
+Environment variable
+BRAVE_API_KEY=<user provides>
+Step 3 — matcher.py: add Layer 0a
+New loader (alongside existing _inference())
+@lru_cache(maxsize=1)
+def _web_validation() -> pd.DataFrame:
+    from db import engine
+    try:
+        df = pd.read_sql(
+            "SELECT make_n, model_n, battery_code, ah, technology FROM web_battery_validation",
+            engine,
+        )
+    except Exception:
+        return pd.DataFrame(columns=["make_n", "model_n", "battery_code", "ah", "technology"])
+    df["make_n"]  = df["make_n"].str.upper().str.strip()
+    df["model_n"] = df["model_n"].apply(_norm_model_key)
+    return df
+New lookup function
+def _web_validation_lookup(make_n: str, model_n: str) -> tuple[str, str, int] | None:
+    """
+    Return (battery_code, matched_model_n, confidence=90) from web_battery_validation,
+    or None if no entry exists.
+    Fuzzy model match (token_set_ratio ≥ 85) → confidence 75.
+    """
+    wv = _web_validation()
+    if wv.empty:
+        return None
+    make_rows = wv[wv["make_n"] == make_n]
+    if make_rows.empty:
+        return None
+    model_choices = make_rows["model_n"].unique().tolist()
+    if model_n in model_choices:
+        row = make_rows[make_rows["model_n"] == model_n].iloc[0]
+        return str(row["battery_code"]), model_n, 90
+    result = process.extractOne(model_n, model_choices, scorer=fuzz.token_set_ratio)
+    if not result or result[1] < 85:
+        return None
+    row = make_rows[make_rows["model_n"] == result[0]].iloc[0]
+    return str(row["battery_code"]), result[0], 75
+Changes to recommend() (line ~700)
+Insert before the existing Layer 0 inference block:
+
+# ── Layer 0a: Web validation — internet-accepted battery ──────────────
+web_hit = _web_validation_lookup(make_n, model_n)
+if web_hit is not None:
+    web_code, web_matched_model_n, web_confidence = web_hit
+    # ... same resolution logic as Layer 0b (engine specs from vehicle_years,
+    #     resolve battery via _lookup_battery_by_code, call _select_batteries)
+    return { ..., "match_type": "Web-Validated Match", "confidence": web_confidence, ... }
+The existing Layer 0 inference block (inf_hit = _inference_lookup(...)) remains unchanged below it.
+
+Cache invalidation
+Both _web_validation() and _inference() use @lru_cache(maxsize=1).
+After the pipeline writes new rows, restart the server (or call _web_validation.cache_clear() via an admin endpoint) to pick up changes.
+
+Verification
+Run migration: alembic upgrade head — check web_battery_validation table exists.
+Set BRAVE_API_KEY in .env.
+Run python pipelines/web_battery_validate.py (small test: first 5 rows).
+Inspect: SELECT * FROM web_battery_validation LIMIT 5;
+Restart dev server (uvicorn app:app --reload).
+Call recommend("TOYOTA", "COROLLA", 2022) — confirm match_type is "Web-Validated Match".
+Check a model with known inference data — if web agrees, web-validated result appears; if web has no entry, inference result is used (behaviour unchanged).
+Re-run pipeline — all entries [CACHED], no API calls made.
+Add Comment

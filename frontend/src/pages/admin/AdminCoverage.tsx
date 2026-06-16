@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import AdminLayout from '@/components/admin/AdminLayout'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 import {
   getWebValidateCoverage,
   getWebValidateMatched,
@@ -122,6 +123,12 @@ export default function AdminCoverage() {
 
   return (
     <AdminLayout>
+      {loading && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={chlorideExideLogo} alt="Chloride Exide" className="loader-battery-svg" style={{ width: 110, height: 'auto' }} />
+        </div>
+      )}
+      {!loading && (
       <div style={{ padding: '1.5rem', maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
         {/* Staleness banner */}
@@ -375,6 +382,7 @@ export default function AdminCoverage() {
           </div>
         )}
       </div>
+      )}
     </AdminLayout>
   )
 }
