@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 
 const LOADER_MIN_MS = 2500
 const startMs = performance.now()
@@ -25,17 +26,12 @@ export function PageLoader({ visible }: PageLoaderProps) {
 
   return (
     <div id="page-loader" className={hiding ? 'hide' : ''} aria-live="polite" aria-busy={!hiding}>
-      {/* Battery SVG — same as static/index.html */}
-      <svg
+      <img
+        src={chlorideExideLogo}
+        alt="Chloride Exide"
         className="loader-battery-svg"
-        width="64" height="64"
-        viewBox="0 0 24 24"
-        fill="#CC0000"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
-      </svg>
+        style={{ width: 120, height: 'auto' }}
+      />
       <div className="loader-bar-track">
         <div className="loader-bar-fill" />
       </div>

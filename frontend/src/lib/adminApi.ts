@@ -483,6 +483,7 @@ export async function resetWebValidateCache(): Promise<{ deleted: boolean; rows_
 }
 
 export interface MatchedVehicleRow {
+  id:           number
   make_n:       string
   model_n:      string
   year:         number
@@ -508,6 +509,33 @@ export async function getWebValidateMatched(
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (search) params.set('search', search)
   return adminFetch(`/api/admin/pipeline/web-validate/matched?${params}`)
+}
+
+// ---------------------------------------------------------------------------
+// Master record edit / delete
+// ---------------------------------------------------------------------------
+
+export interface MasterRecordPatch {
+  ah?:           number | null
+  technology?:   string | null
+  battery_code?: string | null
+  scope?:        'single' | 'bucket'
+}
+
+export async function patchMasterRecord(
+  id: number,
+  patch: MasterRecordPatch,
+): Promise<{ ok: boolean; version_number: number; rows_updated: number }> {
+  return adminFetch(`/api/admin/pipeline/web-validate/master/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+}
+
+export async function deleteMasterRecord(
+  id: number,
+): Promise<{ ok: boolean; version_number: number }> {
+  return adminFetch(`/api/admin/pipeline/web-validate/master/${id}`, { method: 'DELETE' })
 }
 
 // ---------------------------------------------------------------------------
@@ -595,6 +623,10 @@ export async function commitStagingArea(
 
 export async function discardStagingArea(): Promise<{ discarded: number }> {
   return adminFetch('/api/admin/pipeline/web-validate/staging/discard', { method: 'POST' })
+}
+
+export async function fixStagingAh(): Promise<{ fixed: number; unchanged: number; failed: number }> {
+  return adminFetch('/api/admin/pipeline/web-validate/staging/fix-ah', { method: 'POST' })
 }
 
 export async function patchStagingRow(
@@ -728,6 +760,21 @@ export interface CrspStatus {
   finished_at:      string | null
   error_detail:     string | null
   initiated_by:     string | null
+}
+
+export async function crspUpload(file: File): Promise<{ file_path: string }> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch('/api/admin/pipeline/crsp/upload', {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  })
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(d?.detail || res.statusText)
+  }
+  return res.json() as Promise<{ file_path: string }>
 }
 
 export async function runCrspPipeline(input_csv = 'battery_lookup_dataset.csv'): Promise<{ run_id: string }> {

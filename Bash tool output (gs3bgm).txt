@@ -1,0 +1,283 @@
+=== All MAZDA inference entries ===
+     vehicle_type          vehicle_model                                battery_code  frequency
+12          MAZDA                  DEMIO                         045MF NSL POWERLAST        599
+26          MAZDA                  DEMIO                           NS70MFL POWERLAST        408
+53          MAZDA                  AXELA                           NS70MFL POWERLAST        198
+99          MAZDA                 VERISA                           NS70MFL POWERLAST        100
+116         MAZDA                PREMACY                           NS70MFL POWERLAST         80
+147         MAZDA                    CX5                           090 MFL POWERLAST         57
+171         MAZDA                  BONGO                           NS70MFL POWERLAST         50
+198         MAZDA                  DEMIO                    Q85MF EFB EXIDE -70 AMPS         41
+200         MAZDA                  DEMIO                  N50MFL CHLORIDE EXIDE MAXX         41
+232         MAZDA                  CAROL                         035MF NSL POWERLAST         35
+243         MAZDA                  DEMIO                          DIN55 MF POWERLAST         33
+253         MAZDA                    CX5                            090MFL EXIDE EFB         31
+268         MAZDA                 ATENZA                           NS70MFL POWERLAST         29
+290         MAZDA                    CX5                           095MFL SEBANG EFB         25
+320         MAZDA                   CX-5                           090 MFL POWERLAST         23
+322         MAZDA                  DEMIO                  Q85MF L EFB EXIDE -70 AMPS         22
+362         MAZDA                  DEMIO              N50 L MF POWERLAST (SHORT BOX)         19
+410         MAZDA                    CX5                                090MFL ATLAS         16
+414         MAZDA                    CX7                           NS70MFL POWERLAST         16
+416         MAZDA                  DEMIO                         070 L MF ULTRAPOWER         16
+421         MAZDA                FAMILIA                         045MF NSL POWERLAST         15
+423         MAZDA                    CX5                    Q85MF EFB EXIDE -70 AMPS         15
+432         MAZDA                    CX5                           NS70MFL POWERLAST         15
+439         MAZDA                PREMACY                         045MF NSL POWERLAST         14
+471         MAZDA                  DEMIO  NS70 L MF POWERLAST EFB TECHNOLOGY BATTERY         13
+479         MAZDA                TRIBUTE                           NS70MFL POWERLAST         13
+495         MAZDA                  BONGO                         045MF NSL POWERLAST         12
+504         MAZDA                  BONGO                          DIN55 MF POWERLAST         12
+507         MAZDA                  AXELA                         045MF NSL POWERLAST         12
+557         MAZDA                    CX5  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY         10
+558         MAZDA                  DEMIO  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY         10
+572         MAZDA           DEMIO 1300CC                         045MF NSL POWERLAST         10
+608         MAZDA                   CX-5                           095MFL SEBANG EFB          9
+609         MAZDA                    CX5                      065MF (Q85) SEBANG EFB          9
+615         MAZDA                  DEMIO                    065MF L (Q85) SEBANG EFB          9
+617         MAZDA                  FLAIR                         035MF NSL POWERLAST          9
+618         MAZDA                    MPV                           NS70MFL POWERLAST          9
+620         MAZDA                 VERISA                         045MF NSL POWERLAST          9
+676         MAZDA                  BONGO              N50 L MF POWERLAST (SHORT BOX)          8
+685         MAZDA                   CX-5                            090MFL EXIDE EFB          8
+686         MAZDA                   CX-5                                090MFL ATLAS          8
+687         MAZDA                    CX5                           070MFL SEBANG EFB          8
+688         MAZDA                    CX5           070MF L EFB EXIDE COMPACT 80 AMPS          8
+692         MAZDA                    CX5                  Q85MF L EFB EXIDE -70 AMPS          8
+694         MAZDA                  DEMIO                      065MF (Q85) SEBANG EFB          8
+775         MAZDA                  BONGO                  N50MFL CHLORIDE EXIDE MAXX          7
+792         MAZDA                    CX5                           068MF L EFB ATLAS          7
+798         MAZDA                  AXELA                  Q85MF L EFB EXIDE -70 AMPS          7
+799         MAZDA                  DEMIO                             Q85MF EXIDE EFB          7
+812         MAZDA                    CX5  NS70 L MF POWERLAST EFB TECHNOLOGY BATTERY          7
+899         MAZDA                PREMACY                         035MF NSL POWERLAST          6
+918         MAZDA            CAROL 650CC                         035MF NSL POWERLAST          6
+923         MAZDA                AUXELLA                           NS70MFL POWERLAST          6
+924         MAZDA                  AXELA                  N50MFL CHLORIDE EXIDE MAXX          6
+925         MAZDA                 ATENZA                            N70MFL POWERLAST          6
+953         MAZDA                  DEMIO                           070MFL SEBANG EFB          5
+957         MAZDA                    CX5                            N70MFL POWERLAST          5
+964         MAZDA                  DEMIO           070MF L EFB EXIDE COMPACT 80 AMPS          5
+968         MAZDA                  AXELA                    Q85MF EFB EXIDE -70 AMPS          5
+979         MAZDA                 VERISA                  N50MFL CHLORIDE EXIDE MAXX          5
+992         MAZDA                  DEMIO                         050 L MF ULTRAPOWER          5
+994         MAZDA                    CX5                          095MFL SUPREME EFB          5
+1009        MAZDA           DEMIO 1300CC                           NS70MFL POWERLAST          5
+1014        MAZDA                  DEMIO                         035MF NSL POWERLAST          5
+1020        MAZDA                  AXELA                           070MFL SEBANG EFB          5
+1028        MAZDA                  DEMIO   045 L MF POWERLAST EFB TECHNOLOGY BATTERY          5
+1031        MAZDA                  DEMIO                           065MF L EFB ATLAS          5
+1129        MAZDA                  BONGO                           NS70MFR POWERLAST          4
+1141        MAZDA                    CX5                              090L MFSUPREME          4
+1163        MAZDA                  AXELA                            N70MFL POWERLAST          4
+1181        MAZDA                    CX8                           070MFL SEBANG EFB          4
+1193        MAZDA                 BIANTE                           NS70MFL POWERLAST          4
+1267        MAZDA                 ATENZA                      065MF (Q85) SEBANG EFB          4
+1300        MAZDA                  CAROL                         040 MF L ULTRAPOWER          4
+1305        MAZDA                  DEMIO                           068MF L EFB ATLAS          4
+1306        MAZDA                  AXELA  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          4
+1309        MAZDA                  AXELA                         070 L MF ULTRAPOWER          4
+1337        MAZDA                 ATENZA                           090 MFL POWERLAST          4
+1354        MAZDA                   CX-5                    Q85MF EFB EXIDE -70 AMPS          4
+1387        MAZDA                    CX7                            N70MFL POWERLAST          3
+1403        MAZDA                 BIANTE                         045MF NSL POWERLAST          3
+1408        MAZDA                 BIANTE                         035MF NSL POWERLAST          3
+1429        MAZDA                  CAROL                         035MF NBR POWERLAST          3
+1510        MAZDA                  DEMIO                  Q85MF R EFB EXIDE -70 AMPS          3
+1518        MAZDA                  DEMIO                           NS70MFR POWERLAST          3
+1528        MAZDA                  BONGO                            N70MFR POWERLAST          3
+1573        MAZDA                   CX 3                           070MFL SEBANG EFB          3
+1578        MAZDA                   CX 3                    065MF L (Q85) SEBANG EFB          3
+1633        MAZDA                   CX-5                           NS70MFL POWERLAST          3
+1638        MAZDA                  DEMIO                     065MF (Q85) SUPREME EFB          3
+1645        MAZDA                  DEMIO                             045MF NSL SPARK          3
+1647        MAZDA                   CX-5                              090L MFSUPREME          3
+1649        MAZDA                   CX-5  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          3
+1658        MAZDA                  LORRY                            N70MFR POWERLAST          3
+1659        MAZDA                    CX5                         070 L MF ULTRAPOWER          3
+1662        MAZDA                    CX5                           065MF L EFB ATLAS          3
+1665        MAZDA                 ATENZA                           070MFL SEBANG EFB          3
+1681        MAZDA                  DEMIO                     NS70 SBL CHLORIDE EXIDE          3
+1685        MAZDA                   CX-5                  Q85MF L EFB EXIDE -70 AMPS          3
+1693        MAZDA                   323I                           NS70MFL POWERLAST          3
+1700        MAZDA                  DEMIO                            N70MFR POWERLAST          3
+1710        MAZDA                  FLAIR                         035MF NBR POWERLAST          3
+1747        MAZDA                  AXELA           070MF L EFB EXIDE COMPACT 80 AMPS          3
+1748        MAZDA                    CX5                       DIN 60 MF SUPREME AGM          3
+1755        MAZDA                  AXELA                    065MF L (Q85) SEBANG EFB          3
+1757        MAZDA                  AXELA                      065MF (Q85) SEBANG EFB          3
+1762        MAZDA                  AXELA                             Q85MF EXIDE EFB          3
+1764        MAZDA                  AXELA  NS70 L MF POWERLAST EFB TECHNOLOGY BATTERY          3
+1783        MAZDA                  TRUCK                            N70MFL POWERLAST          2
+1785        MAZDA                  TITAN                           NS70MFL POWERLAST          2
+1786        MAZDA              SUPREMACY                           NS70MFL POWERLAST          2
+1818        MAZDA                     X5                           090 MFL POWERLAST          2
+1820        MAZDA                   VITZ                         045MF NSL POWERLAST          2
+1826        MAZDA                 VERISA              N50 L MF POWERLAST (SHORT BOX)          2
+2383        MAZDA                 ATENZA                         080 L MF ULTRAPOWER          2
+2384        MAZDA                 ATENZA           070MF L EFB EXIDE COMPACT 80 AMPS          2
+2386        MAZDA                 ATENZA  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          2
+2388        MAZDA                 ATENZA                         070 L MF ULTRAPOWER          2
+2401        MAZDA                AUXELLA                         045MF NSL POWERLAST          2
+2421        MAZDA                 ATENZA                    Q85MF EFB EXIDE -70 AMPS          2
+2434        MAZDA                 ATENZA                            090MFL EXIDE EFB          2
+2436        MAZDA                  AXELA                           090 MFL POWERLAST          2
+2446        MAZDA                  AXELA                           068MF L EFB ATLAS          2
+2447        MAZDA                  AXELA                           065MF L EFB ATLAS          2
+2449        MAZDA                  AXELA                         035MF NSL POWERLAST          2
+2451        MAZDA                  AXELA                           NS70MFR POWERLAST          2
+2467        MAZDA                  CAROL           035MF L EFB EXIDE COMPACT -40AMPS          2
+2472        MAZDA                 CANTER                           NS70MFL POWERLAST          2
+2493        MAZDA                   CX-5                           065MF L EFB ATLAS          2
+2495        MAZDA                   CX 3                  Q85MF L EFB EXIDE -70 AMPS          2
+2496        MAZDA                   CX 3  NS70 L MF POWERLAST EFB TECHNOLOGY BATTERY          2
+2497        MAZDA                   CX 3             070MF EFB EXIDE COMPACT 80 AMPS          2
+2507        MAZDA                   CX-5                          095MFL SUPREME EFB          2
+2510        MAZDA                    CX5             070MF EFB EXIDE COMPACT 80 AMPS          2
+2514        MAZDA                    CX5                    065MF L (Q85) SEBANG EFB          2
+2515        MAZDA                    CX5                     065MF (Q85) SUPREME EFB          2
+2539        MAZDA                    CX5                         090MFL EXIDE MATRIX          2
+2541        MAZDA                    CX5  080 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          2
+2545        MAZDA                    CX5                  Q85MF R EFB EXIDE -70 AMPS          2
+2548        MAZDA                    CX5                             Q85MF EXIDE EFB          2
+2549        MAZDA                  DEMIO             070MF EFB EXIDE COMPACT 80 AMPS          2
+2580        MAZDA                  DEMIO                            N70MFL POWERLAST          2
+2585        MAZDA                  DEMIO                        DIN 70MF SUPREME AGM          2
+2591        MAZDA             DEMIO 2011                         045MF NSL POWERLAST          2
+2607        MAZDA                  MAZDA                    Q85MF EFB EXIDE -70 AMPS          2
+2615        MAZDA                  MAZDA                           095MFL SEBANG EFB          2
+4741        MAZDA                 ATENZA             070MF EFB EXIDE COMPACT 80 AMPS          1
+4748        MAZDA                 ATENZA                           065MF SUPREME EFB          1
+4753        MAZDA                   ALEX                           NS70MFL POWERLAST          1
+4755        MAZDA                AIRWAVE                         045MF NSL POWERLAST          1
+4756        MAZDA                  ADVAN                         045MF NSL POWERLAST          1
+4757        MAZDA  6 SERIES ALL VARIANTS                          DIN55 MF POWERLAST          1
+4761        MAZDA                   323I                         045MF NSL POWERLAST          1
+4762        MAZDA              14 SEATER                           NS70MFR POWERLAST          1
+4767        MAZDA                 AVANCE                           NS70MFL POWERLAST          1
+4769        MAZDA                AUXELLA                         070 L MF ULTRAPOWER          1
+4777        MAZDA                AUXELLA                    065MF L (Q85) SEBANG EFB          1
+4785        MAZDA                AUXELLA                         035MF NSL POWERLAST          1
+4787        MAZDA                 ATENZA                  Q85MF L EFB EXIDE -70 AMPS          1
+4822        MAZDA                 ATENZA                             Q85MF EXIDE EFB          1
+4827        MAZDA                 ATENZA                           NS70MFR POWERLAST          1
+4829        MAZDA                 ATENZA  NS70 L MF POWERLAST EFB TECHNOLOGY BATTERY          1
+4830        MAZDA                 ATENZA                           095MFL SEBANG EFB          1
+4831        MAZDA                  AXELA                           095MFL SEBANG EFB          1
+4835        MAZDA                  AXELA                            090MFL EXIDE EFB          1
+4836        MAZDA                  AXELA  070 R MF ULTRAPOWER EFB TECHNOLOGY BATTERY          1
+4837        MAZDA                  AXELA                           065MF SUPREME EFB          1
+4838        MAZDA                  AXELA   045 L MF POWERLAST EFB TECHNOLOGY BATTERY          1
+4839        MAZDA                  AXELA                  Q85MF R EFB EXIDE -70 AMPS          1
+4841        MAZDA                  AXELA                             NS70MFL SUPREME          1
+4843        MAZDA                  AXELA                               NS70MFL SPARK          1
+4845        MAZDA                  AXELA                               NS70MFL ATLAS          1
+4850        MAZDA                  AXELA                     NS70 SBR CHLORIDE EXIDE          1
+4852        MAZDA                  AXELA                      N70 SBL CHLORIDE EXIDE          1
+4855        MAZDA                  AXELA   N70 L MF POWERLAST EFB TECHNOLOGY BATTERY          1
+4863        MAZDA                  AXELA              N50 L MF POWERLAST (SHORT BOX)          1
+4865        MAZDA                  BONGO                          DIN66 MF POWERLAST          1
+4866        MAZDA                  BONGO                         035MF NSL POWERLAST          1
+4867        MAZDA                  BIETA                           NS70MFL POWERLAST          1
+4870        MAZDA                  BIETA                         045MF NSL POWERLAST          1
+4882        MAZDA                 BIENTA                         045MF NSL POWERLAST          1
+4885        MAZDA                 BIANTE  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          1
+4890        MAZDA                 BIANTE                         040 MF L ULTRAPOWER          1
+4897        MAZDA                 BIANTE           035MF L EFB EXIDE COMPACT -40AMPS          1
+4900        MAZDA                BALLADE                        DIN 70MF SUPREME AGM          1
+4902        MAZDA                  CAROL             035MF EFB EXIDE COMPACT -40AMPS          1
+4903        MAZDA                 CANTER                            N70MFR POWERLAST          1
+4907        MAZDA                 CANTER                            N70MFL POWERLAST          1
+4922        MAZDA   BT50 DC 2.2D 4X4 MID                            N70MFL POWERLAST          1
+4924        MAZDA  BT50 DC 2.2D 4X4 HIGH                          DIN80 MF POWERLAST          1
+4925        MAZDA  BT50 DC 2.2D 4X4 HIGH                          DIN66 MF POWERLAST          1
+4927        MAZDA                  BONGO                               NS70MFR ATLAS          1
+4932        MAZDA                  BONGO                               NS70MFL SPARK          1
+4933        MAZDA                  BONGO                            N70MFL POWERLAST          1
+4935        MAZDA                   CX-5                         070 L MF ULTRAPOWER          1
+4940        MAZDA                   CX-5                      065MF (Q85) SEBANG EFB          1
+4951        MAZDA                   CX 3                           NS70MFL POWERLAST          1
+4956        MAZDA                   CX 3                      065MF (Q85) SEBANG EFB          1
+4962        MAZDA                   CX 3           045MF L SEBANG EFB COMPACT-55AMPS          1
+4968        MAZDA                COROLLA                         035MF NSL POWERLAST          1
+4970        MAZDA            CAROL 650CC                             035L MF SUPREME          1
+4971        MAZDA                  CAROL                         045MF NSL POWERLAST          1
+4972        MAZDA                   CX-5                            N70MFL POWERLAST          1
+4973        MAZDA                   CX-5                        DIN 80MF SUPREME AGM          1
+4974        MAZDA                   CX-5                         DIN 70MF SEBANG AGM          1
+4979        MAZDA                   CX-5                       DIN 60 MF SUPREME AGM          1
+4987        MAZDA                   CX-5                           070MFL SEBANG EFB          1
+4988        MAZDA                   CX-5           070MF L EFB EXIDE COMPACT 80 AMPS          1
+4990        MAZDA                   CX-5             070MF EFB EXIDE COMPACT 80 AMPS          1
+4994        MAZDA                    CX5                         080 L MF ULTRAPOWER          1
+4996        MAZDA                    CX5                          070MFL SUPREME EFB          1
+4998        MAZDA                    CX5  070 R MF ULTRAPOWER EFB TECHNOLOGY BATTERY          1
+4999        MAZDA                   CX30                           NS70MFL POWERLAST          1
+5000        MAZDA                   CX30                    065MF L (Q85) SEBANG EFB          1
+5001        MAZDA                    CX5                            N70MFR POWERLAST          1
+5004        MAZDA                    CX5   N70 L MF POWERLAST EFB TECHNOLOGY BATTERY          1
+5006        MAZDA                    CX5                          DIN66 MF POWERLAST          1
+5007        MAZDA                    CX5                          DIN55 MF POWERLAST          1
+5010        MAZDA                    CX5                              DIN100MF ATLAS          1
+5013        MAZDA                    CX5                        DIN 80MF SUPREME AGM          1
+5051        MAZDA                    CX8                  Q85MF L EFB EXIDE -70 AMPS          1
+5052        MAZDA                    CX8                           NS70MFL POWERLAST          1
+5055        MAZDA                    CX8                        DIN 70MF SUPREME AGM          1
+5056        MAZDA                    CX7                            N70MFR POWERLAST          1
+5057        MAZDA                    CX5                               NS70MFL ATLAS          1
+5058        MAZDA                  DEMIO                           065MF SUPREME EFB          1
+5076        MAZDA                  DEMIO                             045MF NSL ATLAS          1
+5078        MAZDA                  DEMIO                             045L MF SUPREME          1
+5079        MAZDA                  DEMIO                             NS70MFL SUPREME          1
+5080        MAZDA                  DEMIO                               NS70MFL SPARK          1
+5085        MAZDA                  DEMIO                               NS70MFL ATLAS          1
+5086        MAZDA                  DEMIO                          DIN66 MF POWERLAST          1
+5090        MAZDA                  DEMIO                               DIN55MF ATLAS          1
+5093        MAZDA                  DEMIO                         DIN 70MF SEBANG AGM          1
+5096        MAZDA                  DEMIO                           090 MFL POWERLAST          1
+5099        MAZDA           DOUBLE CABIN                          DIN66 MF POWERLAST          1
+5102        MAZDA                 DIANTE                           NS70MFL POWERLAST          1
+5103        MAZDA           DEMIO 1300CC                             Q85MF EXIDE EFB          1
+5104        MAZDA           DEMIO 1300CC                    Q85MF EFB EXIDE -70 AMPS          1
+5105        MAZDA           DEMIO 1300CC                  N50MFL CHLORIDE EXIDE MAXX          1
+5106        MAZDA           DEMIO 1300CC  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          1
+5107        MAZDA           DEMIO 1300CC                      065MF (Q85) SEBANG EFB          1
+5110        MAZDA           DEMIO 1300CC                         050 L MF ULTRAPOWER          1
+5111        MAZDA                MAZDA 3                           NS70MFL POWERLAST          1
+5112        MAZDA                  MAZDA                           NS70MFL POWERLAST          1
+5118        MAZDA                  MAZDA                           070MFL SEBANG EFB          1
+5119        MAZDA                  LORRY                           NS70MFR POWERLAST          1
+5120        MAZDA                   FUGA                         035MF NSL POWERLAST          1
+5125        MAZDA                  FLAIR           035MF L EFB EXIDE COMPACT -40AMPS          1
+5135        MAZDA                FAMILIA                           NS70MFR POWERLAST          1
+5138        MAZDA                FAMILIA                           NS70MFL POWERLAST          1
+5139        MAZDA                FAMILIA                  N50MFL CHLORIDE EXIDE MAXX          1
+5140        MAZDA                   DUET                           NS70MFL POWERLAST          1
+5144        MAZDA                PREMACY                            N70MFL POWERLAST          1
+5146        MAZDA                PREMACY                  N50MFL CHLORIDE EXIDE MAXX          1
+5150        MAZDA                PREMACY                          DIN55 MF POWERLAST          1
+5153        MAZDA                PREMACY  070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          1
+5154        MAZDA                PREMACY                         070 L MF ULTRAPOWER          1
+5156        MAZDA                PREMACY  050 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          1
+5163        MAZDA                PREMACY  040 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY          1
+5171        MAZDA                 PICKUP                           NS70MFL POWERLAST          1
+5172        MAZDA                 PICKUP                            N70MFL POWERLAST          1
+5173        MAZDA                PICK UP                          DIN80 MF POWERLAST          1
+5175        MAZDA              PAREMISIS                         070 L MF ULTRAPOWER          1
+5181        MAZDA                   NOTE                    Q85MF EFB EXIDE -70 AMPS          1
+5183        MAZDA                MAZDA 6                           NS70MFL POWERLAST          1
+5186        MAZDA                TRIBUTE                            N70MFL POWERLAST          1
+5187        MAZDA                  TITAN                            N70MFL POWERLAST          1
+5188        MAZDA                  T4000                           090 MFL POWERLAST          1
+5190        MAZDA              SUPREMACY                    Q85MF EFB EXIDE -70 AMPS          1
+5191        MAZDA                 STREAM                         045MF NSL POWERLAST          1
+5192        MAZDA                SCARLET                         035MF NSL POWERLAST          1
+5193        MAZDA                 RX 350                           NS70MFL POWERLAST          1
+5194        MAZDA           RUSTLER 1400                         035MF NSL POWERLAST          1
+5195        MAZDA                PREMACY                  Q85MF R EFB EXIDE -70 AMPS          1
+5196        MAZDA                PREMACY                    Q85MF EFB EXIDE -70 AMPS          1
+5200        MAZDA                PREMACY                           NS70MFR POWERLAST          1
+5209        MAZDA                     X5                    Q85MF EFB EXIDE -70 AMPS          1
+5253        MAZDA                     X5                         070 L MF ULTRAPOWER          1
+5254        MAZDA                 VERISA                          DIN55 MF POWERLAST          1
+5255        MAZDA                    V60                           NS70MFL POWERLAST          1

@@ -15,6 +15,7 @@ import AdminCoverage    from '@/pages/admin/AdminCoverage'
 import AdminFeedback      from '@/pages/admin/AdminFeedback'
 import AdminTestSessions from '@/pages/admin/AdminTestSessions'
 import AdminSettings     from '@/pages/admin/AdminSettings'
+import AdminDataPipeline from '@/pages/admin/AdminDataPipeline'
 import TestUserLogin     from '@/pages/TestUserLogin'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
 import { FaqModal } from '@/components/FaqModal'
@@ -296,8 +297,9 @@ function App() {
       <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/batteries" element={<ProtectedRoute><AdminBatteries /></ProtectedRoute>} />
       <Route path="/admin/audit"     element={<ProtectedRoute><AdminAuditLog  /></ProtectedRoute>} />
-      <Route path="/admin/sessions"  element={<ProtectedRoute><AdminSessions  /></ProtectedRoute>} />
-      <Route path="/admin/coverage"  element={<ProtectedRoute><AdminCoverage  /></ProtectedRoute>} />
+      <Route path="/admin/sessions"      element={<ProtectedRoute><AdminSessions     /></ProtectedRoute>} />
+      <Route path="/admin/coverage"      element={<ProtectedRoute><AdminCoverage     /></ProtectedRoute>} />
+      <Route path="/admin/data-pipeline" element={<ProtectedRoute><AdminDataPipeline /></ProtectedRoute>} />
       <Route path="/admin/feedback"      element={<ProtectedRoute><AdminFeedback      /></ProtectedRoute>} />
       <Route path="/admin/test-sessions" element={<ProtectedRoute><AdminTestSessions /></ProtectedRoute>} />
       <Route path="/admin/settings"      element={<ProtectedRoute><AdminSettings     /></ProtectedRoute>} />

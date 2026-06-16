@@ -12,11 +12,11 @@ import {
   UserGroupIcon,
   CogIcon,
   ArrowRightStartOnRectangleIcon,
-  ArrowTopRightOnSquareIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   SunIcon,
   MoonIcon,
+  ServerStackIcon,
 } from '@heroicons/react/20/solid'
 import { adminLogout } from '@/lib/adminApi'
 
@@ -35,12 +35,11 @@ const NAV_ITEMS = [
   { to: '/admin/audit',         label: 'Audit Log',  Icon: ClipboardDocumentListIcon },
   { to: '/admin/sessions',      label: 'Sessions',   Icon: ShieldCheckIcon },
   { to: '/admin/coverage',      label: 'Coverage',   Icon: ChartBarIcon },
+  { to: '/admin/data-pipeline', label: 'Data Pipeline', Icon: ServerStackIcon },
   { to: '/admin/feedback',      label: 'Feedback',   Icon: ChatBubbleLeftRightIcon },
   { to: '/admin/test-sessions', label: 'Test Users', Icon: UserGroupIcon },
   { to: '/admin/settings',      label: 'Settings',   Icon: CogIcon },
 ]
-
-const PIPELINE_APP_URL = (import.meta.env as Record<string, string>)['VITE_PIPELINE_APP_URL'] ?? 'http://localhost:5175'
 
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -238,42 +237,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             )
           })}
 
-          {/* External: Pipeline App */}
-          <a
-            href={PIPELINE_APP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={collapsed ? 'Pipeline App' : undefined}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: collapsed ? 0 : '0.65rem',
-              padding: collapsed ? '0.62rem 0' : '0.62rem 0.85rem',
-              borderRadius: '10px',
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              color: dark ? 'rgba(229,231,235,0.65)' : 'rgba(17,24,39,0.65)',
-              background: 'transparent',
-              textDecoration: 'none',
-              borderLeft: collapsed ? 'none' : '3px solid transparent',
-              transition: 'all 0.15s',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              margin: collapsed ? '0 4px' : undefined,
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLAnchorElement).style.background = dark ? '#21262d' : '#f4f5f7'
-              ;(e.currentTarget as HTMLAnchorElement).style.color = dark ? 'rgba(229,231,235,0.9)' : 'rgba(17,24,39,0.85)'
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
-              ;(e.currentTarget as HTMLAnchorElement).style.color = dark ? 'rgba(229,231,235,0.65)' : 'rgba(17,24,39,0.65)'
-            }}
-          >
-            <ArrowTopRightOnSquareIcon style={{ width: 18, height: 18, flexShrink: 0 }} />
-            {!collapsed && <span>Pipeline App ↗</span>}
-          </a>
         </nav>
 
         {/* Sign out + toggle */}

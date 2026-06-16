@@ -43,6 +43,8 @@ The project is organized into three distinct layers:
 | Migrations | Alembic (`alembic/`) |
 | Auth | bcrypt + HttpOnly session cookies (`admin_auth.py`) |
 | Database | PostgreSQL via `psycopg2-binary` |
+| File uploads | `python-multipart` — multipart form parsing for battery Excel uploads |
+| PDF export | `reportlab` — admin battery catalogue PDF generation |
 
 ### Frontend
 | Layer | Technology |
@@ -54,6 +56,7 @@ The project is organized into three distinct layers:
 | UI primitives | [Radix UI](https://www.radix-ui.com/) |
 | Routing | [React Router v7](https://reactrouter.com/) |
 | Icons | [Lucide React](https://lucide.dev/) + [Heroicons](https://heroicons.com/) |
+| Country flags | [react-country-flag](https://www.npmjs.com/package/react-country-flag) — SVG flag icons in result card |
 
 ### Data Pipeline
 | Tool | Purpose |
@@ -64,6 +67,8 @@ The project is organized into three distinct layers:
 | CarAPI | Year-range data per model |
 | fueleconomy.gov | US DOE/EPA bulk CSV (local cache) |
 | Wikidata / Wikipedia | Supplementary year and fuel-type enrichment |
+| `ddgs` | DuckDuckGo Search — web battery validation pipeline |
+| `tavily-python` | Tavily AI Search — web battery validation pipeline |
 
 ---
 
@@ -397,6 +402,19 @@ The engine also:
 - Resolves international model names to JDM equivalents via `model_aliases`
 - Infers stop-start battery requirement from make + year
 - Applies NS/JIS vs DIN battery standard based on vehicle origin region (see `_NS_MAKES`, `_DIN_MAKES` in `matcher.py`)
+
+### Result Accuracy Bar
+
+The result card renders a **segmented accuracy bar** (`frontend/src/components/AccuracyBar.tsx`) that breaks the match quality into four independently scored factors displayed as proportional-width animated segments:
+
+| Segment | Max | Color | How scored |
+| --- | --- | --- | --- |
+| Car Found | 50 pts | Green | 50 for exact/real-world match; 20–40 for close match; 0 for rule-based fallback |
+| Year | 25 pts | Blue | 25 for exact year; decreasing with delta (0 for >3 years off) |
+| Data Quality | 15 pts | Violet | 15 for real-world source; 12 if model was found in dataset; 4 for fallback |
+| Engine Info | 10 pts | Amber | 10 if model matched; 6 if engine CC was provided; 2 otherwise |
+
+The total (0–100) is shown as a percentage label. Each segment fills with a 0.7 s ease-out animation triggered per result. The bar replaces the old single-colour `ConfidenceBar` — `ConfidenceBar.tsx` is still present but unused.
 
 ---
 

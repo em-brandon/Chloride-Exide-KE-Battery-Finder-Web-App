@@ -1125,6 +1125,7 @@ def revert_version(version_id: str, admin: AdminUser = Depends(require_admin)):
 
 # ---------------------------------------------------------------------------
 # CRSP pipeline state
+
 # ---------------------------------------------------------------------------
 
 _crsp_lock = threading.Lock()
@@ -1239,3 +1240,8 @@ def crsp_cancel(admin: AdminUser = Depends(require_admin)):
     if ev:
         ev.set()
     return {"detail": "Cancel signal sent"}
+
+
+# ---------------------------------------------------------------------------
+# Static file serving (production web deployment)
+# In dev the Vite dev server (port 5175) serves the frontend directly.

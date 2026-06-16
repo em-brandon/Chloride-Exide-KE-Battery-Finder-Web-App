@@ -11868,5 +11868,20 @@
     "ah": 37,
     "technology": "MF",
     "region": null
+  },
+  "AUDI|A 1 SPORTBACK 1 ST EDITION|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 1 SPORTBACK 1.0 TFSI|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|A 1 SPORTBACK 35 TFSI S LINE|1995": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
   }
 }
