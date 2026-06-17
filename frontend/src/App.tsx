@@ -1,30 +1,29 @@
-import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react'
-import chlorideExideLogo     from '@/assets/chloride_exide_transparent.webp'
-import chlorideExideBrandLogo from '@/assets/chlorideexidebrandlogo.webp'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import chlorideExideLogo     from '@/assets/chloride_exide_transparent.png'
+import chlorideExideBrandLogo from '@/assets/chlorideexidebrandlogo.png'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
 import { Moon, Sun, Settings } from 'lucide-react'
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute'
+import AdminLogin        from '@/pages/admin/AdminLogin'
+import AdminDashboard   from '@/pages/admin/AdminDashboard'
+import AdminBatteries   from '@/pages/admin/AdminBatteries'
+import AdminAuditLog    from '@/pages/admin/AdminAuditLog'
+import AdminSessions    from '@/pages/admin/AdminSessions'
+import AdminCoverage    from '@/pages/admin/AdminCoverage'
+import AdminFeedback      from '@/pages/admin/AdminFeedback'
+import AdminTestSessions from '@/pages/admin/AdminTestSessions'
+import AdminSettings     from '@/pages/admin/AdminSettings'
+import AdminDataPipeline from '@/pages/admin/AdminDataPipeline'
+import TestUserLogin     from '@/pages/TestUserLogin'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
+import { FaqModal } from '@/components/FaqModal'
+import { CopyrightModal } from '@/components/CopyrightModal'
+import { PrivacyModal } from '@/components/PrivacyModal'
+import { BuildVersionModal } from '@/components/BuildVersionModal'
 import { TermsGate } from '@/components/TermsGate'
-
-const AdminLogin        = lazy(() => import('@/pages/admin/AdminLogin'))
-const AdminDashboard    = lazy(() => import('@/pages/admin/AdminDashboard'))
-const AdminBatteries    = lazy(() => import('@/pages/admin/AdminBatteries'))
-const AdminAuditLog     = lazy(() => import('@/pages/admin/AdminAuditLog'))
-const AdminSessions     = lazy(() => import('@/pages/admin/AdminSessions'))
-const AdminCoverage     = lazy(() => import('@/pages/admin/AdminCoverage'))
-const AdminFeedback     = lazy(() => import('@/pages/admin/AdminFeedback'))
-const AdminTestSessions = lazy(() => import('@/pages/admin/AdminTestSessions'))
-const AdminSettings     = lazy(() => import('@/pages/admin/AdminSettings'))
-const AdminDataPipeline = lazy(() => import('@/pages/admin/AdminDataPipeline'))
-const TestUserLogin     = lazy(() => import('@/pages/TestUserLogin'))
-const FaqModal          = lazy(() => import('@/components/FaqModal').then(m => ({ default: m.FaqModal })))
-const CopyrightModal    = lazy(() => import('@/components/CopyrightModal').then(m => ({ default: m.CopyrightModal })))
-const PrivacyModal      = lazy(() => import('@/components/PrivacyModal').then(m => ({ default: m.PrivacyModal })))
-const BuildVersionModal = lazy(() => import('@/components/BuildVersionModal').then(m => ({ default: m.BuildVersionModal })))
-const HowToUseModal     = lazy(() => import('@/components/HowToUseModal').then(m => ({ default: m.HowToUseModal })))
+import { HowToUseModal } from '@/components/HowToUseModal'
 
 // ---------------------------------------------------------------------------
 // Test-user gate — redirects to /login if not authenticated
@@ -273,7 +272,6 @@ function App() {
 
   return (
     <TestUserProvider>
-    <Suspense fallback={<PageLoader visible />}>
     <Routes>
       {/* ── Public finder ── */}
       <Route path="/" element={
@@ -308,7 +306,6 @@ function App() {
       {/* ── Test user login ── */}
       <Route path="/login" element={<TestUserLogin />} />
     </Routes>
-    </Suspense>
     </TestUserProvider>
   )
 }
