@@ -1,7 +1,7 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
 import {
   Squares2X2Icon,
   BoltIcon,
