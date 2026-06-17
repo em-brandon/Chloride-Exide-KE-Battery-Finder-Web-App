@@ -35,7 +35,7 @@ export function PageLoader({ visible }: PageLoaderProps) {
       <div className="loader-bar-track">
         <div className="loader-bar-fill" />
       </div>
-      <span className="loader-text">Loading Battery Finder...</span>
+
     </div>
   )
 }

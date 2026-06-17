@@ -11,6 +11,7 @@ from admin_router import router as admin_router
 from db import SessionLocal, engine
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from models import AdminStats, TestUser, TestUserSession, UserFeedback
@@ -123,6 +124,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Battery Finder API", version="1.0.0", lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # ------------------------------------------------------------------
 # Admin router
@@ -191,6 +193,17 @@ async def count_reads_middleware(request: Request, call_next):
     ):
         with _read_counter_lock:
             _read_counter_pending += 1
+    return response
+
+
+# ------------------------------------------------------------------
+# Cache-Control headers for hashed static assets
+# ------------------------------------------------------------------
+@app.middleware("http")
+async def cache_control_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 
