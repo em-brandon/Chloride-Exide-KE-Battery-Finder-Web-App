@@ -385,6 +385,7 @@ function SearchTile({ onClick }: { onClick: () => void }) {
 export default function AdminBatteries() {
   const [searchParams] = useSearchParams()
   const manage = searchParams.get('manage') === 'true'
+  const actionParam = searchParams.get('action')
 
   // ── View: 'brands' shows the overview; 'brand-detail' shows a brand's list; 'search' shows the table ──
   const [view, setView] = useState<'brands' | 'brand-detail' | 'search'>(manage ? 'search' : 'brands')
@@ -408,6 +409,11 @@ export default function AdminBatteries() {
   const [deleting, setDeleting]     = useState<number | null>(null)
 
   const PAGE_SIZE = 50
+
+  // Auto-open Add modal when navigated via the sidebar "Add Battery" sub-link
+  useEffect(() => {
+    if (actionParam === 'add') setShowAdd(true)
+  }, [actionParam])
 
   // Load all batteries for the brand overview on mount
   useEffect(() => {
@@ -561,7 +567,7 @@ export default function AdminBatteries() {
                       {localItems.length} batteries · {localBrands.length} brand{localBrands.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '1.1rem' }}>
                     {localBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
                   </div>
                 </div>
@@ -576,7 +582,7 @@ export default function AdminBatteries() {
                       {importedItems.length} batteries · {importedBrands.length} brand{importedBrands.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '1.1rem' }}>
                     {importedBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
                     <SearchTile onClick={() => setView('search')} />
                   </div>
@@ -698,19 +704,6 @@ export default function AdminBatteries() {
               </div>
             )}
 
-            {/* Add form panel */}
-            {showAdd && (
-              <div style={{ ...CARD, padding: '1.5rem', maxWidth: '400px', borderTop: `3px solid ${R}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'rgba(17,24,39,0.85)', margin: 0 }}>Add Battery</h2>
-                  <button onClick={() => setShowAdd(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: '2px' }}>
-                    <XMarkIcon style={{ width: 16, height: 16 }} />
-                  </button>
-                </div>
-                <BatteryForm initial={EMPTY_FORM} onSave={handleAdd} onCancel={() => setShowAdd(false)} />
-              </div>
-            )}
-
             {/* Edit modal */}
             {editing && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
@@ -732,6 +725,21 @@ export default function AdminBatteries() {
                     onSave={handleUpdate}
                     onCancel={() => setEditing(null)}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Add Battery modal */}
+            {showAdd && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
+                <div style={{ ...CARD, padding: '1.75rem', width: '100%', maxWidth: '400px', maxHeight: '90vh', overflow: 'auto' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                    <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--adm-text-1)', margin: 0 }}>Add Battery</h2>
+                    <button onClick={() => setShowAdd(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(107,114,128,0.6)', padding: '2px' }}>
+                      <XMarkIcon style={{ width: 18, height: 18 }} />
+                    </button>
+                  </div>
+                  <BatteryForm initial={EMPTY_FORM} onSave={handleAdd} onCancel={() => setShowAdd(false)} />
                 </div>
               </div>
             )}

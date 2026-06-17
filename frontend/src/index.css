@@ -1226,6 +1226,31 @@ body {
     max-width: 100%;
     width: 100%;
   }
+
+  /* Form: single column on narrow screens */
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-group.full {
+    grid-column: span 1;
+  }
+
+  /* Modals: prevent overflow beyond viewport */
+  .faq-modal {
+    max-width: 95vw;
+    max-height: 90vh;
+    margin: 0.5rem;
+  }
+  .tg-card {
+    max-width: 95vw;
+    padding: 1.25rem 1.25rem 1rem;
+  }
+
+  /* Popovers: clamp to viewport width so they don't overflow edges */
+  .conf-popover,
+  .match-type-popover {
+    max-width: calc(100vw - 1.5rem);
+  }
 }
 
 /* Shimmer skeleton */

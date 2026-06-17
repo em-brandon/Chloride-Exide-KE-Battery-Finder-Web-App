@@ -631,7 +631,7 @@ export async function fixStagingAh(): Promise<{ fixed: number; unchanged: number
 
 export async function patchStagingRow(
   rowId: number,
-  patch: { ah: number | null; technology: string | null },
+  patch: { ah: number | null; technology: string | null; scope?: 'single' | 'bucket' },
 ): Promise<StagingRow> {
   return adminFetch(`/api/admin/pipeline/web-validate/staging/${rowId}`, {
     method: 'PATCH',

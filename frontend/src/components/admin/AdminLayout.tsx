@@ -55,7 +55,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState<boolean>(
     () => localStorage.getItem('admin_dark') === '1'
   )
-
   function toggleDark() {
     setDark(prev => {
       const next = !prev
@@ -81,6 +80,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       setCollapsed(true)
     }
   }, [pathname])
+
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth <= 768) setCollapsedState(true)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const sidebarW = collapsed ? SIDEBAR_W_ICON : SIDEBAR_W
 

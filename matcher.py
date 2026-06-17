@@ -205,6 +205,7 @@ def _infer_stop_start(make: str, year: Optional[int], fuel: str) -> bool:
     """
     Infer whether a vehicle is likely stop-start equipped based on make + year.
     This is only used when the user does not explicitly tick the stop-start box.
+    will need to change this inference behaviour since the useer already selects it from the dropdown
     """
     if fuel == "HYBRID":
         return True  # hybrids always have engine on/off cycling

@@ -487,6 +487,7 @@ function WebValidateTab() {
   const [editingRow, setEditingRow]               = useState<StagingRow | null>(null)
   const [editAh, setEditAh]                       = useState<string>('')
   const [editTech, setEditTech]                   = useState<string>('')
+  const [editStagingScope, setEditStagingScope]   = useState<'single' | 'bucket'>('single')
   const [editSaving, setEditSaving]               = useState(false)
   const [editError, setEditError]                 = useState<string | null>(null)
   const [commitModalOpen, setCommitModalOpen]     = useState(false)
@@ -556,14 +557,20 @@ function WebValidateTab() {
       const updated = await patchStagingRow(editingRow.id, {
         ah:         editAh.trim() === '' ? null : Number(editAh),
         technology: editTech.trim() === '' ? null : editTech.trim(),
+        scope:      editStagingScope,
       })
-      setStagingInfo(prev => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          items: prev.items.map(r => r.id === updated.id ? updated : r),
-        }
-      })
+      if (editStagingScope === 'bucket') {
+        // Bucket edit may have changed multiple rows — re-fetch the full list
+        await fetchStagingArea(stagingFilter, stagingPage)
+      } else {
+        setStagingInfo(prev => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            items: prev.items.map(r => r.id === updated.id ? updated : r),
+          }
+        })
+      }
       setEditingRow(null)
     } catch (err: unknown) {
       setEditError(err instanceof Error ? err.message : 'Save failed')
@@ -688,14 +695,16 @@ function WebValidateTab() {
             clearInterval(pollingRef.current!)
             pollingRef.current = null
             setIsStopping(false)
-            const [q, c, stale] = await Promise.all([
+            const [q, c, stale, staging] = await Promise.all([
               getPipelineQuotas(),
               getWebValidateCoverage(),
               getPipelineStaleness().catch(() => null),
+              getStagingArea(1, 50, 'all').catch(() => null),
             ])
             setQuotas(q)
             setCoverage(c)
             if (stale) setStaleness(stale)
+            if (staging) setStagingInfo(staging)
           }
         } catch { /* ignore transient */ }
       }, 1000)
@@ -1507,6 +1516,7 @@ function WebValidateTab() {
                               setEditingRow(row)
                               setEditAh(row.ah != null ? String(row.ah) : '')
                               setEditTech(row.technology ?? '')
+                              setEditStagingScope('single')
                               setEditError(null)
                             }}
                             title="Edit Ah / Technology"
@@ -2031,6 +2041,16 @@ function WebValidateTab() {
               {editingRow.make_n} {editingRow.model_n} {editingRow.year}
             </p>
 
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Scope</label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              {(['single', 'bucket'] as const).map(s => (
+                <button key={s} onClick={() => setEditStagingScope(s)}
+                  style={{ flex: 1, padding: '0.35rem', borderRadius: 6, border: '1px solid #d1d5db', background: editStagingScope === s ? 'var(--adm-subtle-bg)' : 'transparent', color: 'var(--adm-text-1)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: editStagingScope === s ? 700 : 400 }}>
+                  {s === 'single' ? 'Single row' : `5-yr bucket (${Math.floor(editingRow!.year / 5) * 5}–${Math.floor(editingRow!.year / 5) * 5 + 4})`}
+                </button>
+              ))}
+            </div>
+
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>
               Ah (20–250, leave blank for none)
             </label>
@@ -2073,7 +2093,7 @@ function WebValidateTab() {
               <button
                 onClick={handleSaveEdit}
                 disabled={editSaving}
-                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: 'none', background: '#3b82f6', color: '#fff', cursor: editSaving ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: editSaving ? 0.7 : 1 }}
+                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: 'none', background: R, color: '#fff', cursor: editSaving ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: editSaving ? 0.7 : 1 }}
               >
                 {editSaving ? 'Saving…' : 'Save'}
               </button>
@@ -2095,7 +2115,7 @@ function WebValidateTab() {
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
               {(['single', 'bucket'] as const).map(s => (
                 <button key={s} onClick={() => setEditMasterScope(s)}
-                  style={{ flex: 1, padding: '0.35rem', borderRadius: 6, border: `1px solid ${editMasterScope === s ? R : '#d1d5db'}`, background: editMasterScope === s ? '#fff5f5' : 'transparent', color: editMasterScope === s ? R : '#374151', fontSize: '0.75rem', cursor: 'pointer', fontWeight: editMasterScope === s ? 600 : 400 }}>
+                  style={{ flex: 1, padding: '0.35rem', borderRadius: 6, border: '1px solid #d1d5db', background: editMasterScope === s ? 'var(--adm-subtle-bg)' : 'transparent', color: 'var(--adm-text-1)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: editMasterScope === s ? 700 : 400 }}>
                   {s === 'single' ? 'Single row' : `5-yr bucket (${Math.floor(editMasterRow.year/5)*5}–${Math.floor(editMasterRow.year/5)*5+4})`}
                 </button>
               ))}
@@ -2145,7 +2165,7 @@ function WebValidateTab() {
                   } catch (e) { setEditMasterError(e instanceof Error ? e.message : 'Save failed') }
                   finally { setEditMasterSaving(false) }
                 }}
-                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: 'none', background: '#3b82f6', color: '#fff', cursor: editMasterSaving ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: editMasterSaving ? 0.7 : 1 }}>
+                style={{ padding: '0.4rem 0.9rem', borderRadius: 6, border: 'none', background: R, color: '#fff', cursor: editMasterSaving ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, opacity: editMasterSaving ? 0.7 : 1 }}>
                 {editMasterSaving ? 'Saving…' : 'Save'}
               </button>
             </div>
@@ -2536,9 +2556,9 @@ function CrspStagingPanel({
               style={{
                 fontSize: '0.7rem', fontWeight: 600, padding: '0.25rem 0.65rem', borderRadius: 99,
                 border: '1px solid', cursor: 'pointer',
-                borderColor: filter === f ? R : '#e2e4e9',
-                background: filter === f ? '#fff5f5' : 'var(--adm-card-bg)',
-                color: filter === f ? R : 'var(--adm-text-2)',
+                borderColor: '#e2e4e9',
+                background: filter === f ? 'var(--adm-subtle-bg)' : 'var(--adm-card-bg)',
+                color: filter === f ? 'var(--adm-text-1)' : 'var(--adm-text-2)',
               }}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}

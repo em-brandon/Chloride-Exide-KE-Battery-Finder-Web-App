@@ -1117,6 +1117,12 @@ def _web_validate_thread(
         result = _run_web_validate(cancel_event, pause_event, _progress, _log_cb, enabled_providers, run_id,
                                    phase1_progress_callback=_phase1_progress,
                                    phase=phase)
+        # Populate staging when Phase 2 completes normally (not on cancel)
+        if not cancel_event.is_set() and phase in ("phase2", "both"):
+            try:
+                _populate_staging(run_id)
+            except Exception as exc:
+                logger.warning("Failed to populate staging after Phase 2 completion: %s", exc)
         with _pipeline_lock:
             _pipeline_state["status"]          = "cancelled" if cancel_event.is_set() else "done"
             _pipeline_state["found"]           = result["fetched"]
@@ -1729,6 +1735,7 @@ def get_staging_area(
 class PatchStagingRowBody(BaseModel):
     ah:         float | None = None
     technology: str   | None = None
+    scope:      str          = "single"   # "single" | "bucket"
 
 
 @router.patch("/pipeline/web-validate/staging/{row_id}", summary="Edit ah/technology on a staged row")
@@ -1746,22 +1753,41 @@ def patch_staging_row(
             raise HTTPException(status_code=404, detail="Staging row not found")
 
         row_dict = dict(row._mapping)
-        ah         = body.ah         if body.ah         is not None else row_dict.get("ah")
-        technology = body.technology if body.technology is not None else row_dict.get("technology")
+        ah           = body.ah         if body.ah         is not None else row_dict.get("ah")
+        technology   = body.technology if body.technology is not None else row_dict.get("technology")
         battery_code = row_dict.get("battery_code")
 
         is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
 
-        conn.execute(
-            text(
-                "UPDATE web_battery_staging"
-                " SET ah = :ah, technology = :technology,"
-                "     is_valid = :is_valid, invalid_reason = :invalid_reason"
-                " WHERE id = :id"
-            ),
-            {"ah": ah, "technology": technology, "is_valid": is_valid,
-             "invalid_reason": invalid_reason, "id": row_id},
-        )
+        # Determine which rows to update
+        if body.scope == "bucket":
+            bucket_start = (row_dict["year"] // 5) * 5
+            bucket_end   = bucket_start + 4
+            target_ids = [
+                r.id for r in conn.execute(
+                    text(
+                        "SELECT id FROM web_battery_staging"
+                        " WHERE make_n = :make AND model_n = :model"
+                        "   AND year BETWEEN :ys AND :ye"
+                    ),
+                    {"make": row_dict["make_n"], "model": row_dict["model_n"],
+                     "ys": bucket_start, "ye": bucket_end},
+                ).fetchall()
+            ]
+        else:
+            target_ids = [row_id]
+
+        for tid in target_ids:
+            conn.execute(
+                text(
+                    "UPDATE web_battery_staging"
+                    " SET ah = :ah, technology = :technology,"
+                    "     is_valid = :is_valid, invalid_reason = :invalid_reason"
+                    " WHERE id = :id"
+                ),
+                {"ah": ah, "technology": technology, "is_valid": is_valid,
+                 "invalid_reason": invalid_reason, "id": tid},
+            )
 
     updated = {
         "id":             row_dict["id"],
