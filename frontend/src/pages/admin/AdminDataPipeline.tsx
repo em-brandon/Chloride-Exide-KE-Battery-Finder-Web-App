@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
 import {
   ClipboardDocumentListIcon,
   CloudArrowUpIcon,
