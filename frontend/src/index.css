@@ -1178,6 +1178,56 @@ body {
   }
 }
 
+/* ── Mobile responsiveness ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Tighten outer padding and compensate nav negative margins */
+  .page-wrapper {
+    padding: 0 0.75rem 0.75rem;
+  }
+  .page-nav {
+    padding: 0.6rem 0.75rem;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  /* Hide nav center (confidence badge + mode label) — no room on mobile */
+  .nav-type-mode {
+    display: none;
+  }
+
+  /* Collapse two-column result layout to single column */
+  .finder-layout,
+  .finder-layout.has-result {
+    flex-direction: column;
+    max-width: 100%;
+  }
+  .finder-layout.has-result .finder-card {
+    width: 100%;
+  }
+  .result-side-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Alternatives: 2 columns instead of 3 on mobile */
+  .alt-grid--condensed {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Toast: stretch near screen edges */
+  .toast-wrap {
+    right: 0.5rem;
+    left: 0.5rem;
+  }
+  .toast {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
 /* Shimmer skeleton */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
