@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 import { FaqModal } from '@/components/FaqModal'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/solid'
 

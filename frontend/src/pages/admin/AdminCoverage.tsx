@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import AdminLayout from '@/components/admin/AdminLayout'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 import {
   getWebValidateCoverage,
   getWebValidateMatched,

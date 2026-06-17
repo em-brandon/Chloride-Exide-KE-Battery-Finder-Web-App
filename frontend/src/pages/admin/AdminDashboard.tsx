@@ -24,7 +24,7 @@ import {
   type CoverageInfo,
 } from '@/lib/adminApi'
 import AdminLayout from '@/components/admin/AdminLayout'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const R = '#CC0000'
