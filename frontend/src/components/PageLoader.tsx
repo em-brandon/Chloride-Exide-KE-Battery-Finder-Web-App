@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
 
 const LOADER_MIN_MS = 2500
 const startMs = performance.now()
