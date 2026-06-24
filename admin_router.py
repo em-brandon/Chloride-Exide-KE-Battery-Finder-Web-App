@@ -3269,7 +3269,7 @@ def commit_crsp_staging(
     # Load ALL existing vehicle_years keys in one query — avoids N+1 selects
     existing_keys: set[tuple] = {
         (r.make, r.model, r.year)
-        for r in db.execute(sa_text("SELECT make, model, year FROM vehicle_years")).fetchall()
+        for r in db.execute(text("SELECT make, model, year FROM vehicle_years")).fetchall()
     }
 
     committed = skipped_existing = 0
