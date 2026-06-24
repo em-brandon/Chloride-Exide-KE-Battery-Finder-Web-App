@@ -5,12 +5,8 @@ import {
   CloudArrowUpIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  MinusCircleIcon,
   TableCellsIcon,
   FunnelIcon,
-  AdjustmentsHorizontalIcon,
-  DocumentMagnifyingGlassIcon,
-  ArrowDownTrayIcon,
   ArrowPathIcon,
   PlayIcon,
   TrashIcon,
@@ -92,6 +88,18 @@ import {
   type CrspChangelogResponse,
   type CrspStats,
   type CrspCacheStatus,
+  validateCrspFile,
+  runCrspDataprep,
+  getCrspProviderHealth,
+  getCrspUnmatched,
+  rerunCrspUnmatched,
+  type CrspValidateResult,
+  type CrspDataprepResult,
+  type CrspProviderHealthResult,
+  type CrspUnmatchedModel,
+  type CrspUnmatchedResponse,
+  type CrspRejectedRow,
+  type CrspProviderDetail,
 } from '@/lib/adminApi'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -106,87 +114,9 @@ const CARD: React.CSSProperties = {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type StageStatus = 'idle' | 'ready' | 'running' | 'done' | 'error'
-type DatasetTab  = 'crsp' | 'webvalidate'
-
-interface PipelineStage {
-  id: string
-  label: string
-  description: string
-  icon: React.ReactNode
-}
-
-// ── Pipeline stage definitions ────────────────────────────────────────────────
-const CRSP_STAGES: PipelineStage[] = [
-  {
-    id: 'parse',
-    label: 'Parse & Load',
-    description: 'Read the raw CRSP Excel/CSV file and load it into memory.',
-    icon: <TableCellsIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'validate',
-    label: 'Validate Schema',
-    description: 'Check that required columns (make, model, engine_capacity, fuel) are present and non-empty.',
-    icon: <DocumentMagnifyingGlassIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'normalize',
-    label: 'Normalize Fields',
-    description: 'Uppercase make/model, strip whitespace, cast numeric fields, drop electric vehicles.',
-    icon: <AdjustmentsHorizontalIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'deduplicate',
-    label: 'Deduplicate',
-    description: 'Remove exact duplicate make/model/engine/fuel rows. Last occurrence wins.',
-    icon: <FunnelIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'enrich',
-    label: 'Enrich Years',
-    description: 'Query fueleconomy.gov → CarAPI → Wikipedia → Wikidata → NHTSA to find production year ranges for each make/model.',
-    icon: <ClipboardDocumentListIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'stage',
-    label: 'Stage & Review',
-    description: 'Enriched rows are written to vehicle_years_staging. Duplicates are detected and conflicts flagged for admin review.',
-    icon: <ArchiveBoxIcon style={{ width: 16, height: 16 }} />,
-  },
-  {
-    id: 'commit',
-    label: 'Commit to DB',
-    description: 'After admin review, approved rows are merged into vehicle_years with a version record created for rollback.',
-    icon: <ArrowDownTrayIcon style={{ width: 16, height: 16 }} />,
-  },
-]
+type DatasetTab = 'crsp' | 'webvalidate'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function statusColor(s: StageStatus): string {
-  if (s === 'done')    return '#22c55e'
-  if (s === 'running') return '#f59e0b'
-  if (s === 'error')   return R
-  if (s === 'ready')   return '#3b82f6'
-  return '#d1d5db'
-}
-
-function statusBg(s: StageStatus): string {
-  if (s === 'done')    return '#f0fdf4'
-  if (s === 'running') return '#fffbeb'
-  if (s === 'error')   return '#fff5f5'
-  if (s === 'ready')   return '#eff6ff'
-  return '#f9fafb'
-}
-
-function StatusIcon({ status }: { status: StageStatus }) {
-  const style = { width: 16, height: 16 }
-  if (status === 'done')    return <CheckCircleIcon   style={{ ...style, color: '#22c55e' }} />
-  if (status === 'error')   return <ExclamationCircleIcon style={{ ...style, color: R }} />
-  if (status === 'running') return <ArrowSpinner />
-  return <MinusCircleIcon style={{ ...style, color: '#d1d5db' }} />
-}
-
 function ArrowSpinner() {
   return (
     <svg
@@ -197,69 +127,6 @@ function ArrowSpinner() {
       <circle cx="8" cy="8" r="6" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"
         strokeDasharray="28" strokeDashoffset="10" />
     </svg>
-  )
-}
-
-// ── StageCard ─────────────────────────────────────────────────────────────────
-function StageCard({
-  stage,
-  status,
-  index,
-  total,
-  log,
-}: {
-  stage: PipelineStage
-  status: StageStatus
-  index: number
-  total: number
-  log?: string
-}) {
-  return (
-    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-      {/* Timeline connector */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: statusBg(status),
-          border: `2px solid ${statusColor(status)}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.7rem', fontWeight: 800, color: statusColor(status),
-          flexShrink: 0,
-        }}>
-          {index + 1}
-        </div>
-        {index < total - 1 && (
-          <div style={{ width: 2, flex: 1, minHeight: 24, background: statusColor(status), opacity: status === 'idle' ? 0.2 : 0.5, marginTop: 2 }} />
-        )}
-      </div>
-
-      {/* Card body */}
-      <div style={{
-        ...CARD,
-        flex: 1,
-        padding: '0.85rem 1rem',
-        borderLeft: `4px solid ${statusColor(status)}`,
-        marginBottom: index < total - 1 ? '0.5rem' : 0,
-        background: statusBg(status),
-        transition: 'all 0.2s',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ color: statusColor(status) }}>{stage.icon}</span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'rgba(17,24,39,0.88)' }}>{stage.label}</span>
-          </div>
-          <StatusIcon status={status} />
-        </div>
-        <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: 'rgba(107,114,128,0.85)', lineHeight: 1.5 }}>
-          {stage.description}
-        </p>
-        {log && (
-          <div style={{ marginTop: '0.5rem', background: 'rgba(17,24,39,0.04)', borderRadius: 6, padding: '0.4rem 0.6rem', fontSize: '0.68rem', fontFamily: 'monospace', color: status === 'error' ? R : 'rgba(17,24,39,0.7)', whiteSpace: 'pre-wrap' }}>
-            {log}
-          </div>
-        )}
-      </div>
-    </div>
   )
 }
 
@@ -2310,6 +2177,328 @@ function WebValidateTab() {
   )
 }
 
+// ── ValidationCard ────────────────────────────────────────────────────────────
+function ValidationCard({ result }: { result: CrspValidateResult }) {
+  const [showPreview, setShowPreview] = useState(false)
+  const allRequired = result.required_columns_present.make && result.required_columns_present.model
+
+  return (
+    <div style={{ borderTop: '1px solid var(--adm-sep)', paddingTop: '0.9rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>Column Validation</span>
+        <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.6rem', borderRadius: 99, background: allRequired ? '#f0fdf4' : '#fff5f5', color: allRequired ? '#15803d' : R, border: `1px solid ${allRequired ? '#bbf7d0' : '#fca5a5'}` }}>
+          {allRequired ? '✓ Ready for Stage 1' : '⚠ Missing required columns'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+        {(['make', 'model'] as const).map(c => (
+          <span key={c} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: 6, fontFamily: 'monospace', fontWeight: 700, background: result.required_columns_present[c] ? '#f0fdf4' : '#fff5f5', color: result.required_columns_present[c] ? '#15803d' : R, border: `1px solid ${result.required_columns_present[c] ? '#bbf7d0' : '#fca5a5'}` }}>
+            {result.required_columns_present[c] ? '✓' : '✗'} {c}
+          </span>
+        ))}
+        {result.optional_columns_found.map(c => (
+          <span key={c} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: 6, fontFamily: 'monospace', fontWeight: 700, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+            ✓ {c}
+          </span>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+        {[
+          { label: 'Total Rows',            value: result.total_rows.toLocaleString(),          color: '#374151' },
+          { label: 'EV (will reject)',       value: result.electric_vehicle_count.toString(),    color: result.electric_vehicle_count > 0 ? '#b45309' : '#6b7280' },
+          { label: 'Empty Make (reject)',    value: result.empty_make_count.toString(),          color: result.empty_make_count > 0 ? '#b45309' : '#6b7280' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: 'var(--adm-subtle-bg)', borderRadius: 8, padding: '0.4rem 0.75rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 800, color }}>{value}</div>
+            <div style={{ fontSize: '0.62rem', color: '#9ca3af', marginTop: 1 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+      {result.warnings.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.75rem' }}>
+          {result.warnings.map((w, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', fontSize: '0.7rem', color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 7, padding: '0.35rem 0.65rem' }}>
+              <ExclamationCircleIcon style={{ width: 13, height: 13, flexShrink: 0, marginTop: 1 }} />
+              {w}
+            </div>
+          ))}
+        </div>
+      )}
+      {result.preview_rows.length > 0 && (
+        <div>
+          <button onClick={() => setShowPreview(p => !p)} style={{ fontSize: '0.68rem', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <TableCellsIcon style={{ width: 12, height: 12 }} />
+            {showPreview ? 'Hide preview' : 'Show 5-row preview'}
+          </button>
+          {showPreview && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.68rem' }}>
+                <thead>
+                  <tr>
+                    {Object.keys(result.preview_rows[0]).map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.6rem', borderBottom: '1px solid var(--adm-sep)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.preview_rows.map((row, i) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--adm-sep)' : 'none' }}>
+                      {Object.values(row).map((val, j) => (
+                        <td key={j} style={{ padding: '0.25rem 0.5rem', color: 'var(--adm-text-2)', fontFamily: 'monospace' }}>{val}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── DataprepResultCard ────────────────────────────────────────────────────────
+function DataprepResultCard({ result }: { result: CrspDataprepResult }) {
+  const [showRejected, setShowRejected] = useState(false)
+  const [showLogs, setShowLogs]         = useState(false)
+
+  const REASON_LABEL: Record<string, string> = {
+    empty_make:       'Empty make',
+    electric_vehicle: 'Electric vehicle',
+  }
+
+  return (
+    <div style={{ borderTop: '1px solid var(--adm-sep)', paddingTop: '0.9rem' }}>
+      <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+        {[
+          { label: 'Total Rows', value: result.total_rows.toLocaleString(), color: '#374151' },
+          { label: 'Clean Rows', value: result.clean_rows.toLocaleString(), color: '#15803d' },
+          { label: 'Rejected',   value: result.rejected.toLocaleString(),   color: result.rejected > 0 ? '#b45309' : '#6b7280' },
+          { label: 'Duplicates', value: result.duplicates.toLocaleString(), color: result.duplicates > 0 ? '#6b7280' : '#15803d' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: 'var(--adm-subtle-bg)', borderRadius: 9, padding: '0.5rem 0.9rem', textAlign: 'center', minWidth: 72 }}>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color }}>{value}</div>
+            <div style={{ fontSize: '0.62rem', color: '#9ca3af', marginTop: 2 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+      {result.rejected_rows.length > 0 && (
+        <div style={{ marginBottom: '0.5rem' }}>
+          <button onClick={() => setShowRejected(p => !p)} style={{ fontSize: '0.68rem', color: '#b45309', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
+            <TrashIcon style={{ width: 12, height: 12 }} />
+            {showRejected ? 'Hide rejected rows' : `Show ${result.rejected_rows.length} rejected rows${result.rejected > result.rejected_rows.length ? ` (first ${result.rejected_rows.length} of ${result.rejected})` : ''}`}
+          </button>
+          {showRejected && (
+            <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #fde68a', borderRadius: 8, background: '#fffbeb' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.67rem' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(0,0,0,0.03)' }}>
+                    {['Row #', 'Make', 'Model', 'Reason'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.59rem', borderBottom: '1px solid #fde68a' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.rejected_rows.map((r: CrspRejectedRow, i: number) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? '1px solid #fde68a' : 'none' }}>
+                      <td style={{ padding: '0.22rem 0.5rem', color: '#9ca3af', fontFamily: 'monospace' }}>{r.row_number}</td>
+                      <td style={{ padding: '0.22rem 0.5rem', fontWeight: 600 }}>{r.make || <span style={{ color: '#d1d5db' }}>—</span>}</td>
+                      <td style={{ padding: '0.22rem 0.5rem' }}>{r.model}</td>
+                      <td style={{ padding: '0.22rem 0.5rem', color: '#b45309', fontWeight: 600 }}>{REASON_LABEL[r.reason] ?? r.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+      {result.logs && result.logs.length > 0 && (
+        <div>
+          <button onClick={() => setShowLogs(p => !p)} style={{ fontSize: '0.68rem', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
+            <ClipboardDocumentListIcon style={{ width: 12, height: 12 }} />
+            {showLogs ? 'Hide logs' : 'Show Stage 1 logs'}
+          </button>
+          {showLogs && <LogPanel lines={result.logs} />}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── ProviderHealthPanel ───────────────────────────────────────────────────────
+function ProviderHealthPanel({ health, loading, onRecheck }: {
+  health: CrspProviderHealthResult | null
+  loading: boolean
+  onRecheck: () => void
+}) {
+  const [manualExpanded, setManualExpanded] = useState(false)
+  const anyDown = health ? !health.all_ok : false
+  const expanded = manualExpanded || anyDown
+
+  const PROVIDER_LABELS: Record<string, string> = {
+    fueleconomy: 'fueleconomy.gov',
+    nhtsa:       'NHTSA VPIC',
+    carapi:      'CarAPI',
+    wikipedia:   'Wikipedia API',
+    wikidata:    'Wikidata SPARQL',
+  }
+
+  return (
+    <div style={{ ...CARD, padding: '0.9rem 1.1rem', borderLeft: `4px solid ${anyDown ? R : health ? '#22c55e' : '#d1d5db'}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <GlobeAltIcon style={{ width: 14, height: 14, color: anyDown ? R : health ? '#22c55e' : '#9ca3af' }} />
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Provider Health</span>
+          {loading && <ArrowSpinner />}
+          {health && !loading && (
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 99, background: anyDown ? '#fff5f5' : '#f0fdf4', color: anyDown ? R : '#15803d', border: `1px solid ${anyDown ? '#fca5a5' : '#bbf7d0'}` }}>
+              {anyDown ? '⚠ Some providers unreachable' : '✓ All providers reachable'}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <button onClick={onRecheck} disabled={loading} style={{ fontSize: '0.68rem', padding: '0.25rem 0.6rem', borderRadius: 7, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: loading ? 'not-allowed' : 'pointer', color: 'var(--adm-text-2)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <ArrowPathIcon style={{ width: 11, height: 11 }} /> Re-check
+          </button>
+          <button onClick={() => setManualExpanded(p => !p)} style={{ fontSize: '0.68rem', padding: '0.25rem 0.6rem', borderRadius: 7, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer', color: 'var(--adm-text-2)' }}>
+            {expanded ? 'Hide' : 'Details'}
+          </button>
+        </div>
+      </div>
+      {anyDown && (
+        <div style={{ marginTop: '0.65rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.5rem 0.75rem', fontSize: '0.72rem', color: R }}>
+          <ExclamationCircleIcon style={{ width: 14, height: 14, flexShrink: 0, marginTop: 1 }} />
+          <span>One or more external providers are unreachable. Stage 2 may produce incomplete results. Please contact technical support if this persists.</span>
+        </div>
+      )}
+      {expanded && health && (
+        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          {(['fueleconomy', 'nhtsa', 'carapi', 'wikipedia', 'wikidata'] as const).map(key => {
+            const p = health[key]
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.35rem 0.6rem', borderRadius: 7, background: 'var(--adm-subtle-bg)', fontSize: '0.7rem' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.ok ? '#22c55e' : R, flexShrink: 0 }} />
+                <span style={{ fontWeight: 700, minWidth: 120 }}>{PROVIDER_LABELS[key]}</span>
+                {p.ok
+                  ? <span style={{ color: '#15803d' }}>OK{p.status_code ? ` (${p.status_code})` : ''}</span>
+                  : <span style={{ color: R }}>{p.status_code ? `HTTP ${p.status_code}` : (p.error ?? 'Unreachable')}</span>}
+              </div>
+            )
+          })}
+          {health.checked_at && (
+            <div style={{ fontSize: '0.62rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+              Checked at {new Date(health.checked_at).toLocaleTimeString()}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── ProviderStatsPanel ────────────────────────────────────────────────────────
+function ProviderStatsPanel({ details }: { details: Record<string, CrspProviderDetail> }) {
+  const PROVIDER_LABELS: Record<string, string> = {
+    fueleconomy: 'fueleconomy.gov',
+    nhtsa:       'NHTSA VPIC',
+    carapi:      'CarAPI',
+    wikipedia:   'Wikipedia',
+    wikidata:    'Wikidata',
+  }
+
+  const entries = Object.entries(details).filter(([, d]) => d.hits > 0 || d.cache_hits > 0)
+  if (entries.length === 0) return null
+
+  return (
+    <div>
+      <p style={{ margin: '0 0 0.5rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>
+        Provider Breakdown
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+        {entries.map(([src, d]) => (
+          <div key={src} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.6rem', borderRadius: 7, background: 'var(--adm-subtle-bg)', fontSize: '0.7rem', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700, minWidth: 120 }}>{PROVIDER_LABELS[src] ?? src}</span>
+            <span style={{ color: '#15803d', fontWeight: 700 }}>{d.hits} hits</span>
+            {d.cache_hits > 0 && (
+              <span style={{ fontSize: '0.63rem', padding: '0.1rem 0.45rem', borderRadius: 99, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700 }}>
+                {d.cache_hits} cached
+              </span>
+            )}
+            {d.rate_limits > 0 && (
+              <span style={{ fontSize: '0.63rem', padding: '0.1rem 0.45rem', borderRadius: 99, background: '#fff5f5', color: R, border: '1px solid #fca5a5', fontWeight: 700 }}>
+                {d.rate_limits} rate limited
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── UnmatchedModelsPanel ──────────────────────────────────────────────────────
+function UnmatchedModelsPanel({ runId, onRetry, retryLoading }: {
+  runId: string | null
+  onRetry: () => void
+  retryLoading: boolean
+}) {
+  const [data, setData]           = useState<CrspUnmatchedResponse | null>(null)
+  const [showList, setShowList]   = useState(false)
+
+  useEffect(() => {
+    if (!runId) return
+    getCrspUnmatched().then(setData).catch(() => null)
+  }, [runId])
+
+  if (!data || data.count === 0) return null
+
+  return (
+    <div style={{ ...CARD, padding: '1rem 1.25rem', borderLeft: '4px solid #f59e0b' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <MagnifyingGlassIcon style={{ width: 14, height: 14, color: '#f59e0b' }} />
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>
+            {data.count} Unmatched Models
+          </span>
+          <span style={{ fontSize: '0.65rem', color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 99, padding: '0.1rem 0.5rem', fontWeight: 700 }}>
+            No year data found
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          <button onClick={() => setShowList(p => !p)} style={{ fontSize: '0.68rem', padding: '0.3rem 0.65rem', borderRadius: 7, border: '1px solid #fde68a', background: '#fffbeb', color: '#b45309', cursor: 'pointer' }}>
+            {showList ? 'Hide' : 'Show list'}
+          </button>
+          <button onClick={onRetry} disabled={retryLoading} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.68rem', padding: '0.3rem 0.65rem', borderRadius: 7, border: 'none', background: retryLoading ? '#e2e4e9' : R, color: retryLoading ? '#9ca3af' : '#fff', cursor: retryLoading ? 'not-allowed' : 'pointer', fontWeight: 700 }}>
+            {retryLoading ? <><ArrowSpinner /> Retrying…</> : <><ArrowPathIcon style={{ width: 11, height: 11 }} /> Retry Unmatched</>}
+          </button>
+        </div>
+      </div>
+      {showList && (
+        <div style={{ marginTop: '0.75rem', maxHeight: 220, overflowY: 'auto', border: '1px solid #fde68a', borderRadius: 8, background: '#fffbeb' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.68rem' }}>
+            <thead>
+              <tr style={{ background: 'rgba(0,0,0,0.03)' }}>
+                <th style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.59rem', borderBottom: '1px solid #fde68a' }}>Make</th>
+                <th style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.59rem', borderBottom: '1px solid #fde68a' }}>Model</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.unmatched_models.map((m: CrspUnmatchedModel, i: number) => (
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid #fde68a' : 'none' }}>
+                  <td style={{ padding: '0.22rem 0.5rem', fontWeight: 700 }}>{m.make}</td>
+                  <td style={{ padding: '0.22rem 0.5rem', color: '#374151' }}>{m.model}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function getProgressBarColor(pct: number, paused: boolean): string {
   if (paused) return '#f59e0b'
   // red #ef4444 rgb(239,68,68) → blue #3b82f6 rgb(59,130,246) → green #22c55e rgb(34,197,94)
@@ -2814,7 +3003,6 @@ function CrspTab() {
   const [status, setStatus]           = useState<CrspStatus | null>(null)
   const [loading, setLoading]         = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [runLoading, setRunLoading]   = useState(false)
   const [action, setAction]           = useState<'pause' | 'resume' | 'cancel' | null>(null)
   const [commitResult, setCommitResult] = useState<CrspCommitResult | null>(null)
   const [showStaging, setShowStaging] = useState(false)
@@ -2822,11 +3010,28 @@ function CrspTab() {
   const [cacheRefreshKey, setCacheRefreshKey] = useState(0)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // CRSP upload (Stage 1)
+  // File upload
   const [crspFile, setCrspFile]                   = useState<File | null>(null)
   const [crspUploadLoading, setCrspUploadLoading] = useState(false)
   const [crspUploadedPath, setCrspUploadedPath]   = useState<string | null>(null)
   const [crspUploadError, setCrspUploadError]     = useState<string | null>(null)
+
+  // Stage 0: Validation
+  const [validateResult, setValidateResult]   = useState<CrspValidateResult | null>(null)
+  const [validateLoading, setValidateLoading] = useState(false)
+
+  // Stage 1: Dataprep
+  const [dataprepResult, setDataprepResult]   = useState<CrspDataprepResult | null>(null)
+  const [dataprepLoading, setDataprepLoading] = useState(false)
+  const [dataprepError, setDataprepError]     = useState<string | null>(null)
+  const [runLoading, setRunLoading]           = useState(false)
+
+  // Provider health
+  const [providerHealth, setProviderHealth] = useState<CrspProviderHealthResult | null>(null)
+  const [healthLoading, setHealthLoading]   = useState(false)
+
+  // Retry unmatched
+  const [retryLoading, setRetryLoading] = useState(false)
 
   const stagingAvailable = status?.status === 'done' || status?.status === 'cancelled'
 
@@ -2844,26 +3049,67 @@ function CrspTab() {
     }, 1000)
   }
 
+  async function checkProviderHealth() {
+    setHealthLoading(true)
+    try { setProviderHealth(await getCrspProviderHealth()) }
+    catch { /* ignore */ }
+    finally { setHealthLoading(false) }
+  }
+
   useEffect(() => {
     getCrspStatus()
       .then(s => { setStatus(s); if (s.status === 'running' || s.status === 'paused') startPolling() })
       .catch(() => null)
       .finally(() => setLoading(false))
+    checkProviderHealth()
     return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
   }, [])
 
-  async function handleRun() {
+  async function handleUpload() {
+    if (!crspFile) return
+    setCrspUploadLoading(true)
+    setCrspUploadError(null)
+    try {
+      const r = await crspUpload(crspFile)
+      setCrspUploadedPath(r.file_path)
+      setValidateLoading(true)
+      try { setValidateResult(await validateCrspFile(r.file_path)) }
+      catch { /* ignore */ }
+      finally { setValidateLoading(false) }
+    } catch (e) {
+      setCrspUploadError(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setCrspUploadLoading(false)
+    }
+  }
+
+  async function handleRunDataprep() {
+    if (!crspUploadedPath) return
+    setDataprepLoading(true)
+    setDataprepError(null)
+    setDataprepResult(null)
+    try {
+      setDataprepResult(await runCrspDataprep(crspUploadedPath))
+    } catch (e) {
+      setDataprepError(e instanceof Error ? e.message : 'Stage 1 failed')
+    } finally {
+      setDataprepLoading(false)
+    }
+  }
+
+  async function handleRunEnrich() {
     setRunLoading(true)
     setActionError(null)
     setCommitResult(null)
     setShowStaging(false)
     try {
-      await runCrspPipeline(crspUploadedPath ?? 'battery_lookup_dataset.csv')
+      const csv = dataprepResult?.output_csv ?? crspUploadedPath ?? 'battery_lookup_dataset.csv'
+      await runCrspPipeline(csv)
       const s = await getCrspStatus()
       setStatus(s)
       startPolling()
     } catch (e: unknown) {
-      setActionError(e instanceof Error ? e.message : 'Failed to start pipeline')
+      setActionError(e instanceof Error ? e.message : 'Failed to start Stage 2')
     } finally {
       setRunLoading(false)
     }
@@ -2888,141 +3134,195 @@ function CrspTab() {
     }
   }
 
+  async function handleRetryUnmatched() {
+    setRetryLoading(true)
+    setActionError(null)
+    setCommitResult(null)
+    setShowStaging(false)
+    try {
+      await rerunCrspUnmatched()
+      const s = await getCrspStatus()
+      setStatus(s)
+      startPolling()
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Retry failed')
+    } finally {
+      setRetryLoading(false)
+    }
+  }
+
   if (loading) return <div style={{ padding: '2rem', color: '#9ca3af', textAlign: 'center' }}>Loading…</div>
 
-  const isActive  = status?.status === 'running' || status?.status === 'paused'
-  const isDone    = status?.status === 'done'
-  const isError   = status?.status === 'error'
-  const isIdle    = !status || status.status === 'idle'
-  const pct       = status?.total_models ? Math.round((status.processed_models / status.total_models) * 100) : 0
+  const isActive = status?.status === 'running' || status?.status === 'paused'
+  const isDone   = status?.status === 'done'
+  const isError  = status?.status === 'error'
+  const isIdle   = !status || status.status === 'idle'
+  const pct      = status?.total_models ? Math.round((status.processed_models / status.total_models) * 100) : 0
 
-  // Determine stage status for the stage cards
-  function getStageStatus(stageId: string): StageStatus {
-    if (isIdle) return 'idle'
-    if (isError && stageId === 'enrich') return 'error'
-    const stageOrder = ['parse', 'validate', 'normalize', 'deduplicate', 'enrich', 'stage', 'commit']
-    const currentStageId = status?.status === 'running' || status?.status === 'paused' ? 'enrich' : isDone ? 'commit' : 'idle'
-    const currentIdx = stageOrder.indexOf(currentStageId)
-    const thisIdx    = stageOrder.indexOf(stageId)
-    if (commitResult && stageId === 'commit') return 'done'
-    if (showStaging && stageId === 'stage') return 'done'
-    if (thisIdx < currentIdx) return 'done'
-    if (thisIdx === currentIdx) return status?.status === 'running' ? 'running' : status?.status === 'paused' ? 'running' : 'done'
-    return 'idle'
-  }
+  const canRunDataprep = !!crspUploadedPath && !dataprepLoading &&
+    (validateResult ? (validateResult.required_columns_present.make && validateResult.required_columns_present.model) : true)
+  const canRunEnrich = !!(dataprepResult?.status === 'done' || crspUploadedPath) && !isActive && !runLoading
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-      {/* Cache status + info row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', flex: 1, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.65rem 1rem' }}>
-          <InformationCircleIcon style={{ width: 15, height: 15, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
-          <p style={{ margin: 0, fontSize: '0.72rem', color: '#1d4ed8', lineHeight: 1.6 }}>
-            Stage 1 (dataprep.py) cleans the CRSP Excel into <code>battery_lookup_dataset.csv</code> first. Stage 2 queries 5 external sources for production years and writes to staging for review before committing to <code>vehicle_years</code>.
-          </p>
-        </div>
-      </div>
-
+      {/* Cache status badge */}
       <CacheStatusBadge key={cacheRefreshKey} onRefresh={() => setCacheRefreshKey(k => k + 1)} />
 
-      {/* CRSP Excel upload */}
-      <div style={{ ...CARD, padding: '1rem 1.25rem' }}>
-        <p style={{ margin: '0 0 0.5rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>
-          Upload CRSP Excel (Stage 1)
+      {/* Info banner */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.65rem 1rem' }}>
+        <InformationCircleIcon style={{ width: 15, height: 15, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
+        <p style={{ margin: 0, fontSize: '0.72rem', color: '#1d4ed8', lineHeight: 1.6 }}>
+          Stage 1 (dataprep) cleans the CRSP Excel into <code>battery_lookup_dataset.csv</code>. Stage 2 queries 5 external sources for production years and writes to staging for review before committing to <code>vehicle_years</code>.
         </p>
-        <p style={{ margin: '0 0 0.75rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: 1.5 }}>
-          Upload a raw CRSP <code>.xlsx</code> file to process it through Stage 1 (dataprep). The cleaned CSV will be used for Stage 2 when you click Run below.
-          Skip this if <code>battery_lookup_dataset.csv</code> is already up to date.
+      </div>
+
+      {/* Provider Health */}
+      <ProviderHealthPanel health={providerHealth} loading={healthLoading} onRecheck={checkProviderHealth} />
+
+      {/* ── UPLOAD + VALIDATE ──────────────────────────────── */}
+      <div style={{ ...CARD, padding: '1.1rem 1.25rem' }}>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--adm-text-1)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          Upload CRSP Excel
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <label style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.45rem 0.9rem', borderRadius: 8, border: '1px solid #d1d5db',
-            background: 'var(--adm-input-bg)', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--adm-text-1)',
-          }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: 8, border: '1px solid #d1d5db', background: 'var(--adm-input-bg)', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--adm-text-1)' }}>
             <CloudArrowUpIcon style={{ width: 14, height: 14 }} />
             {crspFile ? crspFile.name : 'Choose .xlsx file'}
             <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
-              onChange={e => { setCrspFile(e.target.files?.[0] ?? null); setCrspUploadedPath(null); setCrspUploadError(null) }} />
+              onChange={e => {
+                setCrspFile(e.target.files?.[0] ?? null)
+                setCrspUploadedPath(null)
+                setCrspUploadError(null)
+                setValidateResult(null)
+                setDataprepResult(null)
+              }} />
           </label>
           {crspFile && !crspUploadedPath && (
-            <button
-              disabled={crspUploadLoading}
-              onClick={async () => {
-                setCrspUploadLoading(true); setCrspUploadError(null)
-                try {
-                  const r = await crspUpload(crspFile!)
-                  setCrspUploadedPath(r.file_path)
-                } catch (e) { setCrspUploadError(e instanceof Error ? e.message : 'Upload failed') }
-                finally { setCrspUploadLoading(false) }
-              }}
-              style={{ padding: '0.45rem 0.9rem', borderRadius: 8, border: 'none', background: '#3b82f6', color: '#fff', cursor: crspUploadLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, opacity: crspUploadLoading ? 0.7 : 1 }}>
-              {crspUploadLoading ? 'Uploading…' : 'Upload'}
+            <button disabled={crspUploadLoading} onClick={handleUpload}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.9rem', borderRadius: 8, border: 'none', background: '#3b82f6', color: '#fff', cursor: crspUploadLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, opacity: crspUploadLoading ? 0.7 : 1 }}>
+              {crspUploadLoading ? <><ArrowSpinner /> Uploading…</> : <><CloudArrowUpIcon style={{ width: 13, height: 13 }} /> Upload &amp; Validate</>}
             </button>
           )}
           {crspUploadedPath && (
             <span style={{ fontSize: '0.7rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '0.3rem 0.6rem' }}>
-              ✓ Uploaded — will be used for Stage 2
+              ✓ Uploaded
             </span>
           )}
-          {crspUploadError && (
-            <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>{crspUploadError}</span>
+          {validateLoading && <span style={{ fontSize: '0.7rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}><ArrowSpinner /> Validating…</span>}
+          {crspUploadError && <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>{crspUploadError}</span>}
+        </div>
+        {validateResult && <div style={{ marginTop: '1rem' }}><ValidationCard result={validateResult} /></div>}
+      </div>
+
+      {/* ── STAGE 1 ────────────────────────────────────────── */}
+      <div style={{ ...CARD, padding: '1.1rem 1.25rem', borderLeft: `4px solid ${dataprepResult?.status === 'done' ? '#22c55e' : dataprepLoading ? '#f59e0b' : dataprepError ? R : '#d1d5db'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: (dataprepResult || dataprepError) ? '0.75rem' : 0 }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Stage 1 — Clean &amp; Deduplicate</p>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: '#6b7280' }}>Normalize fields, reject electric vehicles and empty makes, deduplicate rows.</p>
+          </div>
+          {dataprepLoading ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>
+              <ArrowSpinner /> Running…
+            </span>
+          ) : dataprepResult?.status !== 'done' && (
+            <button onClick={handleRunDataprep} disabled={!canRunDataprep}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: 9, border: 'none', background: canRunDataprep ? R : '#e2e4e9', color: canRunDataprep ? '#fff' : '#9ca3af', fontWeight: 700, fontSize: '0.78rem', cursor: canRunDataprep ? 'pointer' : 'not-allowed' }}>
+              <PlayIcon style={{ width: 13, height: 13 }} /> Run Stage 1
+            </button>
           )}
         </div>
+        {dataprepError && (
+          <div style={{ fontSize: '0.73rem', color: R, background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.5rem 0.75rem' }}>
+            {dataprepError}
+          </div>
+        )}
+        {dataprepResult && <DataprepResultCard result={dataprepResult} />}
       </div>
 
-      {/* Run controls */}
-      <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        {(isIdle || isDone || isError || status?.status === 'cancelled') && (
-          <button
-            onClick={handleRun}
-            disabled={runLoading}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.45rem',
-              fontSize: '0.82rem', fontWeight: 700,
-              padding: '0.6rem 1.2rem', borderRadius: 10, border: 'none',
-              cursor: runLoading ? 'not-allowed' : 'pointer',
-              background: runLoading ? '#e2e4e9' : R,
-              color: runLoading ? 'rgba(107,114,128,0.7)' : '#fff',
-            }}
-          >
-            <PlayIcon style={{ width: 14, height: 14 }} />
-            {runLoading ? 'Starting…' : 'Run CRSP Pipeline'}
-          </button>
+      {/* ── STAGE 2 ────────────────────────────────────────── */}
+      <div style={{ ...CARD, padding: '1.1rem 1.25rem', borderLeft: `4px solid ${isDone ? '#22c55e' : isActive ? '#f59e0b' : isError ? R : '#d1d5db'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Stage 2 — Enrich Years</p>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: '#6b7280' }}>Query fueleconomy.gov → CarAPI → Wikipedia → Wikidata → NHTSA for production year ranges.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {(isIdle || isDone || isError || status?.status === 'cancelled') && (
+              <button onClick={handleRunEnrich} disabled={!canRunEnrich}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: 9, border: 'none', background: canRunEnrich ? R : '#e2e4e9', color: canRunEnrich ? '#fff' : '#9ca3af', fontWeight: 700, fontSize: '0.78rem', cursor: canRunEnrich ? 'pointer' : 'not-allowed' }}>
+                <PlayIcon style={{ width: 13, height: 13 }} />
+                {runLoading ? 'Starting…' : 'Run Stage 2'}
+              </button>
+            )}
+            {isActive && (
+              <>
+                <button onClick={() => handleAction(status?.status === 'paused' ? 'resume' : 'pause')} disabled={action !== null}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.5rem 0.9rem', borderRadius: 9, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}>
+                  {status?.status === 'paused' ? <PlayIcon style={{ width: 13, height: 13 }} /> : <PauseIcon style={{ width: 13, height: 13 }} />}
+                  {action === 'pause' ? 'Pausing…' : action === 'resume' ? 'Resuming…' : status?.status === 'paused' ? 'Resume' : 'Pause'}
+                </button>
+                <button onClick={() => handleAction('cancel')} disabled={action !== null}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.5rem 0.9rem', borderRadius: 9, border: `1px solid ${R}`, background: '#fff5f5', color: R, cursor: 'pointer' }}>
+                  <StopIcon style={{ width: 13, height: 13 }} />
+                  {action === 'cancel' ? 'Cancelling…' : 'Cancel'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Progress */}
+        {isActive && status && (
+          <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--adm-text-1)' }}>
+                {status.status === 'paused' ? '⏸ Paused' : `Enriching — ${status.current_make ?? ''} ${status.current_model ?? ''}`}
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>{status.processed_models} / {status.total_models || '?'}</span>
+            </div>
+            {status.total_models > 0 && (
+              <div style={{ width: '100%', background: '#e2e4e9', borderRadius: 99, height: 6, overflow: 'hidden', marginBottom: '0.5rem' }}>
+                <div style={{ width: `${pct}%`, background: status.status === 'paused' ? '#f59e0b' : R, height: '100%', borderRadius: 99, transition: 'width 0.4s' }} />
+              </div>
+            )}
+            {Object.keys(status.source_counts).length > 0 && (
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                {Object.entries(status.source_counts).map(([src, count]) => (
+                  <span key={src} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: 99, background: '#f3f4f6', color: '#374151', fontWeight: 700 }}>
+                    {SOURCE_LABELS[src] ?? src}: {count}
+                  </span>
+                ))}
+              </div>
+            )}
+            <LogPanel lines={status.logs} />
+          </div>
         )}
 
-        {isActive && (
-          <>
-            <button
-              onClick={() => handleAction(status?.status === 'paused' ? 'resume' : 'pause')}
-              disabled={action !== null}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}
-            >
-              {status?.status === 'paused' ? <PlayIcon style={{ width: 13, height: 13 }} /> : <PauseIcon style={{ width: 13, height: 13 }} />}
-              {action === 'pause' ? 'Pausing…' : action === 'resume' ? 'Resuming…' : status?.status === 'paused' ? 'Resume' : 'Pause'}
-            </button>
-            <button
-              onClick={() => handleAction('cancel')}
-              disabled={action !== null}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: `1px solid ${R}`, background: '#fff5f5', color: R, cursor: 'pointer' }}
-            >
-              <StopIcon style={{ width: 13, height: 13 }} />
-              {action === 'cancel' ? 'Cancelling…' : 'Cancel'}
-            </button>
-          </>
+        {/* Finished / error status */}
+        {(isDone || status?.status === 'cancelled' || isError) && status && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: isError ? '#fff5f5' : isDone ? '#f0fdf4' : '#fffbeb', border: `1px solid ${isError ? '#fca5a5' : isDone ? '#bbf7d0' : '#fde68a'}`, fontSize: '0.73rem', fontWeight: 600, color: isError ? R : isDone ? '#15803d' : '#b45309' }}>
+            {isError
+              ? <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline error — {status.error_detail}</>
+              : isDone
+              ? <><CheckCircleIcon style={{ width: 14, height: 14 }} /> Enrichment complete — {status.enriched_rows?.toLocaleString() ?? 0} rows staged</>
+              : <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline cancelled — partial results staged</>}
+          </div>
         )}
 
-        {stagingAvailable && (
-          <button
-            onClick={() => setShowStaging(s => !s)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: showStaging ? '#fffbeb' : 'var(--adm-card-bg)', cursor: 'pointer' }}
-          >
-            <ArchiveBoxIcon style={{ width: 13, height: 13 }} />
-            {showStaging ? 'Hide Staging' : 'Review Staged Rows'}
-          </button>
+        {/* Provider stats post-run */}
+        {(isDone || status?.status === 'cancelled') && status?.provider_details && Object.keys(status.provider_details).length > 0 && (
+          <div style={{ marginTop: '1rem' }}>
+            <ProviderStatsPanel details={status.provider_details} />
+          </div>
         )}
       </div>
+
+      {/* Unmatched models */}
+      {(isDone || status?.status === 'cancelled') && status?.run_id && (
+        <UnmatchedModelsPanel runId={status.run_id} onRetry={handleRetryUnmatched} retryLoading={retryLoading} />
+      )}
 
       {actionError && (
         <div style={{ fontSize: '0.75rem', color: R, background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.5rem 0.75rem' }}>
@@ -3030,71 +3330,14 @@ function CrspTab() {
         </div>
       )}
 
-      {/* Progress */}
-      {isActive && status && (
-        <div style={{ ...CARD, padding: '1rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>
-              {status.status === 'paused' ? '⏸ Paused' : `Enriching — ${status.current_make ?? ''} ${status.current_model ?? ''}`}
-            </span>
-            <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>
-              {status.processed_models} / {status.total_models || '?'} pairs
-            </span>
-          </div>
-          {status.total_models > 0 && (
-            <div style={{ width: '100%', background: '#e2e4e9', borderRadius: 99, height: 6, overflow: 'hidden', marginBottom: '0.75rem' }}>
-              <div style={{ width: `${pct}%`, background: status.status === 'paused' ? '#f59e0b' : R, height: '100%', borderRadius: 99, transition: 'width 0.4s' }} />
-            </div>
-          )}
-          {/* Source breakdown */}
-          {Object.keys(status.source_counts).length > 0 && (
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-              {Object.entries(status.source_counts).map(([src, count]) => (
-                <span key={src} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: 99, background: '#f3f4f6', color: '#374151', fontWeight: 700 }}>
-                  {SOURCE_LABELS[src] ?? src}: {count}
-                </span>
-              ))}
-            </div>
-          )}
-          <LogPanel lines={status.logs} />
-        </div>
+      {/* Staging toggle */}
+      {stagingAvailable && (
+        <button onClick={() => setShowStaging(s => !s)}
+          style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: showStaging ? '#fffbeb' : 'var(--adm-card-bg)', cursor: 'pointer' }}>
+          <ArchiveBoxIcon style={{ width: 13, height: 13 }} />
+          {showStaging ? 'Hide Staging' : 'Review Staged Rows'}
+        </button>
       )}
-
-      {/* Finished status */}
-      {(isDone || status?.status === 'cancelled' || isError) && status && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '0.6rem',
-          padding: '0.55rem 1rem', background: 'var(--adm-card-bg)',
-          border: '1px solid var(--adm-sep)', borderRadius: 99,
-          fontSize: '0.75rem', fontWeight: 600,
-          color: isError ? R : isDone ? '#15803d' : '#b45309',
-        }}>
-          {isError
-            ? <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline error — {status.error_detail}</>
-            : isDone
-            ? <><CheckCircleIcon style={{ width: 14, height: 14 }} /> Enrichment complete — {status.enriched_rows?.toLocaleString() ?? 0} rows staged for review</>
-            : <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline cancelled — partial results staged for review</>
-          }
-        </div>
-      )}
-
-      {/* Stage pipeline diagram */}
-      <div style={{ ...CARD, padding: '1.25rem 1.25rem 1rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
-          Pipeline Stages
-        </h3>
-        <div>
-          {CRSP_STAGES.map((stage, idx) => (
-            <StageCard
-              key={stage.id}
-              stage={stage}
-              status={getStageStatus(stage.id)}
-              index={idx}
-              total={CRSP_STAGES.length}
-            />
-          ))}
-        </div>
-      </div>
 
       {/* Commit result */}
       {commitResult && (
