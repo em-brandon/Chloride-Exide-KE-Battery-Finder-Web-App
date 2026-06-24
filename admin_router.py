@@ -3275,6 +3275,23 @@ def commit_crsp_staging(
     committed = skipped_existing = 0
     now = datetime.now(timezone.utc)
 
+    # Insert the version row FIRST and flush it so the FK from vehicle_years_changelog
+    # is satisfied before any changelog rows are written.
+    version_row = VehicleYearVersion(
+        id              = version_id,
+        version_number  = version_number,
+        committed_at    = now,
+        run_id          = run_id,
+        committed_count = 0,        # updated below after counting
+        updated_count   = 0,
+        removed_count   = 0,
+        conflict_count  = 0,
+        committed_by    = admin.username,
+        initiated_by    = initiated_by,
+    )
+    db.add(version_row)
+    db.flush()  # version must exist in DB before changelog FK references it
+
     for row in staging_rows:
         if (row.make, row.model, row.year) in existing_keys:
             skipped_existing += 1
@@ -3299,18 +3316,9 @@ def commit_crsp_staging(
         ))
         committed += 1
 
-    db.add(VehicleYearVersion(
-        id              = version_id,
-        version_number  = version_number,
-        committed_at    = now,
-        run_id          = run_id,
-        committed_count = committed,
-        updated_count   = 0,
-        removed_count   = 0,
-        conflict_count  = skipped_existing,
-        committed_by    = admin.username,
-        initiated_by    = initiated_by,
-    ))
+    # Update version row counts now that we know the final totals
+    version_row.committed_count = committed
+    version_row.conflict_count  = skipped_existing
 
     # Clear staging
     db.query(VehicleYearStaging).delete()

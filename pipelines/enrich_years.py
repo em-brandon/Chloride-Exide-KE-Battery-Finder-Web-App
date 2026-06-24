@@ -164,11 +164,13 @@ _wiki_skip_until = 0
 _WIKI_RANGE_PATTERNS = [
     r'(?:produc|manufactur|built|made)[\s\S]{0,50}?(?:from|between)\s+(\d{4})\s*(?:to|and|[-–—])\s*(\d{4})',
     r'production[\s\S]{0,15}?(\d{4})\s*[-–—]\s*(\d{4})',
-    r'\b(\d{4})\s*[–—]\s*(\d{4})\b',   # standalone em/en-dash range anywhere in extract
+    r'\b(\d{4})\s*[-–—]\s*(\d{4})\b',   # standalone range: hyphen, en-dash, or em-dash
 ]
 
-# Tier 2 — open-ended "since / introduced / launched YEAR"
+# Tier 2 — open-ended "since / introduced / launched YEAR" or "YEAR–present"
 _WIKI_SINCE_PATTERNS = [
+    r'\b(\d{4})\s*[-–—]\s*(?:present|current|ongoing)\b',  # "2011-present" / "2011–present"
+    r'\b(\d{4})\s+to\s+(?:present|current|date|now)\b',    # "2011 to present"
     r'(?:since|introduc|launch|debut|unveil)[\s\S]{0,25}?(\d{4})',
     r'\bfrom\s+(\d{4})\b',
 ]
@@ -498,7 +500,17 @@ def get_years_from_carquery(make: str, model_name: str, log=print, rate_limit_co
             if resp.status_code != 200:
                 return None, None
 
-            trims = resp.json().get("Trims", [])
+            # Empty body = make/model not in CarQuery — treat as miss, not error
+            body = resp.text.strip()
+            if not body:
+                return None, None
+
+            try:
+                data = resp.json()
+            except ValueError:
+                return None, None
+
+            trims = data.get("Trims", [])
             if not trims:
                 return None, None
 
