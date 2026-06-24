@@ -905,11 +905,12 @@ export interface CrspConflictResolution {
 }
 
 export interface CrspCommitResult {
-  version_id:     string
-  version_number: number
-  committed:      number
-  updated:        number
-  conflict_kept:  number
+  version_id:        string
+  version_number:    number
+  committed:         number
+  updated:           number
+  conflict_kept:     number
+  skipped_existing?: number
 }
 
 export interface CrspPreCommitResult {

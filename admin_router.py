@@ -3271,57 +3271,39 @@ def commit_crsp_staging(
     run_id         = staging_rows[0].run_id if staging_rows else None
     initiated_by   = _crsp_state.get("initiated_by")
 
-    committed = updated = conflict_count = 0
+    committed = skipped_existing = conflict_count = 0
     now = datetime.now(timezone.utc)
 
     for row in staging_rows:
-        key = (row.make.upper(), row.model.upper(), row.year)
-        resolution = resolution_map.get(key, "staged")
-
-        if row.conflict and resolution == "current":
-            conflict_count += 1
-            continue
-
         existing = db.query(VehicleYear).filter(
             VehicleYear.make == row.make,
             VehicleYear.model == row.model,
             VehicleYear.year == row.year,
         ).first()
 
-        old_vals = None
         if existing:
-            old_vals = json.dumps({
-                "engine_capacity": existing.engine_capacity,
-                "fuel": existing.fuel,
-                "source": existing.source,
-            })
-            existing.engine_capacity = row.engine_capacity
-            existing.fuel            = row.fuel
-            existing.source          = row.source
-            change_type = "updated"
-            updated += 1
-        else:
-            existing = VehicleYear(
-                make=row.make, model=row.model, year=row.year,
-                engine_capacity=row.engine_capacity, fuel=row.fuel, source=row.source,
-            )
-            db.add(existing)
-            change_type = "added"
-            committed += 1
+            # Record already in master — skip it, never overwrite
+            skipped_existing += 1
+            continue
 
+        db.add(VehicleYear(
+            make=row.make, model=row.model, year=row.year,
+            engine_capacity=row.engine_capacity, fuel=row.fuel, source=row.source,
+        ))
         db.add(VehicleYearChangelog(
             version_id  = version_id,
             make        = row.make,
             model       = row.model,
             year        = row.year,
-            change_type = change_type,
-            old_values  = old_vals,
+            change_type = "added",
+            old_values  = None,
             new_values  = json.dumps({
                 "engine_capacity": row.engine_capacity,
                 "fuel": row.fuel,
                 "source": row.source,
             }),
         ))
+        committed += 1
 
     db.add(VehicleYearVersion(
         id              = version_id,
@@ -3329,9 +3311,9 @@ def commit_crsp_staging(
         committed_at    = now,
         run_id          = run_id,
         committed_count = committed,
-        updated_count   = updated,
+        updated_count   = 0,
         removed_count   = 0,
-        conflict_count  = conflict_count,
+        conflict_count  = skipped_existing,
         committed_by    = admin.username,
         initiated_by    = initiated_by,
     ))
@@ -3341,15 +3323,16 @@ def commit_crsp_staging(
     db.commit()
 
     logger.info(
-        "CRSP staging committed by %s — v%d added=%d updated=%d conflicts_kept=%d",
-        admin.username, version_number, committed, updated, conflict_count,
+        "CRSP staging committed by %s — v%d added=%d skipped_existing=%d",
+        admin.username, version_number, committed, skipped_existing,
     )
     return {
-        "version_id":    version_id,
-        "version_number": version_number,
-        "committed":     committed,
-        "updated":       updated,
-        "conflict_kept": conflict_count,
+        "version_id":      version_id,
+        "version_number":  version_number,
+        "committed":       committed,
+        "updated":         0,
+        "conflict_kept":   skipped_existing,
+        "skipped_existing": skipped_existing,
     }
 
 

@@ -82,7 +82,6 @@ import {
   refreshCrspCache,
   type CrspStatus,
   type CrspStagingResponse,
-  type CrspConflictResolution,
   type CrspCommitResult,
   type CrspVersionsResponse,
   type CrspChangelogResponse,
@@ -2920,7 +2919,6 @@ function CrspStagingPanel({
   const [editSaving, setEditSaving]   = useState(false)
   const [commitLoading, setCommitLoading] = useState(false)
   const [discardLoading, setDiscardLoading] = useState(false)
-  const [resolutions, setResolutions] = useState<Record<string, 'staged' | 'current'>>({})
   const [toast, setToast]             = useState<string | null>(null)
 
   const PAGE_SIZE = 50
@@ -2958,11 +2956,7 @@ function CrspStagingPanel({
   async function handleCommit() {
     setCommitLoading(true)
     try {
-      const cr: CrspConflictResolution[] = Object.entries(resolutions).map(([key, resolution]) => {
-        const [make, model, year] = key.split('|')
-        return { make, model, year: parseInt(year), resolution }
-      })
-      const result = await commitCrspStaging(cr)
+      const result = await commitCrspStaging([])
       onCommit(result)
     } catch { /* ignore */ }
     finally { setCommitLoading(false) }
@@ -3035,7 +3029,6 @@ function CrspStagingPanel({
               ? <tr><td colSpan={8} style={{ padding: '1rem', color: '#9ca3af', textAlign: 'center', fontStyle: 'italic' }}>No rows</td></tr>
               : data.rows.map(row => {
                   const rowBg = row.conflict ? '#fffbeb' : !row.is_valid ? '#fff5f5' : 'transparent'
-                  const resKey = `${row.make}|${row.model}|${row.year}`
                   return (
                     <tr key={row.id} style={{ borderTop: '1px solid var(--adm-sep)', background: rowBg }}>
                       <td style={{ padding: '0.3rem 0.5rem', fontWeight: 700 }}>{row.make}</td>
@@ -3054,22 +3047,12 @@ function CrspStagingPanel({
                       <td style={{ padding: '0.3rem 0.5rem', color: '#6b7280' }}>{row.source ? (SOURCE_LABELS[row.source] ?? row.source) : '—'}</td>
                       <td style={{ padding: '0.3rem 0.5rem' }}>
                         {row.conflict
-                          ? <span style={{ color: '#b45309', fontWeight: 700, fontSize: '0.65rem' }}>⚠ Conflict</span>
+                          ? <span title="Already in master — will be skipped on commit" style={{ color: '#b45309', fontWeight: 700, fontSize: '0.65rem' }}>⚠ Exists</span>
                           : !row.is_valid
                           ? <span style={{ color: R, fontSize: '0.65rem' }}>{row.invalid_reason ?? 'Invalid'}</span>
                           : <span style={{ color: '#15803d', fontSize: '0.65rem' }}>✓ New</span>}
                       </td>
                       <td style={{ padding: '0.3rem 0.5rem', whiteSpace: 'nowrap' }}>
-                        {row.conflict && (
-                          <select
-                            value={resolutions[resKey] ?? 'staged'}
-                            onChange={e => setResolutions(prev => ({ ...prev, [resKey]: e.target.value as 'staged' | 'current' }))}
-                            style={{ fontSize: '0.65rem', padding: '0.15rem 0.3rem', border: '1px solid #e2e4e9', borderRadius: 5, marginRight: 4 }}
-                          >
-                            <option value="staged">Use new</option>
-                            <option value="current">Keep existing</option>
-                          </select>
-                        )}
                         {editingId === row.id ? (
                           <>
                             <button onClick={() => saveEdit(row.id)} disabled={editSaving} style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: 5, border: 'none', background: '#22c55e', color: '#fff', cursor: 'pointer', marginRight: 3 }}>
@@ -3615,7 +3598,7 @@ function CrspTab() {
       {/* Commit result */}
       {commitResult && (
         <div style={{ fontSize: '0.75rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.6rem 0.9rem' }}>
-          ✓ Committed to vehicle_years — v{commitResult.version_number}: {commitResult.committed} added, {commitResult.updated} updated, {commitResult.conflict_kept} conflicts kept.
+          ✓ Committed to vehicle_years — v{commitResult.version_number}: {commitResult.committed} new records added, {commitResult.conflict_kept} already-existing records skipped.
         </div>
       )}
 
