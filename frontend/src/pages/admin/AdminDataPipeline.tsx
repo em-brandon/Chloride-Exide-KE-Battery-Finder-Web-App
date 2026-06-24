@@ -118,7 +118,7 @@ const CARD: React.CSSProperties = {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type DatasetTab = 'crsp' | 'webvalidate'
+type DatasetTab = 'crsp' | 'staging' | 'webvalidate'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function ArrowSpinner() {
@@ -3638,8 +3638,64 @@ function CrspTab() {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+function StagingReviewTab({ onCountChange }: { onCountChange: (n: number) => void }) {
+  const [commitResult, setCommitResult] = useState<CrspCommitResult | null>(null)
+  const [discarded,    setDiscarded]    = useState(false)
+  const [key,          setKey]          = useState(0)
+
+  function handleCommit(result: CrspCommitResult) {
+    setCommitResult(result)
+    onCountChange(0)
+    setKey(k => k + 1)
+  }
+
+  function handleDiscard() {
+    setDiscarded(true)
+    onCountChange(0)
+    setKey(k => k + 1)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'rgba(17,24,39,0.85)' }}>Staging Area</div>
+          <div style={{ fontSize: '0.75rem', color: 'rgba(107,114,128,0.85)', marginTop: '0.15rem' }}>
+            Review, edit, and commit enriched vehicle year rows before they are written to the master table.
+          </div>
+        </div>
+        <button
+          onClick={() => { setCommitResult(null); setDiscarded(false); setKey(k => k + 1) }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: 99, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', border: '1px solid var(--adm-card-border)', background: 'var(--adm-subtle-bg)', color: 'rgba(17,24,39,0.7)' }}
+        >
+          <ArrowPathIcon style={{ width: 13, height: 13 }} /> Refresh
+        </button>
+      </div>
+
+      {commitResult && (
+        <div style={{ fontSize: '0.75rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.6rem 0.9rem' }}>
+          ✓ Committed to vehicle_years — v{commitResult.version_number}: {commitResult.committed} added, {commitResult.updated} updated, {commitResult.conflict_kept} conflicts kept.
+        </div>
+      )}
+
+      {discarded && (
+        <div style={{ fontSize: '0.75rem', color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '0.6rem 0.9rem' }}>
+          Staging data discarded.
+        </div>
+      )}
+
+      <CrspStagingPanel key={key} onCommit={handleCommit} onDiscard={handleDiscard} />
+    </div>
+  )
+}
+
 export default function AdminDataPipeline() {
-  const [activeTab, setActiveTab] = useState<DatasetTab>('crsp')
+  const [activeTab,    setActiveTab]    = useState<DatasetTab>('crsp')
+  const [stagingCount, setStagingCount] = useState<number>(0)
+
+  useEffect(() => {
+    getCrspStaging('all', 1, 1).then(d => setStagingCount(d.total)).catch(() => {})
+  }, [])
 
   function tabStyle(tab: DatasetTab): React.CSSProperties {
     const active = activeTab === tab
@@ -3679,6 +3735,19 @@ export default function AdminDataPipeline() {
             <button style={tabStyle('crsp')} onClick={() => setActiveTab('crsp')}>
               <TableCellsIcon style={{ width: 14, height: 14 }} /> CRSP Pipeline
             </button>
+            <button style={tabStyle('staging')} onClick={() => setActiveTab('staging')}>
+              <ArchiveBoxIcon style={{ width: 14, height: 14 }} /> Staging Review
+              {stagingCount > 0 && (
+                <span style={{
+                  marginLeft: '0.3rem', padding: '0.1rem 0.45rem', borderRadius: 99,
+                  fontSize: '0.7rem', fontWeight: 700, lineHeight: 1,
+                  background: activeTab === 'staging' ? 'rgba(255,255,255,0.25)' : '#f59e0b',
+                  color: activeTab === 'staging' ? '#fff' : '#fff',
+                }}>
+                  {stagingCount.toLocaleString()}
+                </span>
+              )}
+            </button>
             <button style={tabStyle('webvalidate')} onClick={() => setActiveTab('webvalidate')}>
               <GlobeAltIcon style={{ width: 14, height: 14 }} /> Web Validate
             </button>
@@ -3686,6 +3755,8 @@ export default function AdminDataPipeline() {
 
           {activeTab === 'crsp' ? (
             <CrspTab />
+          ) : activeTab === 'staging' ? (
+            <StagingReviewTab onCountChange={n => setStagingCount(n)} />
           ) : (
             <WebValidateTab />
           )}
