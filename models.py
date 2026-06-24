@@ -465,6 +465,7 @@ class VehicleYearUnmatched(Base):
     run_id      = Column(Text,                 nullable=False)
     make        = Column(String(100),          nullable=False)
     model       = Column(String(200),          nullable=False)
+    fuel        = Column(String(50),           nullable=True)
     recorded_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
@@ -555,3 +556,27 @@ class EnrichmentCacheMeta(Base):
 
     def __repr__(self) -> str:
         return f"<EnrichmentCacheMeta {self.key} downloaded={self.downloaded_at}>"
+
+
+class FueleconomyVehicle(Base):
+    """
+    Row-level store for the fueleconomy.gov bulk EPA vehicles CSV (~47 k rows).
+
+    Downloaded via admin UI (POST /pipeline/crsp/fueleconomy/download).
+    Loaded into an in-process module-level cache by pipelines/enrich_years.py.
+    Recommended refresh: every 180 days (EPA publishes new model-year data annually in Oct/Nov).
+    """
+
+    __tablename__ = "fueleconomy_vehicles"
+
+    id    = Column(Integer,     primary_key=True, autoincrement=True)
+    year  = Column(Integer,     nullable=False)
+    make  = Column(String(100), nullable=False)
+    model = Column(String(200), nullable=False)
+
+    __table_args__ = (
+        Index("ix_fueleconomy_vehicles_make_model", "make", "model"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<FueleconomyVehicle {self.year} {self.make} {self.model}>"

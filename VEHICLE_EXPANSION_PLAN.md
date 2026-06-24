@@ -1,117 +1,334 @@
-# Plan: Expand vehicle_years from ~60k to 100k rows
+# Plan: Vehicle Expansion Pipeline — Own Tab with Editable Makes List
 
 ## Context
 
-The `vehicle_years` table currently has **~60,714 rows**. The target is 100k rows — a gap of ~39k.
-
-The existing CRSP enrichment pipeline (`pipelines/enrich_years.py`) is bounded by `battery_lookup_dataset.csv` — it cannot add vehicles not in the battery catalogue. To expand beyond this, a supplementary pipeline (`pipelines/vehicle_coverage_expansion.py`) populates `vehicle_years_staging` directly from external global vehicle databases, independent of the CRSP data.
-
-**Status:** `pipelines/vehicle_coverage_expansion.py` was created in a previous session (unapproved). It has a HINO duplicate in `TARGET_MAKES` that needs fixing. The remaining tasks below are **not yet implemented**.
-
----
-
-## Data Sources (5 total, priority order)
-
-### Source 1 — NHTSA VPIC per-year (already in expansion.py)
-`GET /GetModelsForMakeYear/make/{make}/modelYear/{year}` — exact per-year model lists for US-sold vehicles (1981–present). Best for Japanese/Korean/US makes.
-
-### Source 2 — CarQuery API (already in expansion.py)
-Free JSONP API at `carqueryapi.com/api/0.3/?cmd=getModels&make={make}`. Returns `year_first`/`year_last` per model globally. Covers European/Korean makes CarAPI misses. JSONP strip: `re.search(r'\{.*\}', text, re.DOTALL)`.
-
-### Source 3 — auto-data.net (NEW — to add)
-**Best single source for European makes** (Peugeot, Citroën, Renault, Opel, Vauxhall) and JDM model generations. Structured HTML per model page.
-- URL pattern: `https://www.auto-data.net/en/allmodels-{slug}.html` (e.g. `peugeot`, `renault`)
-- Scrape: model name + generation year ranges from the model listing tables
-- Fills the gap for makes mapped to `None` in `FE_MAKE_MAP` in `enrich_years.py`
-
-### Source 4 — car.info (already scaffolded in expansion.py, needs full implementation)
-Global coverage including full JDM lineups (Hiace, Land Cruiser Prado variants, trims) with production year ranges per trim.
-- URL pattern: `https://www.car.info/en-gb/{slug}/` (e.g. `toyota`, `nissan`)
-- Scrape: model name + year range from model listing cards
-
-### Source 5 — cars-data.com (already scaffolded in expansion.py, needs full implementation)
-Chinese brands (Haval, Great Wall, SAIC) and commercial vehicles (Iveco, Fuso) with year ranges — directly fills None-mapped makes.
-- URL pattern: `https://www.cars-data.com/en/{slug}-cars` (e.g. `haval`, `great-wall`, `iveco`)
-- Scrape: model name + year range from model listing
+`pipelines/vehicle_coverage_expansion.py` is fully implemented (NHTSA, CarQuery, cars-data.com, car.info scrapers, cancel/pause support, dedup against `vehicle_years`) but has no admin UI and no backend endpoints. The user wants:
+- A **Vehicle Expansion** tab (its own tab, not under CRSP)
+- A **curated Kenya-market make list editable from the admin UI** — stored in the DB, not hardcoded
+- Year range tiers per segment (agreed with user)
+- Pipeline reads existing `vehicle_years` at startup and only stages genuinely new rows
+- Staged rows reviewed → committed via the existing staging → commit flow
 
 ---
 
-## Target Makes
+## Year Range Tiers (agreed with user)
 
-40+ makes in `TARGET_MAKES` dict in `vehicle_coverage_expansion.py` — covers Japanese, European, Korean, Chinese, and commercial truck segments. Fix duplicate HINO key before running.
-
----
-
-## Remaining Implementation Tasks
-
-### Task 1: Fix HINO duplicate in `pipelines/vehicle_coverage_expansion.py`
-- Line ~80 and line ~111 both define `"HINO"` key — second silently overwrites first
-- Keep one entry (the commercial trucks section), remove the duplicate in the Japanese section or rename it
-
-### Task 2: Add auto-data.net scraper to `pipelines/vehicle_coverage_expansion.py`
-New function `_scrape_autodata(slug: str, cache: dict, log=print) -> list[dict]`:
-- GET `https://www.auto-data.net/en/allmodels-{slug}.html` with BeautifulSoup/lxml
-- Parse model table rows: extract model name + year range columns
-- Return `[{model, year_from, year_to}]`
-- Add `"autodata"` slug to each make in `TARGET_MAKES` (None where not covered)
-- Call in `main()` alongside other scrapers; results merged into `pairs` set
-
-### Task 3: Complete car.info scraper in `pipelines/vehicle_coverage_expansion.py`
-`_scrape_carinfo()` is scaffolded but needs production-ready HTML parsing:
-- Target: model cards/rows with year span text like "2005–2015"
-- Add error handling + cache write on success
-
-### Task 4: Complete cars-data.com scraper in `pipelines/vehicle_coverage_expansion.py`
-`_scrape_carsdata()` is scaffolded but needs production-ready HTML parsing:
-- Target: model listing with year columns
-- Add error handling + cache write on success
-
-### Task 5: Add CarQuery as Source 6 in `pipelines/enrich_years.py`
-For the CRSP pipeline's unmatched pairs (Peugeot, Haval, etc. mapped to `None` in `FE_MAKE_MAP`):
-- Add `CARQUERY_URL` constant and make name map
-- Add `fetch_carquery_for_enrich(make, cache, log)` function (reuse JSONP-strip pattern)
-- Add CarQuery fetch stage in `main()` alongside CarAPI
-- Extend `lookup_years()` with CarQuery fallback as Source 6 after Wikidata
-
-### Task 6: Add expansion pipeline endpoints to `admin_router.py`
-Mirror the existing CRSP pipeline pattern (`_crsp_lock`, `_crsp_state`, `_crsp_thread`):
-- New `_expansion_lock`, `_expansion_state`, `_expansion_thread()`
-- `POST /api/admin/pipeline/vehicle-expansion/run` — background thread, returns `run_id`
-- `GET /api/admin/pipeline/vehicle-expansion/status` — progress + log lines
-- `POST /api/admin/pipeline/vehicle-expansion/pause|resume|cancel`
-
-### Task 7: Add expansion API functions to `frontend/src/lib/adminApi.ts`
-- New `ExpansionStatus` interface (mirrors `CrspStatus`)
-- `runExpansionPipeline()`, `getExpansionStatus()`, `cancelExpansion()` functions
-
-### Task 8: Add ExpansionTab UI to `frontend/src/pages/admin/AdminDataPipeline.tsx`
-- Add `'expansion'` to `type DatasetTab = 'crsp' | 'webvalidate'`
-- New `ExpansionTab` component: Run button, live log feed, staging row count before/after
-- New tab button alongside CRSP and Webvalidate tabs
-- **Use inline `style={{}}` props throughout — no Tailwind utility classes** (per CLAUDE.md)
+| Tier | Makes | Year range |
+|---|---|---|
+| `default` | Toyota, Nissan, Honda, Mazda, Subaru, Mitsubishi, Suzuki, Daihatsu, Lexus, Hyundai, Kia, BMW, Mercedes, Audi, VW, Land Rover, Jaguar, Peugeot, Citroën, Renault, Opel, Fiat, Skoda, Volvo, Mini, Ford, Chevrolet, Jeep | 2003–2026 |
+| `commercial` | Isuzu, Hino, Mitsubishi Fuso, MAN, Scania, Iveco Daily, Nissan Diesel/UD | 1995–2026 |
+| `chinese` | Haval, Great Wall, Chery, Foton, FAW, Dongfeng, JAC, Tata, Maruti Suzuki, SAIC Motors | 2010–2026 |
 
 ---
 
-## Expected Yield
+## Files to Modify (6 files)
 
-| Source | New rows (est.) |
-|---|---|
-| NHTSA per-year (Japanese/Korean/US) | ~15–20k |
-| CarQuery (European + global) | ~10–15k |
-| auto-data.net (European/JDM) | ~8–12k |
-| car.info (JDM trims) | ~5–8k |
-| cars-data.com (Chinese/commercial) | ~5–8k |
-| Overlap removed by `write_to_staging` dedup | −5–10k |
-| **Net new rows** | **~38–53k** |
+### 1. `models.py`
 
-Combined with existing 60,714 → target ~95k–100k+ rows.
+Add `ExpansionMake` after `FueleconomyVehicle` (~line 583):
+
+```python
+class ExpansionMake(Base):
+    __tablename__ = "expansion_makes"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    make          = Column(String(100), nullable=False, unique=True)   # e.g. "TOYOTA"
+    year_tier     = Column(String(20),  nullable=False, default="default")  # default | commercial | chinese
+    nhtsa_slug    = Column(String(100), nullable=True)   # e.g. "Toyota"
+    cq_slug       = Column(String(100), nullable=True)   # e.g. "toyota"
+    carsdata_slug = Column(String(100), nullable=True)   # e.g. "toyota"
+    carinfo_slug  = Column(String(100), nullable=True)   # e.g. "toyota"
+    enabled       = Column(Boolean, nullable=False, default=True)
+    created_at    = Column(DateTime(timezone=True), nullable=True)
+    updated_at    = Column(DateTime(timezone=True), nullable=True)
+```
+
+---
+
+### 2. `alembic/versions/` — new migration
+
+**Filename:** `20260624_c3d4e5f6a7b8_expansion_makes.py`
+**Revises:** `f2a3b4c5d6e7` (current latest)
+
+```python
+def upgrade() -> None:
+    op.create_table(
+        "expansion_makes",
+        sa.Column("id",            sa.Integer(),               primary_key=True, autoincrement=True),
+        sa.Column("make",          sa.String(100),             nullable=False),
+        sa.Column("year_tier",     sa.String(20),              nullable=False, server_default="default"),
+        sa.Column("nhtsa_slug",    sa.String(100),             nullable=True),
+        sa.Column("cq_slug",       sa.String(100),             nullable=True),
+        sa.Column("carsdata_slug", sa.String(100),             nullable=True),
+        sa.Column("carinfo_slug",  sa.String(100),             nullable=True),
+        sa.Column("enabled",       sa.Boolean(),               nullable=False, server_default="true"),
+        sa.Column("created_at",    sa.DateTime(timezone=True), nullable=True),
+        sa.Column("updated_at",    sa.DateTime(timezone=True), nullable=True),
+        sa.UniqueConstraint("make", name="uq_expansion_makes_make"),
+    )
+```
+
+**Seed data:** Insert the full curated list from the current `TARGET_MAKES` dict inside `upgrade()` using `op.bulk_insert()` — so on `alembic upgrade head` the table is pre-populated with the Kenya-market list. No manual seeding step required.
+
+---
+
+### 3. `pipelines/vehicle_coverage_expansion.py`
+
+**a. Keep `TARGET_MAKES` as the fallback seed** (used for `alembic upgrade head` seeding and CLI runs without a DB connection). Do not delete it.
+
+**b. Add `YEAR_TIERS` dict:**
+```python
+YEAR_TIERS = {
+    "commercial": (1995, 2026),
+    "chinese":    (2010, 2026),
+    "default":    (2003, 2026),
+}
+```
+
+**c. Add `load_makes_from_db(db) -> dict`** function:
+```python
+def load_makes_from_db(db) -> dict:
+    """Load enabled makes from expansion_makes table. Falls back to TARGET_MAKES if table empty."""
+    from models import ExpansionMake
+    rows = db.query(ExpansionMake).filter(ExpansionMake.enabled == True).all()
+    if not rows:
+        return TARGET_MAKES   # fallback for fresh installs before seeding
+    return {
+        r.make: {
+            "nhtsa": r.nhtsa_slug, "cq": r.cq_slug,
+            "carsdata": r.carsdata_slug, "carinfo": r.carinfo_slug,
+            "year_tier": r.year_tier,
+        }
+        for r in rows
+    }
+```
+
+**d. Update `main()`** — replace `TARGET_MAKES` reference with `load_makes_from_db(db)` when `db` is provided. Use `YEAR_TIERS[make_config.get("year_tier", "default")]` to clamp year range per make.
+
+**e. Fix HINO duplicate** — remove the first HINO entry (~line 80). Keep only the commercial trucks entry.
+
+**f. Add JAC to `TARGET_MAKES`:**
+```python
+"JAC": {"nhtsa": None, "cq": None, "carsdata": "jac", "carinfo": "jac"},
+```
+
+**g. Remove** `VAUXHALL`, `DODGE`, `EICHER` from `TARGET_MAKES`.
+
+---
+
+### 4. `admin_router.py`
+
+#### 4a — Expansion pipeline state + thread (insert after `_crsp_state` block ~line 2495)
+
+```python
+_expansion_lock = threading.Lock()
+_expansion_state: dict = {
+    "run_id":          None,
+    "status":          "idle",   # idle | running | paused | done | cancelled | error
+    "current_make":    None,
+    "makes_total":     0,
+    "makes_processed": 0,
+    "rows_staged":     0,
+    "rows_skipped":    0,
+    "source_counts":   {},
+    "logs":            deque(maxlen=50),
+    "started_at":      None,
+    "finished_at":     None,
+    "error_detail":    None,
+    "cancel_event":    None,
+    "pause_event":     None,
+    "initiated_by":    None,
+}
+```
+
+`_expansion_thread()` opens its own `SessionLocal()`, calls `expansion_main()`, updates state under lock, closes session on exit.
+
+#### 4b — Five pipeline endpoints (after CRSP cancel ~line 3134)
+
+| Method | Path | Action |
+|---|---|---|
+| POST | `/pipeline/expansion/run` | spawn thread, return `{run_id}` |
+| GET  | `/pipeline/expansion/status` | return state minus events |
+| POST | `/pipeline/expansion/pause` | set pause_ev |
+| POST | `/pipeline/expansion/resume` | clear pause_ev |
+| POST | `/pipeline/expansion/cancel` | set cancel_ev, wait 3s, force `"cancelled"` |
+
+#### 4c — Four expansion makes CRUD endpoints
+
+| Method | Path | Action |
+|---|---|---|
+| GET    | `/pipeline/expansion/makes` | return all rows ordered by make |
+| POST   | `/pipeline/expansion/makes` | create new make; 409 if make name already exists |
+| PATCH  | `/pipeline/expansion/makes/{id}` | update slugs / year_tier / enabled |
+| DELETE | `/pipeline/expansion/makes/{id}` | hard delete (not soft — list management, not audit-critical) |
+
+Pattern mirrors battery CRUD (lines 293–434): `Depends(require_admin)`, `Depends(get_db)`, return updated row. No audit log needed for makes list changes.
+
+---
+
+### 5. `frontend/src/lib/adminApi.ts`
+
+Add after line 1114.
+
+**Two new interfaces:**
+```typescript
+export interface ExpansionMake {
+  id:            number
+  make:          string
+  year_tier:     'default' | 'commercial' | 'chinese'
+  nhtsa_slug:    string | null
+  cq_slug:       string | null
+  carsdata_slug: string | null
+  carinfo_slug:  string | null
+  enabled:       boolean
+}
+
+export interface ExpansionStatus {
+  run_id:          string | null
+  status:          'idle' | 'running' | 'paused' | 'done' | 'cancelled' | 'error'
+  current_make:    string | null
+  makes_total:     number
+  makes_processed: number
+  rows_staged:     number
+  rows_skipped:    number
+  source_counts:   Record<string, number>
+  logs:            string[]
+  started_at:      string | null
+  finished_at:     string | null
+  error_detail:    string | null
+  initiated_by:    string | null
+}
+```
+
+**Nine functions:**
+```typescript
+// Pipeline control
+export async function runExpansionPipeline(): Promise<{ run_id: string }>
+export async function getExpansionStatus(): Promise<ExpansionStatus>
+export async function pauseExpansion(): Promise<{ detail: string }>
+export async function resumeExpansion(): Promise<{ detail: string }>
+export async function cancelExpansion(): Promise<{ detail: string }>
+
+// Makes list CRUD
+export async function getExpansionMakes(): Promise<ExpansionMake[]>
+export async function createExpansionMake(data: Omit<ExpansionMake, 'id'>): Promise<ExpansionMake>
+export async function updateExpansionMake(id: number, data: Partial<ExpansionMake>): Promise<ExpansionMake>
+export async function deleteExpansionMake(id: number): Promise<{ detail: string }>
+```
+
+---
+
+### 6. `frontend/src/pages/admin/AdminDataPipeline.tsx`
+
+**a. Extend `DatasetTab` type** (line 120):
+```typescript
+type DatasetTab = 'crsp' | 'webvalidate' | 'expansion'
+```
+
+**b. Add tab button** after Web Battery Validation button (~line 3670):
+```tsx
+<button style={tabStyle('expansion')} onClick={() => setActiveTab('expansion')}>
+  <CircleStackIcon style={{ width: 14, height: 14 }} /> Vehicle Expansion
+</button>
+```
+
+**c. Update conditional render** (lines 3673–3677):
+```tsx
+{activeTab === 'crsp'      ? <CrspTab /> :
+ activeTab === 'expansion' ? <ExpansionTab /> :
+ <WebValidateTab />}
+```
+
+**d. New `ExpansionTab` component** — insert above `AdminDataPipeline` default export. All `style={{}}` inline props, zero Tailwind.
+
+Layout:
+```
+┌─ Makes List card ────────────────────────────────────┐
+│  Heading: "Kenya-Market Makes"  [+ Add Make] button  │
+│  Table rows: Make | Year Tier | Sources | Enabled    │
+│    each row: inline edit (tier dropdown, enable tog) │
+│    each row: [Delete] button                         │
+│  Source columns: NHTSA / CQ / cars-data / car.info   │
+│    show slug text, greyed if null                    │
+└───────────────────────────────────────────────────────┘
+
+┌─ Run controls ───────────────────────────────────────┐
+│  [Run Expansion]  [Pause] [Resume] [Cancel]           │
+│  Progress bar: makes_processed / makes_total          │
+│  "Processing: TOYOTA" label                          │
+└───────────────────────────────────────────────────────┘
+
+┌─ Stats row ──────────────────────────────────────────┐
+│  Staged: N  |  Skipped (already in master): N         │
+│  Source chips: nhtsa N | carquery N | carsdata N      │
+└───────────────────────────────────────────────────────┘
+
+┌─ Log panel ──────────────────────────────────────────┐
+│  Reuse existing LogPanel / LogLine components         │
+└───────────────────────────────────────────────────────┘
+```
+
+Makes table behaviour:
+- Loads on tab mount via `getExpansionMakes()`
+- Tier dropdown (`default` / `commercial` / `chinese`) calls `updateExpansionMake` on change
+- Enabled toggle calls `updateExpansionMake` on change
+- [+ Add Make] opens an inline form row at the bottom of the table
+- [Delete] calls `deleteExpansionMake` with confirmation prompt
+- Run button disabled while pipeline is running
+
+---
+
+## Dedup Logic (confirmed in existing pipeline)
+
+`_load_existing_pairs()` in `vehicle_coverage_expansion.py` queries `vehicle_years` for all `(make, model, year)` tuples at pipeline startup. Only rows not in that set are written to `vehicle_years_staging`. The existing staging → commit flow promotes them to `vehicle_years`.
+
+Makes/models not yet in `vehicle_years` are the explicit target — the pipeline stages them and the admin commits them. Trims (TX, VX, GX etc.) are NOT stored as separate rows; the matcher handles trim disambiguation via fuzzy matching at query time.
+
+---
+
+## Confirmed Kenya-Market Gaps (from live DB audit — 2026-06-24)
+
+These are real vehicles used in Kenya today with no match in `vehicle_years`:
+
+| Make | Missing models | Impact |
+|---|---|---|
+| HAVAL | H6, H9, Jolion, F7, Dargo | H6 is a top-selling SUV in Kenya; only 4 generic entries exist (CITY, PREMIUM, ULTRA) |
+| FOTON | Aumark, Ollin, Tornado, View | 0 models in DB — very common Kenyan commercial trucks |
+| FAW | Bestune T77, Sirius, trucks | Only 2 internal Chinese code entries (CA3252, CA6371) — not recognisable |
+| RENAULT | Duster | 68 models in DB but all French-market only; Duster is one of Kenya's most popular SUVs |
+| MITSUBISHI | Pajero Sport, ASX, L200 | DB has JDM Pajero trim names only; Pajero Sport (body-on-frame Kenya market) missing |
+
+**Toyota missing models (from audit):**
+
+| Missing model | Production years | Kenya relevance |
+|---|---|---|
+| Land Cruiser 100 / 105 | 1998–2007 | Very common — predecessor to 200 series |
+| Land Cruiser Prado 90 | 1996–2002 | Older but still seen |
+| Land Cruiser Prado 120 | 2002–2009 | Common mid-era Prado |
+| Land Cruiser Prado 150 | 2009–2024 | Most common Prado on Kenyan roads today |
+| Toyota Succeed | 2002–present | Estate version of Probox — extremely common |
+| Toyota Hilux Surf / 4Runner | 1984–2009 | 4x4 SUV, very widely used |
+| Toyota Kluger / Highlander | 2000–present | Popular mid-size family SUV |
+| Toyota Avanza | 2003–present | Affordable 7-seater MPV, popular in East Africa |
+| Toyota IST | 2002–2016 | Compact JDM car, common import |
+| Toyota Caldina | 1992–2007 | JDM wagon, seen regularly |
+| Toyota Ipsum / Nadia / Gaia | 1995–2009 | JDM 7-seater MPVs |
+| Toyota Mark II / Chaser | 1968–2007 | Classic JDM luxury sedans |
+| Toyota Runx / Allex | 2001–2006 | JDM compact hatches, common budget imports |
+
+Current `vehicle_years` row count: **58,350** (target: 100k)
 
 ---
 
 ## Verification
 
-1. Fix HINO duplicate, then run CLI test: `python pipelines/vehicle_coverage_expansion.py --makes peugeot,haval --years 2000-2026`
-2. Check staging row count in log output and source breakdown
-3. Admin UI → DataPipeline → Expansion tab → review staging rows (filter by source)
-4. Commit staging → `SELECT COUNT(*) FROM vehicle_years` should approach 100k
-5. Spot-check: Peugeot 208, Haval H6, Renault Duster — confirm now in `vehicle_years`
+1. `alembic upgrade head` — `expansion_makes` table created and pre-seeded with curated list
+2. `python -c "from pipelines.vehicle_coverage_expansion import TARGET_MAKES; print(len(TARGET_MAKES))"` — ~43 (HINO deduped, JAC added, Vauxhall/Dodge/Eicher removed)
+3. Admin → Data Pipeline → **Vehicle Expansion** tab appears as third tab
+4. Makes table loads showing all seeded makes with tier and source slugs
+5. Edit a year tier dropdown → change persists on page reload
+6. Add a new make → appears in table; delete it → removed
+7. Click **Run Expansion** → progress bar increments per make, log streams live
+8. Pause / Resume / Cancel all work
+9. On completion: Staging Review (CRSP tab) shows new rows
+10. Commit → `SELECT COUNT(*) FROM vehicle_years` increases
