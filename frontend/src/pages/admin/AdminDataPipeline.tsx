@@ -2629,6 +2629,7 @@ function ProviderHealthPanel({ health, loading, onRecheck }: {
         <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           {(['fueleconomy', 'nhtsa', 'carapi', 'carquery', 'wikipedia', 'wikidata'] as const).map(key => {
             const p = health[key]
+            if (!p) return null
             return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.35rem 0.6rem', borderRadius: 7, background: 'var(--adm-subtle-bg)', fontSize: '0.7rem' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.ok ? '#22c55e' : R, flexShrink: 0 }} />
@@ -3295,7 +3296,6 @@ function CrspTab() {
     getCrspCacheStatus().then(setCrspCache).catch(() => null)
   }, [])
 
-  const stagingAvailable = status?.status === 'done' || status?.status === 'cancelled'
 
   function startPolling() {
     if (pollingRef.current) return
@@ -3604,14 +3604,12 @@ function CrspTab() {
         </div>
       )}
 
-      {/* Staging toggle */}
-      {stagingAvailable && (
-        <button onClick={() => setShowStaging(s => !s)}
-          style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: showStaging ? '#fffbeb' : 'var(--adm-card-bg)', cursor: 'pointer' }}>
-          <ArchiveBoxIcon style={{ width: 13, height: 13 }} />
-          {showStaging ? 'Hide Staging' : 'Review Staged Rows'}
-        </button>
-      )}
+      {/* Staging toggle — always visible so existing staged data can be reviewed at any time */}
+      <button onClick={() => setShowStaging(s => !s)}
+        style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.55rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: showStaging ? '#fffbeb' : 'var(--adm-card-bg)', cursor: 'pointer' }}>
+        <ArchiveBoxIcon style={{ width: 13, height: 13 }} />
+        {showStaging ? 'Hide Staging' : 'Review Staged Rows'}
+      </button>
 
       {/* Commit result */}
       {commitResult && (
