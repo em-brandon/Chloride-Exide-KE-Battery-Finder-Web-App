@@ -560,6 +560,17 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
 # =========================
 # STAGING WRITER
 # =========================
+
+def _to_int(value):
+    """Coerce engine_capacity to int; return None for non-numeric values like 'EV'."""
+    if value is None:
+        return None
+    try:
+        return int(float(str(value).strip()))
+    except (ValueError, TypeError):
+        return None
+
+
 def write_to_staging(db, run_id, enriched_rows):
     """
     Upsert enriched rows into vehicle_years_staging.
@@ -636,7 +647,7 @@ def write_to_staging(db, run_id, enriched_rows):
                 "make": row["make"],
                 "model": row["model"],
                 "year": row["year"],
-                "ec": row.get("engine_capacity"),
+                "ec": _to_int(row.get("engine_capacity")),
                 "fuel": row.get("fuel"),
                 "source": row.get("source"),
                 "now": now,
