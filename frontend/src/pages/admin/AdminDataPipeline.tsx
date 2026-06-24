@@ -2593,6 +2593,7 @@ function ProviderHealthPanel({ health, loading, onRecheck }: {
     fueleconomy: 'fueleconomy.gov',
     nhtsa:       'NHTSA VPIC',
     carapi:      'CarAPI',
+    carquery:    'CarQuery',
     wikipedia:   'Wikipedia API',
     wikidata:    'Wikidata SPARQL',
   }
