@@ -2829,25 +2829,33 @@ def get_crsp_provider_health(admin: AdminUser = Depends(require_admin)):
         WIKI_SEARCH_URL, WIKIDATA_SPARQL,
     )
 
+    # Use lightweight GET probes (stream=True so we never download the body).
+    # HEAD is blocked by Wikipedia/Wikidata (403) and unsupported by NHTSA (405).
+    # Use public endpoints that return 200 without authentication.
     providers = {
-        "fueleconomy": FUELECONOMY_CSV_URL,
+        "fueleconomy": "https://www.fueleconomy.gov/",
         "nhtsa":       NHTSA_ALL_MODELS.format(make="Toyota"),
-        "carapi":      CARAPI_MODELS_URL.format(make="Toyota"),
-        "wikipedia":   WIKI_SEARCH_URL,
-        "wikidata":    WIKIDATA_SPARQL,
+        "carapi":      "https://carapi.app/api/makes",
+        "wikipedia":   WIKI_SEARCH_URL + "?action=query&format=json&list=search&srsearch=Toyota&srlimit=1",
+        "wikidata":    WIKIDATA_SPARQL + "?query=ASK%7B%7D&format=json",
     }
+    _headers = {"User-Agent": "BatteryFinderHealthCheck/1.0 (internal)"}
 
     results: dict = {}
     all_ok = True
     for name, url in providers.items():
         try:
-            resp = requests.head(url, timeout=5, allow_redirects=True, verify=False)
-            ok = resp.status_code < 500
+            resp = requests.get(
+                url, timeout=8, allow_redirects=True, verify=False,
+                stream=True, headers=_headers,
+            )
+            resp.close()
+            ok = resp.status_code < 400
             results[name] = {
                 "url":         url,
                 "ok":          ok,
                 "status_code": resp.status_code,
-                "error":       None if ok else resp.reason,
+                "error":       None if ok else f"HTTP {resp.status_code} {resp.reason}",
             }
         except Exception as exc:
             ok = False
