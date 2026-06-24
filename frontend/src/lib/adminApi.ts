@@ -786,6 +786,7 @@ export interface CrspProviderHealthResult {
   fueleconomy: CrspProviderHealth
   nhtsa:       CrspProviderHealth
   carapi:      CrspProviderHealth
+  carquery:    CrspProviderHealth
   wikipedia:   CrspProviderHealth
   wikidata:    CrspProviderHealth
   checked_at:  string

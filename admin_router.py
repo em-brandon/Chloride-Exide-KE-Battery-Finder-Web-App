@@ -2826,7 +2826,7 @@ def run_crsp_dataprep(
 def get_crsp_provider_health(admin: AdminUser = Depends(require_admin)):
     from pipelines.enrich_years import (
         FUELECONOMY_CSV_URL, NHTSA_ALL_MODELS, CARAPI_MODELS_URL,
-        WIKI_SEARCH_URL, WIKIDATA_SPARQL,
+        WIKI_SEARCH_URL, WIKIDATA_SPARQL, CARQUERY_URL,
     )
 
     # Use lightweight GET probes (stream=True so we never download the body).
@@ -2836,6 +2836,7 @@ def get_crsp_provider_health(admin: AdminUser = Depends(require_admin)):
         "fueleconomy": "https://www.fueleconomy.gov/",
         "nhtsa":       NHTSA_ALL_MODELS.format(make="Toyota"),
         "carapi":      "https://carapi.app/api/makes",
+        "carquery":    CARQUERY_URL + "?cmd=getMakes",
         "wikipedia":   WIKI_SEARCH_URL + "?action=query&format=json&list=search&srsearch=Toyota&srlimit=1",
         "wikidata":    WIKIDATA_SPARQL + "?query=ASK%7B%7D&format=json",
     }

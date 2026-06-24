@@ -49,6 +49,7 @@ NHTSA_ALL_MODELS   = "https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/{
 WIKI_SEARCH_URL    = "https://en.wikipedia.org/w/api.php"
 WIKIDATA_SPARQL    = "https://query.wikidata.org/sparql"
 CARAPI_MODELS_URL  = "https://carapi.app/api/models?make={make}&verbose=yes&limit=200"
+CARQUERY_URL       = "https://www.carqueryapi.com/api/0.3/"
 
 SESSION = requests.Session()
 SESSION.verify = False
@@ -470,6 +471,51 @@ def extract_base_model(make, model_name):
     return " ".join(tokens[:2]) if tokens else model_name
 
 
+def get_years_from_carquery(make: str, model_name: str, log=print, rate_limit_counter=None) -> tuple:
+    """
+    Query CarQuery API for production years of a make+model.
+    Returns (year_from, year_to) or (None, None).
+    CarQuery uses lowercase make IDs and is tolerant of partial model names.
+    """
+    cq_make  = to_search_make(make).lower().replace(" ", "-")
+    cq_model = extract_search_model(make, model_name)
+
+    for attempt in range(3):
+        try:
+            resp = SESSION.get(
+                CARQUERY_URL,
+                params={"cmd": "getTrims", "make": cq_make, "model": cq_model},
+                timeout=10,
+            )
+            if resp.status_code == 429:
+                wait = (attempt + 1) * 10
+                if rate_limit_counter is not None:
+                    rate_limit_counter["carquery"] = rate_limit_counter.get("carquery", 0) + 1
+                if log:
+                    log(f"    [CarQuery] 429 rate-limit, sleeping {wait}s (attempt {attempt+1})")
+                time.sleep(wait)
+                continue
+            if resp.status_code != 200:
+                return None, None
+
+            trims = resp.json().get("Trims", [])
+            if not trims:
+                return None, None
+
+            years = sorted({int(t["model_year"]) for t in trims if t.get("model_year")})
+            if not years:
+                return None, None
+
+            return years[0], years[-1]
+
+        except Exception as exc:
+            if log:
+                log(f"    [CarQuery] Error: {exc}")
+            return None, None
+
+    return None, None
+
+
 def lookup_years_fueleconomy(make, model_name, fe_df):
     if fe_df.empty:
         return None
@@ -534,6 +580,15 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
         log(f"      → carapi: miss (best score {score} < {MATCH_SCORE_THRESHOLD})")
     else:
         log(f"      → carapi: miss (no models for make)")
+
+    # ── CarQuery ───────────────────────────────────────────────────────────────
+    yf, yt = get_years_from_carquery(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
+    if yf:
+        yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
+        log(f"      → carquery: {yf}–{yt}")
+        return list(range(yf, yt + 1)), "carquery"
+    log(f"      → carquery: miss")
+    time.sleep(REQUEST_DELAY)
 
     # ── Wikipedia ──────────────────────────────────────────────────────────────
     yf, yt = get_years_from_wikipedia(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
@@ -954,7 +1009,7 @@ def main(
             "cache_hits":  cache_hit_counts.get(src, 0),
             "rate_limits": rate_limit_counter.get(src, 0),
         }
-        for src in ("fueleconomy", "carapi", "wikipedia", "wikidata", "nhtsa")
+        for src in ("fueleconomy", "carapi", "carquery", "wikipedia", "wikidata", "nhtsa")
     }
 
     return {
