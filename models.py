@@ -450,6 +450,31 @@ class VehicleYearStaging(Base):
         return f"<VehicleYearStaging {self.make} {self.model} {self.year} run={self.run_id[:8]}>"
 
 
+class VehicleYearUnmatched(Base):
+    """
+    Make+model pairs that got no year match from any enrichment source.
+
+    Written by: pipelines/enrich_years.py after each run.
+    Read by: admin_router.py unmatched endpoints (GET + rerun).
+    Persisted to DB so retry works after server restarts.
+    """
+
+    __tablename__ = "vehicle_years_unmatched"
+
+    id          = Column(Integer,              primary_key=True, autoincrement=True)
+    run_id      = Column(Text,                 nullable=False)
+    make        = Column(String(100),          nullable=False)
+    model       = Column(String(200),          nullable=False)
+    recorded_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_vehicle_years_unmatched_run_id", "run_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<VehicleYearUnmatched {self.make} {self.model} run={self.run_id[:8]}>"
+
+
 class VehicleYearVersion(Base):
     """
     One record per admin-approved merge of staged rows into vehicle_years.

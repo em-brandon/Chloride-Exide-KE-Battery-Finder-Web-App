@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import requests
 import matcher
 import pandas as pd
 from admin_auth import (
@@ -2487,6 +2488,9 @@ _crsp_state: dict = {
     "cancel_event":     None,
     "pause_event":      None,
     "initiated_by":     None,
+    "dataprep_result":  None,   # set by POST /pipeline/crsp/dataprep
+    "unmatched_models": [],     # list[{make, model}] from last Stage 2 run
+    "provider_details": {},     # {provider: {hits, cache_hits, rate_limits}}
 }
 
 
@@ -2526,11 +2530,13 @@ def _crsp_thread(run_id: str, cancel_ev: threading.Event, pause_ev: threading.Ev
         )
 
         with _crsp_lock:
-            _crsp_state["status"]        = "cancelled" if cancel_ev.is_set() else "done"
-            _crsp_state["enriched_rows"] = result.get("expanded_rows", 0)
-            _crsp_state["source_counts"] = result.get("source_counts", {})
-            _crsp_state["finished_at"]   = datetime.now(timezone.utc).isoformat()
-            _crsp_state["error_detail"]  = None
+            _crsp_state["status"]           = "cancelled" if cancel_ev.is_set() else "done"
+            _crsp_state["enriched_rows"]    = result.get("expanded_rows", 0)
+            _crsp_state["source_counts"]    = result.get("source_counts", {})
+            _crsp_state["unmatched_models"] = result.get("unmatched_models", [])
+            _crsp_state["provider_details"] = result.get("provider_details", {})
+            _crsp_state["finished_at"]      = datetime.now(timezone.utc).isoformat()
+            _crsp_state["error_detail"]     = None
 
     except InterruptedError:
         with _crsp_lock:
@@ -2569,6 +2575,294 @@ async def crsp_upload(
     return {"file_path": str(dest)}
 
 
+# ---------------------------------------------------------------------------
+# Validate uploaded Excel (before running dataprep)
+# ---------------------------------------------------------------------------
+
+class CrspValidateBody(BaseModel):
+    file_path: str
+
+
+@router.post("/pipeline/crsp/validate", summary="Validate a CRSP Excel file before running dataprep")
+def validate_crsp_file(
+    body: CrspValidateBody,
+    admin: AdminUser = Depends(require_admin),
+):
+    p = Path(body.file_path)
+    if not p.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {body.file_path}")
+    if p.suffix.lower() not in {".xlsx", ".xls"}:
+        raise HTTPException(status_code=400, detail="Only .xlsx / .xls files are accepted")
+
+    try:
+        df = pd.read_excel(str(p))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not read Excel file: {exc}")
+
+    df.columns = df.columns.str.strip().str.lower().str.replace(r'[\s\n]+', '_', regex=True)
+    columns_found = df.columns.tolist()
+
+    required = ["make", "model"]
+    optional_tracked = ["model_number", "engine_capacity", "fuel"]
+
+    required_columns_present = {c: (c in columns_found) for c in required}
+    optional_columns_found   = [c for c in optional_tracked if c in columns_found]
+    total_rows = len(df)
+
+    electric_vehicle_count = 0
+    empty_make_count       = 0
+    if "fuel" in columns_found:
+        electric_vehicle_count = int(
+            df["fuel"].astype(str).str.strip().str.lower().eq("electric").sum()
+        )
+    if "make" in columns_found:
+        empty_make_count = int(
+            df["make"].isna().sum()
+            + df["make"].astype(str).str.strip().eq("").sum()
+            + df["make"].astype(str).str.strip().str.lower().eq("nan").sum()
+        )
+
+    preview_cols = [c for c in ["make", "model", "engine_capacity", "fuel"] if c in columns_found]
+    preview_rows = df[preview_cols].head(5).fillna("").astype(str).to_dict(orient="records")
+
+    warnings: list[str] = []
+    if not required_columns_present.get("make"):
+        warnings.append("Required column 'make' is missing — dataprep will fail")
+    if not required_columns_present.get("model"):
+        warnings.append("Required column 'model' is missing — dataprep will fail")
+    if total_rows < 20:
+        warnings.append(f"Only {total_rows} rows — unusually small dataset, check the file")
+    if total_rows > 50_000:
+        warnings.append(f"{total_rows:,} rows — very large file, Stage 2 will take a long time")
+    if electric_vehicle_count > 0:
+        warnings.append(f"{electric_vehicle_count} electric vehicle rows will be rejected by Stage 1")
+    if empty_make_count > 0:
+        warnings.append(f"{empty_make_count} rows with empty 'make' will be rejected by Stage 1")
+    if "fuel" not in columns_found:
+        warnings.append("Optional column 'fuel' not found — electric vehicle filtering will be skipped")
+
+    return {
+        "columns_found":            columns_found,
+        "required_columns_present": required_columns_present,
+        "optional_columns_found":   optional_columns_found,
+        "total_rows":               total_rows,
+        "electric_vehicle_count":   electric_vehicle_count,
+        "empty_make_count":         empty_make_count,
+        "preview_rows":             preview_rows,
+        "warnings":                 warnings,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Stage 1 — run dataprep synchronously
+# ---------------------------------------------------------------------------
+
+class CrspDataprepBody(BaseModel):
+    file_path: str
+
+
+@router.post("/pipeline/crsp/dataprep", summary="Run Stage 1 — clean and deduplicate CRSP Excel")
+def run_crsp_dataprep(
+    body: CrspDataprepBody,
+    admin: AdminUser = Depends(require_admin),
+):
+    from pipelines.dataprep import main as _dataprep_main
+
+    p = Path(body.file_path)
+    if not p.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {body.file_path}")
+
+    logs: list[str] = []
+
+    def _log(line: str) -> None:
+        logs.append(line)
+
+    try:
+        result = _dataprep_main(str(p), log_callback=_log)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Dataprep failed: {exc}")
+
+    if result.get("status") == "cancelled":
+        raise HTTPException(status_code=409, detail="Dataprep was cancelled")
+
+    with _crsp_lock:
+        _crsp_state["dataprep_result"] = result
+
+    logger.info(
+        "CRSP dataprep completed by %s — %d clean rows, %d rejected, %d duplicates",
+        admin.username, result["clean_rows"], result["rejected"], result["duplicates"],
+    )
+    return {**result, "logs": logs}
+
+
+# ---------------------------------------------------------------------------
+# Provider health check
+# ---------------------------------------------------------------------------
+
+@router.get("/pipeline/crsp/provider-health", summary="Check liveness of all external enrichment API endpoints")
+def get_crsp_provider_health(admin: AdminUser = Depends(require_admin)):
+    from pipelines.enrich_years import (
+        FUELECONOMY_CSV_URL, NHTSA_ALL_MODELS, CARAPI_MODELS_URL,
+        WIKI_SEARCH_URL, WIKIDATA_SPARQL,
+    )
+
+    providers = {
+        "fueleconomy": FUELECONOMY_CSV_URL,
+        "nhtsa":       NHTSA_ALL_MODELS.format(make="Toyota"),
+        "carapi":      CARAPI_MODELS_URL.format(make="Toyota"),
+        "wikipedia":   WIKI_SEARCH_URL,
+        "wikidata":    WIKIDATA_SPARQL,
+    }
+
+    results: dict = {}
+    all_ok = True
+    for name, url in providers.items():
+        try:
+            resp = requests.head(url, timeout=5, allow_redirects=True, verify=False)
+            ok = resp.status_code < 500
+            results[name] = {
+                "url":         url,
+                "ok":          ok,
+                "status_code": resp.status_code,
+                "error":       None if ok else resp.reason,
+            }
+        except Exception as exc:
+            ok = False
+            results[name] = {
+                "url":         url,
+                "ok":          False,
+                "status_code": None,
+                "error":       str(exc),
+            }
+        if not ok:
+            all_ok = False
+
+    results["checked_at"] = datetime.now(timezone.utc).isoformat()
+    results["all_ok"]     = all_ok
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Unmatched models — read from DB + retry
+# ---------------------------------------------------------------------------
+
+@router.get("/pipeline/crsp/unmatched", summary="Get unmatched make+model pairs from the most recent Stage 2 run")
+def get_crsp_unmatched(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from models import VehicleYearUnmatched
+    from sqlalchemy import text as sa_text
+
+    with _crsp_lock:
+        run_id = _crsp_state.get("run_id")
+
+    # If no active run_id, fetch the latest run from DB
+    if not run_id:
+        row = db.execute(
+            sa_text("SELECT run_id FROM vehicle_years_unmatched ORDER BY recorded_at DESC LIMIT 1")
+        ).fetchone()
+        run_id = row[0] if row else None
+
+    if not run_id:
+        return {"run_id": None, "count": 0, "unmatched_models": []}
+
+    rows = (
+        db.query(VehicleYearUnmatched)
+        .filter(VehicleYearUnmatched.run_id == run_id)
+        .order_by(VehicleYearUnmatched.make, VehicleYearUnmatched.model)
+        .all()
+    )
+    return {
+        "run_id":           run_id,
+        "count":            len(rows),
+        "unmatched_models": [{"make": r.make, "model": r.model} for r in rows],
+    }
+
+
+@router.post("/pipeline/crsp/rerun-unmatched", summary="Re-run Stage 2 enrichment on only the unmatched models from the last run")
+def rerun_crsp_unmatched(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from models import VehicleYearUnmatched
+    from sqlalchemy import text as sa_text
+
+    with _crsp_lock:
+        if _crsp_state["status"] == "running":
+            raise HTTPException(status_code=409, detail="CRSP pipeline is already running")
+        current_run_id = _crsp_state.get("run_id")
+
+    # Resolve latest run_id with unmatched rows
+    if not current_run_id:
+        row = db.execute(
+            sa_text("SELECT run_id FROM vehicle_years_unmatched ORDER BY recorded_at DESC LIMIT 1")
+        ).fetchone()
+        current_run_id = row[0] if row else None
+
+    if not current_run_id:
+        raise HTTPException(status_code=400, detail="No unmatched models found — run Stage 2 first")
+
+    rows = (
+        db.query(VehicleYearUnmatched)
+        .filter(VehicleYearUnmatched.run_id == current_run_id)
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=400, detail="No unmatched models to retry")
+
+    # Write temp CSV with just make + model columns
+    _CRSP_UPLOAD_DIR.mkdir(exist_ok=True)
+    temp_csv = _CRSP_UPLOAD_DIR / f"unmatched_retry_{uuid.uuid4().hex[:8]}.csv"
+    unmatched_df = pd.DataFrame(
+        [{"make": r.make, "model": r.model} for r in rows]
+    )
+    unmatched_df.to_csv(str(temp_csv), index=False, encoding="utf-8")
+
+    new_run_id = str(uuid.uuid4())
+    cancel_ev  = threading.Event()
+    pause_ev   = threading.Event()
+
+    with _crsp_lock:
+        _crsp_state.update({
+            "run_id":           new_run_id,
+            "status":           "running",
+            "stage":            "enrich",
+            "current_make":     None,
+            "current_model":    None,
+            "total_models":     0,
+            "processed_models": 0,
+            "enriched_rows":    0,
+            "source_counts":    {},
+            "logs":             deque(maxlen=50),
+            "started_at":       datetime.now(timezone.utc).isoformat(),
+            "finished_at":      None,
+            "error_detail":     None,
+            "cancel_event":     cancel_ev,
+            "pause_event":      pause_ev,
+            "initiated_by":     admin.username,
+            "unmatched_models": [],
+            "provider_details": {},
+        })
+
+    t = threading.Thread(
+        target=_crsp_thread,
+        args=(new_run_id, cancel_ev, pause_ev, str(temp_csv), admin.username),
+        daemon=True,
+        name=f"crsp-retry-{new_run_id[:8]}",
+    )
+    t.start()
+    logger.info(
+        "CRSP unmatched retry started by %s — %d pairs, run_id=%s",
+        admin.username, len(rows), new_run_id,
+    )
+    return {"run_id": new_run_id, "retry_count": len(rows)}
+
+
 class CrspRunBody(BaseModel):
     input_csv: str = Field(default="battery_lookup_dataset.csv")
 
@@ -2602,6 +2896,8 @@ def run_crsp_pipeline(
             "cancel_event":     cancel_ev,
             "pause_event":      pause_ev,
             "initiated_by":     admin.username,
+            "unmatched_models": [],
+            "provider_details": {},
         })
 
     t = threading.Thread(

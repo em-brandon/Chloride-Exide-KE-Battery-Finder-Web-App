@@ -109,11 +109,13 @@ def main(
 
     # ── Stage 3: Normalize ────────────────────────────────────────────────────
     log("[STAGE] Normalizing fields")
-    output_cols  = ["make", "model", "model_number", "engine_capacity", "fuel"]
-    present_cols = [c for c in output_cols if c in df.columns]
-    total_rows   = len(df)
-    rows         = []
-    rejected     = 0
+    output_cols       = ["make", "model", "model_number", "engine_capacity", "fuel"]
+    present_cols      = [c for c in output_cols if c in df.columns]
+    total_rows        = len(df)
+    rows              = []
+    rejected          = 0
+    rejected_rows: list[dict] = []
+    MAX_REJECTED_DETAIL = 200
 
     for idx, (_, row) in enumerate(df.iterrows(), start=1):
         if cancelled():
@@ -122,9 +124,23 @@ def main(
         record = {c: str(row.get(c, "")).strip() for c in present_cols}
         if not record.get("make") or record["make"].lower() == "nan":
             rejected += 1
+            if len(rejected_rows) < MAX_REJECTED_DETAIL:
+                rejected_rows.append({
+                    "row_number": idx,
+                    "make":       record.get("make", ""),
+                    "model":      record.get("model", ""),
+                    "reason":     "empty_make",
+                })
             continue
         if record.get("fuel", "").lower() == "electric":
             rejected += 1
+            if len(rejected_rows) < MAX_REJECTED_DETAIL:
+                rejected_rows.append({
+                    "row_number": idx,
+                    "make":       record.get("make", ""),
+                    "model":      record.get("model", ""),
+                    "reason":     "electric_vehicle",
+                })
             continue
         rows.append(record)
 
@@ -152,7 +168,7 @@ def main(
     # ── Stage 5: Write output ─────────────────────────────────────────────────
     log(f"[STAGE] Saving output to {output_csv}")
     progress("Saving", 0, 2)
-    final_df.to_csv(output_csv, index=False)
+    final_df.to_csv(output_csv, index=False, encoding='utf-8')
     log(f"[OK] CSV saved: {output_csv}")
     progress("Saving", 1, 2)
     final_df.to_excel(output_excel, index=False)
@@ -162,12 +178,14 @@ def main(
     log(f"[DONE] Final record count: {len(final_df)}")
 
     return {
-        "status":     "done",
-        "total_rows": total_rows,
-        "clean_rows": len(final_df),
-        "rejected":   rejected,
-        "duplicates": duplicates,
-        "output_csv": output_csv,
+        "status":        "done",
+        "total_rows":    total_rows,
+        "clean_rows":    len(final_df),
+        "rejected":      rejected,
+        "duplicates":    duplicates,
+        "output_csv":    output_csv,
+        "columns_found": present_cols,
+        "rejected_rows": rejected_rows,
     }
 
 

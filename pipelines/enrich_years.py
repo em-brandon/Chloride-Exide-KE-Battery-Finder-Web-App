@@ -125,7 +125,7 @@ def fetch_nhtsa_models(make, log=print):
 _wiki_skip_until = 0
 
 
-def get_years_from_wikipedia(make, model_name, log=print):
+def get_years_from_wikipedia(make, model_name, log=print, rate_limit_counter=None):
     global _wiki_skip_until
     if time.time() < _wiki_skip_until:
         remaining = int(_wiki_skip_until - time.time())
@@ -139,6 +139,8 @@ def get_years_from_wikipedia(make, model_name, log=print):
         try:
             r = SESSION.get(WIKI_SEARCH_URL, params=params, timeout=10)
             if r.status_code == 429:
+                if rate_limit_counter is not None:
+                    rate_limit_counter["wikipedia"] = rate_limit_counter.get("wikipedia", 0) + 1
                 wait = 30 * (attempt + 1)
                 log(f"    [Wiki] 429 rate-limit, waiting {wait}s...")
                 time.sleep(wait)
@@ -155,6 +157,8 @@ def get_years_from_wikipedia(make, model_name, log=print):
                        "titles": page_title, "format": "json", "utf8": 1}
             r2 = SESSION.get(WIKI_SEARCH_URL, params=params2, timeout=10)
             if r2.status_code == 429:
+                if rate_limit_counter is not None:
+                    rate_limit_counter["wikipedia"] = rate_limit_counter.get("wikipedia", 0) + 1
                 wait = 30 * (attempt + 1)
                 log(f"    [Wiki] 429 rate-limit, waiting {wait}s...")
                 time.sleep(wait)
@@ -178,7 +182,7 @@ def get_years_from_wikipedia(make, model_name, log=print):
 # =========================
 # SOURCE 3 — WIKIDATA SPARQL
 # =========================
-def get_years_from_wikidata(make, model_name, log=print):
+def get_years_from_wikidata(make, model_name, log=print, rate_limit_counter=None):
     query = f"""
     SELECT ?yearStart ?yearEnd WHERE {{
       ?car wdt:P31/wdt:P279* wd:Q3231690 .
@@ -199,6 +203,8 @@ def get_years_from_wikidata(make, model_name, log=print):
                 headers={"Accept": "application/sparql-results+json"},
             )
             if resp.status_code == 429:
+                if rate_limit_counter is not None:
+                    rate_limit_counter["wikidata"] = rate_limit_counter.get("wikidata", 0) + 1
                 wait = 15 * (attempt + 1)
                 log(f"    [Wikidata] 429 rate-limit, waiting {wait}s...")
                 time.sleep(wait)
@@ -343,7 +349,7 @@ def best_model_match(our_model, nhtsa_models):
     return result[0], result[1]
 
 
-def lookup_years(make, model_name, carapi_models, fe_df, log=print):
+def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_counter=None):
     """Try sources in priority order. Returns (years_list, source)."""
     years = lookup_years_fueleconomy(make, model_name, fe_df)
     if years:
@@ -361,13 +367,13 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print):
                 yt = min(int(yt), CURRENT_YEAR) if yt else CURRENT_YEAR
                 return list(range(yf, yt + 1)), "carapi"
 
-    yf, yt = get_years_from_wikipedia(make, model_name, log=log)
+    yf, yt = get_years_from_wikipedia(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
     if yf:
         yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
         return list(range(yf, yt + 1)), "wikipedia"
     time.sleep(REQUEST_DELAY)
 
-    yf, yt = get_years_from_wikidata(make, model_name, log=log)
+    yf, yt = get_years_from_wikidata(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
     if yf:
         yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
         return list(range(yf, yt + 1)), "wikidata"
@@ -528,7 +534,10 @@ def main(
     # ── Load input CSV ──────────────────────────────────────────────────────
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input not found: {input_csv}. Run dataprep.py first.")
-    df = pd.read_csv(input_csv)
+    try:
+        df = pd.read_csv(input_csv, encoding='utf-8')
+    except UnicodeDecodeError:
+        df = pd.read_csv(input_csv, encoding='latin-1')
     unique_makes = df["make"].str.upper().unique().tolist()
     unique_pairs = df[["make", "model"]].drop_duplicates()
     total_pairs  = len(unique_pairs)
@@ -582,9 +591,11 @@ def main(
     _check_cancel()
     log(f"[Stage 4/4] Looking up years for {total_pairs} unique make+model pairs...")
 
-    pairs_done  = {}
-    pairs_count = 0
-    processed   = 0
+    pairs_done        = {}
+    pairs_count       = 0
+    processed         = 0
+    rate_limit_counter = {"wikipedia": 0, "wikidata": 0}
+    cache_hit_counts  = {"fueleconomy": 0, "carapi": 0, "wikipedia": 0, "wikidata": 0, "nhtsa": 0}
 
     for _, row in unique_pairs.iterrows():
         _check_cancel()
@@ -608,10 +619,15 @@ def main(
         year_key = f"{make}|{lookup_name}"
         if year_key in cache["years"]:
             years_list, src = cache["years"][year_key]
+            if src and src in cache_hit_counts:
+                cache_hit_counts[src] = cache_hit_counts.get(src, 0) + 1
             log(f"  [{pairs_count}/{total_pairs}] [CACHED] {make} {lookup_name} ({src})")
         else:
             log(f"  [{pairs_count}/{total_pairs}] [LOOKUP] {make} {lookup_name} ...")
-            years_list, src = lookup_years(make, lookup_name, ca_models, fe_df, log=log)
+            years_list, src = lookup_years(
+                make, lookup_name, ca_models, fe_df, log=log,
+                rate_limit_counter=rate_limit_counter,
+            )
             cache["years"][year_key] = [years_list, src]
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
                 json.dump(cache, f)
@@ -671,6 +687,20 @@ def main(
     for src, cnt in sorted(src_counts.items(), key=lambda x: -x[1]):
         log(f"  {src}: {cnt} pairs")
 
+    # ── Write unmatched to DB (persists across server restarts for retry) ─────
+    unmatched_models_list = [{"make": m, "model": mo} for m, mo in unmatched_pairs]
+    if db is not None and unmatched_pairs:
+        from datetime import datetime, timezone as _tz
+        from models import VehicleYearUnmatched
+        now_utc = datetime.now(tz=_tz.utc)
+        db.query(VehicleYearUnmatched).filter(VehicleYearUnmatched.run_id == run_id).delete()
+        for make_u, model_u in unmatched_pairs:
+            db.add(VehicleYearUnmatched(
+                run_id=run_id, make=make_u, model=model_u, recorded_at=now_utc,
+            ))
+        db.commit()
+        log(f"  {len(unmatched_pairs)} unmatched pairs saved to vehicle_years_unmatched (run_id={run_id[:8]}...)")
+
     # ── Write to staging (if DB provided) ────────────────────────────────────
     staging_result = None
     if db is not None and expanded_rows:
@@ -678,14 +708,25 @@ def main(
         staging_result = write_to_staging(db, run_id, expanded_rows)
         log(f"  Staged: {staging_result['staged']}, Unchanged: {staging_result['skipped_unchanged']}, Conflicts: {staging_result['conflicts']}")
 
+    provider_details = {
+        src: {
+            "hits":        src_counts.get(src, 0),
+            "cache_hits":  cache_hit_counts.get(src, 0),
+            "rate_limits": rate_limit_counter.get(src, 0),
+        }
+        for src in ("fueleconomy", "carapi", "wikipedia", "wikidata", "nhtsa")
+    }
+
     return {
-        "run_id":       run_id,
-        "total_pairs":  total_pairs,
-        "enriched":     n_enriched,
-        "not_found":    n_not_found,
-        "expanded_rows": len(expanded_rows),
-        "source_counts": src_counts,
-        "staging":      staging_result,
+        "run_id":           run_id,
+        "total_pairs":      total_pairs,
+        "enriched":         n_enriched,
+        "not_found":        n_not_found,
+        "expanded_rows":    len(expanded_rows),
+        "source_counts":    src_counts,
+        "staging":          staging_result,
+        "unmatched_models": unmatched_models_list,
+        "provider_details": provider_details,
     }
 
 

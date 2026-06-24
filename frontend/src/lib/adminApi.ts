@@ -745,6 +745,70 @@ export async function setMaintenanceMode(enabled: boolean): Promise<MaintenanceM
 // CRSP pipeline — run / status / control
 // ---------------------------------------------------------------------------
 
+export interface CrspRejectedRow {
+  row_number: number
+  make:       string
+  model:      string
+  reason:     'empty_make' | 'electric_vehicle'
+}
+
+export interface CrspDataprepResult {
+  status:        'done' | 'cancelled'
+  total_rows:    number
+  clean_rows:    number
+  rejected:      number
+  duplicates:    number
+  output_csv:    string
+  columns_found: string[]
+  rejected_rows: CrspRejectedRow[]
+  logs:          string[]
+}
+
+export interface CrspValidateResult {
+  columns_found:            string[]
+  required_columns_present: { make: boolean; model: boolean }
+  optional_columns_found:   string[]
+  total_rows:               number
+  electric_vehicle_count:   number
+  empty_make_count:         number
+  preview_rows:             Record<string, string>[]
+  warnings:                 string[]
+}
+
+export interface CrspProviderHealth {
+  url:         string
+  ok:          boolean
+  status_code: number | null
+  error:       string | null
+}
+
+export interface CrspProviderHealthResult {
+  fueleconomy: CrspProviderHealth
+  nhtsa:       CrspProviderHealth
+  carapi:      CrspProviderHealth
+  wikipedia:   CrspProviderHealth
+  wikidata:    CrspProviderHealth
+  checked_at:  string
+  all_ok:      boolean
+}
+
+export interface CrspProviderDetail {
+  hits:        number
+  cache_hits:  number
+  rate_limits: number
+}
+
+export interface CrspUnmatchedModel {
+  make:  string
+  model: string
+}
+
+export interface CrspUnmatchedResponse {
+  run_id:           string | null
+  count:            number
+  unmatched_models: CrspUnmatchedModel[]
+}
+
 export interface CrspStatus {
   run_id:           string | null
   status:           'idle' | 'running' | 'paused' | 'done' | 'cancelled' | 'error'
@@ -760,6 +824,9 @@ export interface CrspStatus {
   finished_at:      string | null
   error_detail:     string | null
   initiated_by:     string | null
+  dataprep_result:  CrspDataprepResult | null
+  unmatched_models: CrspUnmatchedModel[]
+  provider_details: Record<string, CrspProviderDetail>
 }
 
 export async function crspUpload(file: File): Promise<{ file_path: string }> {
@@ -991,4 +1058,32 @@ export async function getCrspCacheStatus(): Promise<CrspCacheStatus> {
 
 export async function refreshCrspCache(): Promise<{ detail: string; actions: string[] }> {
   return adminFetch('/api/admin/pipeline/crsp/cache/refresh', { method: 'POST' })
+}
+
+export async function validateCrspFile(file_path: string): Promise<CrspValidateResult> {
+  return adminFetch('/api/admin/pipeline/crsp/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_path }),
+  })
+}
+
+export async function runCrspDataprep(file_path: string): Promise<CrspDataprepResult> {
+  return adminFetch('/api/admin/pipeline/crsp/dataprep', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_path }),
+  })
+}
+
+export async function getCrspProviderHealth(): Promise<CrspProviderHealthResult> {
+  return adminFetch('/api/admin/pipeline/crsp/provider-health')
+}
+
+export async function getCrspUnmatched(): Promise<CrspUnmatchedResponse> {
+  return adminFetch('/api/admin/pipeline/crsp/unmatched')
+}
+
+export async function rerunCrspUnmatched(): Promise<{ run_id: string; retry_count: number }> {
+  return adminFetch('/api/admin/pipeline/crsp/rerun-unmatched', { method: 'POST' })
 }

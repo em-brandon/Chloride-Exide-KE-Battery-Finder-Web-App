@@ -317,6 +317,8 @@ const TILE_STYLE: React.CSSProperties = {
   flexDirection: 'column',
   gap: '0.85rem',
   minHeight: 220,
+  width: 190,
+  flex: '0 0 190px',
   transition: 'box-shadow 0.15s, transform 0.1s',
 }
 
@@ -567,7 +569,7 @@ export default function AdminBatteries() {
                       {localItems.length} batteries · {localBrands.length} brand{localBrands.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '1.1rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.1rem' }}>
                     {localBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
                   </div>
                 </div>
@@ -582,7 +584,7 @@ export default function AdminBatteries() {
                       {importedItems.length} batteries · {importedBrands.length} brand{importedBrands.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '1.1rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.1rem' }}>
                     {importedBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
                     <SearchTile onClick={() => setView('search')} />
                   </div>
