@@ -93,6 +93,9 @@ import {
   getCrspProviderHealth,
   getCrspUnmatched,
   rerunCrspUnmatched,
+  startFueleconomyDownload,
+  cancelFueleconomyDownload,
+  getFueleconomyDownloadStatus,
   type CrspValidateResult,
   type CrspDataprepResult,
   type CrspProviderHealthResult,
@@ -100,6 +103,7 @@ import {
   type CrspUnmatchedResponse,
   type CrspRejectedRow,
   type CrspProviderDetail,
+  type FueleconomyDownloadStatus,
 } from '@/lib/adminApi'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -2327,6 +2331,254 @@ function DataprepResultCard({ result }: { result: CrspDataprepResult }) {
   )
 }
 
+// ── FueleconomyDownloadPanel ──────────────────────────────────────────────────
+function FueleconomyDownloadPanel({ cache, onDownloadComplete }: {
+  cache: CrspCacheStatus | null
+  onDownloadComplete: () => void
+}) {
+  const [dlStatus, setDlStatus]   = useState<FueleconomyDownloadStatus | null>(null)
+  const [polling, setPolling]     = useState(false)
+  const [starting, setStarting]   = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [showInfo, setShowInfo]   = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    setPolling(false)
+  }
+
+  const startPolling = () => {
+    setPolling(true)
+    pollRef.current = setInterval(async () => {
+      try {
+        const s = await getFueleconomyDownloadStatus()
+        setDlStatus(s)
+        if (s.status === 'done' || s.status === 'cancelled' || s.status === 'error') {
+          stopPolling()
+          if (s.status === 'done') onDownloadComplete()
+        }
+      } catch { stopPolling() }
+    }, 800)
+  }
+
+  useEffect(() => () => stopPolling(), [])
+
+  const handleDownload = async () => {
+    setStarting(true)
+    try {
+      await startFueleconomyDownload()
+      startPolling()
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setDlStatus({ status: 'error', bytes_downloaded: 0, total_bytes: null, records_saved: 0, error: msg, started_at: null, completed_at: null })
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    setCancelling(true)
+    try { await cancelFueleconomyDownload() } catch { /* ignore */ } finally { setCancelling(false) }
+  }
+
+  const fe        = cache?.fueleconomy_csv
+  const hasData   = !!fe?.downloaded_at
+  const ageLabel  = hasData && fe?.age_days != null
+    ? (fe.age_days! > 365 ? `${fe.age_days} days old — overdue` : fe.age_days! > 180 ? `${fe.age_days} days old — refresh recommended` : `${fe.age_days} days old`)
+    : null
+  const ageColor  = !hasData ? R : fe!.age_days! > 365 ? R : fe!.age_days! > 180 ? '#b45309' : '#15803d'
+
+  const isActive  = dlStatus?.status === 'downloading' || dlStatus?.status === 'saving'
+  const pct       = dlStatus?.total_bytes && dlStatus.bytes_downloaded
+    ? Math.round((dlStatus.bytes_downloaded / dlStatus.total_bytes) * 100)
+    : null
+
+  const fmtBytes  = (n: number) => n > 1_048_576 ? `${(n / 1_048_576).toFixed(1)} MB` : `${(n / 1024).toFixed(0)} KB`
+
+  return (
+    <div style={{ ...CARD, padding: '1.25rem 1.5rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+            <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--adm-text-1)' }}>
+              fueleconomy.gov Dataset
+            </span>
+            <button
+              onClick={() => setShowInfo(true)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: '1.1rem', height: '1.1rem', borderRadius: '50%',
+                background: 'var(--adm-subtle-bg)', border: '1px solid var(--adm-border)',
+                fontSize: '0.65rem', fontWeight: 700, color: 'var(--adm-text-3)',
+                cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: 0,
+              }}
+            >
+              ?
+            </button>
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--adm-text-3)' }}>
+            EPA bulk CSV (~47 k records) · required before Stage 2 can run
+          </div>
+        </div>
+
+        {/* Info modal */}
+        {showInfo && (
+          <div
+            onClick={() => setShowInfo(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              background: 'rgba(0,0,0,0.45)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', padding: '1rem',
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: 'var(--adm-card-bg, #fff)', borderRadius: 14,
+                padding: '1.75rem 2rem', maxWidth: 480, width: '100%',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.5rem' }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem', color: 'var(--adm-text-1)' }}>
+                  Why download fueleconomy.gov data?
+                </p>
+                <button
+                  onClick={() => setShowInfo(false)}
+                  style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--adm-text-3)', lineHeight: 1, padding: 0, flexShrink: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--adm-text-2)', lineHeight: 1.7, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <p style={{ margin: 0 }}>
+                  <strong>Stage 2 (Enrich Years)</strong> needs to know which years each make/model was sold. fueleconomy.gov is the <strong>primary source</strong> — it provides a complete list of every make, model, and year ever sold in the US market, published by the US EPA.
+                </p>
+                <p style={{ margin: 0 }}>
+                  Without it, enrichment falls back entirely on NHTSA, CarAPI, Wikipedia, and Wikidata — which have lower coverage and higher rate-limit risk, meaning more vehicles end up in the unmatched list.
+                </p>
+                <p style={{ margin: 0 }}>
+                  The CSV contains approximately <strong>47,000 records</strong>. It is downloaded once, stored in the database, and reused on every subsequent Stage 2 run without re-fetching.
+                </p>
+                <p style={{ margin: 0, padding: '0.6rem 0.75rem', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe', color: '#1d4ed8', fontSize: '0.78rem' }}>
+                  <strong>Refresh interval:</strong> every 180 days. The EPA publishes updated data annually in October / November — re-downloading after each release keeps new model years current.
+                </p>
+              </div>
+              <div style={{ marginTop: '1.25rem', textAlign: 'right' }}>
+                <button
+                  onClick={() => setShowInfo(false)}
+                  style={{ padding: '0.45rem 1.1rem', borderRadius: 8, border: 'none', background: R, color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {hasData && fe?.record_count && (
+            <span style={{ fontSize: '0.73rem', color: 'var(--adm-text-2)' }}>
+              {fe.record_count.toLocaleString()} records
+            </span>
+          )}
+          {ageLabel && (
+            <span style={{
+              fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.6rem',
+              borderRadius: 99, background: ageColor + '18', color: ageColor,
+              border: `1px solid ${ageColor}44`,
+            }}>
+              {ageLabel}
+            </span>
+          )}
+          {!hasData && !isActive && (
+            <span style={{
+              fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.6rem',
+              borderRadius: 99, background: '#fff5f5', color: R,
+              border: `1px solid #fca5a5`,
+            }}>
+              Not downloaded
+            </span>
+          )}
+          {isActive && (
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              style={{
+                padding: '0.4rem 0.9rem', borderRadius: 8, border: `1px solid #fca5a5`,
+                background: '#fff5f5', color: R, fontWeight: 700, fontSize: '0.8rem',
+                cursor: cancelling ? 'not-allowed' : 'pointer', opacity: cancelling ? 0.6 : 1, transition: 'all 0.15s',
+              }}
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel'}
+            </button>
+          )}
+          <button
+            onClick={handleDownload}
+            disabled={starting || isActive || polling}
+            style={{
+              padding: '0.4rem 1rem', borderRadius: 8, border: 'none',
+              background: isActive ? '#e2e4e9' : R, color: isActive ? 'var(--adm-text-2)' : '#fff',
+              fontWeight: 700, fontSize: '0.8rem', cursor: (starting || isActive) ? 'not-allowed' : 'pointer',
+              opacity: (starting || isActive) ? 0.7 : 1, transition: 'all 0.15s',
+            }}
+          >
+            {isActive ? (dlStatus?.status === 'saving' ? 'Saving to DB…' : 'Downloading…') : starting ? 'Starting…' : hasData ? 'Re-download' : 'Download Now'}
+          </button>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      {isActive && (
+        <div style={{ marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontSize: '0.72rem', color: 'var(--adm-text-3)' }}>
+            <span>{dlStatus?.status === 'saving' ? 'Parsing & saving to database…' : `Downloading… ${fmtBytes(dlStatus?.bytes_downloaded ?? 0)}${dlStatus?.total_bytes ? ` / ${fmtBytes(dlStatus.total_bytes)}` : ''}`}</span>
+            {pct !== null && <span>{pct}%</span>}
+          </div>
+          <div style={{ height: 8, background: 'var(--adm-subtle-bg)', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 99, transition: 'width 0.4s ease',
+              background: `linear-gradient(90deg, ${R}, ${RD})`,
+              width: dlStatus?.status === 'saving' ? '100%' : pct !== null ? `${pct}%` : '30%',
+              animation: pct === null ? 'pulse 1.5s ease-in-out infinite' : undefined,
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* Done state */}
+      {dlStatus?.status === 'done' && (
+        <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#15803d', fontWeight: 600 }}>
+          ✓ {dlStatus.records_saved.toLocaleString()} records saved to database · cache built in-process
+        </div>
+      )}
+
+      {/* Cancelled state */}
+      {dlStatus?.status === 'cancelled' && (
+        <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#b45309', fontWeight: 600 }}>
+          Download cancelled.
+        </div>
+      )}
+
+      {/* Error state */}
+      {dlStatus?.status === 'error' && (
+        <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: R, fontWeight: 600 }}>
+          Download failed: {dlStatus.error}
+        </div>
+      )}
+
+      {/* Recommendation note */}
+      <div style={{ marginTop: '0.75rem', fontSize: '0.7rem', color: 'var(--adm-text-3)', borderTop: '1px solid var(--adm-sep)', paddingTop: '0.6rem' }}>
+        Recommended refresh: every <strong>180 days</strong> — EPA publishes new model-year data annually in October/November.
+        {hasData && fe?.downloaded_at && (
+          <> Last downloaded: {new Date(fe.downloaded_at).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })}.</>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── ProviderHealthPanel ───────────────────────────────────────────────────────
 function ProviderHealthPanel({ health, loading, onRecheck }: {
   health: CrspProviderHealthResult | null
@@ -2480,8 +2732,9 @@ function UnmatchedModelsPanel({ runId, onRetry, retryLoading }: {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.68rem' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.03)' }}>
-                <th style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.59rem', borderBottom: '1px solid #fde68a' }}>Make</th>
-                <th style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.59rem', borderBottom: '1px solid #fde68a' }}>Model</th>
+                {['Make', 'Model', 'Fuel'].map(col => (
+                  <th key={col} style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.59rem', borderBottom: '1px solid #fde68a' }}>{col}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -2489,6 +2742,7 @@ function UnmatchedModelsPanel({ runId, onRetry, retryLoading }: {
                 <tr key={i} style={{ borderTop: i > 0 ? '1px solid #fde68a' : 'none' }}>
                   <td style={{ padding: '0.22rem 0.5rem', fontWeight: 700 }}>{m.make}</td>
                   <td style={{ padding: '0.22rem 0.5rem', color: '#374151' }}>{m.model}</td>
+                  <td style={{ padding: '0.22rem 0.5rem', color: '#6b7280' }}>{m.fuel || '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -3033,6 +3287,13 @@ function CrspTab() {
   // Retry unmatched
   const [retryLoading, setRetryLoading] = useState(false)
 
+  // Fueleconomy cache status (for gate check + panel)
+  const [crspCache, setCrspCache] = useState<CrspCacheStatus | null>(null)
+
+  const refreshCrspCacheState = useCallback(() => {
+    getCrspCacheStatus().then(setCrspCache).catch(() => null)
+  }, [])
+
   const stagingAvailable = status?.status === 'done' || status?.status === 'cancelled'
 
   function startPolling() {
@@ -3062,6 +3323,7 @@ function CrspTab() {
       .catch(() => null)
       .finally(() => setLoading(false))
     checkProviderHealth()
+    refreshCrspCacheState()
     return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
   }, [])
 
@@ -3159,9 +3421,11 @@ function CrspTab() {
   const isIdle   = !status || status.status === 'idle'
   const pct      = status?.total_models ? Math.round((status.processed_models / status.total_models) * 100) : 0
 
+  const feDownloaded = !!crspCache?.fueleconomy_csv?.downloaded_at
+
   const canRunDataprep = !!crspUploadedPath && !dataprepLoading &&
     (validateResult ? (validateResult.required_columns_present.make && validateResult.required_columns_present.model) : true)
-  const canRunEnrich = !!(dataprepResult?.status === 'done' || crspUploadedPath) && !isActive && !runLoading
+  const canRunEnrich = !!(dataprepResult?.status === 'done' || crspUploadedPath) && !isActive && !runLoading && feDownloaded
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -3176,6 +3440,9 @@ function CrspTab() {
           Stage 1 (dataprep) cleans the CRSP Excel into <code>battery_lookup_dataset.csv</code>. Stage 2 queries 5 external sources for production years and writes to staging for review before committing to <code>vehicle_years</code>.
         </p>
       </div>
+
+      {/* Fueleconomy Dataset */}
+      <FueleconomyDownloadPanel cache={crspCache} onDownloadComplete={refreshCrspCacheState} />
 
       {/* Provider Health */}
       <ProviderHealthPanel health={providerHealth} loading={healthLoading} onRecheck={checkProviderHealth} />
@@ -3250,11 +3517,17 @@ function CrspTab() {
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {(isIdle || isDone || isError || status?.status === 'cancelled') && (
-              <button onClick={handleRunEnrich} disabled={!canRunEnrich}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: 9, border: 'none', background: canRunEnrich ? R : '#e2e4e9', color: canRunEnrich ? '#fff' : '#9ca3af', fontWeight: 700, fontSize: '0.78rem', cursor: canRunEnrich ? 'pointer' : 'not-allowed' }}>
-                <PlayIcon style={{ width: 13, height: 13 }} />
-                {runLoading ? 'Starting…' : 'Run Stage 2'}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-start' }}>
+                <button onClick={handleRunEnrich} disabled={!canRunEnrich}
+                  title={!feDownloaded ? 'Download the fueleconomy.gov dataset first' : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: 9, border: 'none', background: canRunEnrich ? R : '#e2e4e9', color: canRunEnrich ? '#fff' : '#9ca3af', fontWeight: 700, fontSize: '0.78rem', cursor: canRunEnrich ? 'pointer' : 'not-allowed' }}>
+                  <PlayIcon style={{ width: 13, height: 13 }} />
+                  {runLoading ? 'Starting…' : 'Run Stage 2'}
+                </button>
+                {!feDownloaded && (
+                  <span style={{ fontSize: '0.68rem', color: R }}>fueleconomy.gov dataset required — download above</span>
+                )}
+              </div>
             )}
             {isActive && (
               <>

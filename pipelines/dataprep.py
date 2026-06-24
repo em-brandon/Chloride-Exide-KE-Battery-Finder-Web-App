@@ -85,7 +85,7 @@ def main(
     log(f"[STAGE] Loading dataset: {input_path.name}")
     progress("Loading", 0, 1)
     t0 = time.time()
-    df = pd.read_excel(input_file)
+    df = pd.read_excel(input_file, header=1)
     log(f"[OK] Loaded {len(df)} rows in {time.time()-t0:.2f}s")
     progress("Loading", 1, 1)
 

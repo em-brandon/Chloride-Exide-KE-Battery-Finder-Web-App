@@ -57,7 +57,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from models import (
     AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
     UserFeedback, TestUser, TestUserSession,
-    VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog, EnrichmentCacheMeta,
+    VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog,
+    EnrichmentCacheMeta, FueleconomyVehicle,
 )
 from pydantic import BaseModel, Field
 from slowapi import Limiter
@@ -2493,6 +2494,124 @@ _crsp_state: dict = {
     "provider_details": {},     # {provider: {hits, cache_hits, rate_limits}}
 }
 
+# ---------------------------------------------------------------------------
+# Fueleconomy.gov CSV download state  (POST /pipeline/crsp/fueleconomy/download)
+# ---------------------------------------------------------------------------
+
+_fe_download_state: dict = {
+    "status":           "idle",   # idle | downloading | saving | done | cancelled | error
+    "bytes_downloaded": 0,
+    "total_bytes":      None,
+    "records_saved":    0,
+    "error":            None,
+    "started_at":       None,
+    "completed_at":     None,
+    "cancel_event":     None,     # threading.Event — stripped before serialising
+}
+_fe_download_lock = threading.Lock()
+
+
+def _run_fe_download(cancel_ev: threading.Event) -> None:
+    from pipelines.enrich_years import FUELECONOMY_CSV_URL, FUELECONOMY_CSV, invalidate_fueleconomy_cache
+
+    global _fe_download_state
+    with _fe_download_lock:
+        _fe_download_state.update({
+            "status": "downloading",
+            "bytes_downloaded": 0,
+            "total_bytes": None,
+            "records_saved": 0,
+            "error": None,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": None,
+        })
+
+    try:
+        resp = requests.get(FUELECONOMY_CSV_URL, stream=True, timeout=180, verify=False)
+        resp.raise_for_status()
+
+        total = int(resp.headers.get("content-length", 0)) or None
+        with _fe_download_lock:
+            _fe_download_state["total_bytes"] = total
+
+        chunks: list[bytes] = []
+        downloaded = 0
+        for chunk in resp.iter_content(chunk_size=65536):
+            if cancel_ev.is_set():
+                with _fe_download_lock:
+                    _fe_download_state.update({
+                        "status":       "cancelled",
+                        "completed_at": datetime.now(timezone.utc).isoformat(),
+                    })
+                return
+            if chunk:
+                chunks.append(chunk)
+                downloaded += len(chunk)
+                with _fe_download_lock:
+                    _fe_download_state["bytes_downloaded"] = downloaded
+
+        content = b"".join(chunks)
+
+        # Parse CSV
+        with _fe_download_lock:
+            _fe_download_state["status"] = "saving"
+
+        fe_df = pd.read_csv(
+            io.BytesIO(content),
+            usecols=["year", "make", "model"],
+            dtype={"year": int, "make": str, "model": str},
+        )
+
+        # Bulk-save to DB
+        db = SessionLocal()
+        try:
+            db.query(FueleconomyVehicle).delete()
+            records = [
+                {"year": int(r.year), "make": str(r.make), "model": str(r.model)}
+                for r in fe_df.itertuples(index=False)
+            ]
+            db.bulk_insert_mappings(FueleconomyVehicle, records)
+
+            # Update cache meta
+            now = datetime.now(timezone.utc)
+            meta = db.query(EnrichmentCacheMeta).filter_by(key="fueleconomy_csv").first()
+            if meta is None:
+                meta = EnrichmentCacheMeta(key="fueleconomy_csv")
+                db.add(meta)
+            meta.downloaded_at   = now
+            meta.file_size_bytes = len(content)
+            meta.record_count    = len(fe_df)
+            meta.updated_at      = now
+            db.commit()
+        finally:
+            db.close()
+
+        # Also write local CSV for CLI backward compat
+        os.makedirs("cache", exist_ok=True)
+        with open(FUELECONOMY_CSV, "wb") as f:
+            f.write(content)
+
+        # Invalidate in-process DataFrame cache so next pipeline run reloads from DB
+        invalidate_fueleconomy_cache()
+
+        with _fe_download_lock:
+            _fe_download_state.update({
+                "status": "done",
+                "records_saved": len(fe_df),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+            })
+
+        logger.info("Fueleconomy CSV downloaded: %d records", len(fe_df))
+
+    except Exception as exc:
+        with _fe_download_lock:
+            _fe_download_state.update({
+                "status": "error",
+                "error": str(exc),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+            })
+        logger.exception("Fueleconomy download failed: %s", exc)
+
 
 # ---------------------------------------------------------------------------
 # Background thread
@@ -2595,7 +2714,7 @@ def validate_crsp_file(
         raise HTTPException(status_code=400, detail="Only .xlsx / .xls files are accepted")
 
     try:
-        df = pd.read_excel(str(p))
+        df = pd.read_excel(str(p), header=1)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Could not read Excel file: {exc}")
 
@@ -2780,8 +2899,41 @@ def get_crsp_unmatched(
     return {
         "run_id":           run_id,
         "count":            len(rows),
-        "unmatched_models": [{"make": r.make, "model": r.model} for r in rows],
+        "unmatched_models": [{"make": r.make, "model": r.model, "fuel": r.fuel} for r in rows],
     }
+
+
+@router.post("/pipeline/crsp/fueleconomy/download", summary="Download the fueleconomy.gov bulk CSV and store it in the DB")
+def start_fueleconomy_download(admin: AdminUser = Depends(require_admin)):
+    with _fe_download_lock:
+        if _fe_download_state["status"] in ("downloading", "saving"):
+            raise HTTPException(status_code=409, detail="Download already in progress")
+    cancel_ev = threading.Event()
+    with _fe_download_lock:
+        _fe_download_state["cancel_event"] = cancel_ev
+    t = threading.Thread(target=_run_fe_download, args=(cancel_ev,), daemon=True)
+    t.start()
+    return {"started": True}
+
+
+@router.post("/pipeline/crsp/fueleconomy/cancel", summary="Cancel an in-progress fueleconomy.gov download")
+def cancel_fueleconomy_download(admin: AdminUser = Depends(require_admin)):
+    with _fe_download_lock:
+        status    = _fe_download_state.get("status")
+        cancel_ev = _fe_download_state.get("cancel_event")
+    if status not in ("downloading", "saving"):
+        raise HTTPException(status_code=409, detail="No active download to cancel")
+    if cancel_ev:
+        cancel_ev.set()
+    return {"detail": "Cancel requested"}
+
+
+@router.get("/pipeline/crsp/fueleconomy/download-status", summary="Poll fueleconomy.gov download progress")
+def get_fueleconomy_download_status(admin: AdminUser = Depends(require_admin)):
+    with _fe_download_lock:
+        snap = dict(_fe_download_state)
+    snap.pop("cancel_event", None)
+    return snap
 
 
 @router.post("/pipeline/crsp/rerun-unmatched", summary="Re-run Stage 2 enrichment on only the unmatched models from the last run")
@@ -2815,11 +2967,11 @@ def rerun_crsp_unmatched(
     if not rows:
         raise HTTPException(status_code=400, detail="No unmatched models to retry")
 
-    # Write temp CSV with just make + model columns
+    # Write temp CSV with make, model, fuel columns for retry
     _CRSP_UPLOAD_DIR.mkdir(exist_ok=True)
     temp_csv = _CRSP_UPLOAD_DIR / f"unmatched_retry_{uuid.uuid4().hex[:8]}.csv"
     unmatched_df = pd.DataFrame(
-        [{"make": r.make, "model": r.model} for r in rows]
+        [{"make": r.make, "model": r.model, "fuel": r.fuel or ""} for r in rows]
     )
     unmatched_df.to_csv(str(temp_csv), index=False, encoding="utf-8")
 
@@ -3439,44 +3591,34 @@ def get_crsp_cache_status(admin: AdminUser = Depends(require_admin), db: Session
     }
 
 
-@router.post("/pipeline/crsp/cache/refresh", summary="Clear enrichment caches to force re-download on next run")
+@router.post("/pipeline/crsp/cache/refresh", summary="Clear the year enrichment cache to force re-lookup on next run")
 def refresh_crsp_cache(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    """
+    Clears cache/year_cache.json (NHTSA, CarAPI, and year lookup results).
+    Does NOT touch fueleconomy data — the downloaded CSV and DB records are preserved.
+    """
     results = []
 
-    # Delete fueleconomy CSV
-    fe_path = Path("cache/fueleconomy_vehicles.csv")
-    if fe_path.exists():
-        fe_path.unlink()
-        results.append("Deleted cache/fueleconomy_vehicles.csv")
-    else:
-        results.append("cache/fueleconomy_vehicles.csv not found (already absent)")
-
-    # Clear NHTSA + CarAPI sections of year_cache.json (preserve 'years' to avoid re-querying)
+    # Delete year_cache.json entirely so all NHTSA / CarAPI / year lookups are retried fresh
     cache_path = Path("cache/year_cache.json")
     if cache_path.exists():
         try:
-            with cache_path.open("r", encoding="utf-8") as f:
-                year_cache = json.load(f)
-            year_cache["nhtsa"]  = {}
-            year_cache["carapi"] = {}
-            with cache_path.open("w", encoding="utf-8") as f:
-                json.dump(year_cache, f)
-            results.append("Cleared nhtsa + carapi sections from cache/year_cache.json (years preserved)")
+            cache_path.unlink()
+            results.append("Deleted cache/year_cache.json — all year lookups will be re-fetched on next run")
         except Exception as e:
-            results.append(f"Could not clear year_cache.json: {e}")
+            results.append(f"Could not delete year_cache.json: {e}")
     else:
-        results.append("cache/year_cache.json not found")
+        results.append("cache/year_cache.json not found (already absent)")
 
-    # Reset cache meta timestamps
+    # Reset only the year_cache meta timestamp; fueleconomy_csv is untouched
     now = datetime.now(timezone.utc)
-    for key in ("fueleconomy_csv", "year_cache"):
-        row = db.query(EnrichmentCacheMeta).filter(EnrichmentCacheMeta.key == key).first()
-        if row:
-            row.downloaded_at   = None
-            row.file_size_bytes = None
-            row.record_count    = None
-            row.updated_at      = now
+    row = db.query(EnrichmentCacheMeta).filter(EnrichmentCacheMeta.key == "year_cache").first()
+    if row:
+        row.downloaded_at   = None
+        row.file_size_bytes = None
+        row.record_count    = None
+        row.updated_at      = now
     db.commit()
 
-    logger.info("CRSP enrichment cache cleared by %s", admin.username)
-    return {"detail": "Cache cleared. Next pipeline run will re-download all datasets.", "actions": results}
+    logger.info("CRSP year cache cleared by %s", admin.username)
+    return {"detail": "Year cache cleared. fueleconomy data is untouched. Next Stage 2 run will re-fetch NHTSA, CarAPI and year lookups.", "actions": results}

@@ -801,6 +801,7 @@ export interface CrspProviderDetail {
 export interface CrspUnmatchedModel {
   make:  string
   model: string
+  fuel:  string | null
 }
 
 export interface CrspUnmatchedResponse {
@@ -1086,4 +1087,26 @@ export async function getCrspUnmatched(): Promise<CrspUnmatchedResponse> {
 
 export async function rerunCrspUnmatched(): Promise<{ run_id: string; retry_count: number }> {
   return adminFetch('/api/admin/pipeline/crsp/rerun-unmatched', { method: 'POST' })
+}
+
+export interface FueleconomyDownloadStatus {
+  status:           'idle' | 'downloading' | 'saving' | 'done' | 'cancelled' | 'error'
+  bytes_downloaded: number
+  total_bytes:      number | null
+  records_saved:    number
+  error:            string | null
+  started_at:       string | null
+  completed_at:     string | null
+}
+
+export async function startFueleconomyDownload(): Promise<{ started: boolean }> {
+  return adminFetch('/api/admin/pipeline/crsp/fueleconomy/download', { method: 'POST' })
+}
+
+export async function cancelFueleconomyDownload(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/crsp/fueleconomy/cancel', { method: 'POST' })
+}
+
+export async function getFueleconomyDownloadStatus(): Promise<FueleconomyDownloadStatus> {
+  return adminFetch('/api/admin/pipeline/crsp/fueleconomy/download-status')
 }
