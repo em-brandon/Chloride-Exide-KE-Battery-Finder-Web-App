@@ -2955,11 +2955,14 @@ function CrspStagingPanel({
 
   async function handleCommit() {
     setCommitLoading(true)
+    setToast(null)
     try {
       const result = await commitCrspStaging([])
       onCommit(result)
-    } catch { /* ignore */ }
-    finally { setCommitLoading(false) }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Commit failed — check server logs'
+      setToast(msg)
+    } finally { setCommitLoading(false) }
   }
 
   async function handleDiscard() {

@@ -3261,28 +3261,22 @@ def commit_crsp_staging(
     if not staging_rows:
         raise HTTPException(status_code=400, detail="No staged rows to commit")
 
-    resolution_map = {
-        (r.make.upper(), r.model.upper(), r.year): r.resolution
-        for r in body.conflict_resolutions
-    }
-
     version_id     = str(uuid.uuid4())
     version_number = (db.query(func.max(VehicleYearVersion.version_number)).scalar() or 0) + 1
     run_id         = staging_rows[0].run_id if staging_rows else None
     initiated_by   = _crsp_state.get("initiated_by")
 
-    committed = skipped_existing = conflict_count = 0
+    # Load ALL existing vehicle_years keys in one query — avoids N+1 selects
+    existing_keys: set[tuple] = {
+        (r.make, r.model, r.year)
+        for r in db.execute(sa_text("SELECT make, model, year FROM vehicle_years")).fetchall()
+    }
+
+    committed = skipped_existing = 0
     now = datetime.now(timezone.utc)
 
     for row in staging_rows:
-        existing = db.query(VehicleYear).filter(
-            VehicleYear.make == row.make,
-            VehicleYear.model == row.model,
-            VehicleYear.year == row.year,
-        ).first()
-
-        if existing:
-            # Record already in master — skip it, never overwrite
+        if (row.make, row.model, row.year) in existing_keys:
             skipped_existing += 1
             continue
 
