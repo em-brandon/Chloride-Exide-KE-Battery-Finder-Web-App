@@ -3666,7 +3666,7 @@ export default function AdminDataPipeline() {
               <TableCellsIcon style={{ width: 14, height: 14 }} /> CRSP Pipeline
             </button>
             <button style={tabStyle('webvalidate')} onClick={() => setActiveTab('webvalidate')}>
-              <GlobeAltIcon style={{ width: 14, height: 14 }} /> Web Validate
+              <GlobeAltIcon style={{ width: 14, height: 14 }} /> Web Battery Validation
             </button>
           </div>
 
