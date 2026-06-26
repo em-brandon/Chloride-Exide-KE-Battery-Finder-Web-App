@@ -1112,3 +1112,76 @@ export async function cancelFueleconomyDownload(): Promise<{ detail: string }> {
 export async function getFueleconomyDownloadStatus(): Promise<FueleconomyDownloadStatus> {
   return adminFetch('/api/admin/pipeline/crsp/fueleconomy/download-status')
 }
+
+// ── Vehicle Expansion Pipeline ─────────────────────────────────────────────────
+
+export interface ExpansionMake {
+  id:            number
+  make:          string
+  year_tier:     'default' | 'commercial' | 'chinese'
+  nhtsa_slug:    string | null
+  cq_slug:       string | null
+  carsdata_slug: string | null
+  carinfo_slug:  string | null
+  enabled:       boolean
+}
+
+export interface ExpansionStatus {
+  run_id:          string | null
+  status:          'idle' | 'running' | 'paused' | 'done' | 'cancelled' | 'error'
+  current_make:    string | null
+  makes_total:     number
+  makes_processed: number
+  rows_staged:     number
+  rows_skipped:    number
+  source_counts:   Record<string, number>
+  logs:            string[]
+  started_at:      string | null
+  finished_at:     string | null
+  error_detail:    string | null
+  initiated_by:    string | null
+}
+
+export async function runExpansionPipeline(): Promise<{ run_id: string }> {
+  return adminFetch('/api/admin/pipeline/expansion/run', { method: 'POST' })
+}
+
+export async function getExpansionStatus(): Promise<ExpansionStatus> {
+  return adminFetch('/api/admin/pipeline/expansion/status')
+}
+
+export async function pauseExpansion(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/expansion/pause', { method: 'POST' })
+}
+
+export async function resumeExpansion(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/expansion/resume', { method: 'POST' })
+}
+
+export async function cancelExpansion(): Promise<{ detail: string }> {
+  return adminFetch('/api/admin/pipeline/expansion/cancel', { method: 'POST' })
+}
+
+export async function getExpansionMakes(): Promise<ExpansionMake[]> {
+  return adminFetch('/api/admin/pipeline/expansion/makes')
+}
+
+export async function createExpansionMake(data: Omit<ExpansionMake, 'id'>): Promise<ExpansionMake> {
+  return adminFetch('/api/admin/pipeline/expansion/makes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateExpansionMake(id: number, data: Partial<ExpansionMake>): Promise<ExpansionMake> {
+  return adminFetch(`/api/admin/pipeline/expansion/makes/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteExpansionMake(id: number): Promise<{ detail: string }> {
+  return adminFetch(`/api/admin/pipeline/expansion/makes/${id}`, { method: 'DELETE' })
+}

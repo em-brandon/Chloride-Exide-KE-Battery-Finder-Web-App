@@ -23,6 +23,8 @@ import {
   XMarkIcon,
   PencilIcon,
   WrenchScrewdriverIcon,
+  CircleStackIcon,
+  PlusIcon,
 } from '@heroicons/react/20/solid'
 import AdminLayout from '@/components/admin/AdminLayout'
 import {
@@ -103,6 +105,18 @@ import {
   type CrspRejectedRow,
   type CrspProviderDetail,
   type FueleconomyDownloadStatus,
+  // Expansion pipeline
+  runExpansionPipeline,
+  getExpansionStatus,
+  pauseExpansion,
+  resumeExpansion,
+  cancelExpansion,
+  getExpansionMakes,
+  createExpansionMake,
+  updateExpansionMake,
+  deleteExpansionMake,
+  type ExpansionMake,
+  type ExpansionStatus,
 } from '@/lib/adminApi'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -117,7 +131,7 @@ const CARD: React.CSSProperties = {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type DatasetTab = 'crsp' | 'webvalidate'
+type DatasetTab = 'crsp' | 'webvalidate' | 'expansion'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function ArrowSpinner() {
@@ -3623,6 +3637,380 @@ function CrspTab() {
   )
 }
 
+// ── ExpansionTab ──────────────────────────────────────────────────────────────
+
+const EXP_SOURCE_LABELS: Record<string, string> = {
+  nhtsa:    'NHTSA',
+  carquery: 'CarQuery',
+  carsdata: 'cars-data',
+  carinfo:  'car.info',
+}
+
+function ExpansionTab() {
+  const [makes, setMakes]           = useState<ExpansionMake[]>([])
+  const [makesLoading, setMakesLoading] = useState(true)
+  const [makesError, setMakesError] = useState<string | null>(null)
+
+  const [status, setStatus]         = useState<ExpansionStatus | null>(null)
+  const [action, setAction]         = useState<'run' | 'pause' | 'resume' | 'cancel' | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  // Add-make inline form
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newMake, setNewMake] = useState<Omit<ExpansionMake, 'id'>>({
+    make: '', year_tier: 'default',
+    nhtsa_slug: null, cq_slug: null, carsdata_slug: null, carinfo_slug: null,
+    enabled: true,
+  })
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError]     = useState<string | null>(null)
+
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  function startPolling() {
+    if (pollingRef.current) return
+    pollingRef.current = setInterval(async () => {
+      const s = await getExpansionStatus().catch(() => null)
+      if (!s) return
+      setStatus(s)
+      if (s.status !== 'running' && s.status !== 'paused') {
+        clearInterval(pollingRef.current!)
+        pollingRef.current = null
+      }
+    }, 1500)
+  }
+
+  useEffect(() => {
+    getExpansionMakes()
+      .then(setMakes)
+      .catch(e => setMakesError(e?.message ?? 'Failed to load makes'))
+      .finally(() => setMakesLoading(false))
+
+    getExpansionStatus()
+      .then(s => { setStatus(s); if (s.status === 'running' || s.status === 'paused') startPolling() })
+      .catch(() => null)
+
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [])
+
+  async function handleRun() {
+    setAction('run')
+    setActionError(null)
+    try {
+      await runExpansionPipeline()
+      const s = await getExpansionStatus()
+      setStatus(s)
+      startPolling()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Failed to start pipeline')
+    } finally {
+      setAction(null)
+    }
+  }
+
+  async function handleAction(act: 'pause' | 'resume' | 'cancel') {
+    setAction(act)
+    setActionError(null)
+    try {
+      if (act === 'pause')   await pauseExpansion()
+      if (act === 'resume')  await resumeExpansion()
+      if (act === 'cancel')  await cancelExpansion()
+      const s = await getExpansionStatus()
+      setStatus(s)
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : `Failed to ${act}`)
+    } finally {
+      setAction(null)
+    }
+  }
+
+  async function handleTierChange(id: number, year_tier: ExpansionMake['year_tier']) {
+    try {
+      const updated = await updateExpansionMake(id, { year_tier })
+      setMakes(ms => ms.map(m => m.id === id ? updated : m))
+    } catch { /* silent — user sees stale value */ }
+  }
+
+  async function handleToggleEnabled(id: number, enabled: boolean) {
+    try {
+      const updated = await updateExpansionMake(id, { enabled })
+      setMakes(ms => ms.map(m => m.id === id ? updated : m))
+    } catch { /* silent */ }
+  }
+
+  async function handleDelete(id: number, make: string) {
+    if (!window.confirm(`Delete "${make}" from the expansion list?`)) return
+    try {
+      await deleteExpansionMake(id)
+      setMakes(ms => ms.filter(m => m.id !== id))
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Delete failed')
+    }
+  }
+
+  async function handleAddMake() {
+    if (!newMake.make.trim()) { setAddError('Make name is required'); return }
+    setAddLoading(true)
+    setAddError(null)
+    try {
+      const created = await createExpansionMake({ ...newMake, make: newMake.make.trim().toUpperCase() })
+      setMakes(ms => [...ms, created].sort((a, b) => a.make.localeCompare(b.make)))
+      setShowAddForm(false)
+      setNewMake({ make: '', year_tier: 'default', nhtsa_slug: null, cq_slug: null, carsdata_slug: null, carinfo_slug: null, enabled: true })
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : 'Failed to add make')
+    } finally {
+      setAddLoading(false)
+    }
+  }
+
+  const isRunning  = status?.status === 'running'
+  const isPaused   = status?.status === 'paused'
+  const isActive   = isRunning || isPaused
+  const isDone     = status?.status === 'done'
+  const isError    = status?.status === 'error'
+  const pct        = status && status.makes_total > 0
+    ? Math.round((status.makes_processed / status.makes_total) * 100) : 0
+
+  const inputStyle: React.CSSProperties = {
+    fontSize: '0.78rem', padding: '0.35rem 0.6rem', borderRadius: 7,
+    border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)',
+    color: 'var(--adm-text-1)', width: '100%',
+  }
+  const slugColor = (v: string | null) => v ? '#374151' : '#d1d5db'
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+      {/* ── Makes list card ── */}
+      <div style={{ ...CARD, padding: '1.1rem 1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Kenya-Market Makes</p>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: '#6b7280' }}>
+              Enabled makes are queried by the expansion pipeline. Year tier controls the production-year window.
+            </p>
+          </div>
+          <button
+            onClick={() => { setShowAddForm(v => !v); setAddError(null) }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.45rem 0.9rem', borderRadius: 9, border: `1px solid ${R}`, background: showAddForm ? '#fff5f5' : '#fff', color: R, cursor: 'pointer' }}
+          >
+            <PlusIcon style={{ width: 13, height: 13 }} />
+            {showAddForm ? 'Cancel' : 'Add Make'}
+          </button>
+        </div>
+
+        {makesError && (
+          <div style={{ fontSize: '0.73rem', color: R, background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.5rem 0.75rem', marginBottom: '0.75rem' }}>
+            {makesError}
+          </div>
+        )}
+
+        {makesLoading ? (
+          <div style={{ padding: '1rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.78rem' }}>Loading makes…</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--adm-sep)' }}>
+                  {['Make', 'Year Tier', 'NHTSA', 'CarQuery', 'cars-data', 'car.info', 'Enabled', ''].map(h => (
+                    <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: 'left', fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9ca3af', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {makes.map(m => (
+                  <tr key={m.id} style={{ borderBottom: '1px solid var(--adm-sep)', opacity: m.enabled ? 1 : 0.45 }}>
+                    <td style={{ padding: '0.5rem 0.6rem', fontWeight: 700, color: 'var(--adm-text-1)', whiteSpace: 'nowrap' }}>{m.make}</td>
+                    <td style={{ padding: '0.5rem 0.6rem' }}>
+                      <select
+                        value={m.year_tier}
+                        onChange={e => handleTierChange(m.id, e.target.value as ExpansionMake['year_tier'])}
+                        style={{ ...inputStyle, width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.72rem' }}
+                      >
+                        <option value="default">Default</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="chinese">Chinese</option>
+                      </select>
+                    </td>
+                    {([m.nhtsa_slug, m.cq_slug, m.carsdata_slug, m.carinfo_slug] as (string | null)[]).map((slug, i) => (
+                      <td key={i} style={{ padding: '0.5rem 0.6rem', color: slugColor(slug), fontFamily: 'monospace', fontSize: '0.72rem' }}>
+                        {slug ?? '—'}
+                      </td>
+                    ))}
+                    <td style={{ padding: '0.5rem 0.6rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={m.enabled}
+                        onChange={e => handleToggleEnabled(m.id, e.target.checked)}
+                        style={{ cursor: 'pointer', accentColor: R }}
+                      />
+                    </td>
+                    <td style={{ padding: '0.5rem 0.6rem' }}>
+                      <button
+                        onClick={() => handleDelete(m.id, m.make)}
+                        title="Remove from expansion list"
+                        style={{ display: 'flex', alignItems: 'center', padding: '0.3rem', borderRadius: 6, border: 'none', background: 'transparent', color: '#d1d5db', cursor: 'pointer' }}
+                        onMouseOver={e => (e.currentTarget.style.color = R)}
+                        onMouseOut={e => (e.currentTarget.style.color = '#d1d5db')}
+                      >
+                        <TrashIcon style={{ width: 13, height: 13 }} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {makes.length === 0 && !makesLoading && (
+                  <tr><td colSpan={8} style={{ padding: '1rem 0.6rem', color: '#9ca3af', fontStyle: 'italic' }}>No makes configured.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Add-make inline form */}
+        {showAddForm && (
+          <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', borderRadius: 10, border: '1px solid #e2e4e9', background: 'var(--adm-faint-bg)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Add Make</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', display: 'block', marginBottom: '0.2rem' }}>Make *</label>
+                <input value={newMake.make} onChange={e => setNewMake(v => ({ ...v, make: e.target.value }))} placeholder="e.g. HAVAL" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', display: 'block', marginBottom: '0.2rem' }}>Year Tier</label>
+                <select value={newMake.year_tier} onChange={e => setNewMake(v => ({ ...v, year_tier: e.target.value as ExpansionMake['year_tier'] }))} style={inputStyle}>
+                  <option value="default">Default</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="chinese">Chinese</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', display: 'block', marginBottom: '0.2rem' }}>NHTSA slug</label>
+                <input value={newMake.nhtsa_slug ?? ''} onChange={e => setNewMake(v => ({ ...v, nhtsa_slug: e.target.value || null }))} placeholder="Toyota" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', display: 'block', marginBottom: '0.2rem' }}>CarQuery slug</label>
+                <input value={newMake.cq_slug ?? ''} onChange={e => setNewMake(v => ({ ...v, cq_slug: e.target.value || null }))} placeholder="toyota" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', display: 'block', marginBottom: '0.2rem' }}>cars-data slug</label>
+                <input value={newMake.carsdata_slug ?? ''} onChange={e => setNewMake(v => ({ ...v, carsdata_slug: e.target.value || null }))} placeholder="toyota" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', display: 'block', marginBottom: '0.2rem' }}>car.info slug</label>
+                <input value={newMake.carinfo_slug ?? ''} onChange={e => setNewMake(v => ({ ...v, carinfo_slug: e.target.value || null }))} placeholder="toyota" style={inputStyle} />
+              </div>
+            </div>
+            {addError && (
+              <div style={{ fontSize: '0.72rem', color: R }}>{addError}</div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={handleAddMake} disabled={addLoading}
+                style={{ fontSize: '0.78rem', fontWeight: 700, padding: '0.45rem 1rem', borderRadius: 9, border: 'none', background: R, color: '#fff', cursor: addLoading ? 'not-allowed' : 'pointer', opacity: addLoading ? 0.7 : 1 }}>
+                {addLoading ? 'Adding…' : 'Add'}
+              </button>
+              <button onClick={() => { setShowAddForm(false); setAddError(null) }}
+                style={{ fontSize: '0.78rem', fontWeight: 700, padding: '0.45rem 1rem', borderRadius: 9, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Run controls card ── */}
+      <div style={{ ...CARD, padding: '1.1rem 1.25rem', borderLeft: `4px solid ${isDone ? '#22c55e' : isActive ? '#f59e0b' : isError ? R : '#d1d5db'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--adm-text-1)' }}>Vehicle Expansion Pipeline</p>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: '#6b7280' }}>
+              Queries NHTSA, CarQuery, cars-data.com, and car.info for enabled makes. Stages new rows for review.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {!isActive && (
+              <button onClick={handleRun} disabled={action !== null}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: 9, border: 'none', background: action ? '#e2e4e9' : R, color: action ? '#9ca3af' : '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: action ? 'not-allowed' : 'pointer' }}>
+                <PlayIcon style={{ width: 13, height: 13 }} />
+                {action === 'run' ? 'Starting…' : 'Run Expansion'}
+              </button>
+            )}
+            {isActive && (
+              <>
+                <button onClick={() => handleAction(isPaused ? 'resume' : 'pause')} disabled={action !== null}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.5rem 0.9rem', borderRadius: 9, border: '1px solid #e2e4e9', background: 'var(--adm-card-bg)', cursor: 'pointer' }}>
+                  {isPaused ? <PlayIcon style={{ width: 13, height: 13 }} /> : <PauseIcon style={{ width: 13, height: 13 }} />}
+                  {action === 'pause' ? 'Pausing…' : action === 'resume' ? 'Resuming…' : isPaused ? 'Resume' : 'Pause'}
+                </button>
+                <button onClick={() => handleAction('cancel')} disabled={action !== null}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700, padding: '0.5rem 0.9rem', borderRadius: 9, border: `1px solid ${R}`, background: '#fff5f5', color: R, cursor: 'pointer' }}>
+                  <StopIcon style={{ width: 13, height: 13 }} />
+                  {action === 'cancel' ? 'Cancelling…' : 'Cancel'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Progress */}
+        {isActive && status && (
+          <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--adm-text-1)' }}>
+                {isPaused ? '⏸ Paused' : `Processing: ${status.current_make ?? '…'}`}
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>{status.makes_processed} / {status.makes_total || '?'}</span>
+            </div>
+            {status.makes_total > 0 && (
+              <div style={{ width: '100%', background: '#e2e4e9', borderRadius: 99, height: 6, overflow: 'hidden', marginBottom: '0.75rem' }}>
+                <div style={{ width: `${pct}%`, background: isPaused ? '#f59e0b' : R, height: '100%', borderRadius: 99, transition: 'width 0.4s' }} />
+              </div>
+            )}
+            <LogPanel lines={status.logs} />
+          </div>
+        )}
+
+        {/* Completion / error banner */}
+        {(isDone || status?.status === 'cancelled' || isError) && status && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: isError ? '#fff5f5' : isDone ? '#f0fdf4' : '#fffbeb', border: `1px solid ${isError ? '#fca5a5' : isDone ? '#bbf7d0' : '#fde68a'}`, fontSize: '0.73rem', fontWeight: 600, color: isError ? R : isDone ? '#15803d' : '#b45309' }}>
+            {isError
+              ? <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Pipeline error — {status.error_detail}</>
+              : isDone
+              ? <><CheckCircleIcon style={{ width: 14, height: 14 }} /> Complete — {status.rows_staged.toLocaleString()} rows staged</>
+              : <><ExclamationCircleIcon style={{ width: 14, height: 14 }} /> Cancelled — partial results staged</>}
+          </div>
+        )}
+
+        {actionError && (
+          <div style={{ fontSize: '0.73rem', color: R, background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.5rem 0.75rem', marginTop: '0.6rem' }}>
+            {actionError}
+          </div>
+        )}
+      </div>
+
+      {/* ── Stats row ── */}
+      {status && status.status !== 'idle' && (
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <SummaryBadge label="Staged" value={status.rows_staged.toLocaleString()} color="#15803d" />
+          <SummaryBadge label="Skipped (existing)" value={status.rows_skipped.toLocaleString()} color="#6b7280" />
+          {Object.entries(status.source_counts).map(([src, count]) => (
+            <SummaryBadge key={src} label={EXP_SOURCE_LABELS[src] ?? src} value={count} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Staging reminder ── */}
+      {(isDone || status?.status === 'cancelled') && status && status.rows_staged > 0 && (
+        <div style={{ fontSize: '0.73rem', color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <InformationCircleIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
+          {status.rows_staged.toLocaleString()} rows are staged. Switch to the <strong style={{ marginLeft: 3, marginRight: 3 }}>CRSP Pipeline</strong> tab → Staging Review to commit them to vehicle_years.
+        </div>
+      )}
+
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminDataPipeline() {
   const [activeTab, setActiveTab] = useState<DatasetTab>('crsp')
@@ -3668,10 +4056,15 @@ export default function AdminDataPipeline() {
             <button style={tabStyle('webvalidate')} onClick={() => setActiveTab('webvalidate')}>
               <GlobeAltIcon style={{ width: 14, height: 14 }} /> Web Battery Validation
             </button>
+            <button style={tabStyle('expansion')} onClick={() => setActiveTab('expansion')}>
+              <CircleStackIcon style={{ width: 14, height: 14 }} /> Vehicle Expansion
+            </button>
           </div>
 
           {activeTab === 'crsp' ? (
             <CrspTab />
+          ) : activeTab === 'expansion' ? (
+            <ExpansionTab />
           ) : (
             <WebValidateTab />
           )}
