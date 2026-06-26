@@ -4061,13 +4061,12 @@ export default function AdminDataPipeline() {
             </button>
           </div>
 
-          {activeTab === 'crsp' ? (
+          {/* CrspTab is always mounted so the fueleconomy download survives tab switches */}
+          <div style={{ display: activeTab === 'crsp' ? 'block' : 'none' }}>
             <CrspTab />
-          ) : activeTab === 'expansion' ? (
-            <ExpansionTab />
-          ) : (
-            <WebValidateTab />
-          )}
+          </div>
+          {activeTab === 'expansion' && <ExpansionTab />}
+          {activeTab === 'webvalidate' && <WebValidateTab />}
         </div>
 
       </main>
