@@ -4,10 +4,12 @@ import chlorideExideBrandLogo from '@/assets/chlorideexidebrandlogo.webp'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
+import { MobileVehicleFinder } from '@/components/MobileVehicleFinder'
 import { Moon, Sun, Settings } from 'lucide-react'
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
 import { TermsGate } from '@/components/TermsGate'
+import { useIsMobile } from '@/lib/utils'
 
 const AdminLogin        = lazy(() => import('@/pages/admin/AdminLogin'))
 const AdminDashboard    = lazy(() => import('@/pages/admin/AdminDashboard'))
@@ -68,6 +70,7 @@ function PublicApp({
   onEstConfChange,
   onSetConfPopover,
 }: PublicAppProps) {
+  const isMobile = useIsMobile()
   const { user, logout } = useTestUser()
   const [faqOpen, setFaqOpen] = useState(false)
   const [copyrightOpen, setCopyrightOpen] = useState(false)
@@ -102,13 +105,13 @@ function PublicApp({
               src={darkMode ? chlorideExideBrandLogo : chlorideExideLogo}
               alt="Chloride Exide"
               style={{
-                height: 52,
+                height: isMobile ? 36 : 52,
                 width: 'auto',
-                maxWidth: 160,
+                maxWidth: isMobile ? 120 : 160,
                 objectFit: 'contain',
                 display: 'block',
                 flexShrink: 0,
-                borderRadius: darkMode ? 6 : 0,
+                borderRadius: darkMode ? (isMobile ? 4 : 6) : 0,
               }}
             />
             <div className="page-brand-sub" style={{ alignSelf: 'center' }}>
@@ -117,8 +120,8 @@ function PublicApp({
             </div>
           </div>
 
-          {/* Center: manual mode badges */}
-          {typeMode && (
+          {/* Center: manual mode badges — hidden on mobile (wizard has no type-mode) */}
+          {typeMode && !isMobile && (
             <div className="nav-type-mode">
               <span className="nav-manual-badge"><Settings size={13} strokeWidth={1.75} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Manual Mode Active</span>
               {navEstConf && navEstConf.pct > 0 && (
@@ -199,14 +202,17 @@ function PublicApp({
           </div>
         </nav>
 
-        {/* ── Finder card (owns its own card layout) ── */}
-        <VehicleFinderForm
-          onMakesLoaded={onMakesLoaded}
-          typeMode={typeMode}
-          onTypeModeChange={onTypeModeChange}
-          onEstConfChange={onEstConfChange}
-          darkMode={darkMode}
-        />
+        {/* ── Finder — mobile wizard or desktop form ── */}
+        {isMobile
+          ? <MobileVehicleFinder darkMode={darkMode} onMakesLoaded={onMakesLoaded} />
+          : <VehicleFinderForm
+              onMakesLoaded={onMakesLoaded}
+              typeMode={typeMode}
+              onTypeModeChange={onTypeModeChange}
+              onEstConfChange={onEstConfChange}
+              darkMode={darkMode}
+            />
+        }
 
         {/* ── Footer ── */}
         <footer className="page-footer">

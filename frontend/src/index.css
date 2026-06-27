@@ -1253,6 +1253,30 @@ body {
   }
 }
 
+/* ── Phone-specific overrides (≤600px) ──────────────────────────── */
+@media (max-width: 600px) {
+  /* Tighter nav on phones */
+  .page-nav {
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Footer links wrap on narrow screens */
+  .page-footer {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.2rem 0.4rem;
+  }
+  .page-footer__sep {
+    display: none;
+  }
+
+  /* Mobile wizard skeleton pulse */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+}
+
 /* Shimmer skeleton */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }

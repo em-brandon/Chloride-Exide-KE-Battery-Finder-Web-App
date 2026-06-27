@@ -5,8 +5,8 @@ A full-stack production web application that recommends the correct car battery 
 The project is organized into three distinct layers:
 
 1. **Data pipelines** — clean and normalize raw CRSP/NTS vehicle data, enrich with production years and engine specs from multiple public APIs, and produce structured lookup datasets.
-2. **Backend API** — a FastAPI (Python) server with a 3-layer rule-based matching engine, rate limiting, admin dashboard, feedback collection, and test-user auth.
-3. **Frontend** — a React 19 + TypeScript app built with Vite and Tailwind CSS v4, served as static assets from the backend in production.
+2. **Backend API** — a FastAPI (Python) server with a 5-layer rule-based matching engine, rate limiting, admin dashboard, feedback collection, and test-user auth.
+3. **Frontend** — a React 19 + TypeScript app built with Vite and Tailwind CSS v4, served as static assets from the backend in production. Includes a dedicated mobile step-wizard UI for phone browsers.
 
 > **Audience:** This service is available to Kenyan clients only. Geographic access controls are enforced at the CDN and API gateway levels.
 
@@ -18,7 +18,9 @@ The project is organized into three distinct layers:
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Running the App](#running-the-app)
+- [Testing on a Real Device](#testing-on-a-real-device)
 - [Pipeline App](#pipeline-app)
+- [Mobile Experience](#mobile-experience)
 - [API Reference](#api-reference)
 - [Matching Engine](#matching-engine)
 - [Admin Dashboard](#admin-dashboard)
@@ -27,6 +29,7 @@ The project is organized into three distinct layers:
 - [Security](#security)
 - [Production Architecture](#production-architecture)
 - [Environment Variables](#environment-variables)
+- [CI/CD](#cicd)
 
 ---
 
@@ -52,7 +55,7 @@ The project is organized into three distinct layers:
 | Framework | [React 19](https://react.dev/) + [TypeScript 6](https://www.typescriptlang.org/) |
 | Build tool | [Vite 8](https://vite.dev/) |
 | Package manager | [Bun](https://bun.sh/) |
-| Styling | [Tailwind CSS v4](https://tailwindcss.com/) |
+| Styling | [Tailwind CSS v4](https://tailwindcss.com/) + inline `style={{}}` props |
 | UI primitives | [Radix UI](https://www.radix-ui.com/) |
 | Routing | [React Router v7](https://reactrouter.com/) |
 | Icons | [Lucide React](https://lucide.dev/) + [Heroicons](https://heroicons.com/) |
@@ -78,34 +81,26 @@ The project is organized into three distinct layers:
 ├── app.py                      # FastAPI entrypoint — public API, auth, middleware
 ├── admin_router.py             # All /api/admin/* routes (batteries, audit, sessions)
 ├── admin_auth.py               # bcrypt + HttpOnly cookie session management
-├── matcher.py                  # 3-layer battery matching engine (exact → soft → rule)
+├── matcher.py                  # 5-layer battery matching engine
 ├── models.py                   # SQLAlchemy ORM models for all tables
 ├── db.py                       # SQLAlchemy engine + SessionLocal factory
 ├── upload_pipeline.py          # Battery spec upload/import handler
 ├── seed.py                     # Seed DB from battery_specs_output.xlsx
-├── create_admin.py             # CLI: create/update admin user accounts
-├── check_db.py                 # Diagnostic: quick DB query for feedback records
-├── remove_ultrapower.py        # Maintenance: remove ULTRAPOWER battery entries
-├── audit_28_case.py            # Maintenance: audit specific case records
-│
-├── dataprep.py                 # Pipeline 1: clean CRSP Excel → vehicles_raw
-├── nts_dataprep.py             # Pipeline 2: clean NTS workbook → nts_vehicles_clean
-├── enrich_years.py             # Pipeline 3: enrich vehicles with production years
-├── allocate_cc_fuel.py         # Pipeline 4: enrich NTS vehicles with CC + fuel type
 │
 ├── alembic/                    # Database migration scripts
 │   └── versions/               # One migration file per schema change
 │
 ├── frontend/                   # React + TypeScript frontend
 │   ├── src/
-│   │   ├── App.tsx             # Root layout — navbar, dark mode, routing
+│   │   ├── App.tsx             # Root layout — navbar, dark mode, routing, mobile detection
 │   │   ├── components/
-│   │   │   ├── VehicleFinderForm.tsx   # Main search form (Select/Type toggle)
-│   │   │   ├── ResultCard.tsx          # Battery recommendation result display
-│   │   │   ├── FeedbackModal.tsx       # User feedback submission modal
-│   │   │   ├── ConfidenceBar.tsx       # Match confidence visual indicator
+│   │   │   ├── VehicleFinderForm.tsx   # Desktop search form (Select/Type toggle)
+│   │   │   ├── MobileVehicleFinder.tsx # Mobile step-wizard (Make→Model→Year→Details→Result)
+│   │   │   ├── AccuracyBar.tsx         # Segmented match accuracy bar
+│   │   │   ├── FeedbackModal.tsx       # User feedback submission drawer
 │   │   │   ├── Notification.tsx        # Toast notification system
 │   │   │   ├── PageLoader.tsx          # Animated battery splash screen
+│   │   │   ├── TermsGate.tsx           # Terms & conditions acceptance gate
 │   │   │   └── admin/
 │   │   │       ├── AdminLayout.tsx     # Admin panel shell (sidebar nav)
 │   │   │       └── ProtectedRoute.tsx  # Auth guard for admin routes
@@ -117,13 +112,15 @@ The project is organized into three distinct layers:
 │   │   │   │   ├── AdminAuditLog.tsx
 │   │   │   │   ├── AdminSessions.tsx
 │   │   │   │   ├── AdminTestSessions.tsx
-│   │   │   │   ├── AdminCoverage.tsx   # Battery coverage stats + unmatched table
+│   │   │   │   ├── AdminCoverage.tsx
+│   │   │   │   ├── AdminDataPipeline.tsx
 │   │   │   │   └── AdminLogin.tsx
 │   │   │   └── TestUserLogin.tsx
 │   │   ├── lib/
 │   │   │   ├── api.ts              # Typed fetch wrappers for public API
 │   │   │   ├── adminApi.ts         # Typed fetch wrappers for admin API
 │   │   │   ├── testUserApi.ts      # Test-user auth API helpers
+│   │   │   ├── utils.ts            # cn() + useIsMobile() hook
 │   │   │   └── TestUserContext.tsx # React context for test-user session state
 │   │   └── types/
 │   │       └── battery.ts          # TypeScript interfaces for API responses
@@ -135,23 +132,11 @@ The project is organized into three distinct layers:
 │   ├── app.py                  # FastAPI backend — pipeline routes only, port 8001
 │   ├── requirements.txt
 │   └── frontend/               # Vite/React pipeline UI, port 5175
-│       ├── src/
-│       │   ├── App.tsx         # Auth shell — Login → Web Validate / CRSP tabs
-│       │   ├── pages/
-│       │   │   ├── WebValidatePage.tsx  # Web Validate pipeline control + staging area
-│       │   │   ├── CrspPage.tsx         # CRSP dataset pipeline
-│       │   │   └── LoginPage.tsx
-│       │   └── lib/
-│       │       └── api.ts      # Typed fetch wrappers (HttpOnly cookie session)
-│       ├── package.json
-│       ├── vite.config.ts
-│       └── index.html
 │
 ├── pipelines/                  # Data pipeline scripts
 │   ├── dataprep.py             # Pipeline 1: CRSP Excel → vehicles_raw
-│   ├── nts_dataprep.py         # Pipeline 2: NTS workbook → nts_vehicles_clean
-│   ├── enrich_years.py         # Pipeline 3: enrich with production years
-│   └── dial_battery_clean.py   # Pipeline 4: Dial-A-Battery inference table
+│   ├── enrich_years.py         # Pipeline 2: enrich with production years
+│   └── dial_battery_clean.py   # Pipeline 3: Dial-A-Battery inference table
 │
 ├── scripts/                    # Accuracy and failure mode analysis scripts
 ├── requirements.txt            # Python dependencies
@@ -159,8 +144,6 @@ The project is organized into three distinct layers:
 ├── Jenkinsfile                 # CI/CD pipeline definition
 └── .env                        # Environment variables (not committed)
 ```
-
-> **Note:** The source file `New-CRSP---July-2025.xlsx` is required to run `dataprep.py` but is not committed to the repository.
 
 ---
 
@@ -236,11 +219,8 @@ The app starts on **http://localhost:8000**. Static frontend assets are served d
 ### Development (hot reload)
 
 ```bash
-# Activate the virtual environment first (every new terminal session)
-source .venv/Scripts/activate        # bash / Git Bash
-# .venv\Scripts\Activate.ps1         # PowerShell
-
 # Terminal 1 — backend (port 8000)
+source .venv/Scripts/activate
 uvicorn app:app --reload
 
 # Terminal 2 — frontend (port 5173, proxies /api to port 8000)
@@ -251,20 +231,36 @@ Frontend dev server: **http://localhost:5173**
 
 ---
 
+## Testing on a Real Device
+
+To test the mobile wizard on your phone during development, expose the Vite dev server via ngrok. Vite's proxy handles `/api` forwarding server-side so only one tunnel is needed.
+
+```bash
+# Terminal 1 — backend
+uvicorn app:app --reload
+
+# Terminal 2 — frontend
+cd frontend && bun run dev
+
+# Terminal 3 — tunnel
+ngrok http 5173
+```
+
+Open the ngrok HTTPS URL on your phone. The mobile wizard activates automatically at screen widths ≤ 600 px.
+
+> **Note:** The app has geo-restriction middleware that blocks non-Kenyan IPs. If your ngrok exit node resolves as a non-KE IP, you may hit the geo-gate. Test from the same network or temporarily bypass the restriction in development.
+
+---
+
 ## Pipeline App
 
 The pipeline app is a **standalone browser application** that runs separately from the main admin dashboard. It connects directly to the same PostgreSQL database and is designed to be used locally during data preparation.
-
-> In production, point `DATABASE_URL` in `.env` to your AWS RDS instance — no other changes needed.
-
-The pipeline app shares the same `.env` (and therefore the same `DATABASE_URL`) as the main app. No additional environment setup is needed beyond what is already configured.
 
 ### Running the Pipeline App
 
 ```bash
 # Terminal 1 — pipeline backend (port 8001)
-source .venv/Scripts/activate        # bash / Git Bash
-# .venv\Scripts\Activate.ps1         # PowerShell
+source .venv/Scripts/activate
 cd pipeline_app
 pip install -r requirements.txt      # first time only
 uvicorn app:app --port 8001 --reload
@@ -275,55 +271,58 @@ bun install                          # first time only
 bun run dev
 ```
 
-Open **<http://localhost:5175>** and sign in with the same admin credentials created during [Getting Started](#getting-started).
+Open **<http://localhost:5175>** and sign in with the same admin credentials created during Getting Started.
 
 ### Pipeline App Features
 
 | Tab | Description |
 |---|---|
-| **Web Validate** | Run the web battery validation pipeline — toggle providers, choose phase (Phase 1 prefetch / Phase 2 lookup / Both), monitor live progress, review the staging area, fix suspicious Ah values, resolve conflicts, and commit to master |
-| **CRSP Dataset** | Run the CRSP data prep pipeline — specify the Excel file path, stream stage progress (Loading → Schema → Normalizing → Dedup → Saving), and review the output summary |
-
-### Accessing from Admin Dashboard
-
-Once the pipeline app is running, the admin dashboard sidebar shows a **Pipeline App ↗** link that opens `http://localhost:5175` in a new tab. The URL can be overridden by setting `VITE_PIPELINE_APP_URL` in the frontend `.env`.
+| **Web Validate** | Run the web battery validation pipeline — toggle providers, choose phase (Phase 1 prefetch / Phase 2 lookup / Both), monitor live progress, review staging area, fix suspicious Ah values, resolve conflicts, and commit to master |
+| **CRSP Dataset** | Run the CRSP data prep pipeline — specify the Excel file path, stream stage progress, and review the output summary |
 
 ### Building the Desktop `.exe` (Windows)
-
-The pipeline app can be packaged as a standalone Windows desktop application using PyInstaller and pywebview. The resulting `.exe` opens the React UI in a native Edge WebView2 window — no browser, no address bar.
-
-**Prerequisites (developer only):**
-
-- [Inno Setup](https://jrsoftware.org/isdl.php) installed (free)
-- Python virtual environment active
-
-**Build steps:**
 
 ```bash
 # 1. Compile the React frontend
 bun --cwd pipeline_app/frontend run build
 
-# 2. Install PyInstaller and pywebview (first time only)
-pip install pyinstaller pywebview
-
-# 3. Bundle into a single .exe
+# 2. Bundle into a single .exe
 cd pipeline_app
 pyinstaller pipeline_app.spec
-# → dist/PipelineApp.exe (~50 MB)
 
-# 4. Fill in pipeline.env with the real values (do NOT commit this file)
-#    DATABASE_URL=postgresql://user:password@your-rds-endpoint:5432/batteryfinderdev?sslmode=require
-#    BRAVE_SEARCH_API_KEY=...
-#    TAVILY_API_KEY=...
-
-# 5. Compile the Windows installer
+# 3. Compile the Windows installer
 iscc installer.iss
 # → dist/PipelineApp-Setup-1.0.0.exe
 ```
 
-**End-user experience:** double-click `PipelineApp-Setup-1.0.0.exe`, follow the standard Windows installer, then launch from the Desktop shortcut. No terminal, no config files, no browser needed.
+---
 
-> The `.exe` reads `pipeline.env` from the same directory — `DATABASE_URL` and API keys are never bundled inside the binary. The installer copies `pipeline.env.example` as `pipeline.env` on first install only; edit it with the real credentials before distributing to users.
+## Mobile Experience
+
+On screens ≤ 600 px wide (phones), the app renders a dedicated **step-by-step wizard** (`MobileVehicleFinder.tsx`) instead of the desktop form. The desktop UI (`VehicleFinderForm.tsx`) is completely unchanged.
+
+### Wizard Flow
+
+```
+Step 1: Select Make  →  Step 2: Select Model
+→  Step 3: Select Year  →  Step 4: Engine Details (optional)
+→  Result screen
+```
+
+- **Auto-advance** — selecting a Make immediately fetches models and advances to Step 2. Selecting a Model immediately fetches years and advances to Step 3.
+- **Year** requires an explicit "Continue" tap to prevent accidental advances.
+- **Engine Details** (fuel type + CC) are optional; a "Skip & Find Battery" button proceeds without them.
+- **Result screen** shows: vehicle label, primary battery (Ah, CCA, code with copy button), result accuracy bar, Rate / Shop Now buttons, Dial-a-Battery numbers, collapsible same-tech alternatives, and a "Search Again" reset button.
+- Dark mode is fully supported — CSS variables apply automatically.
+
+### Breakpoint
+
+| Width | Experience |
+|---|---|
+| ≤ 600 px | Mobile wizard (`MobileVehicleFinder`) |
+| > 600 px | Desktop form (`VehicleFinderForm`) |
+
+Detection is done client-side via `useIsMobile()` in `frontend/src/lib/utils.ts`, which uses `window.matchMedia` and responds to resize events.
 
 ---
 
@@ -340,6 +339,7 @@ All public endpoints are rate-limited and served under `/api/`.
 | `GET` | `/api/years?make=&model=` | 20/min | List available years for a make + model |
 | `POST` | `/api/recommend` | 10/min | Get a battery recommendation |
 | `POST` | `/api/feedback` | 5/min | Submit feedback on a recommendation |
+| `POST` | `/api/battery-search` | 10/min | Search batteries by Ah and/or CCA spec |
 
 ### Auth Endpoints (Test Users)
 
@@ -358,29 +358,34 @@ All public endpoints are rate-limited and served under `/api/`.
   "model": "Corolla",
   "year": 2015,
   "engine_cc": 1500,
-  "fuel_type": "Petrol"
+  "fuel_type": "Petrol",
+  "stop_start": true
 }
 ```
 
-`engine_cc` (500–8000) and `fuel_type` are optional but improve match confidence.
+`engine_cc` (500–8000), `fuel_type`, and `stop_start` are optional but improve match confidence.
 
 ### `POST /api/recommend` — Response
 
 ```json
 {
-  "match_type": "exact",
+  "match_type": "Exact Match",
   "confidence": 100,
   "matched_make": "TOYOTA",
   "matched_model": "COROLLA AXIO G",
   "matched_year": 2015,
   "engine_cc": 1500,
-  "fuel_type": "Petrol",
+  "fuel_type": "PETROL",
+  "battery_region": "NS",
+  "recommended_ah": 45,
+  "preferred_tech": "MF",
   "primary": {
     "battery_code": "NS60",
     "model_key": "NS60",
     "ah": 45,
     "cca_en": 390,
-    "technology": "MF"
+    "technology": "MF",
+    "origin": "imported"
   },
   "alternatives": []
 }
@@ -390,41 +395,102 @@ All public endpoints are rate-limited and served under `/api/`.
 
 ## Matching Engine
 
-Defined in `matcher.py`. Data is loaded from the database at startup via `lru_cache` and held in memory. The engine applies a **3-layer rule hierarchy**:
+Defined in `matcher.py`. All data sources are loaded from the database at startup via `@lru_cache` and held in memory for fast lookups. Cache can be flushed from the admin dashboard.
 
-| Layer | Trigger | Confidence |
-|---|---|---|
-| **Exact** | Make + fuzzy model (≥90 score) + exact year in `vehicle_years` | 100% |
-| **Soft** | Make + fuzzy model (≥60 score) + year within ±3 years | 60–89% |
-| **Rule-based fallback** | Engine CC + fuel type → Ah bracket | 30–59% |
+### Layer Overview
 
-The engine also:
-- Resolves international model names to JDM equivalents via `model_aliases`
-- Infers stop-start battery requirement from make + year
-- Applies NS/JIS vs DIN battery standard based on vehicle origin region (see `_NS_MAKES`, `_DIN_MAKES` in `matcher.py`)
+| Priority | Layer | Data Source | Confidence |
+|---|---|---|---|
+| 0a | **Web Validation** | `web_battery_validation` — internet-sourced fitment data | 75–90% |
+| 0b | **Real-World Inference** | `dial_battery_inference` — Dial-A-Battery historical orders | 80–95% |
+| 1 | **Exact Match** | `vehicle_years` — fuzzy model ≥ 90 + exact year | 100% |
+| 2 | **Soft Match** | `vehicle_years` — fuzzy model ≥ 60 + year within ±3 | 60–89% |
+| 3 | **Rule-Based Fallback** | Engine CC + fuel → Ah bracket table | 40% |
+
+Aliases (`model_aliases`) are applied between layers 1/2 and 3 to map international model names (e.g. "Civic") to their JDM dataset equivalents (e.g. "CIVIC FERIO").
+
+### Flowchart
+
+```mermaid
+flowchart TD
+    A([User Input\nmake · model · year · fuel_type · engine_cc]) --> B[Normalize\n_norm_model_key · _norm_fuel\nUPPERCASE · strip · collapse whitespace]
+    B --> C{Layer 0a\nWeb Validation\nweb_battery_validation}
+
+    C -->|Hit — conf 75–90| D[Resolve engine specs\nfrom vehicle_years]
+    D --> WF[Parse battery code\n_lookup_battery_by_code\nexact → fuzzy → legacy parser]
+    WF --> SEL
+
+    C -->|Miss| E{Layer 0b\nReal-World Inference\ndial_battery_inference}
+    E -->|Hit — conf 80–95\nhighest frequency + latest sale| G[Resolve engine specs\nfrom vehicle_years]
+    G --> WF2[Parse battery code\n_lookup_battery_by_code\nhonour AGM/EFB tech from inference]
+    WF2 --> SEL
+
+    E -->|Miss| H{Layer 1 — Exact Match\nvehicle_years\nfuzzy model score ≥ 90\nexact year hit}
+    H -->|Match — conf 100| I[Record make · model · year · CC · fuel]
+    H -->|Soft — fuzzy ≥ 60\nyear ±3 — conf 60–89| J[Record nearest year · CC · fuel]
+    H -->|No match| K{Alias lookup\nmodel_aliases\nintl model → JDM model}
+
+    I --> AH
+    J --> AH
+
+    K -->|Alias found\nfuzzy WRatio ≥ 75| M[Re-run fuzzy match\nwith JDM model name\nprefer exact year then ±3]
+    M --> AH
+    K -->|No alias| N[Layer 3 — Rule-Based\nconf 40\nengine CC + fuel → Ah bracket\n_year_ah_modifier applied]
+    N --> AH
+
+    AH[_target_ah\nCC + fuel bracket\n+ year modifier −5 to +10] --> PT
+    SEL --> PT[_preferred_tech\nLuxury → AGM\nHybrid → EFB\nStop-start + diesel/large → AGM\nStop-start standard → EFB\nNo stop-start → MF]
+    PT --> RG[_make_region\nNS/JIS — Japanese · Korean · Chinese\nDIN — European · American · other]
+    RG --> SB[_select_batteries\nFilter by region\nMatch Ah + preferred tech\nSort: imported before local\nFallback to nearest Ah if none]
+    SB --> R([Return\nprimary + up to 6 alternatives\nconfidence · match_type\nmatched_make · matched_model · matched_year])
+```
+
+### Fuzzy Model Scoring
+
+`_fuzzy_model_score_for_year()` runs three scorers in priority order, selecting candidates that exist near the requested year:
+
+1. `partial_ratio` (≥ 80, query len ≥ 4) — catches prefix inputs like "COROLLA" → "COROLLA AXIO G"
+2. `token_set_ratio` (≥ 72) — handles variant-token inputs like "MARCH ACTIVE" → "MARCH G"
+3. `WRatio` (≥ 60) — legacy fallback
+
+Among candidates that tie, selection prefers: semantic prefix match → exact year hit → smallest year delta → highest fuzzy score.
+
+### Ah Bracket Rules
+
+| Engine CC | Petrol (Ah) | Diesel (Ah) | Hybrid (Ah) |
+|---|---|---|---|
+| ≤ 1000 | 35 | 40 | 35 |
+| ≤ 1600 | 45 | 50 | 45 |
+| ≤ 2000 | 55 | 65 | 55 |
+| ≤ 2500 | 70 | 80 | 65 |
+| ≤ 3000 | 80 | 90 | 80 |
+| ≤ 4000 | 90 | 100 | 90 |
+| > 4000 | 100 | 120 | 100 |
+
+Year modifier applied on top: `< 2000 → −5` · `2000–2011 → 0` · `2012–2017 → +5` · `≥ 2018 → +10`.
 
 ### Result Accuracy Bar
 
-The result card renders a **segmented accuracy bar** (`frontend/src/components/AccuracyBar.tsx`) that breaks the match quality into four independently scored factors displayed as proportional-width animated segments:
+The result card renders a segmented accuracy bar (`AccuracyBar.tsx`) with four independently scored factors:
 
-| Segment | Max | Color | How scored |
-| --- | --- | --- | --- |
-| Car Found | 50 pts | Green | 50 for exact/real-world match; 20–40 for close match; 0 for rule-based fallback |
-| Year | 25 pts | Blue | 25 for exact year; decreasing with delta (0 for >3 years off) |
-| Data Quality | 15 pts | Violet | 15 for real-world source; 12 if model was found in dataset; 4 for fallback |
-| Engine Info | 10 pts | Amber | 10 if model matched; 6 if engine CC was provided; 2 otherwise |
+| Segment | Max | Color | Scoring |
+|---|---|---|---|
+| Car Found | 50 pts | Green | 50 for exact/real-world; 20–40 for close; 0 for fallback |
+| Year | 25 pts | Blue | 25 exact; decreasing with delta; 0 if > 3 years off |
+| Data Quality | 15 pts | Violet | 15 real-world source; 12 model found; 4 fallback |
+| Engine Info | 10 pts | Amber | 10 model matched; 6 CC provided; 2 otherwise |
 
-The total (0–100) is shown as a percentage label. Each segment fills with a 0.7 s ease-out animation triggered per result. The bar replaces the old single-colour `ConfidenceBar` — `ConfidenceBar.tsx` is still present but unused.
+Total (0–100) shown as a percentage with a 0.7 s ease-out fill animation.
 
 ---
 
 ## Admin Dashboard
 
-Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issued by `POST /api/admin/login`. Implemented in `admin_router.py` with auth enforced by `admin_auth.py`.
+Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issued by `POST /api/admin/login`.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/admin/login` | Admin login (5/min rate limit) |
+| `POST` | `/api/admin/login` | Admin login (5/min) |
 | `POST` | `/api/admin/logout` | Clear session |
 | `GET` | `/api/admin/me` | Current admin user |
 | `GET` | `/api/admin/stats` | Usage stats and record counts |
@@ -447,65 +513,325 @@ Run scripts in order when refreshing the dataset.
 ### Pipeline 1 — CRSP Data Prep
 
 ```bash
-python dataprep.py
+python pipelines/dataprep.py
 ```
 
 Input: `New-CRSP---July-2025.xlsx` (not committed)
-Output: `battery_lookup_dataset.csv`, `battery_lookup_dataset.xlsx`
+Output: `battery_lookup_dataset.csv`
 
-### Pipeline 2 — NTS Data Prep
-
-```bash
-python nts_dataprep.py
-```
-
-Input: `NTSA Vehicles Registered 2024.xlsx`
-Output: `nts_vehicles_clean.csv`, `nts_vehicles_clean.xlsx`
-
-### Pipeline 3 — Year Enrichment
+### Pipeline 2 — Year Enrichment
 
 ```bash
-python enrich_years.py
+python pipelines/enrich_years.py
 ```
-
-Input: `battery_lookup_dataset.csv`
-Output: `vehicle_years.csv`, `vehicle_years.xlsx`, `unmatched_models.csv`
 
 Fetches production years from (in order): fueleconomy.gov bulk CSV → NHTSA VPIC → CarAPI → Wikidata/Wikipedia.
-API results cached in `year_cache.json` (the `years` key is cleared on each run; `nhtsa` and `carapi` persist).
+Results cached in `cache/year_cache.json` and `cache/fueleconomy_vehicles.csv`. Safe to delete to force a full re-fetch.
 
-### Pipeline 4 — NTS CC + Fuel Enrichment
+### Pipeline 3 — Dial-A-Battery Inference
 
 ```bash
-python allocate_cc_fuel.py
+python pipelines/dial_battery_clean.py
 ```
 
-Input: `nts_vehicles_clean.csv`
-Output: `nts_vehicles_enriched.csv`, `nts_vehicles_enriched.xlsx`, `nts_unmatched_enriched.csv`
-
-Enriches each NTS vehicle with engine displacement (cc) and fuel type. Results cached in `enrichment_cache.json`.
-
-Fuel type is normalized to one of: `PETROL` · `DIESEL` · `ELECTRIC` · `HYBRID` · `PLUG-IN HYBRID` · `CNG` · `LPG` · `HYDROGEN`
+Input: `data/Dial-A-Battery Data - 2023-2026.xlsx`
+Output: `dial_battery_inference` table
 
 ---
 
 ## Database Schema
 
-Managed by Alembic (`alembic/versions/`). Apply migrations with `alembic upgrade head`.
+Managed by Alembic (`alembic/versions/`). Apply all migrations with `alembic upgrade head`.
+
+### Table Overview
 
 | Table | Written by | Read by | Description |
 |---|---|---|---|
-| `vehicles_raw` | `dataprep.py` | `enrich_years.py` | Cleaned CRSP vehicle records |
+| `vehicles_raw` | `dataprep.py` | pipelines | Cleaned CRSP vehicle records |
 | `vehicle_years` | `enrich_years.py` | `matcher.py` | Per-make/model/year rows with CC + fuel |
-| `battery_specs` | `seed.py`, admin upload | `matcher.py` | Battery catalogue (soft-delete via `deleted_at`) |
-| `model_aliases` | `seed.py` | `matcher.py` | International → JDM model name mappings |
-| `admin_users` | `create_admin.py` | `admin_auth.py` | Admin credentials (bcrypt hashed, cost 12) |
+| `vehicle_years_staging` | pipeline app | admin UI | Enriched rows pending admin review |
+| `vehicle_years_versions` | admin UI | admin UI | One record per approved merge commit |
+| `vehicle_years_changelog` | admin UI | admin UI | Row-level diffs for rollback |
+| `vehicle_years_unmatched` | `enrich_years.py` | admin UI | Models that failed year enrichment |
+| `battery_specs` | seed / admin upload | `matcher.py` | Battery catalogue (soft-delete via `deleted_at`) |
+| `battery_audit_log` | `admin_router.py` | admin UI | Immutable change history |
+| `model_aliases` | seed | `matcher.py` | International → JDM model name mappings |
+| `dial_battery_inference` | `dial_battery_clean.py` | `matcher.py` | Real-world call-centre order data |
+| `web_battery_validation` | pipeline app | `matcher.py` | Internet-validated fitment data |
+| `web_battery_staging` | pipeline app | admin UI | Web validation rows pending review |
+| `web_battery_validation_versions` | admin UI | admin UI | One record per approved web validation commit |
+| `web_battery_validation_changelog` | admin UI | admin UI | Row-level diffs |
+| `enrichment_cache_meta` | pipelines | admin UI | Cache download timestamps for external sources |
+| `pipeline_run_log` | pipeline app | admin UI | Web validation run history |
+| `fueleconomy_vehicles` | `enrich_years.py` | pipelines | fueleconomy.gov vehicle cache |
+| `api_usage_quota` | pipelines | admin UI | Per-provider API call quotas (30-day rolling) |
+| `admin_users` | `create_admin.py` | `admin_auth.py` | Admin credentials (bcrypt, cost 12) |
 | `admin_sessions` | `admin_auth.py` | `admin_auth.py` | Active admin sessions (8-hour TTL) |
-| `battery_audit_log` | `admin_router.py` | Admin UI | Immutable change history for battery_specs |
-| `admin_stats` | `app.py` middleware | Admin UI | Persisted usage counters (e.g. `db_reads`) |
+| `admin_stats` | `app.py` middleware | admin UI | Persisted usage counters |
+| `app_settings` | admin UI | app | Key-value runtime configuration |
 | `test_users` | `/api/auth/register` | `app.py` | Test user accounts |
 | `test_user_sessions` | `/api/auth/login` | `app.py` | Test user tokens (24-hour TTL) |
-| `user_feedback` | `/api/feedback` | Admin UI | User feedback on recommendations |
+| `user_feedback` | `/api/feedback` | admin UI | User feedback on recommendations |
+
+### Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    admin_users {
+        int id PK
+        string username UK
+        string password_hash
+        datetime created_at
+    }
+    admin_sessions {
+        int id PK
+        string session_token UK
+        int admin_id FK
+        datetime created_at
+        datetime expires_at
+        string ip_address
+    }
+    admin_stats {
+        int id PK
+        string stat_key UK
+        bigint stat_value
+        datetime updated_at
+    }
+    app_settings {
+        int id PK
+        string setting_key UK
+        string setting_value
+        datetime updated_at
+        string updated_by
+    }
+    battery_specs {
+        int id PK
+        string battery_code UK
+        string model_key
+        float ah
+        float cca_en
+        string technology
+        string origin
+        string brand
+        datetime deleted_at
+    }
+    battery_audit_log {
+        int id PK
+        int battery_id FK
+        string action
+        string changed_by
+        datetime changed_at
+        text old_values
+        text new_values
+    }
+    model_aliases {
+        int id PK
+        string make
+        string international_model
+        string jdm_model
+        int priority
+    }
+    vehicles_raw {
+        int id PK
+        string make
+        string model
+        string model_number
+        int engine_capacity
+        string fuel
+    }
+    vehicle_years {
+        int id PK
+        string make
+        string model
+        int year
+        int engine_capacity
+        string fuel
+        string source
+        datetime created_at
+        datetime updated_at
+    }
+    vehicle_years_staging {
+        int id PK
+        text run_id
+        string make
+        string model
+        int year
+        int engine_capacity
+        string fuel
+        string source
+        datetime staged_at
+        bool is_valid
+        text invalid_reason
+        bool conflict
+        text conflict_detail
+    }
+    vehicle_years_versions {
+        text id PK
+        int version_number
+        datetime committed_at
+        text run_id
+        int committed_count
+        int updated_count
+        int removed_count
+        int conflict_count
+        string committed_by
+        string initiated_by
+        text notes
+    }
+    vehicle_years_changelog {
+        int id PK
+        text version_id FK
+        string make
+        string model
+        int year
+        text change_type
+        text old_values
+        text new_values
+    }
+    vehicle_years_unmatched {
+        int id PK
+        text run_id
+        string make
+        string model
+        string fuel
+        datetime recorded_at
+    }
+    dial_battery_inference {
+        int id PK
+        text vehicle_type
+        text vehicle_model
+        text battery_code
+        int frequency
+        datetime last_sale_date
+    }
+    web_battery_validation {
+        int id PK
+        text make_n
+        text model_n
+        int year
+        text battery_code
+        int ah
+        text technology
+        text source
+        datetime validated_at
+        int engine_cc
+        string fuel_type
+        text run_id
+        text version_id
+    }
+    web_battery_staging {
+        int id PK
+        text run_id
+        text make_n
+        text model_n
+        int year
+        text battery_code
+        int ah
+        text technology
+        text source
+        int engine_cc
+        text fuel_type
+        datetime staged_at
+        bool is_valid
+        text invalid_reason
+        bool conflict
+        text conflict_detail
+    }
+    web_battery_validation_versions {
+        text id PK
+        int version_number
+        datetime committed_at
+        text run_id
+        int committed_count
+        int removed_count
+        int conflict_count
+        text notes
+        text committed_by
+        text initiated_by
+    }
+    web_battery_validation_changelog {
+        int id PK
+        text version_id FK
+        text make_n
+        text model_n
+        int year
+        text change_type
+        text old_values
+        text new_values
+    }
+    enrichment_cache_meta {
+        text key PK
+        datetime downloaded_at
+        bigint file_size_bytes
+        int record_count
+        text notes
+        datetime updated_at
+    }
+    pipeline_run_log {
+        int id PK
+        text run_id
+        text status
+        datetime finished_at
+        int combos_processed
+        int combos_matched
+    }
+    fueleconomy_vehicles {
+        int id PK
+        int year
+        string make
+        string model
+    }
+    api_usage_quota {
+        int id PK
+        string provider
+        string month
+        int calls_made
+        int quota_limit
+        datetime updated_at
+        datetime period_start
+        datetime period_end
+    }
+    test_users {
+        int id PK
+        string username UK
+        string email UK
+        string password_hash
+        datetime created_at
+        int is_active
+    }
+    test_user_sessions {
+        int id PK
+        string session_token UK
+        int user_id FK
+        datetime created_at
+        datetime expires_at
+        string ip_address
+        string user_agent
+        datetime last_seen_at
+    }
+    user_feedback {
+        int id PK
+        string vehicle_label
+        int satisfaction
+        string accuracy
+        text wrong_parts
+        text comments
+        datetime submitted_at
+        string ip_address
+        int test_user_id FK
+        string input_type
+        int match_confidence
+        string match_type
+        string recommended_battery
+    }
+
+    admin_users            ||--o{ admin_sessions               : "has"
+    battery_specs          ||--o{ battery_audit_log            : "logged in"
+    vehicle_years_versions ||--o{ vehicle_years_changelog      : "records"
+    web_battery_validation_versions ||--o{ web_battery_validation_changelog : "records"
+    test_users             ||--o{ test_user_sessions           : "has"
+    test_users             ||--o{ user_feedback                : "submits"
+```
 
 ---
 
@@ -545,11 +871,7 @@ Route 53 ─► CloudFront (KE geo-restriction)
                      ▼                         ▼
                ElastiCache Redis          RDS PostgreSQL
                (cache / rate state)       (auth, feedback,
-                     │                    sessions, audit)
-                     ▼
-               S3 Data Bucket
-               (CSVs, uploads,
-               pipeline outputs)
+                                          sessions, audit)
 
 Pipelines
   EventBridge Scheduler ─► ECS Fargate Tasks
