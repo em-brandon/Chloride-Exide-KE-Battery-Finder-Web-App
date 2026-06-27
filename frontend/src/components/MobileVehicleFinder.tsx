@@ -225,8 +225,6 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const [loading, setLoading]       = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const [modelTypeOverride, setModelTypeOverride] = useState(false)
-
   const [stopStart, setStopStart]               = useState(true)
   const [stopStartTooltip, setStopStartTooltip] = useState(false)
 
@@ -244,10 +242,17 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   const handleTypeModeToggle = () => {
     setTypeMode(t => !t)
-    setModelTypeOverride(false)
     setMake(''); setModel(''); setYear('')
     setModels([]); setYears([])
     setResult(null); setError('')
+  }
+
+  const handleTypeModelInstead = () => {
+    setTypeMode(true)
+    setModel(''); setYear('')
+    setYears([])
+    setResult(null); setError('')
+    // make is intentionally preserved
   }
 
   // ── Select-mode handlers (auto-advance) ──────────────────────────
@@ -333,7 +338,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   const handleBack = () => {
     setError('')
-    if (step === 'model')   { setStep('make');    setModel(''); setModelTypeOverride(false) }
+    if (step === 'model')   { setStep('make');    setModel('') }
     if (step === 'year')    { setStep('model');   setYear('') }
     if (step === 'details') { setStep('year');    setFuelType(''); setEngineCc('') }
     if (step === 'result')  { setStep('details'); setResult(null) }
@@ -344,7 +349,6 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setMake(''); setModel(''); setYear(''); setFuelType(''); setEngineCc('')
     setModels([]); setYears([])
     setResult(null); setError('')
-    setModelTypeOverride(false)
     setStopStart(true); setStopStartTooltip(false)
     setAltVisible(true)
   }
@@ -472,30 +476,15 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
           <h2 style={stepTitle}>Select Model</h2>
           <p style={stepSub}>{make}</p>
 
-          {(typeMode || modelTypeOverride) ? (
-            <>
-              <input
-                style={INPUT_STYLE}
-                type="text"
-                placeholder="e.g. Corolla"
-                value={model}
-                onChange={e => setModel(e.target.value)}
-                autoFocus
-              />
-              {modelTypeOverride && !typeMode && (
-                <button
-                  onClick={() => { setModelTypeOverride(false); setModel('') }}
-                  style={{
-                    background: 'none', border: 'none', padding: '0.45rem 0 0',
-                    fontSize: '0.75rem', color: 'var(--muted, #6b7280)',
-                    cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline',
-                    textUnderlineOffset: '2px', textAlign: 'left',
-                  }}
-                >
-                  ← Show model list
-                </button>
-              )}
-            </>
+          {typeMode ? (
+            <input
+              style={INPUT_STYLE}
+              type="text"
+              placeholder="e.g. Corolla"
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              autoFocus
+            />
           ) : (
             <>
               <SelectWrap>
@@ -511,15 +500,17 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 </select>
               </SelectWrap>
               <button
-                onClick={() => { setModelTypeOverride(true); setModel('') }}
+                onClick={handleTypeModelInstead}
                 style={{
-                  background: 'none', border: 'none', padding: '0.5rem 0 0',
-                  fontSize: '0.75rem', color: 'var(--muted, #6b7280)',
-                  cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline',
-                  textUnderlineOffset: '2px', textAlign: 'left',
+                  background: 'none', border: 'none', padding: '0.55rem 0 0',
+                  fontSize: '0.8rem', fontWeight: 600,
+                  color: 'var(--blue, #2563eb)',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  textDecoration: 'underline', textUnderlineOffset: '3px',
+                  textAlign: 'left',
                 }}
               >
-                Don't see your model? Type it instead
+                Don't see your model? Type it instead →
               </button>
             </>
           )}
@@ -527,7 +518,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
           {error && <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#dc2626' }}>{error}</p>}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
-            {(typeMode || modelTypeOverride) && (
+            {typeMode && (
               <button
                 style={{ ...BTN_PRIMARY, opacity: model.trim() ? 1 : 0.45, cursor: model.trim() ? 'pointer' : 'not-allowed' }}
                 onClick={handleModelContinue}
