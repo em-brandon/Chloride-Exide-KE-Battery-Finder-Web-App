@@ -223,11 +223,11 @@ function PublicApp({
           </button>
           <div className="page-footer__links">
             <button className="page-footer__link" onClick={() => setPrivacyOpen(true)}>Privacy Policy</button>
-            <span className="page-footer__sep">·</span>
+            <span className="page-footer__sep" aria-hidden="true" />
             <button className="page-footer__link" onClick={() => setHowToUseOpen(true)}>How to Use</button>
-            <span className="page-footer__sep">·</span>
+            <span className="page-footer__sep" aria-hidden="true" />
             <button className="page-footer__link" onClick={() => setFaqOpen(true)}>FAQ &amp; Disclaimer</button>
-            <span className="page-footer__sep">·</span>
+            <span className="page-footer__sep" aria-hidden="true" />
             <button className="page-footer__link" onClick={() => setVersionOpen(true)}>Build Version Beta v1.1.2</button>
           </div>
         </footer>

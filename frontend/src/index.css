@@ -1520,9 +1520,15 @@ body {
 
 /* Footer link */
 .page-footer__sep {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
   margin: 0 0.55rem;
-  color: var(--muted2);
-  opacity: 0.6;
+  opacity: 0.45;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .page-footer__link {
@@ -1565,7 +1571,7 @@ body {
 .page-dark .faq-disclaimer__lead { color: rgba(229, 231, 235, 0.88); }
 .page-dark .page-footer__link  { color: rgba(229, 231, 235, 0.3); }
 .page-dark .page-footer__link:hover { color: var(--red); }
-.page-dark .page-footer__sep   { color: rgba(229, 231, 235, 0.25); }
+.page-dark .page-footer__sep   { opacity: 0.25; }
 .page-dark .page-footer__copyright { color: rgba(229, 231, 235, 0.3); }
 .page-dark .page-footer__copyright:hover { color: rgba(229, 231, 235, 0.7); }
 

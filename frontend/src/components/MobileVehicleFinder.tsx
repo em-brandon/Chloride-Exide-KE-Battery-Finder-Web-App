@@ -225,6 +225,9 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const [loading, setLoading]       = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  const [stopStart, setStopStart]               = useState(true)
+  const [stopStartTooltip, setStopStartTooltip] = useState(false)
+
   const [altVisible, setAltVisible]     = useState(true)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [copied, setCopied]             = useState(false)
@@ -314,7 +317,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         year:       parseInt(year, 10),
         engine_cc:  !skipDetails && engineCc ? parseInt(engineCc, 10) : null,
         fuel_type:  !skipDetails && fuelType  ? fuelType  : null,
-        stop_start: true,
+        stop_start: stopStart,
       })
       setResult(data)
       setStep('result')
@@ -338,6 +341,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setMake(''); setModel(''); setYear(''); setFuelType(''); setEngineCc('')
     setModels([]); setYears([])
     setResult(null); setError('')
+    setStopStart(true); setStopStartTooltip(false)
     setAltVisible(true)
   }
 
@@ -584,6 +588,67 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                   <option value="Electric">Electric</option>
                 </select>
               </SelectWrap>
+            </div>
+
+            {/* ── Start-Stop toggle ── */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={labelStyle}>Start-Stop system?</span>
+                  <button
+                    type="button"
+                    onClick={() => setStopStartTooltip(v => !v)}
+                    style={{
+                      width: 16, height: 16, borderRadius: '50%',
+                      border: '1.5px solid var(--border, #e2e4e9)',
+                      background: 'transparent', color: 'var(--muted, #6b7280)',
+                      fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'inherit', flexShrink: 0, lineHeight: 1, marginBottom: '0.35rem',
+                    }}
+                    aria-label="What is Start-Stop?"
+                  >?</button>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={stopStart}
+                  onClick={() => setStopStart(v => !v)}
+                  style={{
+                    position: 'relative', width: '2.5rem', height: '1.35rem',
+                    borderRadius: '9999px', border: 'none', cursor: 'pointer',
+                    background: stopStart ? 'var(--red, #CC0000)' : '#d1d5db',
+                    transition: 'background 0.2s', padding: 0, flexShrink: 0,
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: '2px',
+                    left: stopStart ? 'calc(100% - 19px)' : '2px',
+                    width: '17px', height: '17px', borderRadius: '50%',
+                    background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                    transition: 'left 0.2s', display: 'block',
+                  }} />
+                </button>
+              </div>
+              {stopStartTooltip && (
+                <div style={{
+                  background: 'var(--card-bg, #fff)',
+                  border: '1px solid var(--border, #e2e4e9)',
+                  borderRadius: '0.5rem', padding: '0.6rem 0.75rem',
+                  fontSize: '0.72rem', color: 'var(--text, #374151)',
+                  lineHeight: 1.5, marginBottom: '0.35rem',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                }}>
+                  <strong>What is Start-Stop?</strong>
+                  <p style={{ margin: '0.25rem 0 0' }}>
+                    Start-Stop (ISS) shuts off the engine at standstill to save fuel and restarts when you release the brake.
+                    Vehicles with this system require an <strong>EFB</strong> or <strong>AGM</strong> battery — standard MF batteries wear out quickly.
+                  </p>
+                </div>
+              )}
+              <p style={{ fontSize: '0.7rem', color: 'var(--muted, #9ca3af)', margin: '0.15rem 0 0' }}>
+                {stopStart ? 'ON — will recommend EFB or AGM' : 'OFF — will recommend standard MF'}
+              </p>
             </div>
 
             <div>
