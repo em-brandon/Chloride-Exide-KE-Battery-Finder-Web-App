@@ -1317,6 +1317,35 @@ body {
   animation: shimmer 1.4s infinite linear;
 }
 
+/* Mobile wizard — type-mode switch toast */
+@keyframes mvf-toast-in {
+  from { transform: translate(-50%, 1.5rem); opacity: 0; }
+  to   { transform: translate(-50%, 0);      opacity: 1; }
+}
+.mvf-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  border-radius: 0.85rem;
+  padding: 0.7rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.32);
+  z-index: 9999;
+  animation: mvf-toast-in 0.28s ease-out;
+  cursor: pointer;
+  max-width: 320px;
+  width: calc(100% - 2.5rem);
+  user-select: none;
+}
+.mvf-toast:active { opacity: 0.85; }
+
 /* Accuracy bar ? button pulse — stops once seen */
 @keyframes accuracy-tip-ping {
   0%, 100% { box-shadow: 0 0 0 0 rgba(204, 0, 0, 0.5); }

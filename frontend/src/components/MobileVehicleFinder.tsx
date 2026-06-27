@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
@@ -232,6 +232,23 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [copied, setCopied]             = useState(false)
 
+  const [toastVisible, setToastVisible] = useState(false)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToastVisible(true)
+    toastTimer.current = setTimeout(() => setToastVisible(false), 4000)
+  }
+
+  const handleSwitchToDropdown = () => {
+    setTypeMode(false)
+    setModel(''); setYear('')
+    setYears([])
+    setToastVisible(false)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+  }
+
   // Load makes on mount
   useEffect(() => {
     fetchMakes()
@@ -253,6 +270,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setYears([])
     setResult(null); setError('')
     // make is intentionally preserved
+    showToast()
   }
 
   // ── Select-mode handlers (auto-advance) ──────────────────────────
@@ -974,6 +992,13 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         matchType={result?.match_type}
         recommendedBattery={result?.primary?.battery_code ?? undefined}
       />
+
+      {toastVisible && (
+        <div className="mvf-toast" onClick={handleSwitchToDropdown} role="status" aria-live="polite">
+          <span style={{ fontSize: '0.78rem', opacity: 0.85 }}>Switched to manual entry</span>
+          <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Tap to use dropdown instead →</span>
+        </div>
+      )}
     </div>
   )
 }
