@@ -1319,13 +1319,13 @@ body {
 
 /* Accuracy bar ? button pulse — stops once seen */
 @keyframes accuracy-tip-ping {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.5); }
-  50%       { box-shadow: 0 0 0 5px rgba(139, 92, 246, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(204, 0, 0, 0.5); }
+  50%       { box-shadow: 0 0 0 5px rgba(204, 0, 0, 0); }
 }
 .accuracy-tip-pulse {
-  animation: accuracy-tip-ping 1.4s ease-in-out 3;
-  border-color: #8b5cf6 !important;
-  color: #8b5cf6 !important;
+  animation: accuracy-tip-ping 1.4s ease-in-out 6;
+  border-color: var(--red, #CC0000) !important;
+  color: var(--red, #CC0000) !important;
 }
 
 /* Admin-specific skeleton — uses admin CSS tokens set via inline vars on AdminLayout */

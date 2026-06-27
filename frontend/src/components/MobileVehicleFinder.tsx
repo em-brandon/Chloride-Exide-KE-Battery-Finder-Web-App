@@ -890,9 +890,9 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   {[
-                    { code: 'KE', num: '0719 080 000', color: 'var(--red, #CC0000)' },
-                    { code: 'TZ', num: '0677 484 631', color: 'var(--text, #374151)' },
-                    { code: 'UG', num: '0200 400 900', color: '#16a34a' },
+                    { code: 'KE', num: '+254 719 080 000', color: 'var(--red, #CC0000)' },
+                    { code: 'TZ', num: '+255 677 484 631', color: 'var(--text, #374151)' },
+                    { code: 'UG', num: '+256 200 400 900', color: '#16a34a' },
                   ].map(({ code, num, color }) => (
                     <div key={code} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <ReactCountryFlag countryCode={code} svg style={{ width: '1.15em', height: '1.15em', flexShrink: 0 }} />
