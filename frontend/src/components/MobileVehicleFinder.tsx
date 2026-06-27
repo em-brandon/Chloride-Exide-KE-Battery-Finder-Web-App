@@ -120,6 +120,24 @@ const DIVIDER: React.CSSProperties = {
   margin: '0.5rem 0',
 }
 
+// ── Step progress strip ────────────────────────────────────────────────────────
+
+const STEP_PCT: Record<string, number> = { make: 25, model: 50, year: 75, details: 100 }
+
+function StepStrip({ step }: { step: string }) {
+  const pct = STEP_PCT[step] ?? 100
+  return (
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--border, #e5e7eb)' }}>
+      <div style={{
+        height: '100%',
+        width: `${pct}%`,
+        background: 'var(--red, #CC0000)',
+        transition: 'width 0.4s ease',
+      }} />
+    </div>
+  )
+}
+
 // ── Progress dots ──────────────────────────────────────────────────────────────
 
 function ProgressDots({ current, total = 4 }: { current: number; total?: number }) {
@@ -389,6 +407,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     padding: '1rem 1rem 0.9rem',
     width: '100%',
     boxSizing: 'border-box',
+    overflow: 'hidden',
   }
 
   const stepChip: React.CSSProperties = {
@@ -441,6 +460,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {step === 'make' && (
         loading ? <SkeletonCard /> : (
           <div style={card}>
+            <StepStrip step="make" />
             <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
             <ProgressDots current={0} />
             <p style={stepChip}>Step 1 of 4</p>
@@ -489,6 +509,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {/* ── Step: Model ── */}
       {step === 'model' && (
         <div style={card}>
+          <StepStrip step="model" />
           <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
           <ProgressDots current={1} />
           <p style={stepChip}>Step 2 of 4</p>
@@ -557,6 +578,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {/* ── Step: Year ── */}
       {step === 'year' && (
         <div style={card}>
+          <StepStrip step="year" />
           <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
           <ProgressDots current={2} />
           <p style={stepChip}>Step 3 of 4</p>
@@ -609,6 +631,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {/* ── Step: Details (optional) ── */}
       {step === 'details' && (
         <div style={card}>
+          <StepStrip step="details" />
           <ProgressDots current={3} />
           <p style={stepChip}>Step 4 of 4 — Optional</p>
           <h2 style={{ ...stepTitle, paddingRight: 0 }}>Engine Details</h2>
