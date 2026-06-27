@@ -4,7 +4,7 @@ import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { AccuracyBar } from '@/components/AccuracyBar'
-import { Copy, Check, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
+import { Clipboard, ClipboardCheck, Check, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
@@ -804,7 +804,45 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 </span>
               </div>
 
-              {/* ── Stats grid — 2 columns, no clipping ── */}
+              {/* ── Battery code — above stats, full width ── */}
+              <div style={{
+                background: 'var(--bg, #f4f5f7)',
+                borderRadius: '0.5rem',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '0.5rem',
+                border: '1px solid var(--border, #e2e4e9)',
+              }}>
+                <div style={{
+                  fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
+                  color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
+                  wordBreak: 'break-all',
+                  marginBottom: p.battery_code ? '0.5rem' : 0,
+                }}>
+                  {p.battery_code || '—'}
+                </div>
+                {p.battery_code && (
+                  <button
+                    onClick={handleCopy}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.28rem 0.65rem',
+                      borderRadius: '0.4rem',
+                      border: '1px solid var(--border, #e2e4e9)',
+                      background: 'var(--card-bg, #fff)',
+                      cursor: 'pointer',
+                      color: copied ? '#16a34a' : 'var(--muted, #6b7280)',
+                      fontSize: '0.72rem', fontWeight: 600,
+                      fontFamily: 'inherit',
+                      transition: 'color 0.2s',
+                    }}
+                  >
+                    {copied ? <ClipboardCheck size={13} /> : <Clipboard size={13} />}
+                    {copied ? 'Copied!' : 'Copy code'}
+                  </button>
+                )}
+              </div>
+
+              {/* ── Stats grid — Ah + CCA ── */}
               <div style={{
                 display: 'grid', gridTemplateColumns: '1fr 1fr',
                 gap: '0.5rem', marginBottom: '0.6rem',
@@ -830,41 +868,6 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     </div>
                   </div>
                 ))}
-              </div>
-
-              {/* ── Battery code — full width, no clipping ── */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: 'var(--bg, #f4f5f7)',
-                borderRadius: '0.5rem',
-                padding: '0.65rem 0.85rem',
-                marginBottom: '0.35rem',
-                border: '1px solid var(--border, #e2e4e9)',
-              }}>
-                <span style={{
-                  flex: 1, minWidth: 0,
-                  fontFamily: 'monospace', fontSize: '1rem', fontWeight: 700,
-                  color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {p.battery_code || '—'}
-                </span>
-                {p.battery_code && (
-                  <button
-                    onClick={handleCopy}
-                    style={{
-                      flexShrink: 0,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 32, height: 32, borderRadius: 6,
-                      border: '1px solid var(--border, #e2e4e9)',
-                      background: 'var(--card-bg, #fff)',
-                      cursor: 'pointer', color: 'var(--muted, #6b7280)',
-                    }}
-                    title="Copy battery code"
-                  >
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
-                )}
               </div>
               {p.model_key && (
                 <p style={{ fontSize: '0.68rem', color: 'var(--muted, #9ca3af)', margin: '0 0 0.5rem 0.1rem' }}>
