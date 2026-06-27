@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
@@ -993,11 +994,12 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         recommendedBattery={result?.primary?.battery_code ?? undefined}
       />
 
-      {toastVisible && (
+      {toastVisible && createPortal(
         <div className="mvf-toast" onClick={handleSwitchToDropdown} role="status" aria-live="polite">
           <span style={{ fontSize: '0.78rem', opacity: 0.85 }}>Switched to manual entry</span>
           <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Tap to use dropdown instead →</span>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
