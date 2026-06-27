@@ -221,22 +221,15 @@ function PublicApp({
           <button className="page-footer__copyright" onClick={() => setCopyrightOpen(true)}>
             &copy; 2026 Chloride Exide Battery Finder
           </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setPrivacyOpen(true)}>
-            Privacy Policy
-          </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setHowToUseOpen(true)}>
-            How to Use
-          </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setFaqOpen(true)}>
-            FAQ &amp; Disclaimer
-          </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setVersionOpen(true)}>
-            Build Version Beta v1.1.2
-          </button>
+          <div className="page-footer__links">
+            <button className="page-footer__link" onClick={() => setPrivacyOpen(true)}>Privacy Policy</button>
+            <span className="page-footer__sep">·</span>
+            <button className="page-footer__link" onClick={() => setHowToUseOpen(true)}>How to Use</button>
+            <span className="page-footer__sep">·</span>
+            <button className="page-footer__link" onClick={() => setFaqOpen(true)}>FAQ &amp; Disclaimer</button>
+            <span className="page-footer__sep">·</span>
+            <button className="page-footer__link" onClick={() => setVersionOpen(true)}>Build Version Beta v1.1.2</button>
+          </div>
         </footer>
 
         <HowToUseModal open={howToUseOpen} onClose={() => setHowToUseOpen(false)} />
