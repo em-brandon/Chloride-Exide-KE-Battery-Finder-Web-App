@@ -1018,9 +1018,35 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       />
 
       {toastVisible && createPortal(
-        <div className="mvf-toast" onClick={handleSwitchToDropdown} role="status" aria-live="polite">
-          <span style={{ fontSize: '0.78rem', opacity: 0.85 }}>Switched to manual entry</span>
-          <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Tap to use dropdown instead →</span>
+        <div
+          onClick={handleSwitchToDropdown}
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#1f2937',
+            color: '#fff',
+            borderRadius: '0.85rem',
+            padding: '0.75rem 1.25rem',
+            display: 'flex',
+            flexDirection: 'column' as const,
+            alignItems: 'center',
+            gap: '0.2rem',
+            textAlign: 'center' as const,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+            zIndex: 99999,
+            cursor: 'pointer',
+            maxWidth: '320px',
+            width: 'calc(100% - 2.5rem)',
+            userSelect: 'none' as const,
+            fontFamily: 'inherit',
+          }}
+        >
+          <span style={{ fontSize: '0.78rem', opacity: 0.8 }}>Switched to manual entry</span>
+          <span style={{ fontSize: '0.83rem', fontWeight: 700 }}>Tap to use dropdown instead →</span>
         </div>,
         document.body
       )}
