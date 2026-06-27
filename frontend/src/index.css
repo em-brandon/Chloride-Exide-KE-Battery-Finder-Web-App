@@ -1317,6 +1317,16 @@ body {
   animation: shimmer 1.4s infinite linear;
 }
 
+/* Liability disclaimer flash */
+@keyframes liability-flash {
+  0%, 100% { color: #CC0000; }
+  50%       { color: rgba(204, 0, 0, 0.15); }
+}
+.flash-liability {
+  animation: liability-flash 0.55s ease-in-out 5;
+  animation-fill-mode: forwards;
+}
+
 /* Mobile wizard — type-mode switch toast */
 @keyframes mvf-toast-in {
   from { transform: translate(-50%, 1.5rem); opacity: 0; }

@@ -52,7 +52,7 @@ export function TermsGate({ onAccept }: TermsGateProps) {
                 <strong>terminal polarity</strong>, and{' '}
                 <strong>terminal position</strong> before installing any battery.
               </li>
-              <li style={{ color: '#CC0000', fontWeight: 700 }}>
+              <li className="flash-liability" style={{ color: '#CC0000', fontWeight: 700 }}>
                 Chloride Exide Kenya accepts no liability for adverse outcomes
                 arising from reliance on these recommendations without
                 professional verification.
