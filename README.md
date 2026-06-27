@@ -413,36 +413,36 @@ Aliases (`model_aliases`) are applied between layers 1/2 and 3 to map internatio
 
 ```mermaid
 flowchart TD
-    A([User Input\nmake · model · year · fuel_type · engine_cc]) --> B[Normalize\n_norm_model_key · _norm_fuel\nUPPERCASE · strip · collapse whitespace]
+    A([User Input: make / model / year / fuel_type / engine_cc]) --> B[Normalize\n_norm_model_key / _norm_fuel\nUPPERCASE / strip / collapse whitespace]
     B --> C{Layer 0a\nWeb Validation\nweb_battery_validation}
 
-    C -->|Hit — conf 75–90| D[Resolve engine specs\nfrom vehicle_years]
-    D --> WF[Parse battery code\n_lookup_battery_by_code\nexact → fuzzy → legacy parser]
+    C -->|Hit - conf 75-90| D[Resolve engine specs\nfrom vehicle_years]
+    D --> WF[Parse battery code\n_lookup_battery_by_code\nexact then fuzzy then legacy parser]
     WF --> SEL
 
     C -->|Miss| E{Layer 0b\nReal-World Inference\ndial_battery_inference}
-    E -->|Hit — conf 80–95\nhighest frequency + latest sale| G[Resolve engine specs\nfrom vehicle_years]
+    E -->|Hit - conf 80-95\nhighest frequency + latest sale| G[Resolve engine specs\nfrom vehicle_years]
     G --> WF2[Parse battery code\n_lookup_battery_by_code\nhonour AGM/EFB tech from inference]
     WF2 --> SEL
 
-    E -->|Miss| H{Layer 1 — Exact Match\nvehicle_years\nfuzzy model score ≥ 90\nexact year hit}
-    H -->|Match — conf 100| I[Record make · model · year · CC · fuel]
-    H -->|Soft — fuzzy ≥ 60\nyear ±3 — conf 60–89| J[Record nearest year · CC · fuel]
-    H -->|No match| K{Alias lookup\nmodel_aliases\nintl model → JDM model}
+    E -->|Miss| H{Layer 1 - Exact Match\nvehicle_years\nfuzzy model score >= 90\nexact year hit}
+    H -->|Match - conf 100| I[Record make / model / year / CC / fuel]
+    H -->|Soft - fuzzy >= 60\nyear +/-3 - conf 60-89| J[Record nearest year / CC / fuel]
+    H -->|No match| K{Alias lookup\nmodel_aliases\nintl model to JDM model}
 
     I --> AH
     J --> AH
 
-    K -->|Alias found\nfuzzy WRatio ≥ 75| M[Re-run fuzzy match\nwith JDM model name\nprefer exact year then ±3]
+    K -->|Alias found\nfuzzy WRatio >= 75| M[Re-run fuzzy match\nwith JDM model name\nprefer exact year then +/-3]
     M --> AH
-    K -->|No alias| N[Layer 3 — Rule-Based\nconf 40\nengine CC + fuel → Ah bracket\n_year_ah_modifier applied]
+    K -->|No alias| N[Layer 3 - Rule-Based\nconf 40\nengine CC + fuel to Ah bracket\n_year_ah_modifier applied]
     N --> AH
 
-    AH[_target_ah\nCC + fuel bracket\n+ year modifier −5 to +10] --> PT
-    SEL --> PT[_preferred_tech\nLuxury → AGM\nHybrid → EFB\nStop-start + diesel/large → AGM\nStop-start standard → EFB\nNo stop-start → MF]
-    PT --> RG[_make_region\nNS/JIS — Japanese · Korean · Chinese\nDIN — European · American · other]
+    AH[_target_ah\nCC + fuel bracket\n+ year modifier -5 to +10] --> PT
+    SEL --> PT[_preferred_tech\nLuxury = AGM\nHybrid = EFB\nStop-start + diesel/large = AGM\nStop-start standard = EFB\nNo stop-start = MF]
+    PT --> RG[_make_region\nNS/JIS: Japanese / Korean / Chinese\nDIN: European / American / other]
     RG --> SB[_select_batteries\nFilter by region\nMatch Ah + preferred tech\nSort: imported before local\nFallback to nearest Ah if none]
-    SB --> R([Return\nprimary + up to 6 alternatives\nconfidence · match_type\nmatched_make · matched_model · matched_year])
+    SB --> R([Return: primary + up to 6 alternatives\nconfidence / match_type\nmatched_make / matched_model / matched_year])
 ```
 
 ### Fuzzy Model Scoring
@@ -573,7 +573,7 @@ Managed by Alembic (`alembic/versions/`). Apply all migrations with `alembic upg
 | `test_user_sessions` | `/api/auth/login` | `app.py` | Test user tokens (24-hour TTL) |
 | `user_feedback` | `/api/feedback` | admin UI | User feedback on recommendations |
 
-### Entity Relationship Diagram
+### Core App Tables
 
 ```mermaid
 erDiagram
@@ -631,14 +631,6 @@ erDiagram
         string jdm_model
         int priority
     }
-    vehicles_raw {
-        int id PK
-        string make
-        string model
-        string model_number
-        int engine_capacity
-        string fuel
-    }
     vehicle_years {
         int id PK
         string make
@@ -649,52 +641,6 @@ erDiagram
         string source
         datetime created_at
         datetime updated_at
-    }
-    vehicle_years_staging {
-        int id PK
-        text run_id
-        string make
-        string model
-        int year
-        int engine_capacity
-        string fuel
-        string source
-        datetime staged_at
-        bool is_valid
-        text invalid_reason
-        bool conflict
-        text conflict_detail
-    }
-    vehicle_years_versions {
-        text id PK
-        int version_number
-        datetime committed_at
-        text run_id
-        int committed_count
-        int updated_count
-        int removed_count
-        int conflict_count
-        string committed_by
-        string initiated_by
-        text notes
-    }
-    vehicle_years_changelog {
-        int id PK
-        text version_id FK
-        string make
-        string model
-        int year
-        text change_type
-        text old_values
-        text new_values
-    }
-    vehicle_years_unmatched {
-        int id PK
-        text run_id
-        string make
-        string model
-        string fuel
-        datetime recorded_at
     }
     dial_battery_inference {
         int id PK
@@ -713,83 +659,9 @@ erDiagram
         int ah
         text technology
         text source
-        datetime validated_at
         int engine_cc
         string fuel_type
-        text run_id
-        text version_id
-    }
-    web_battery_staging {
-        int id PK
-        text run_id
-        text make_n
-        text model_n
-        int year
-        text battery_code
-        int ah
-        text technology
-        text source
-        int engine_cc
-        text fuel_type
-        datetime staged_at
-        bool is_valid
-        text invalid_reason
-        bool conflict
-        text conflict_detail
-    }
-    web_battery_validation_versions {
-        text id PK
-        int version_number
-        datetime committed_at
-        text run_id
-        int committed_count
-        int removed_count
-        int conflict_count
-        text notes
-        text committed_by
-        text initiated_by
-    }
-    web_battery_validation_changelog {
-        int id PK
-        text version_id FK
-        text make_n
-        text model_n
-        int year
-        text change_type
-        text old_values
-        text new_values
-    }
-    enrichment_cache_meta {
-        text key PK
-        datetime downloaded_at
-        bigint file_size_bytes
-        int record_count
-        text notes
-        datetime updated_at
-    }
-    pipeline_run_log {
-        int id PK
-        text run_id
-        text status
-        datetime finished_at
-        int combos_processed
-        int combos_matched
-    }
-    fueleconomy_vehicles {
-        int id PK
-        int year
-        string make
-        string model
-    }
-    api_usage_quota {
-        int id PK
-        string provider
-        string month
-        int calls_made
-        int quota_limit
-        datetime updated_at
-        datetime period_start
-        datetime period_end
+        datetime validated_at
     }
     test_users {
         int id PK
@@ -814,23 +686,142 @@ erDiagram
         string vehicle_label
         int satisfaction
         string accuracy
-        text wrong_parts
         text comments
         datetime submitted_at
         string ip_address
         int test_user_id FK
-        string input_type
-        int match_confidence
         string match_type
+        int match_confidence
         string recommended_battery
     }
 
-    admin_users            ||--o{ admin_sessions               : "has"
-    battery_specs          ||--o{ battery_audit_log            : "logged in"
-    vehicle_years_versions ||--o{ vehicle_years_changelog      : "records"
-    web_battery_validation_versions ||--o{ web_battery_validation_changelog : "records"
-    test_users             ||--o{ test_user_sessions           : "has"
-    test_users             ||--o{ user_feedback                : "submits"
+    admin_users       ||--o{ admin_sessions       : "has"
+    battery_specs     ||--o{ battery_audit_log    : "logged in"
+    test_users        ||--o{ test_user_sessions   : "has"
+    test_users        ||--o{ user_feedback        : "submits"
+```
+
+### Pipeline and Staging Tables
+
+```mermaid
+erDiagram
+    vehicles_raw {
+        int id PK
+        string make
+        string model
+        string model_number
+        int engine_capacity
+        string fuel
+    }
+    vehicle_years_staging {
+        int id PK
+        text run_id
+        string make
+        string model
+        int year
+        int engine_capacity
+        string fuel
+        string source
+        bool is_valid
+        bool conflict
+        text conflict_detail
+        datetime staged_at
+    }
+    vehicle_years_versions {
+        text id PK
+        int version_number
+        datetime committed_at
+        text run_id
+        int committed_count
+        int updated_count
+        int removed_count
+        string committed_by
+        string initiated_by
+    }
+    vehicle_years_changelog {
+        int id PK
+        text version_id FK
+        string make
+        string model
+        int year
+        text change_type
+        text old_values
+        text new_values
+    }
+    vehicle_years_unmatched {
+        int id PK
+        text run_id
+        string make
+        string model
+        string fuel
+        datetime recorded_at
+    }
+    web_battery_staging {
+        int id PK
+        text run_id
+        text make_n
+        text model_n
+        int year
+        text battery_code
+        int ah
+        text technology
+        bool is_valid
+        bool conflict
+        datetime staged_at
+    }
+    web_battery_validation_versions {
+        text id PK
+        int version_number
+        datetime committed_at
+        text run_id
+        int committed_count
+        int removed_count
+        text committed_by
+        text initiated_by
+    }
+    web_battery_validation_changelog {
+        int id PK
+        text version_id FK
+        text make_n
+        text model_n
+        int year
+        text change_type
+        text old_values
+        text new_values
+    }
+    enrichment_cache_meta {
+        text key PK
+        datetime downloaded_at
+        bigint file_size_bytes
+        int record_count
+        datetime updated_at
+    }
+    pipeline_run_log {
+        int id PK
+        text run_id
+        text status
+        datetime finished_at
+        int combos_processed
+        int combos_matched
+    }
+    fueleconomy_vehicles {
+        int id PK
+        int year
+        string make
+        string model
+    }
+    api_usage_quota {
+        int id PK
+        string provider
+        string month
+        int calls_made
+        int quota_limit
+        datetime period_start
+        datetime period_end
+    }
+
+    vehicle_years_versions           ||--o{ vehicle_years_changelog           : "records"
+    web_battery_validation_versions  ||--o{ web_battery_validation_changelog  : "records"
 ```
 
 ---
