@@ -14,7 +14,6 @@ const targets = [
   'sebang-logo.jpg',
   'sb-flooded-logo.png',
   'exide-agm-logo.png',
-  'chloride_exide_transparent.png',
   'chlorideexidebrandlogo.png',
 ]
 

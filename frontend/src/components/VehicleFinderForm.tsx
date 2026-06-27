@@ -15,7 +15,7 @@ import supremeLogo      from '@/assets/supreme-logo.webp'
 import sebangLogo       from '@/assets/sebang-logo.webp'
 import sbFloodedLogo    from '@/assets/sb-flooded-logo.webp'
 import exideAgmLogo     from '@/assets/exide-agm-logo.webp'
-import chlorideExideLogo from '@/assets/chloride_exide_transparent.webp'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
 
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
