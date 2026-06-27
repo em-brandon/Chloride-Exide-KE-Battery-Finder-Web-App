@@ -225,6 +225,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const [loading, setLoading]       = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  const [modelTypeOverride, setModelTypeOverride] = useState(false)
+
   const [stopStart, setStopStart]               = useState(true)
   const [stopStartTooltip, setStopStartTooltip] = useState(false)
 
@@ -242,6 +244,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   const handleTypeModeToggle = () => {
     setTypeMode(t => !t)
+    setModelTypeOverride(false)
     setMake(''); setModel(''); setYear('')
     setModels([]); setYears([])
     setResult(null); setError('')
@@ -330,7 +333,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   const handleBack = () => {
     setError('')
-    if (step === 'model')   { setStep('make');    setModel('') }
+    if (step === 'model')   { setStep('make');    setModel(''); setModelTypeOverride(false) }
     if (step === 'year')    { setStep('model');   setYear('') }
     if (step === 'details') { setStep('year');    setFuelType(''); setEngineCc('') }
     if (step === 'result')  { setStep('details'); setResult(null) }
@@ -341,6 +344,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setMake(''); setModel(''); setYear(''); setFuelType(''); setEngineCc('')
     setModels([]); setYears([])
     setResult(null); setError('')
+    setModelTypeOverride(false)
     setStopStart(true); setStopStartTooltip(false)
     setAltVisible(true)
   }
@@ -468,34 +472,62 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
           <h2 style={stepTitle}>Select Model</h2>
           <p style={stepSub}>{make}</p>
 
-          {typeMode ? (
-            <input
-              style={INPUT_STYLE}
-              type="text"
-              placeholder="e.g. Corolla"
-              value={model}
-              onChange={e => setModel(e.target.value)}
-              autoFocus
-            />
-          ) : (
-            <SelectWrap>
-              <select
-                style={SELECT_STYLE}
+          {(typeMode || modelTypeOverride) ? (
+            <>
+              <input
+                style={INPUT_STYLE}
+                type="text"
+                placeholder="e.g. Corolla"
                 value={model}
-                onChange={e => handleModelSelect(e.target.value)}
-                disabled={loading}
+                onChange={e => setModel(e.target.value)}
                 autoFocus
+              />
+              {modelTypeOverride && !typeMode && (
+                <button
+                  onClick={() => { setModelTypeOverride(false); setModel('') }}
+                  style={{
+                    background: 'none', border: 'none', padding: '0.45rem 0 0',
+                    fontSize: '0.75rem', color: 'var(--muted, #6b7280)',
+                    cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline',
+                    textUnderlineOffset: '2px', textAlign: 'left',
+                  }}
+                >
+                  ← Show model list
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <SelectWrap>
+                <select
+                  style={SELECT_STYLE}
+                  value={model}
+                  onChange={e => handleModelSelect(e.target.value)}
+                  disabled={loading}
+                  autoFocus
+                >
+                  <option value="">{loading ? 'Loading…' : 'Choose a model…'}</option>
+                  {models.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </SelectWrap>
+              <button
+                onClick={() => { setModelTypeOverride(true); setModel('') }}
+                style={{
+                  background: 'none', border: 'none', padding: '0.5rem 0 0',
+                  fontSize: '0.75rem', color: 'var(--muted, #6b7280)',
+                  cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline',
+                  textUnderlineOffset: '2px', textAlign: 'left',
+                }}
               >
-                <option value="">{loading ? 'Loading…' : 'Choose a model…'}</option>
-                {models.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </SelectWrap>
+                Don't see your model? Type it instead
+              </button>
+            </>
           )}
 
           {error && <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#dc2626' }}>{error}</p>}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
-            {typeMode && (
+            {(typeMode || modelTypeOverride) && (
               <button
                 style={{ ...BTN_PRIMARY, opacity: model.trim() ? 1 : 0.45, cursor: model.trim() ? 'pointer' : 'not-allowed' }}
                 onClick={handleModelContinue}
