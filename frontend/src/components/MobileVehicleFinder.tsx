@@ -116,7 +116,7 @@ const BTN_GHOST: React.CSSProperties = {
 
 const DIVIDER: React.CSSProperties = {
   borderTop: '1px solid var(--border, #e5e7eb)',
-  margin: '0.75rem 0',
+  margin: '0.5rem 0',
 }
 
 // ── Progress dots ──────────────────────────────────────────────────────────────
@@ -284,32 +284,16 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   // ── Type-mode continue handlers ───────────────────────────────────
 
-  const handleMakeContinue = async () => {
+  const handleMakeContinue = () => {
     if (!make.trim()) return
-    setLoading(true); setError('')
-    try {
-      const data = await fetchModels(make.trim())
-      setModels(data)
-      setStep('model')
-    } catch {
-      setError('Failed to load models. Check the make name and try again.')
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    setStep('model')
   }
 
-  const handleModelContinue = async () => {
+  const handleModelContinue = () => {
     if (!model.trim()) return
-    setLoading(true); setError('')
-    try {
-      const data = await fetchYears(make, model.trim())
-      setYears(data)
-      setStep('year')
-    } catch {
-      setError('Failed to load years. Check the model name and try again.')
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    setStep('year')
   }
 
   const handleYearContinue = () => {
@@ -371,7 +355,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     background: 'var(--card-bg, #fff)',
     border: '1px solid var(--border, #e2e4e9)',
     borderRadius: '0.75rem',
-    padding: '1.5rem 1.25rem 1.25rem',
+    padding: '1rem 1rem 0.9rem',
     width: '100%',
     boxSizing: 'border-box',
   }
@@ -420,7 +404,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div style={{ flex: '1 1 0', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <div style={{ flex: '1 1 0', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto', width: '100%' }}>
 
       {/* ── Step: Make ── */}
       {step === 'make' && (
@@ -446,9 +430,9 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                   <button
                     style={{ ...BTN_PRIMARY, opacity: make.trim() ? 1 : 0.45, cursor: make.trim() ? 'pointer' : 'not-allowed' }}
                     onClick={handleMakeContinue}
-                    disabled={!make.trim() || loading}
+                    disabled={!make.trim()}
                   >
-                    {loading ? 'Loading…' : 'Continue'}
+                    Continue
                   </button>
                 </div>
               </>
@@ -511,9 +495,9 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               <button
                 style={{ ...BTN_PRIMARY, opacity: model.trim() ? 1 : 0.45, cursor: model.trim() ? 'pointer' : 'not-allowed' }}
                 onClick={handleModelContinue}
-                disabled={!model.trim() || loading}
+                disabled={!model.trim()}
               >
-                {loading ? 'Loading…' : 'Continue'}
+                Continue
               </button>
             )}
             <button style={BTN_GHOST} onClick={handleBack}>
@@ -680,7 +664,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               <div style={DIVIDER} />
 
               {/* ── Brand logo / icon — centered ── */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0 0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', padding: '0.25rem 0 0.5rem' }}>
                 {logo
                   ? <img src={logo} alt="" style={{ height: 52, width: 'auto', maxWidth: 100, objectFit: 'contain' }} />
                   : <CarBatteryIcon size={52} color={iconColor} />
@@ -693,7 +677,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               {/* ── Stats grid — 2 columns, no clipping ── */}
               <div style={{
                 display: 'grid', gridTemplateColumns: '1fr 1fr',
-                gap: '0.5rem', marginBottom: '0.85rem',
+                gap: '0.5rem', marginBottom: '0.6rem',
               }}>
                 {[
                   { value: p.ah,     unit: 'Ah',       label: 'Capacity' },
@@ -761,14 +745,14 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               <div style={DIVIDER} />
 
               {/* ── Accuracy bar — own row, no overlap ── */}
-              <div style={{ padding: '0.25rem 0 0.5rem' }}>
+              <div style={{ padding: '0.1rem 0 0.25rem', overflow: 'hidden', fontSize: '0.9em' }}>
                 <AccuracyBar data={result} />
               </div>
 
               <div style={DIVIDER} />
 
               {/* ── Action buttons ── */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.25rem 0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.1rem 0' }}>
                 <button
                   type="button"
                   onClick={() => setFeedbackOpen(true)}
@@ -816,7 +800,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     Dial a Battery
                   </span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   {[
                     { code: 'KE', num: '0719 080 000', color: 'var(--red, #CC0000)' },
                     { code: 'TZ', num: '0677 484 631', color: 'var(--text, #374151)' },
@@ -849,7 +833,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                       </button>
                     </div>
                     {altVisible && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                         {alts.map(alt => (
                           <div key={alt.battery_code} style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',

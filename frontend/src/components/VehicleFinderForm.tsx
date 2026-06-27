@@ -936,19 +936,19 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
         <div className="form-group full" style={{ marginTop: '0.15rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} ref={istopTooltipRef}>
-              <span className="form-label" style={{ marginBottom: 0 }}>Is car i-stop enabled?</span>
+              <span className="form-label" style={{ marginBottom: 0 }}>Has Start-Stop system?</span>
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
                   className="conf-info-btn"
                   onClick={() => setIstopTooltip(v => !v)}
-                  aria-label="What is i-stop?"
+                  aria-label="What is Start-Stop?"
                 >?</button>
                 {istopTooltip && (
                   <div className="conf-popover istop-popover" style={{ width: '270px' }}>
-                    <strong>What is i-stop?</strong>
-                    <p style={{ marginTop: '0.35rem' }}>i-stop (Idle Stop System) automatically shuts off the engine when the car is stationary — e.g. at traffic lights — to save fuel. You will notice the engine restarting when you release the brake.</p>
-                    <p style={{ marginTop: '0.4rem' }}>Cars with i-stop require an <strong>EFB</strong> or <strong>AGM</strong> battery to handle the extra charge cycles. Standard MF batteries wear out quickly in these vehicles.</p>
+                    <strong>What is Start-Stop?</strong>
+                    <p style={{ marginTop: '0.35rem' }}>Start-Stop (ISS) automatically shuts off the engine when the car is stationary — e.g. at traffic lights — to save fuel. You will notice the engine restarting when you release the brake.</p>
+                    <p style={{ marginTop: '0.4rem' }}>Cars with Start-Stop require an <strong>EFB</strong> or <strong>AGM</strong> battery to handle the extra charge cycles. Standard MF batteries wear out quickly in these vehicles.</p>
                     <p style={{ marginTop: '0.4rem', color: 'var(--muted)' }}>Turn this <strong>OFF</strong> if your car does not have an automatic start-stop system.</p>
                   </div>
                 )}
