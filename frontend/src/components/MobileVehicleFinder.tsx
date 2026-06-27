@@ -4,7 +4,7 @@ import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { AccuracyBar } from '@/components/AccuracyBar'
-import { Clipboard, ClipboardCheck, Check, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
+import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
