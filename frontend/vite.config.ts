@@ -16,6 +16,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: [
+      'amnesty-casualty-walnut.ngrok-free.dev',
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

@@ -4,10 +4,12 @@ import chlorideExideBrandLogo from '@/assets/chlorideexidebrandlogo.webp'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
+import { MobileVehicleFinder } from '@/components/MobileVehicleFinder'
 import { Moon, Sun, Settings } from 'lucide-react'
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
 import { TermsGate } from '@/components/TermsGate'
+import { useIsMobile } from '@/lib/utils'
 
 const AdminLogin        = lazy(() => import('@/pages/admin/AdminLogin'))
 const AdminDashboard    = lazy(() => import('@/pages/admin/AdminDashboard'))
@@ -68,6 +70,7 @@ function PublicApp({
   onEstConfChange,
   onSetConfPopover,
 }: PublicAppProps) {
+  const isMobile = useIsMobile()
   const { user, logout } = useTestUser()
   const [faqOpen, setFaqOpen] = useState(false)
   const [copyrightOpen, setCopyrightOpen] = useState(false)
@@ -102,13 +105,13 @@ function PublicApp({
               src={darkMode ? chlorideExideBrandLogo : chlorideExideLogo}
               alt="Chloride Exide"
               style={{
-                height: 52,
+                height: isMobile ? 44 : 52,
                 width: 'auto',
-                maxWidth: 160,
+                maxWidth: isMobile ? 140 : 160,
                 objectFit: 'contain',
                 display: 'block',
                 flexShrink: 0,
-                borderRadius: darkMode ? 6 : 0,
+                borderRadius: darkMode ? (isMobile ? 4 : 6) : 0,
               }}
             />
             <div className="page-brand-sub" style={{ alignSelf: 'center' }}>
@@ -117,8 +120,8 @@ function PublicApp({
             </div>
           </div>
 
-          {/* Center: manual mode badges */}
-          {typeMode && (
+          {/* Center: manual mode badges — hidden on mobile (wizard has no type-mode) */}
+          {typeMode && !isMobile && (
             <div className="nav-type-mode">
               <span className="nav-manual-badge"><Settings size={13} strokeWidth={1.75} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Manual Mode Active</span>
               {navEstConf && navEstConf.pct > 0 && (
@@ -185,50 +188,48 @@ function PublicApp({
                 ? <Sun size={16} strokeWidth={2} />
                 : <Moon size={16} strokeWidth={2} />}
             </button>
-            <a
-              href="https://www.chlorideexide.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="nav-dark-btn nav-home-btn"
-              aria-label="Go to Chloride Exide website"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
-                <path fillRule="evenodd" d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clipRule="evenodd" />
-              </svg>
-            </a>
+            {!isMobile && (
+              <a
+                href="https://www.chlorideexide.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nav-dark-btn nav-home-btn"
+                aria-label="Go to Chloride Exide website"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
+                  <path fillRule="evenodd" d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clipRule="evenodd" />
+                </svg>
+              </a>
+            )}
           </div>
         </nav>
 
-        {/* ── Finder card (owns its own card layout) ── */}
-        <VehicleFinderForm
-          onMakesLoaded={onMakesLoaded}
-          typeMode={typeMode}
-          onTypeModeChange={onTypeModeChange}
-          onEstConfChange={onEstConfChange}
-          darkMode={darkMode}
-        />
+        {/* ── Finder — mobile wizard or desktop form ── */}
+        {isMobile
+          ? <MobileVehicleFinder darkMode={darkMode} onMakesLoaded={onMakesLoaded} />
+          : <VehicleFinderForm
+              onMakesLoaded={onMakesLoaded}
+              typeMode={typeMode}
+              onTypeModeChange={onTypeModeChange}
+              onEstConfChange={onEstConfChange}
+              darkMode={darkMode}
+            />
+        }
 
         {/* ── Footer ── */}
         <footer className="page-footer">
           <button className="page-footer__copyright" onClick={() => setCopyrightOpen(true)}>
             &copy; 2026 Chloride Exide Battery Finder
           </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setPrivacyOpen(true)}>
-            Privacy Policy
-          </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setHowToUseOpen(true)}>
-            How to Use
-          </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setFaqOpen(true)}>
-            FAQ &amp; Disclaimer
-          </button>
-          <span className="page-footer__sep">·</span>
-          <button className="page-footer__link" onClick={() => setVersionOpen(true)}>
-            Build Version Beta v1.1.2
-          </button>
+          <div className="page-footer__links">
+            <button className="page-footer__link" onClick={() => setPrivacyOpen(true)}>Privacy Policy</button>
+            <span className="page-footer__sep" aria-hidden="true" />
+            <button className="page-footer__link" onClick={() => setHowToUseOpen(true)}>How to Use</button>
+            <span className="page-footer__sep" aria-hidden="true" />
+            <button className="page-footer__link" onClick={() => setFaqOpen(true)}>FAQ &amp; Disclaimer</button>
+            <span className="page-footer__sep" aria-hidden="true" />
+            <button className="page-footer__link" onClick={() => setVersionOpen(true)}>Build Version Beta v1.1.2</button>
+          </div>
         </footer>
 
         <HowToUseModal open={howToUseOpen} onClose={() => setHowToUseOpen(false)} />
