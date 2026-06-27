@@ -1657,7 +1657,6 @@ body {
   background: #fff;
   border-radius: 14px;
   border: 1px solid var(--border, #e2e4e9);
-  border-top: 3px solid var(--red, #CC0000);
   box-shadow: 0 6px 32px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 560px;
@@ -1666,7 +1665,6 @@ body {
   flex-direction: column;
   gap: 1rem;
   animation: faqFadeIn 0.22s ease;
-  margin: auto;
 }
 
 .tg-brand {
