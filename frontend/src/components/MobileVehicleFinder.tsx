@@ -833,8 +833,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               <div style={DIVIDER} />
 
               {/* ── Accuracy bar — own row, no overlap ── */}
-              <div style={{ padding: '0.1rem 0 0.25rem', overflow: 'hidden', fontSize: '0.9em' }}>
-                <AccuracyBar data={result} />
+              <div style={{ padding: '0.1rem 0 0.25rem' }}>
+                <AccuracyBar data={result} compact />
               </div>
 
               <div style={DIVIDER} />

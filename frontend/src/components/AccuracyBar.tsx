@@ -39,7 +39,7 @@ const SEGMENTS = [
   { key: 'specs'  as const, label: 'Engine Info',  max: 10, color: '#f59e0b' },
 ]
 
-export function AccuracyBar({ data }: { data: RecommendationResult }) {
+export function AccuracyBar({ data, compact = false }: { data: RecommendationResult; compact?: boolean }) {
   const factors  = calcFactors(data)
   const total    = factors.model + factors.year + factors.source + factors.specs
   const [ready, setReady] = useState(false)
@@ -83,16 +83,18 @@ export function AccuracyBar({ data }: { data: RecommendationResult }) {
         ))}
       </div>
 
-      {/* Factor labels aligned to each segment */}
-      <div style={{ display: 'flex', gap: '2px', marginTop: '0.3rem' }}>
-        {SEGMENTS.map(seg => (
-          <div key={seg.key} style={{ width: `${seg.max}%`, textAlign: 'center' }}>
-            <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground, #9ca3af)', whiteSpace: 'nowrap' }}>
-              {seg.label}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Factor labels aligned to each segment — hidden in compact mode */}
+      {!compact && (
+        <div style={{ display: 'flex', gap: '2px', marginTop: '0.3rem' }}>
+          {SEGMENTS.map(seg => (
+            <div key={seg.key} style={{ width: `${seg.max}%`, textAlign: 'center' }}>
+              <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground, #9ca3af)', whiteSpace: 'nowrap' }}>
+                {seg.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
