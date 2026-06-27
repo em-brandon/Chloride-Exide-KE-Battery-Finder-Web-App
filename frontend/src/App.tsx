@@ -105,9 +105,9 @@ function PublicApp({
               src={darkMode ? chlorideExideBrandLogo : chlorideExideLogo}
               alt="Chloride Exide"
               style={{
-                height: isMobile ? 36 : 52,
+                height: isMobile ? 44 : 52,
                 width: 'auto',
-                maxWidth: isMobile ? 120 : 160,
+                maxWidth: isMobile ? 140 : 160,
                 objectFit: 'contain',
                 display: 'block',
                 flexShrink: 0,
@@ -188,17 +188,19 @@ function PublicApp({
                 ? <Sun size={16} strokeWidth={2} />
                 : <Moon size={16} strokeWidth={2} />}
             </button>
-            <a
-              href="https://www.chlorideexide.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="nav-dark-btn nav-home-btn"
-              aria-label="Go to Chloride Exide website"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
-                <path fillRule="evenodd" d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clipRule="evenodd" />
-              </svg>
-            </a>
+            {!isMobile && (
+              <a
+                href="https://www.chlorideexide.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nav-dark-btn nav-home-btn"
+                aria-label="Go to Chloride Exide website"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
+                  <path fillRule="evenodd" d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clipRule="evenodd" />
+                </svg>
+              </a>
+            )}
           </div>
         </nav>
 

@@ -3,7 +3,7 @@ import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { AccuracyBar } from '@/components/AccuracyBar'
-import { Copy, Check, ChevronLeft } from 'lucide-react'
+import { Copy, Check, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
@@ -14,34 +14,34 @@ import sebangLogo from '@/assets/sebang-logo.webp'
 import sbFloodedLogo from '@/assets/sb-flooded-logo.webp'
 import exideAgmLogo from '@/assets/exide-agm-logo.webp'
 
-// ── Helpers (self-contained copies — not exported from VehicleFinderForm) ─────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function getBrandLogo(code: string): string | null {
   const u = code.toUpperCase()
-  if (u.includes('MAXX'))          return exideMaxxLogo
-  if (u.includes('POWERLAST'))     return powerlastLogo
-  if (u.includes('SPARK'))         return sparkLogo
-  if (u.includes('SUPREME'))       return supremeLogo
-  if (u.includes('SEBANG'))        return sebangLogo
-  if (u.includes('CHLORIDE EXIDE'))return sbFloodedLogo
-  if (u.includes('EXIDE'))         return exideAgmLogo
+  if (u.includes('MAXX'))           return exideMaxxLogo
+  if (u.includes('POWERLAST'))      return powerlastLogo
+  if (u.includes('SPARK'))          return sparkLogo
+  if (u.includes('SUPREME'))        return supremeLogo
+  if (u.includes('SEBANG'))         return sebangLogo
+  if (u.includes('CHLORIDE EXIDE')) return sbFloodedLogo
+  if (u.includes('EXIDE'))          return exideAgmLogo
   return null
 }
 
 function techIconColor(tech?: string): string {
   if (!tech) return '#374151'
   const t = tech.toUpperCase()
-  if (t.includes('EFB'))                       return '#c2410c'
-  if (t.includes('AGM'))                       return '#5b21b6'
-  if (t.includes('SB') || t.includes('FLOOD')) return '#374151'
+  if (t.includes('EFB'))                        return '#c2410c'
+  if (t.includes('AGM'))                        return '#5b21b6'
+  if (t.includes('SB') || t.includes('FLOOD'))  return '#374151'
   return '#374151'
 }
 
 function techClass(tech?: string) {
   if (!tech) return 'badge tech-mf'
   const t = tech.toUpperCase()
-  if (t.includes('EFB'))                       return 'badge tech-efb'
-  if (t.includes('AGM'))                       return 'badge tech-agm'
+  if (t.includes('EFB'))                          return 'badge tech-efb'
+  if (t.includes('AGM'))                          return 'badge tech-agm'
   if (t.includes('SB') || t.includes('FLOODED')) return 'badge tech-sb'
   return 'badge tech-mf'
 }
@@ -75,7 +75,7 @@ export interface MobileVehicleFinderProps {
 
 // ── Shared styles ──────────────────────────────────────────────────────────────
 
-const SELECT_STYLE: React.CSSProperties = {
+const INPUT_STYLE: React.CSSProperties = {
   width: '100%',
   height: '52px',
   padding: '0 0.9rem',
@@ -85,10 +85,15 @@ const SELECT_STYLE: React.CSSProperties = {
   color: 'var(--text, #111827)',
   fontSize: '1rem',
   fontFamily: 'inherit',
+  boxSizing: 'border-box',
+}
+
+const SELECT_STYLE: React.CSSProperties = {
+  ...INPUT_STYLE,
   appearance: 'none',
   WebkitAppearance: 'none',
   cursor: 'pointer',
-  boxSizing: 'border-box',
+  paddingRight: '2.2rem',
 }
 
 const BTN_PRIMARY: React.CSSProperties = {
@@ -109,17 +114,22 @@ const BTN_GHOST: React.CSSProperties = {
   fontFamily: 'inherit',
 }
 
+const DIVIDER: React.CSSProperties = {
+  borderTop: '1px solid var(--border, #e5e7eb)',
+  margin: '0.75rem 0',
+}
+
 // ── Progress dots ──────────────────────────────────────────────────────────────
 
 function ProgressDots({ current, total = 4 }: { current: number; total?: number }) {
   return (
-    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
+    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', marginBottom: '1.25rem' }}>
       {Array.from({ length: total }).map((_, i) => (
         <div
           key={i}
           style={{
-            height: '8px',
-            width: i < current ? '20px' : i === current ? '20px' : '8px',
+            height: '6px',
+            width: i <= current ? '22px' : '6px',
             borderRadius: '999px',
             background: i <= current ? 'var(--red, #CC0000)' : 'var(--border, #e2e4e9)',
             transition: 'all 0.25s ease',
@@ -148,10 +158,57 @@ function SelectWrap({ children }: { children: React.ReactNode }) {
   )
 }
 
+// ── Shimmer skeleton card ──────────────────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <div style={{
+      background: 'var(--card-bg, #fff)',
+      border: '1px solid var(--border, #e2e4e9)',
+      borderRadius: '0.75rem',
+      padding: '1.5rem 1.25rem',
+    }}>
+      <div className="skeleton-line" style={{ height: 6, width: '35%', marginBottom: '1.75rem' }} />
+      <div className="skeleton-line" style={{ height: 11, width: '28%', marginBottom: '0.5rem' }} />
+      <div className="skeleton-line" style={{ height: 22, width: '65%', marginBottom: '0.35rem' }} />
+      <div className="skeleton-line" style={{ height: 11, width: '45%', marginBottom: '1.5rem' }} />
+      <div className="skeleton-line" style={{ height: 52, width: '100%', borderRadius: '0.5rem' }} />
+    </div>
+  )
+}
+
+// ── Mode toggle pill ──────────────────────────────────────────────────────────
+
+function ModeToggle({ typeMode, onToggle }: { typeMode: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        position: 'absolute', top: '1rem', right: '1rem',
+        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+        padding: '0.25rem 0.6rem',
+        borderRadius: '999px',
+        border: '1px solid var(--border, #e2e4e9)',
+        background: 'var(--bg, #f4f5f7)',
+        color: 'var(--muted, #6b7280)',
+        fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer',
+        fontFamily: 'inherit', letterSpacing: '0.03em',
+        textTransform: 'uppercase',
+      }}
+      title={typeMode ? 'Switch to dropdown mode' : 'Switch to manual text input'}
+    >
+      {typeMode
+        ? <><MousePointerClick size={11} />Dropdowns</>
+        : <><Keyboard size={11} />Type</>}
+    </button>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps) {
+export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileVehicleFinderProps) {
   const [step, setStep] = useState<Step>('make')
+  const [typeMode, setTypeMode] = useState(false)
 
   const [makes, setMakes]   = useState<string[]>([])
   const [models, setModels] = useState<string[]>([])
@@ -163,14 +220,14 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
   const [fuelType, setFuelType] = useState('')
   const [engineCc, setEngineCc] = useState('')
 
-  const [result, setResult]   = useState<RecommendationResult | null>(null)
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(true)
+  const [result, setResult]         = useState<RecommendationResult | null>(null)
+  const [error, setError]           = useState('')
+  const [loading, setLoading]       = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const [altVisible, setAltVisible]   = useState(true)
+  const [altVisible, setAltVisible]     = useState(true)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
-  const [copied, setCopied]           = useState(false)
+  const [copied, setCopied]             = useState(false)
 
   // Load makes on mount
   useEffect(() => {
@@ -180,8 +237,16 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
       .finally(() => setLoading(false))
   }, [onMakesLoaded])
 
-  // Auto-advance: make selected → fetch models → go to model step
-  const handleMakeChange = async (val: string) => {
+  const handleTypeModeToggle = () => {
+    setTypeMode(t => !t)
+    setMake(''); setModel(''); setYear('')
+    setModels([]); setYears([])
+    setResult(null); setError('')
+  }
+
+  // ── Select-mode handlers (auto-advance) ──────────────────────────
+
+  const handleMakeSelect = async (val: string) => {
     setMake(val)
     setModel(''); setYear(''); setFuelType(''); setEngineCc('')
     setModels([]); setYears([])
@@ -199,8 +264,7 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
     }
   }
 
-  // Auto-advance: model selected → fetch years → go to year step
-  const handleModelChange = async (val: string) => {
+  const handleModelSelect = async (val: string) => {
     setModel(val)
     setYear(''); setFuelType(''); setEngineCc('')
     setYears([])
@@ -218,14 +282,43 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
     }
   }
 
-  // Year selected → show Continue button (no auto-advance to avoid mis-taps)
-  const handleYearChange = (val: string) => {
-    setYear(val)
-    setResult(null); setError('')
+  // ── Type-mode continue handlers ───────────────────────────────────
+
+  const handleMakeContinue = async () => {
+    if (!make.trim()) return
+    setLoading(true); setError('')
+    try {
+      const data = await fetchModels(make.trim())
+      setModels(data)
+      setStep('model')
+    } catch {
+      setError('Failed to load models. Check the make name and try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleModelContinue = async () => {
+    if (!model.trim()) return
+    setLoading(true); setError('')
+    try {
+      const data = await fetchYears(make, model.trim())
+      setYears(data)
+      setStep('year')
+    } catch {
+      setError('Failed to load years. Check the model name and try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleYearContinue = () => {
-    if (year) setStep('details')
+    const y = parseInt(year, 10)
+    if (typeMode && (isNaN(y) || y < 1960 || y > 2030)) {
+      setError('Please enter a valid year between 1960 and 2030.')
+      return
+    }
+    if (year) { setError(''); setStep('details') }
   }
 
   const handleSubmit = async (skipDetails = false) => {
@@ -234,9 +327,9 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
       const data = await fetchRecommendation({
         make,
         model,
-        year:      parseInt(year, 10),
-        engine_cc: !skipDetails && engineCc ? parseInt(engineCc, 10) : null,
-        fuel_type: !skipDetails && fuelType  ? fuelType  : null,
+        year:       parseInt(year, 10),
+        engine_cc:  !skipDetails && engineCc ? parseInt(engineCc, 10) : null,
+        fuel_type:  !skipDetails && fuelType  ? fuelType  : null,
         stop_start: true,
       })
       setResult(data)
@@ -271,101 +364,158 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
     setTimeout(() => setCopied(false), 1500)
   }
 
+  // ── Shared card + typography styles ──────────────────────────────
+
   const card: React.CSSProperties = {
+    position: 'relative',
     background: 'var(--card-bg, #fff)',
     border: '1px solid var(--border, #e2e4e9)',
     borderRadius: '0.75rem',
-    padding: '1.25rem',
+    padding: '1.5rem 1.25rem 1.25rem',
     width: '100%',
     boxSizing: 'border-box',
   }
 
-  const stepLabel: React.CSSProperties = {
-    fontSize: '0.72rem',
+  const stepChip: React.CSSProperties = {
+    display: 'inline-block',
+    fontSize: '0.68rem',
     fontWeight: 700,
     textTransform: 'uppercase',
-    letterSpacing: '0.06em',
+    letterSpacing: '0.07em',
     color: 'var(--red, #CC0000)',
     marginBottom: '0.3rem',
   }
 
   const stepTitle: React.CSSProperties = {
-    fontSize: '1.25rem',
+    fontSize: '1.3rem',
     fontWeight: 800,
     color: 'var(--text, #111827)',
-    margin: '0 0 0.25rem',
+    margin: '0 0 0.2rem',
     lineHeight: 1.2,
+    paddingRight: '4rem',
   }
 
   const stepSub: React.CSSProperties = {
     fontSize: '0.82rem',
     color: 'var(--muted, #6b7280)',
-    margin: '0 0 1.25rem',
+    margin: '0 0 1.1rem',
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    color: 'var(--muted, #6b7280)',
+    marginBottom: '0.35rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  }
+
+  // ── Warning banner colours (amber — needs darkMode prop) ──────────
+
+  const warningBg     = darkMode ? 'rgba(253,224,71,0.08)' : '#fffbeb'
+  const warningBorder = darkMode ? 'rgba(253,224,71,0.22)' : '#fcd34d'
+  const warningText   = darkMode ? '#fbbf24'               : '#92400e'
+
+  // ── Render ─────────────────────────────────────────────────────────
 
   return (
     <div style={{ flex: '1 1 0', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
       {/* ── Step: Make ── */}
       {step === 'make' && (
-        <div style={card}>
-          <ProgressDots current={0} />
-          <p style={stepLabel}>Step 1 of 4</p>
-          <h2 style={stepTitle}>Select Your Make</h2>
-          <p style={stepSub}>Choose the brand of your car</p>
+        loading ? <SkeletonCard /> : (
+          <div style={card}>
+            <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
+            <ProgressDots current={0} />
+            <p style={stepChip}>Step 1 of 4</p>
+            <h2 style={stepTitle}>Select Your Make</h2>
+            <p style={stepSub}>Choose the brand of your vehicle</p>
 
-          {loading ? (
-            <div style={{ height: 52, borderRadius: '0.5rem', background: 'var(--border, #e2e4e9)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            {typeMode ? (
+              <>
+                <input
+                  style={INPUT_STYLE}
+                  type="text"
+                  placeholder="e.g. Toyota"
+                  value={make}
+                  onChange={e => setMake(e.target.value)}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+                  <button
+                    style={{ ...BTN_PRIMARY, opacity: make.trim() ? 1 : 0.45, cursor: make.trim() ? 'pointer' : 'not-allowed' }}
+                    onClick={handleMakeContinue}
+                    disabled={!make.trim() || loading}
+                  >
+                    {loading ? 'Loading…' : 'Continue'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <SelectWrap>
+                <select
+                  style={SELECT_STYLE}
+                  value={make}
+                  onChange={e => handleMakeSelect(e.target.value)}
+                  autoFocus
+                >
+                  <option value="">Choose a make…</option>
+                  {makes.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </SelectWrap>
+            )}
+
+            {error && <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#dc2626' }}>{error}</p>}
+          </div>
+        )
+      )}
+
+      {/* ── Step: Model ── */}
+      {step === 'model' && (
+        <div style={card}>
+          <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
+          <ProgressDots current={1} />
+          <p style={stepChip}>Step 2 of 4</p>
+          <h2 style={stepTitle}>Select Model</h2>
+          <p style={stepSub}>{make}</p>
+
+          {typeMode ? (
+            <input
+              style={INPUT_STYLE}
+              type="text"
+              placeholder="e.g. Corolla"
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              autoFocus
+            />
           ) : (
             <SelectWrap>
               <select
                 style={SELECT_STYLE}
-                value={make}
-                onChange={e => handleMakeChange(e.target.value)}
+                value={model}
+                onChange={e => handleModelSelect(e.target.value)}
+                disabled={loading}
                 autoFocus
               >
-                <option value="">Choose a make…</option>
-                {makes.map(m => <option key={m} value={m}>{m}</option>)}
+                <option value="">{loading ? 'Loading…' : 'Choose a model…'}</option>
+                {models.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </SelectWrap>
           )}
 
           {error && <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#dc2626' }}>{error}</p>}
 
-          {loading && make && (
-            <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: 'var(--muted, #6b7280)' }}>
-              Loading models…
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ── Step: Model ── */}
-      {step === 'model' && (
-        <div style={card}>
-          <ProgressDots current={1} />
-          <p style={stepLabel}>Step 2 of 4</p>
-          <h2 style={stepTitle}>Select Model</h2>
-          <p style={stepSub}>{make}</p>
-
-          <SelectWrap>
-            <select
-              style={SELECT_STYLE}
-              value={model}
-              onChange={e => handleModelChange(e.target.value)}
-              disabled={loading}
-              autoFocus
-            >
-              <option value="">{loading ? 'Loading…' : 'Choose a model…'}</option>
-              {models.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </SelectWrap>
-
-          {error && <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#dc2626' }}>{error}</p>}
-
-          <div style={{ marginTop: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+            {typeMode && (
+              <button
+                style={{ ...BTN_PRIMARY, opacity: model.trim() ? 1 : 0.45, cursor: model.trim() ? 'pointer' : 'not-allowed' }}
+                onClick={handleModelContinue}
+                disabled={!model.trim() || loading}
+              >
+                {loading ? 'Loading…' : 'Continue'}
+              </button>
+            )}
             <button style={BTN_GHOST} onClick={handleBack}>
               <ChevronLeft size={18} />
               Back
@@ -377,22 +527,36 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
       {/* ── Step: Year ── */}
       {step === 'year' && (
         <div style={card}>
+          <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
           <ProgressDots current={2} />
-          <p style={stepLabel}>Step 3 of 4</p>
+          <p style={stepChip}>Step 3 of 4</p>
           <h2 style={stepTitle}>Select Year</h2>
           <p style={stepSub}>{make} {model}</p>
 
-          <SelectWrap>
-            <select
-              style={SELECT_STYLE}
+          {typeMode ? (
+            <input
+              style={INPUT_STYLE}
+              type="number"
+              placeholder="e.g. 2019"
               value={year}
-              onChange={e => handleYearChange(e.target.value)}
+              onChange={e => setYear(e.target.value)}
+              min={1960}
+              max={2030}
               autoFocus
-            >
-              <option value="">Choose a year…</option>
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </SelectWrap>
+            />
+          ) : (
+            <SelectWrap>
+              <select
+                style={SELECT_STYLE}
+                value={year}
+                onChange={e => { setYear(e.target.value); setError('') }}
+                autoFocus
+              >
+                <option value="">Choose a year…</option>
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </SelectWrap>
+          )}
 
           {error && <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#dc2626' }}>{error}</p>}
 
@@ -416,16 +580,13 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
       {step === 'details' && (
         <div style={card}>
           <ProgressDots current={3} />
-          <p style={stepLabel}>Step 4 of 4 — Optional</p>
-          <h2 style={stepTitle}>Engine Details</h2>
+          <p style={stepChip}>Step 4 of 4 — Optional</p>
+          <h2 style={{ ...stepTitle, paddingRight: 0 }}>Engine Details</h2>
           <p style={stepSub}>Adding these improves accuracy, but you can skip</p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-            {/* Fuel type */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted, #6b7280)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Fuel Type
-              </label>
+              <label style={labelStyle}>Fuel Type</label>
               <SelectWrap>
                 <select
                   style={SELECT_STYLE}
@@ -441,22 +602,19 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
               </SelectWrap>
             </div>
 
-            {/* Engine CC */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted, #6b7280)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Engine Size (CC)
-              </label>
+              <label style={labelStyle}>Engine Size (CC)</label>
               <input
                 type="number"
-                style={{ ...SELECT_STYLE, paddingRight: '0.9rem' }}
+                style={INPUT_STYLE}
                 placeholder="e.g. 1500"
                 value={engineCc}
                 onChange={e => setEngineCc(e.target.value)}
                 min={500}
                 max={8000}
               />
-              <p style={{ fontSize: '0.72rem', color: 'var(--muted, #9ca3af)', marginTop: '0.3rem' }}>
-                Common sizes: 1000, 1300, 1500, 1800, 2000, 2500 cc
+              <p style={{ fontSize: '0.7rem', color: 'var(--muted, #9ca3af)', marginTop: '0.3rem' }}>
+                Common: 1000 · 1300 · 1500 · 1800 · 2000 · 2500 cc
               </p>
             </div>
           </div>
@@ -487,221 +645,249 @@ export function MobileVehicleFinder({ onMakesLoaded }: MobileVehicleFinderProps)
       )}
 
       {/* ── Step: Result ── */}
-      {step === 'result' && result && (
-        <>
-          {/* Result card */}
-          <div style={card}>
-            {/* Header */}
-            <div style={{ marginBottom: '0.85rem' }}>
-              <p style={{ ...stepLabel, color: '#16a34a', marginBottom: '0.2rem' }}>Battery Found</p>
-              <h2 style={{ ...stepTitle, fontSize: '1.1rem' }}>
-                {result.matched_make
-                  ? `${result.matched_make} ${result.matched_model} · ${result.matched_year}`
-                  : `${result.make} ${result.model} · ${result.year}`}
-              </h2>
-              {!result.matched_make && (
-                <div style={{
-                  display: 'flex', alignItems: 'flex-start', gap: '0.4rem',
-                  background: '#fffbeb', border: '1px solid #fcd34d',
-                  borderRadius: '0.45rem', padding: '0.5rem 0.65rem',
-                  marginTop: '0.5rem',
-                }}>
-                  <span style={{ color: '#d97706', fontSize: '0.85rem', flexShrink: 0 }}>⚠</span>
-                  <p style={{ margin: 0, fontSize: '0.72rem', color: '#92400e', lineHeight: 1.5 }}>
-                    Exact model not found — estimate based on your {result.engine_cc}cc {result.fuel_type?.toLowerCase()} engine.
-                  </p>
-                </div>
-              )}
-            </div>
+      {step === 'result' && result && (() => {
+        const p = result.primary
+        const logo = getBrandLogo(p.battery_code)
+        const iconColor = techIconColor(p.technology)
+        const alts = result.alternatives.filter(a => (a.technology ?? 'MF') === (p.technology ?? 'MF'))
 
-            {/* Primary battery */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
-              background: 'var(--bg, #f4f5f7)', borderRadius: '0.6rem',
-              padding: '0.85rem 1rem', marginBottom: '0.85rem',
-            }}>
-              {/* Icon / brand logo */}
-              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
-                {getBrandLogo(result.primary.battery_code)
-                  ? <img src={getBrandLogo(result.primary.battery_code)!} alt="" style={{ height: 36, width: 'auto', maxWidth: 68, objectFit: 'contain' }} />
-                  : <CarBatteryIcon size={38} color={techIconColor(result.primary.technology)} />
+        return (
+          <>
+            <div style={card}>
+
+              {/* ── Vehicle header ── */}
+              <div style={{ marginBottom: '1rem' }}>
+                <p style={{ ...stepChip, color: '#16a34a' }}>Battery Found</p>
+                <h2 style={{ ...stepTitle, fontSize: '1.05rem', paddingRight: 0, marginBottom: '0.5rem' }}>
+                  {result.matched_make
+                    ? `${result.matched_make} ${result.matched_model} · ${result.matched_year}`
+                    : `${result.make} ${result.model} · ${result.year}`}
+                </h2>
+                {!result.matched_make && (
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '0.4rem',
+                    background: warningBg, border: `1px solid ${warningBorder}`,
+                    borderRadius: '0.45rem', padding: '0.55rem 0.7rem',
+                  }}>
+                    <span style={{ color: warningText, fontSize: '0.85rem', flexShrink: 0 }}>⚠</span>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: warningText, lineHeight: 1.5 }}>
+                      Exact model not found — estimate based on your {result.engine_cc}cc {result.fuel_type?.toLowerCase()} engine.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div style={DIVIDER} />
+
+              {/* ── Brand logo / icon — centered ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0 0.75rem' }}>
+                {logo
+                  ? <img src={logo} alt="" style={{ height: 52, width: 'auto', maxWidth: 100, objectFit: 'contain' }} />
+                  : <CarBatteryIcon size={52} color={iconColor} />
                 }
-                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: techIconColor(result.primary.technology), textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                  {result.primary.technology ?? 'MF'}
+                <span className={techClass(p.technology)} style={{ fontSize: '0.68rem' }}>
+                  {p.technology ?? 'MF'}
                 </span>
               </div>
 
-              {/* Specs */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.4rem' }}>
-                  <div>
-                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text, #111827)', lineHeight: 1 }}>
-                      {result.primary.ah ?? '—'}
+              {/* ── Stats grid — 2 columns, no clipping ── */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr',
+                gap: '0.5rem', marginBottom: '0.85rem',
+              }}>
+                {[
+                  { value: p.ah,     unit: 'Ah',       label: 'Capacity' },
+                  { value: p.cca_en, unit: 'CCA (EN)', label: 'Cold Crank' },
+                ].map(({ value, unit, label }) => (
+                  <div key={unit} style={{
+                    background: 'var(--bg, #f4f5f7)',
+                    borderRadius: '0.5rem',
+                    padding: '0.7rem 0.85rem',
+                    border: '1px solid var(--border, #e2e4e9)',
+                  }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text, #111827)', lineHeight: 1 }}>
+                      {value ?? '—'}
                     </div>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Ah
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--red, #CC0000)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.2rem' }}>
+                      {unit}
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--muted, #9ca3af)', marginTop: '0.1rem' }}>
+                      {label}
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text, #111827)', lineHeight: 1 }}>
-                      {result.primary.cca_en ?? '—'}
-                    </div>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--muted, #6b7280)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      CCA (EN)
-                    </div>
-                  </div>
-                </div>
+                ))}
+              </div>
 
-                {/* Battery code + copy */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: 700, color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em' }}>
-                    {result.primary.battery_code || '—'}
-                  </span>
-                  {result.primary.battery_code && (
-                    <button
-                      onClick={handleCopy}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        width: 28, height: 28, borderRadius: 6,
-                        border: '1px solid var(--border, #e2e4e9)',
-                        background: 'var(--card-bg, #fff)',
-                        cursor: 'pointer', color: 'var(--muted, #6b7280)',
-                        flexShrink: 0,
-                      }}
-                      title="Copy battery code"
-                    >
-                      {copied ? <Check size={13} /> : <Copy size={13} />}
-                    </button>
-                  )}
-                </div>
-
-                {result.primary.model_key && (
-                  <span style={{ fontSize: '0.68rem', color: 'var(--muted, #9ca3af)', marginTop: '0.2rem', display: 'block' }}>
-                    {result.primary.model_key}
-                  </span>
+              {/* ── Battery code — full width, no clipping ── */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: 'var(--bg, #f4f5f7)',
+                borderRadius: '0.5rem',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '0.35rem',
+                border: '1px solid var(--border, #e2e4e9)',
+              }}>
+                <span style={{
+                  flex: 1, minWidth: 0,
+                  fontFamily: 'monospace', fontSize: '1rem', fontWeight: 700,
+                  color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {p.battery_code || '—'}
+                </span>
+                {p.battery_code && (
+                  <button
+                    onClick={handleCopy}
+                    style={{
+                      flexShrink: 0,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 32, height: 32, borderRadius: 6,
+                      border: '1px solid var(--border, #e2e4e9)',
+                      background: 'var(--card-bg, #fff)',
+                      cursor: 'pointer', color: 'var(--muted, #6b7280)',
+                    }}
+                    title="Copy battery code"
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
                 )}
               </div>
-            </div>
+              {p.model_key && (
+                <p style={{ fontSize: '0.68rem', color: 'var(--muted, #9ca3af)', margin: '0 0 0.5rem 0.1rem' }}>
+                  {p.model_key}
+                </p>
+              )}
 
-            {/* Accuracy bar */}
-            <div style={{ marginBottom: '0.85rem' }}>
-              <AccuracyBar data={result} />
-            </div>
+              <div style={DIVIDER} />
 
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.85rem' }}>
-              <button
-                type="button"
-                onClick={() => setFeedbackOpen(true)}
-                style={{
-                  flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
-                  height: 44,
-                  background: '#fff', border: '1.5px solid var(--red, #CC0000)', color: 'var(--red, #CC0000)',
-                  borderRadius: 6, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                <StarIcon style={{ width: '1rem', height: '1rem' }} />
-                Rate
-              </button>
-              <a
-                href="https://www.chlorideexide.com/category/all-products"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
-                  height: 44,
-                  background: 'var(--red, #CC0000)', color: '#fff',
-                  borderRadius: 6, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
-                  fontFamily: 'inherit', textDecoration: 'none',
-                }}
-              >
-                <ShoppingBagIcon style={{ width: '1rem', height: '1rem' }} />
-                Shop Now
-              </a>
-            </div>
+              {/* ── Accuracy bar — own row, no overlap ── */}
+              <div style={{ padding: '0.25rem 0 0.5rem' }}>
+                <AccuracyBar data={result} />
+              </div>
 
-            {/* Dial-a-Battery */}
-            <div style={{
-              display: 'flex', alignItems: 'center', flexWrap: 'wrap',
-              gap: '0.3rem 0.75rem',
-              background: '#f9fafb', border: '1px solid #e5e7eb',
-              borderRadius: 8, padding: '0.45rem 0.75rem',
-              fontSize: '0.72rem', marginBottom: '0.85rem',
-            }}>
-              <span style={{ fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>
-                📞 Dial a Battery
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-                <ReactCountryFlag countryCode="KE" svg style={{ width: '1.1em', height: '1.1em' }} />
-                <span style={{ color: 'var(--red, #CC0000)', fontWeight: 600 }}>0719 080 000</span>
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-                <ReactCountryFlag countryCode="TZ" svg style={{ width: '1.1em', height: '1.1em' }} />
-                <span style={{ fontWeight: 600 }}>0677 484 631</span>
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-                <ReactCountryFlag countryCode="UG" svg style={{ width: '1.1em', height: '1.1em' }} />
-                <span style={{ color: '#16a34a', fontWeight: 600 }}>0200 400 900</span>
-              </span>
-            </div>
+              <div style={DIVIDER} />
 
-            {/* Alternatives */}
-            {(() => {
-              const p = result.primary
-              const alts = result.alternatives.filter(a => (a.technology ?? 'MF') === (p.technology ?? 'MF'))
-              if (alts.length === 0) return null
-              return (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted, #6b7280)' }}>
-                      Same-Tech Alternatives ({alts.length})
-                    </span>
-                    <button
-                      onClick={() => setAltVisible(v => !v)}
-                      style={{ fontSize: '0.72rem', color: 'var(--muted, #6b7280)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0.3rem', fontFamily: 'inherit' }}
-                    >
-                      {altVisible ? 'hide' : 'show'}
-                    </button>
-                  </div>
-                  {altVisible && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
-                      {alts.map(alt => (
-                        <div key={alt.battery_code} style={{
-                          background: 'var(--bg, #f4f5f7)', borderRadius: '0.45rem',
-                          padding: '0.5rem 0.6rem', border: '1px solid var(--border, #e2e4e9)',
-                        }}>
-                          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text, #111827)', fontFamily: 'monospace', marginBottom: '0.2rem' }}>
-                            {alt.battery_code}
-                          </div>
-                          <div style={{ fontSize: '0.67rem', color: 'var(--muted, #6b7280)' }}>
-                            {alt.ah != null ? `${alt.ah} Ah` : ''}
-                            {alt.cca_en != null ? ` · ${alt.cca_en} CCA` : ''}
-                          </div>
-                          <span className={techClass(alt.technology)} style={{ fontSize: '0.62rem', marginTop: '0.3rem', display: 'inline-block' }}>
-                            {alt.technology ?? 'MF'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* ── Action buttons ── */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.25rem 0' }}>
+                <button
+                  type="button"
+                  onClick={() => setFeedbackOpen(true)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
+                    height: 46,
+                    background: 'var(--card-bg, #fff)',
+                    border: '1.5px solid var(--red, #CC0000)',
+                    color: 'var(--red, #CC0000)',
+                    borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  <StarIcon style={{ width: '1rem', height: '1rem' }} />
+                  Rate
+                </button>
+                <a
+                  href="https://www.chlorideexide.com/category/all-products"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
+                    height: 46,
+                    background: 'var(--red, #CC0000)', color: '#fff',
+                    borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none',
+                  }}
+                >
+                  <ShoppingBagIcon style={{ width: '1rem', height: '1rem' }} />
+                  Shop Now
+                </a>
+              </div>
+
+              <div style={DIVIDER} />
+
+              {/* ── Dial-a-Battery — vertical list with phone animation ── */}
+              <div style={{
+                background: 'var(--bg, #f4f5f7)',
+                border: '1px solid var(--border, #e5e7eb)',
+                borderRadius: 10, padding: '0.75rem 1rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                  <span className="dial-ring" style={{ display: 'inline-block', fontSize: '1.05rem', lineHeight: 1 }}>📞</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text, #374151)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Dial a Battery
+                  </span>
                 </div>
-              )
-            })()}
-          </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  {[
+                    { code: 'KE', num: '0719 080 000', color: 'var(--red, #CC0000)' },
+                    { code: 'TZ', num: '0677 484 631', color: 'var(--text, #374151)' },
+                    { code: 'UG', num: '0200 400 900', color: '#16a34a' },
+                  ].map(({ code, num, color }) => (
+                    <div key={code} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <ReactCountryFlag countryCode={code} svg style={{ width: '1.15em', height: '1.15em', flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color }}>
+                        {num}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* Search again */}
-          <button
-            style={{ ...BTN_GHOST, marginBottom: '0.25rem' }}
-            onClick={handleReset}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-            Search Again
-          </button>
-        </>
-      )}
+              {/* ── Alternatives — single column ── */}
+              {alts.length > 0 && (
+                <>
+                  <div style={DIVIDER} />
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted, #6b7280)' }}>
+                        Same-Tech Alternatives ({alts.length})
+                      </span>
+                      <button
+                        onClick={() => setAltVisible(v => !v)}
+                        style={{ fontSize: '0.72rem', color: 'var(--muted, #6b7280)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0.3rem', fontFamily: 'inherit' }}
+                      >
+                        {altVisible ? 'hide' : 'show'}
+                      </button>
+                    </div>
+                    {altVisible && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        {alts.map(alt => (
+                          <div key={alt.battery_code} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            background: 'var(--bg, #f4f5f7)', borderRadius: '0.5rem',
+                            padding: '0.55rem 0.75rem', border: '1px solid var(--border, #e2e4e9)',
+                          }}>
+                            <div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text, #111827)', fontFamily: 'monospace' }}>
+                                {alt.battery_code}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--muted, #6b7280)', marginTop: '0.1rem' }}>
+                                {alt.ah != null ? `${alt.ah} Ah` : ''}
+                                {alt.cca_en != null ? ` · ${alt.cca_en} CCA` : ''}
+                              </div>
+                            </div>
+                            <span className={techClass(alt.technology)} style={{ fontSize: '0.62rem', flexShrink: 0 }}>
+                              {alt.technology ?? 'MF'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* ── Search again ── */}
+            <button style={{ ...BTN_GHOST, marginBottom: '0.25rem' }} onClick={handleReset}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Search Again
+            </button>
+          </>
+        )
+      })()}
 
       <FeedbackModal
         open={feedbackOpen}
