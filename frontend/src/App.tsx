@@ -1,5 +1,4 @@
 import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react'
-import chlorideExideLogo     from '@/assets/chloride_exide_transparent.webp'
 import chlorideExideBrandLogo from '@/assets/chlorideexidebrandlogo.webp'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
@@ -102,7 +101,7 @@ function PublicApp({
           {/* Left: Brand */}
           <div className="page-nav-brand">
             <img
-              src={darkMode ? chlorideExideBrandLogo : chlorideExideLogo}
+              src={chlorideExideBrandLogo}
               alt="Chloride Exide"
               style={{
                 height: isMobile ? 44 : 52,
@@ -111,7 +110,7 @@ function PublicApp({
                 objectFit: 'contain',
                 display: 'block',
                 flexShrink: 0,
-                borderRadius: darkMode ? (isMobile ? 4 : 6) : 0,
+                borderRadius: isMobile ? 4 : 6,
               }}
             />
             <div className="page-brand-sub" style={{ alignSelf: 'center' }}>

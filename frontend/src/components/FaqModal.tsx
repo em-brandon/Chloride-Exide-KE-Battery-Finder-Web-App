@@ -242,7 +242,7 @@ export function FaqModal({ open, onClose, initialTab, singleTab }: FaqModalProps
 
               <p><strong>Limitation of Liability</strong></p>
               <ul className="faq-inner-list">
-                <li style={{ color: '#CC0000', fontWeight: 700 }}>Chloride Exide Kenya accepts no liability for damage, loss, or any adverse outcome arising from reliance on these recommendations without professional verification.</li>
+                <li className="flash-liability" style={{ color: '#CC0000', fontWeight: 700 }}>Chloride Exide Kenya accepts no liability for damage, loss, or any adverse outcome arising from reliance on these recommendations without professional verification.</li>
                 <li>This tool is intended for use within Kenya. Recommendations are based on vehicle fitments and battery standards applicable to the Kenyan market and may not be appropriate for other regions.</li>
               </ul>
 

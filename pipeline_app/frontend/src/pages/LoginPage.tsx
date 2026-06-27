@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { LockClosedIcon } from '@heroicons/react/24/solid'
 import { api } from '../lib/api'
-import chlorideExideLogo from '@/assets/chloride_exide_transparent.png'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.png'
 
 const R = '#CC0000'
 

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { AccuracyBar } from '@/components/AccuracyBar'
-import { Copy, Check, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
+import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
@@ -119,6 +119,24 @@ const DIVIDER: React.CSSProperties = {
   margin: '0.5rem 0',
 }
 
+// ── Step progress strip ────────────────────────────────────────────────────────
+
+const STEP_PCT: Record<string, number> = { make: 25, model: 50, year: 75, details: 100 }
+
+function StepStrip({ step }: { step: string }) {
+  const pct = STEP_PCT[step] ?? 100
+  return (
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--border, #e5e7eb)' }}>
+      <div style={{
+        height: '100%',
+        width: `${pct}%`,
+        background: 'var(--red, #CC0000)',
+        transition: 'width 0.4s ease',
+      }} />
+    </div>
+  )
+}
+
 // ── Progress dots ──────────────────────────────────────────────────────────────
 
 function ProgressDots({ current, total = 4 }: { current: number; total?: number }) {
@@ -232,6 +250,23 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [copied, setCopied]             = useState(false)
 
+  const [toastVisible, setToastVisible] = useState(false)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToastVisible(true)
+    toastTimer.current = setTimeout(() => setToastVisible(false), 4000)
+  }
+
+  const handleSwitchToDropdown = () => {
+    setTypeMode(false)
+    setModel(''); setYear('')
+    setYears([])
+    setToastVisible(false)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+  }
+
   // Load makes on mount
   useEffect(() => {
     fetchMakes()
@@ -253,6 +288,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setYears([])
     setResult(null); setError('')
     // make is intentionally preserved
+    showToast()
   }
 
   // ── Select-mode handlers (auto-advance) ──────────────────────────
@@ -370,6 +406,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     padding: '1rem 1rem 0.9rem',
     width: '100%',
     boxSizing: 'border-box',
+    overflow: 'hidden',
   }
 
   const stepChip: React.CSSProperties = {
@@ -422,6 +459,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {step === 'make' && (
         loading ? <SkeletonCard /> : (
           <div style={card}>
+            <StepStrip step="make" />
             <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
             <ProgressDots current={0} />
             <p style={stepChip}>Step 1 of 4</p>
@@ -470,8 +508,25 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {/* ── Step: Model ── */}
       {step === 'model' && (
         <div style={card}>
+          <StepStrip step="model" />
           <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
           <ProgressDots current={1} />
+
+          {typeMode && toastVisible && (
+            <div
+              onClick={handleSwitchToDropdown}
+              style={{
+                background: '#1f2937', color: '#fff',
+                borderRadius: '0.6rem', padding: '0.65rem 0.85rem',
+                marginBottom: '0.75rem', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', gap: '0.1rem',
+              }}
+            >
+              <span style={{ fontSize: '0.72rem', opacity: 0.75 }}>Switched to manual entry</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Tap here to use dropdown instead →</span>
+            </div>
+          )}
+
           <p style={stepChip}>Step 2 of 4</p>
           <h2 style={stepTitle}>Select Model</h2>
           <p style={stepSub}>{make}</p>
@@ -538,6 +593,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {/* ── Step: Year ── */}
       {step === 'year' && (
         <div style={card}>
+          <StepStrip step="year" />
           <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
           <ProgressDots current={2} />
           <p style={stepChip}>Step 3 of 4</p>
@@ -590,6 +646,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       {/* ── Step: Details (optional) ── */}
       {step === 'details' && (
         <div style={card}>
+          <StepStrip step="details" />
           <ProgressDots current={3} />
           <p style={stepChip}>Step 4 of 4 — Optional</p>
           <h2 style={{ ...stepTitle, paddingRight: 0 }}>Engine Details</h2>
@@ -702,7 +759,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               {submitting ? 'Finding battery…' : 'Find My Battery'}
             </button>
             <button
-              style={{ ...BTN_GHOST, opacity: submitting ? 0.5 : 1 }}
+              style={{ ...BTN_GHOST, opacity: submitting ? 0.5 : 1, color: 'var(--blue, #1A35C0)', borderColor: 'var(--blue, #1A35C0)' }}
               onClick={() => handleSubmit(true)}
               disabled={submitting}
             >
@@ -762,7 +819,45 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 </span>
               </div>
 
-              {/* ── Stats grid — 2 columns, no clipping ── */}
+              {/* ── Battery code — above stats, full width ── */}
+              <div style={{
+                background: 'var(--bg, #f4f5f7)',
+                borderRadius: '0.5rem',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '0.5rem',
+                border: '1px solid var(--border, #e2e4e9)',
+              }}>
+                <div style={{
+                  fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
+                  color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
+                  overflowWrap: 'break-word',
+                  marginBottom: p.battery_code ? '0.5rem' : 0,
+                }}>
+                  {p.battery_code || '—'}
+                </div>
+                {p.battery_code && (
+                  <button
+                    onClick={handleCopy}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.28rem 0.65rem',
+                      borderRadius: '0.4rem',
+                      border: '1px solid var(--border, #e2e4e9)',
+                      background: 'var(--card-bg, #fff)',
+                      cursor: 'pointer',
+                      color: copied ? '#16a34a' : 'var(--muted, #6b7280)',
+                      fontSize: '0.72rem', fontWeight: 600,
+                      fontFamily: 'inherit',
+                      transition: 'color 0.2s',
+                    }}
+                  >
+                    {copied ? <ClipboardCheck size={13} /> : <Clipboard size={13} />}
+                    {copied ? 'Copied!' : 'Copy code'}
+                  </button>
+                )}
+              </div>
+
+              {/* ── Stats grid — Ah + CCA ── */}
               <div style={{
                 display: 'grid', gridTemplateColumns: '1fr 1fr',
                 gap: '0.5rem', marginBottom: '0.6rem',
@@ -789,41 +884,6 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                   </div>
                 ))}
               </div>
-
-              {/* ── Battery code — full width, no clipping ── */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: 'var(--bg, #f4f5f7)',
-                borderRadius: '0.5rem',
-                padding: '0.65rem 0.85rem',
-                marginBottom: '0.35rem',
-                border: '1px solid var(--border, #e2e4e9)',
-              }}>
-                <span style={{
-                  flex: 1, minWidth: 0,
-                  fontFamily: 'monospace', fontSize: '1rem', fontWeight: 700,
-                  color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {p.battery_code || '—'}
-                </span>
-                {p.battery_code && (
-                  <button
-                    onClick={handleCopy}
-                    style={{
-                      flexShrink: 0,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 32, height: 32, borderRadius: 6,
-                      border: '1px solid var(--border, #e2e4e9)',
-                      background: 'var(--card-bg, #fff)',
-                      cursor: 'pointer', color: 'var(--muted, #6b7280)',
-                    }}
-                    title="Copy battery code"
-                  >
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
-                )}
-              </div>
               {p.model_key && (
                 <p style={{ fontSize: '0.68rem', color: 'var(--muted, #9ca3af)', margin: '0 0 0.5rem 0.1rem' }}>
                   {p.model_key}
@@ -833,8 +893,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               <div style={DIVIDER} />
 
               {/* ── Accuracy bar — own row, no overlap ── */}
-              <div style={{ padding: '0.1rem 0 0.25rem', overflow: 'hidden', fontSize: '0.9em' }}>
-                <AccuracyBar data={result} />
+              <div style={{ padding: '0.1rem 0 0.25rem' }}>
+                <AccuracyBar data={result} compact />
               </div>
 
               <div style={DIVIDER} />
@@ -890,9 +950,9 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   {[
-                    { code: 'KE', num: '0719 080 000', color: 'var(--red, #CC0000)' },
-                    { code: 'TZ', num: '0677 484 631', color: 'var(--text, #374151)' },
-                    { code: 'UG', num: '0200 400 900', color: '#16a34a' },
+                    { code: 'KE', num: '+254 719 080 000', color: 'var(--red, #CC0000)' },
+                    { code: 'TZ', num: '+255 677 484 631', color: 'var(--text, #374151)' },
+                    { code: 'UG', num: '+256 200 400 900', color: '#16a34a' },
                   ].map(({ code, num, color }) => (
                     <div key={code} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <ReactCountryFlag countryCode={code} svg style={{ width: '1.15em', height: '1.15em', flexShrink: 0 }} />
@@ -974,6 +1034,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         matchType={result?.match_type}
         recommendedBattery={result?.primary?.battery_code ?? undefined}
       />
+
     </div>
   )
 }

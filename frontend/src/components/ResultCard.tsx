@@ -132,17 +132,17 @@ export function ResultCard({ data }: ResultCardProps) {
         <span style={{ color: '#d1d5db' }}>·</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
           <ReactCountryFlag countryCode="KE" svg style={{ width: '1.1em', height: '1.1em' }} />
-          <span style={{ color: '#CC0000', fontWeight: 600 }}>0719 080 000</span>
+          <span style={{ color: '#CC0000', fontWeight: 600 }}>+254 719 080 000</span>
         </span>
         <span style={{ color: '#d1d5db' }}>·</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
           <ReactCountryFlag countryCode="TZ" svg style={{ width: '1.1em', height: '1.1em' }} />
-          <span style={{ color: '#111827', fontWeight: 600 }}>0677 484 631</span>
+          <span style={{ color: '#111827', fontWeight: 600 }}>+255 677 484 631</span>
         </span>
         <span style={{ color: '#d1d5db' }}>·</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
           <ReactCountryFlag countryCode="UG" svg style={{ width: '1.1em', height: '1.1em' }} />
-          <span style={{ color: '#16a34a', fontWeight: 600 }}>0200 400 900</span>
+          <span style={{ color: '#16a34a', fontWeight: 600 }}>+256 200 400 900</span>
         </span>
       </div>
 

@@ -39,10 +39,12 @@ const SEGMENTS = [
   { key: 'specs'  as const, label: 'Engine Info',  max: 10, color: '#f59e0b' },
 ]
 
-export function AccuracyBar({ data }: { data: RecommendationResult }) {
+export function AccuracyBar({ data, compact = false }: { data: RecommendationResult; compact?: boolean }) {
   const factors  = calcFactors(data)
   const total    = factors.model + factors.year + factors.source + factors.specs
-  const [ready, setReady] = useState(false)
+  const [ready, setReady]           = useState(false)
+  const [tipOpen, setTipOpen]       = useState(false)
+  const [tipSeen, setTipSeen]       = useState(false)
 
   useEffect(() => {
     setReady(false)
@@ -52,14 +54,58 @@ export function AccuracyBar({ data }: { data: RecommendationResult }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-        <span style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground, #6b7280)' }}>
-          Result Accuracy
-        </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground, #6b7280)' }}>
+            Result Accuracy
+          </span>
+          {compact && (
+            <button
+              onClick={() => { setTipOpen(v => !v); setTipSeen(true) }}
+              className={!tipSeen ? 'accuracy-tip-pulse' : ''}
+              style={{
+                width: 15, height: 15, borderRadius: '50%',
+                border: '1.5px solid var(--border, #e2e4e9)',
+                background: 'transparent', color: 'var(--muted-foreground, #6b7280)',
+                fontSize: '0.6rem', fontWeight: 700, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'inherit', flexShrink: 0, lineHeight: 1, padding: 0,
+              }}
+              aria-label="About result accuracy"
+            >?</button>
+          )}
+        </div>
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--foreground, #111827)' }}>
           {total}%
         </span>
       </div>
+
+      {compact && tipOpen && (
+        <div style={{
+          background: 'var(--card-bg, #fff)',
+          border: '1px solid var(--border, #e2e4e9)',
+          borderRadius: '0.5rem', padding: '0.6rem 0.75rem',
+          fontSize: '0.72rem', color: 'var(--text, #374151)',
+          lineHeight: 1.55, marginBottom: '0.5rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        }}>
+          <p style={{ margin: '0 0 0.45rem', fontWeight: 700 }}>Result Accuracy bar</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            {([
+              { color: '#10b981', label: 'Car Found (green)',    desc: 'Fully filled when your make and model were found in our records; empty when the result is based on engine size only.' },
+              { color: '#3b82f6', label: 'Year (blue)',          desc: 'How closely your year matched. Fully filled for an exact year; lower if the nearest available year was used.' },
+              { color: '#8b5cf6', label: 'Data Quality (purple)',desc: 'Whether the result is backed by real-world fitment records, our structured database, or a rule-based engine estimate.' },
+              { color: '#f59e0b', label: 'Engine Info (amber)',  desc: 'Whether your engine details were confirmed from our records or inferred.' },
+            ] as const).map(({ color, label, desc }) => (
+              <div key={label} style={{ display: 'flex', gap: '0.45rem', alignItems: 'flex-start' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, marginTop: '0.3rem', display: 'inline-block' }} />
+                <span><strong>{label}</strong> — {desc}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: '0.45rem 0 0', color: 'var(--muted-foreground, #6b7280)' }}>A fuller bar means a more reliable recommendation.</p>
+        </div>
+      )}
 
       {/* Segmented bar — width of each segment reflects its share of the total score */}
       <div style={{ display: 'flex', gap: '2px', height: '8px', borderRadius: '999px', overflow: 'hidden' }}>
@@ -83,16 +129,18 @@ export function AccuracyBar({ data }: { data: RecommendationResult }) {
         ))}
       </div>
 
-      {/* Factor labels aligned to each segment */}
-      <div style={{ display: 'flex', gap: '2px', marginTop: '0.3rem' }}>
-        {SEGMENTS.map(seg => (
-          <div key={seg.key} style={{ width: `${seg.max}%`, textAlign: 'center' }}>
-            <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground, #9ca3af)', whiteSpace: 'nowrap' }}>
-              {seg.label}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Factor labels aligned to each segment — hidden in compact mode */}
+      {!compact && (
+        <div style={{ display: 'flex', gap: '2px', marginTop: '0.3rem' }}>
+          {SEGMENTS.map(seg => (
+            <div key={seg.key} style={{ width: `${seg.max}%`, textAlign: 'center' }}>
+              <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground, #9ca3af)', whiteSpace: 'nowrap' }}>
+                {seg.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
