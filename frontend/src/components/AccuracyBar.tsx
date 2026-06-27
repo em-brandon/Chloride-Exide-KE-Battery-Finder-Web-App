@@ -44,6 +44,7 @@ export function AccuracyBar({ data, compact = false }: { data: RecommendationRes
   const total    = factors.model + factors.year + factors.source + factors.specs
   const [ready, setReady]           = useState(false)
   const [tipOpen, setTipOpen]       = useState(false)
+  const [tipSeen, setTipSeen]       = useState(false)
 
   useEffect(() => {
     setReady(false)
@@ -60,12 +61,13 @@ export function AccuracyBar({ data, compact = false }: { data: RecommendationRes
           </span>
           {compact && (
             <button
-              onClick={() => setTipOpen(v => !v)}
+              onClick={() => { setTipOpen(v => !v); setTipSeen(true) }}
+              className={!tipSeen ? 'accuracy-tip-pulse' : ''}
               style={{
-                width: 14, height: 14, borderRadius: '50%',
+                width: 15, height: 15, borderRadius: '50%',
                 border: '1.5px solid var(--border, #e2e4e9)',
                 background: 'transparent', color: 'var(--muted-foreground, #6b7280)',
-                fontSize: '0.58rem', fontWeight: 700, cursor: 'pointer',
+                fontSize: '0.6rem', fontWeight: 700, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 fontFamily: 'inherit', flexShrink: 0, lineHeight: 1, padding: 0,
               }}
@@ -87,20 +89,21 @@ export function AccuracyBar({ data, compact = false }: { data: RecommendationRes
           lineHeight: 1.55, marginBottom: '0.5rem',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
         }}>
-          <p style={{ margin: '0 0 0.4rem', fontWeight: 700 }}>How accuracy is scored</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            {[
-              { color: '#10b981', label: 'Car Found',    desc: 'Exact or close make/model match (up to 50%)' },
-              { color: '#3b82f6', label: 'Year',         desc: 'How close the matched year is to yours (up to 25%)' },
-              { color: '#8b5cf6', label: 'Data Quality', desc: 'Reliability of our data for this vehicle (up to 15%)' },
-              { color: '#f59e0b', label: 'Engine Info',  desc: 'Engine specs available for finer matching (up to 10%)' },
-            ].map(({ color, label, desc }) => (
-              <div key={label} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, marginTop: '0.2rem', display: 'inline-block' }} />
+          <p style={{ margin: '0 0 0.45rem', fontWeight: 700 }}>Result Accuracy bar</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            {([
+              { color: '#10b981', label: 'Car Found (green)',    desc: 'Fully filled when your make and model were found in our records; empty when the result is based on engine size only.' },
+              { color: '#3b82f6', label: 'Year (blue)',          desc: 'How closely your year matched. Fully filled for an exact year; lower if the nearest available year was used.' },
+              { color: '#8b5cf6', label: 'Data Quality (purple)',desc: 'Whether the result is backed by real-world fitment records, our structured database, or a rule-based engine estimate.' },
+              { color: '#f59e0b', label: 'Engine Info (amber)',  desc: 'Whether your engine details were confirmed from our records or inferred.' },
+            ] as const).map(({ color, label, desc }) => (
+              <div key={label} style={{ display: 'flex', gap: '0.45rem', alignItems: 'flex-start' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, marginTop: '0.3rem', display: 'inline-block' }} />
                 <span><strong>{label}</strong> — {desc}</span>
               </div>
             ))}
           </div>
+          <p style={{ margin: '0.45rem 0 0', color: 'var(--muted-foreground, #6b7280)' }}>A fuller bar means a more reliable recommendation.</p>
         </div>
       )}
 
