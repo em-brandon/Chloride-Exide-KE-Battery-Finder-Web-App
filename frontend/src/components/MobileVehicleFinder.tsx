@@ -759,7 +759,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               {submitting ? 'Finding battery…' : 'Find My Battery'}
             </button>
             <button
-              style={{ ...BTN_GHOST, opacity: submitting ? 0.5 : 1 }}
+              style={{ ...BTN_GHOST, opacity: submitting ? 0.5 : 1, color: 'var(--blue, #1A35C0)', borderColor: 'var(--blue, #1A35C0)' }}
               onClick={() => handleSubmit(true)}
               disabled={submitting}
             >
@@ -830,7 +830,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 <div style={{
                   fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
                   color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
-                  wordBreak: 'break-all',
+                  overflowWrap: 'break-word',
                   marginBottom: p.battery_code ? '0.5rem' : 0,
                 }}>
                   {p.battery_code || '—'}
