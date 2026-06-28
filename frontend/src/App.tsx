@@ -156,27 +156,22 @@ function PublicApp({
           {/* Right: Night mode toggle + Home + User */}
           <div className="nav-right-btns">
             {user && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151' }}>
-                  {user.username}
-                </span>
-                <button
-                  onClick={() => logout()}
-                  style={{
-                    padding: '0.25rem 0.65rem',
-                    borderRadius: '6px',
-                    border: '1px solid #e2e4e9',
-                    background: '#fff',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    color: '#6b7280',
-                    fontFamily: 'inherit',
-                  }}
-                  title="Sign out"
-                >
-                  Sign out
-                </button>
-              </div>
+              <button
+                onClick={() => logout()}
+                style={{
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e4e9',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
+                  fontFamily: 'inherit',
+                }}
+                title="Sign out"
+              >
+                Sign out
+              </button>
             )}
             <button
               className={`nav-dark-btn nav-night-btn${darkMode ? ' active' : ''}`}
