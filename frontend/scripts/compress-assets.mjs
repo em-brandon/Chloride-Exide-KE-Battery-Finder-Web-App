@@ -15,6 +15,7 @@ const targets = [
   'sb-flooded-logo.png',
   'exide-agm-logo.png',
   'chlorideexidebrandlogo.png',
+  'rider.png',
 ]
 
 for (const filename of targets) {

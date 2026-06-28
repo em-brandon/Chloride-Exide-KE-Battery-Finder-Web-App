@@ -29,7 +29,6 @@ body {
 .page-wrapper {
   min-height: 100vh;
   overflow-x: hidden;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1366,6 +1365,22 @@ body {
   border-color: var(--red, #CC0000) !important;
   color: var(--red, #CC0000) !important;
 }
+
+/* Mobile wizard — step card slide transitions */
+@keyframes mvf-slide-from-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes mvf-slide-from-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.mvf-step-forward  { animation: mvf-slide-from-right 0.26s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+.mvf-step-backward { animation: mvf-slide-from-left  0.26s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+/* Mobile wizard — primary button haptic press */
+.mvf-btn-primary { transition: transform 0.1s ease; }
+.mvf-btn-primary:active:not(:disabled) { transform: scale(0.97); }
 
 /* Admin-specific skeleton — uses admin CSS tokens set via inline vars on AdminLayout */
 .adm-skeleton {

@@ -6,6 +6,7 @@ import { AccuracyBar } from '@/components/AccuracyBar'
 import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import riderImg from '@/assets/rider.webp'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
 import powerlastLogo from '@/assets/powerlast-logo.webp'
 import sparkLogo from '@/assets/spark-logo.webp'
@@ -252,6 +253,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   const [toastVisible, setToastVisible] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [animKey, setAnimKey] = useState(0)
+  const animDir = useRef<'forward' | 'backward'>('forward')
 
   const showToast = () => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -265,6 +268,17 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setYears([])
     setToastVisible(false)
     if (toastTimer.current) clearTimeout(toastTimer.current)
+  }
+
+  const advanceStep = (next: Step) => {
+    animDir.current = 'forward'
+    setAnimKey(k => k + 1)
+    setStep(next)
+  }
+  const retreatStep = (prev: Step) => {
+    animDir.current = 'backward'
+    setAnimKey(k => k + 1)
+    setStep(prev)
   }
 
   // Load makes on mount
@@ -303,7 +317,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     try {
       const data = await fetchModels(val)
       setModels(data)
-      setStep('model')
+      advanceStep('model')
     } catch {
       setError('Failed to load models.')
     } finally {
@@ -321,7 +335,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     try {
       const data = await fetchYears(make, val)
       setYears(data)
-      setStep('year')
+      advanceStep('year')
     } catch {
       setError('Failed to load years.')
     } finally {
@@ -334,13 +348,13 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const handleMakeContinue = () => {
     if (!make.trim()) return
     setError('')
-    setStep('model')
+    advanceStep('model')
   }
 
   const handleModelContinue = () => {
     if (!model.trim()) return
     setError('')
-    setStep('year')
+    advanceStep('year')
   }
 
   const handleYearContinue = () => {
@@ -349,7 +363,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       setError('Please enter a valid year between 1960 and 2030.')
       return
     }
-    if (year) { setError(''); setStep('details') }
+    if (year) { setError(''); advanceStep('details') }
   }
 
   const handleSubmit = async (skipDetails = false) => {
@@ -364,7 +378,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         stop_start: stopStart,
       })
       setResult(data)
-      setStep('result')
+      advanceStep('result')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
@@ -374,14 +388,14 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   const handleBack = () => {
     setError('')
-    if (step === 'model')   { setStep('make');    setModel('') }
-    if (step === 'year')    { setStep('model');   setYear('') }
-    if (step === 'details') { setStep('year');    setFuelType(''); setEngineCc('') }
-    if (step === 'result')  { setStep('details'); setResult(null) }
+    if (step === 'model')   { retreatStep('make');    setModel('') }
+    if (step === 'year')    { retreatStep('model');   setYear('') }
+    if (step === 'details') { retreatStep('year');    setFuelType(''); setEngineCc('') }
+    if (step === 'result')  { retreatStep('details'); setResult(null) }
   }
 
   const handleReset = () => {
-    setStep('make')
+    retreatStep('make')
     setMake(''); setModel(''); setYear(''); setFuelType(''); setEngineCc('')
     setModels([]); setYears([])
     setResult(null); setError('')
@@ -397,6 +411,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   }
 
   // ── Shared card + typography styles ──────────────────────────────
+
+  const animClass = animDir.current === 'forward' ? 'mvf-step-forward' : 'mvf-step-backward'
 
   const card: React.CSSProperties = {
     position: 'relative',
@@ -453,12 +469,12 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div style={{ flex: '1 1 0', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto', width: '100%' }}>
+    <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto', width: '100%' }}>
 
       {/* ── Step: Make ── */}
       {step === 'make' && (
         loading ? <SkeletonCard /> : (
-          <div style={card}>
+          <div key={animKey} className={animClass} style={card}>
             <StepStrip step="make" />
             <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
             <ProgressDots current={0} />
@@ -478,6 +494,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
                   <button
+                    className="mvf-btn-primary"
                     style={{ ...BTN_PRIMARY, opacity: make.trim() ? 1 : 0.45, cursor: make.trim() ? 'pointer' : 'not-allowed' }}
                     onClick={handleMakeContinue}
                     disabled={!make.trim()}
@@ -507,7 +524,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
       {/* ── Step: Model ── */}
       {step === 'model' && (
-        <div style={card}>
+        <div key={animKey} className={animClass} style={card}>
           <StepStrip step="model" />
           <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
           <ProgressDots current={1} />
@@ -575,6 +592,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             {typeMode && (
               <button
+                className="mvf-btn-primary"
                 style={{ ...BTN_PRIMARY, opacity: model.trim() ? 1 : 0.45, cursor: model.trim() ? 'pointer' : 'not-allowed' }}
                 onClick={handleModelContinue}
                 disabled={!model.trim()}
@@ -592,7 +610,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
       {/* ── Step: Year ── */}
       {step === 'year' && (
-        <div style={card}>
+        <div key={animKey} className={animClass} style={card}>
           <StepStrip step="year" />
           <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
           <ProgressDots current={2} />
@@ -629,6 +647,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             <button
+              className="mvf-btn-primary"
               style={{ ...BTN_PRIMARY, opacity: year ? 1 : 0.45, cursor: year ? 'pointer' : 'not-allowed' }}
               onClick={handleYearContinue}
               disabled={!year}
@@ -645,7 +664,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
       {/* ── Step: Details (optional) ── */}
       {step === 'details' && (
-        <div style={card}>
+        <div key={animKey} className={animClass} style={card}>
           <StepStrip step="details" />
           <ProgressDots current={3} />
           <p style={stepChip}>Step 4 of 4 — Optional</p>
@@ -752,6 +771,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <button
+              className="mvf-btn-primary"
               style={{ ...BTN_PRIMARY, opacity: submitting ? 0.7 : 1 }}
               onClick={() => handleSubmit(false)}
               disabled={submitting}
@@ -782,7 +802,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
         return (
           <>
-            <div style={card}>
+            <div key={animKey} className={animClass} style={card}>
 
               {/* ── Vehicle header ── */}
               <div style={{ marginBottom: '1rem' }}>
@@ -936,31 +956,54 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
               <div style={DIVIDER} />
 
-              {/* ── Dial-a-Battery — vertical list with phone animation ── */}
+              {/* ── Dial-a-Battery — numbers left, rider image right ── */}
               <div style={{
                 background: 'var(--bg, #f4f5f7)',
                 border: '1px solid var(--border, #e5e7eb)',
-                borderRadius: 10, padding: '0.75rem 1rem',
+                borderRadius: 10,
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'stretch',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
-                  <span className="dial-ring" style={{ display: 'inline-block', fontSize: '1.05rem', lineHeight: 1 }}>📞</span>
-                  <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text, #374151)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Dial a Battery
-                  </span>
+                {/* Left: title + phone numbers */}
+                <div style={{ flex: '1 1 0', padding: '0.75rem 0.5rem 0.75rem 1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                    <span className="dial-ring" style={{ display: 'inline-block', fontSize: '1.05rem', lineHeight: 1 }}>📞</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text, #374151)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Dial a Battery
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {[
+                      { code: 'KE', num: '+254 719 080 000', color: 'var(--red, #CC0000)' },
+                      { code: 'TZ', num: '+255 677 484 631', color: 'var(--text, #374151)' },
+                      { code: 'UG', num: '+256 200 400 900', color: '#16a34a' },
+                    ].map(({ code, num, color }) => (
+                      <div key={code} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <ReactCountryFlag countryCode={code} svg style={{ width: '1.15em', height: '1.15em', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color }}>
+                          {num}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  {[
-                    { code: 'KE', num: '+254 719 080 000', color: 'var(--red, #CC0000)' },
-                    { code: 'TZ', num: '+255 677 484 631', color: 'var(--text, #374151)' },
-                    { code: 'UG', num: '+256 200 400 900', color: '#16a34a' },
-                  ].map(({ code, num, color }) => (
-                    <div key={code} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <ReactCountryFlag countryCode={code} svg style={{ width: '1.15em', height: '1.15em', flexShrink: 0 }} />
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color }}>
-                        {num}
-                      </span>
-                    </div>
-                  ))}
+
+                {/* Right: rider image */}
+                <div style={{ width: 84, flexShrink: 0, position: 'relative' }}>
+                  <img
+                    src={riderImg}
+                    alt=""
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'center top',
+                    }}
+                  />
                 </div>
               </div>
 
