@@ -919,22 +919,31 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
               <div style={DIVIDER} />
 
-              {/* ── Brand identity — centered pill: logo | divider | tech + info ── */}
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '0.25rem 0 0.5rem' }}>
+              {/* ── Brand identity — full-width pill: logo | centre divider | tech rect + info ── */}
+              <div style={{ padding: '0.25rem 0 0.5rem' }}>
                 <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.75rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   background: 'var(--bg, #f4f5f7)',
                   border: '1px solid var(--border, #e2e4e9)',
                   borderRadius: '0.65rem',
-                  padding: '0.5rem 0.85rem',
+                  padding: '0.6rem 0.85rem',
                 }}>
                   {logo
                     ? <img src={logo} alt="" style={{ height: 40, width: 'auto', maxWidth: 90, objectFit: 'contain' }} />
                     : <CarBatteryIcon size={40} color={iconColor} />
                   }
-                  <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border, #e2e4e9)' }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span className={techClass(p.technology)} style={{ fontSize: '0.68rem' }}>
+                  <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border, #e2e4e9)', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '0.3rem 0.65rem',
+                      borderRadius: '0.4rem',
+                      border: `1px solid ${iconColor}40`,
+                      background: `${iconColor}12`,
+                      color: iconColor,
+                      fontSize: '0.72rem', fontWeight: 700,
+                      letterSpacing: '0.05em', textTransform: 'uppercase',
+                    }}>
                       {p.technology ?? 'MF'}
                     </span>
                     {TECH_DESC[p.technology ?? 'MF'] && (
