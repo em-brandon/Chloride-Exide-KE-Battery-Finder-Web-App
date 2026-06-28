@@ -17,6 +17,18 @@ import exideAgmLogo from '@/assets/exide-agm-logo.webp'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+function getBrandName(code: string): string {
+  const u = code.toUpperCase()
+  if (u.includes('MAXX'))           return 'Exide Maxx'
+  if (u.includes('POWERLAST'))      return 'Powerlast'
+  if (u.includes('SPARK'))          return 'Spark'
+  if (u.includes('SUPREME'))        return 'Supreme'
+  if (u.includes('SEBANG'))         return 'Sebang'
+  if (u.includes('CHLORIDE EXIDE')) return 'Chloride Exide'
+  if (u.includes('EXIDE'))          return 'Exide AGM'
+  return code.split(/[-_]/)[0] || code
+}
+
 function getBrandLogo(code: string): string | null {
   const u = code.toUpperCase()
   if (u.includes('MAXX'))           return exideMaxxLogo
@@ -63,6 +75,13 @@ function CarBatteryIcon({ size = 40, color = '#374151' }: { size?: number; color
       <line x1="30" y1="9" x2="30" y2="32" stroke={color} strokeWidth="1" strokeOpacity="0.2" />
     </svg>
   )
+}
+
+const TECH_DESC: Record<string, { title: string; body: string }> = {
+  MF:  { title: 'Maintenance Free (MF)', body: 'A sealed lead-acid battery — no water top-ups needed. The standard choice for most petrol and diesel vehicles.' },
+  EFB: { title: 'Enhanced Flooded Battery (EFB)', body: 'A step up from standard MF with more charge/discharge cycles. Required for vehicles with a basic Start-Stop system.' },
+  AGM: { title: 'Absorbent Glass Mat (AGM)', body: 'Premium sealed battery with electrolyte held in glass-fibre mats. Required for advanced Start-Stop, regenerative braking, or high electrical demand.' },
+  SB:  { title: 'Standard Flooded (SB)', body: 'Traditional lead-acid battery. Reliable and cost-effective for older or simpler vehicle electrical systems.' },
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -196,6 +215,69 @@ function SkeletonCard() {
   )
 }
 
+// ── Result skeleton — mirrors result card structure ───────────────────────────
+
+function ResultSkeleton() {
+  const sk = (style: React.CSSProperties) => (
+    <div className="skeleton-line" style={{ borderRadius: 6, ...style }} />
+  )
+  const divider = <div style={{ borderTop: '1px solid var(--border, #e5e7eb)', margin: '0.5rem 0' }} />
+  return (
+    <div style={{
+      position: 'relative',
+      background: 'var(--card-bg, #fff)',
+      border: '1px solid var(--border, #e2e4e9)',
+      borderRadius: '0.75rem',
+      padding: '1rem 1rem 0.9rem',
+      width: '100%',
+      boxSizing: 'border-box',
+      overflow: 'hidden',
+    }}>
+      {/* Step strip */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'var(--border, #e5e7eb)' }} />
+
+      {/* Vehicle header */}
+      {sk({ height: 9, width: '28%', marginBottom: '0.5rem' })}
+      {sk({ height: 17, width: '68%', marginBottom: '1rem' })}
+
+      {divider}
+
+      {/* Brand logo + tech badge */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0 0.5rem' }}>
+        {sk({ height: 52, width: 52, borderRadius: '50%' })}
+        {sk({ height: 18, width: 44, borderRadius: 999 })}
+      </div>
+
+      {/* Battery code box */}
+      {sk({ height: 68, width: '100%', borderRadius: 8, marginBottom: '0.5rem' })}
+
+      {/* Ah + CCA stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.6rem' }}>
+        {sk({ height: 72, borderRadius: 8 })}
+        {sk({ height: 72, borderRadius: 8 })}
+      </div>
+
+      {divider}
+
+      {/* Accuracy bar */}
+      {sk({ height: 34, width: '100%', borderRadius: 6 })}
+
+      {divider}
+
+      {/* Rate + Shop Now buttons */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        {sk({ height: 46, borderRadius: 8 })}
+        {sk({ height: 46, borderRadius: 8 })}
+      </div>
+
+      {divider}
+
+      {/* Dial-a-Battery block */}
+      {sk({ height: 84, width: '100%', borderRadius: 10 })}
+    </div>
+  )
+}
+
 // ── Mode toggle pill ──────────────────────────────────────────────────────────
 
 function ModeToggle({ typeMode, onToggle }: { typeMode: boolean; onToggle: () => void }) {
@@ -247,7 +329,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const [stopStart, setStopStart]               = useState(true)
   const [stopStartTooltip, setStopStartTooltip] = useState(false)
 
-  const [altVisible, setAltVisible]     = useState(true)
+  const [altVisible, setAltVisible]         = useState(true)
+  const [techTooltipOpen, setTechTooltipOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [copied, setCopied]             = useState(false)
 
@@ -377,6 +460,15 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         fuel_type:  !skipDetails && fuelType  ? fuelType  : null,
         stop_start: stopStart,
       })
+      const logoSrc = getBrandLogo(data.primary.battery_code)
+      if (logoSrc) {
+        await new Promise<void>(resolve => {
+          const img = new Image()
+          img.onload = () => resolve()
+          img.onerror = () => resolve()
+          img.src = logoSrc
+        })
+      }
       setResult(data)
       advanceStep('result')
     } catch (err) {
@@ -400,7 +492,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setModels([]); setYears([])
     setResult(null); setError('')
     setStopStart(true); setStopStartTooltip(false)
-    setAltVisible(true)
+    setAltVisible(true); setTechTooltipOpen(false)
   }
 
   const handleCopy = () => {
@@ -664,6 +756,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
       {/* ── Step: Details (optional) ── */}
       {step === 'details' && (
+        submitting ? <ResultSkeleton /> :
         <div key={animKey} className={animClass} style={card}>
           <StepStrip step="details" />
           <ProgressDots current={3} />
@@ -772,16 +865,14 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <button
               className="mvf-btn-primary"
-              style={{ ...BTN_PRIMARY, opacity: submitting ? 0.7 : 1 }}
+              style={BTN_PRIMARY}
               onClick={() => handleSubmit(false)}
-              disabled={submitting}
             >
-              {submitting ? 'Finding battery…' : 'Find My Battery'}
+              Find My Battery
             </button>
             <button
-              style={{ ...BTN_GHOST, opacity: submitting ? 0.5 : 1, color: 'var(--blue, #1A35C0)', borderColor: 'var(--blue, #1A35C0)' }}
+              style={{ ...BTN_GHOST, color: 'var(--blue, #1A35C0)', borderColor: 'var(--blue, #1A35C0)' }}
               onClick={() => handleSubmit(true)}
-              disabled={submitting}
             >
               Skip &amp; Find Battery
             </button>
@@ -828,16 +919,60 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
               <div style={DIVIDER} />
 
-              {/* ── Brand logo / icon — centered ── */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', padding: '0.25rem 0 0.5rem' }}>
-                {logo
-                  ? <img src={logo} alt="" style={{ height: 52, width: 'auto', maxWidth: 100, objectFit: 'contain' }} />
-                  : <CarBatteryIcon size={52} color={iconColor} />
-                }
-                <span className={techClass(p.technology)} style={{ fontSize: '0.68rem' }}>
-                  {p.technology ?? 'MF'}
-                </span>
+              {/* ── Brand identity — centered pill: logo | divider | tech + info ── */}
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '0.25rem 0 0.5rem' }}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.75rem',
+                  background: 'var(--bg, #f4f5f7)',
+                  border: '1px solid var(--border, #e2e4e9)',
+                  borderRadius: '0.65rem',
+                  padding: '0.5rem 0.85rem',
+                }}>
+                  {logo
+                    ? <img src={logo} alt="" style={{ height: 40, width: 'auto', maxWidth: 90, objectFit: 'contain' }} />
+                    : <CarBatteryIcon size={40} color={iconColor} />
+                  }
+                  <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border, #e2e4e9)' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span className={techClass(p.technology)} style={{ fontSize: '0.68rem' }}>
+                      {p.technology ?? 'MF'}
+                    </span>
+                    {TECH_DESC[p.technology ?? 'MF'] && (
+                      <button
+                        type="button"
+                        className="mvf-info-btn"
+                        onClick={() => setTechTooltipOpen(v => !v)}
+                        style={{
+                          width: 20, height: 20, borderRadius: '50%',
+                          border: '1.5px solid var(--border, #e2e4e9)',
+                          background: 'transparent', color: 'var(--muted, #6b7280)',
+                          fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          fontFamily: 'inherit', flexShrink: 0, lineHeight: 1,
+                        }}
+                        aria-label={`What is ${p.technology ?? 'MF'}?`}
+                      >?</button>
+                    )}
+                  </div>
+                </div>
               </div>
+              {techTooltipOpen && (() => {
+                const desc = TECH_DESC[p.technology ?? 'MF']
+                if (!desc) return null
+                return (
+                  <div style={{
+                    background: 'var(--card-bg, #fff)',
+                    border: '1px solid var(--border, #e2e4e9)',
+                    borderRadius: '0.5rem', padding: '0.6rem 0.75rem',
+                    fontSize: '0.72rem', color: 'var(--text, #374151)',
+                    lineHeight: 1.5, marginBottom: '0.35rem',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  }}>
+                    <strong>{desc.title}</strong>
+                    <p style={{ margin: '0.25rem 0 0' }}>{desc.body}</p>
+                  </div>
+                )
+              })()}
 
               {/* ── Battery code — above stats, full width ── */}
               <div style={{
@@ -846,16 +981,17 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 padding: '0.65rem 0.85rem',
                 marginBottom: '0.5rem',
                 border: '1px solid var(--border, #e2e4e9)',
+                display: 'flex', flexDirection: 'column', gap: '0.5rem',
               }}>
                 <div style={{
                   fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
                   color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
                   overflowWrap: 'break-word',
-                  marginBottom: p.battery_code ? '0.5rem' : 0,
                 }}>
                   {p.battery_code || '—'}
                 </div>
                 {p.battery_code && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button
                     onClick={handleCopy}
                     style={{
@@ -874,6 +1010,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     {copied ? <ClipboardCheck size={13} /> : <Clipboard size={13} />}
                     {copied ? 'Copied!' : 'Copy code'}
                   </button>
+                  </div>
                 )}
               </div>
 
