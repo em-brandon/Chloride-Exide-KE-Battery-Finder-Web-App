@@ -24,7 +24,7 @@ import {
   type CoverageInfo,
 } from '@/lib/adminApi'
 import AdminLayout from '@/components/admin/AdminLayout'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const R = '#CC0000'
@@ -346,7 +346,25 @@ export default function AdminDashboard() {
 
       {loading && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src={chlorideExideLogo} alt="Chloride Exide" className="loader-battery-svg" style={{ width: 110, height: 'auto' }} />
+          <div className="ce-loader">
+            <div className="ce-loader__ring">
+              <svg className="ce-loader__svg ce-loader__svg--outer" viewBox="0 0 120 120">
+                <defs>
+                  <linearGradient id="ce-ringC" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="var(--ce-blue)" />
+                    <stop offset="1" stopColor="var(--ce-accent)" />
+                  </linearGradient>
+                </defs>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ce-ringC)"
+                        strokeWidth="5" strokeLinecap="round" strokeDasharray="96 243" />
+              </svg>
+              <svg className="ce-loader__svg ce-loader__svg--inner" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
+                        strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
+              </svg>
+              <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
+            </div>
+          </div>
         </div>
       )}
 
