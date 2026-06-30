@@ -8,6 +8,7 @@ import { FeedbackModal } from '@/components/FeedbackModal'
 import { Search, MousePointerClick, Keyboard, Copy, Check, Car, Battery, Phone } from 'lucide-react'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import ReactCountryFlag from 'react-country-flag'
+import { StartStopIcon } from '@/components/ui/StartStopIcon'
 import exideMaxxLogo    from '@/assets/exide-max-logo.webp'
 import sparkLogo        from '@/assets/spark-logo.webp'
 import powerlastLogo    from '@/assets/powerlast-logo.webp'
@@ -937,6 +938,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
         <div className="form-group full" style={{ marginTop: '0.15rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} ref={istopTooltipRef}>
+              <StartStopIcon size={26} />
               <span className="form-label" style={{ marginBottom: 0 }}>Has Start-Stop system?</span>
               <div style={{ position: 'relative' }}>
                 <button

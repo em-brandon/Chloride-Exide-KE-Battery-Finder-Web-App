@@ -863,48 +863,84 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
               <div style={DIVIDER} />
 
-              {/* ── Brand identity — full-width pill: logo | centre divider | tech rect + info ── */}
-              <div style={{ padding: '0.25rem 0 0.5rem' }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  background: 'var(--bg, #f4f5f7)',
-                  border: '1px solid var(--border, #e2e4e9)',
-                  borderRadius: '0.65rem',
-                  padding: '0.6rem 0.85rem',
-                }}>
+              {/* ── Brand + Battery code (merged card) ── */}
+              <div style={{
+                background: 'var(--bg, #f4f5f7)',
+                border: '1px solid var(--border, #e2e4e9)',
+                borderRadius: '0.65rem',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '0.5rem',
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+              }}>
+                {/* Logo or fallback battery icon */}
+                <div style={{ flexShrink: 0 }}>
                   {logo
-                    ? <img src={logo} alt="" style={{ height: 40, width: 'auto', maxWidth: 90, objectFit: 'contain' }} />
+                    ? <img src={logo} alt="" style={{ height: 40, width: 'auto', maxWidth: 72, objectFit: 'contain' }} />
                     : <CarBatteryIcon size={40} color={iconColor} />
                   }
-                  <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border, #e2e4e9)', flexShrink: 0 }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                </div>
+                {/* Vertical divider */}
+                <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border, #e2e4e9)', flexShrink: 0 }} />
+                {/* Code + tech + copy */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                    <div style={{
+                      fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
+                      color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
+                      overflowWrap: 'break-word', minWidth: 0,
+                    }}>
+                      {p.battery_code || '—'}
+                    </div>
                     <span style={{
-                      display: 'inline-block',
-                      padding: '0.3rem 0.65rem',
+                      flexShrink: 0,
+                      padding: '0.25rem 0.55rem',
                       borderRadius: '0.4rem',
                       border: `1px solid ${iconColor}40`,
                       background: `${iconColor}12`,
                       color: iconColor,
-                      fontSize: '0.72rem', fontWeight: 700,
-                      letterSpacing: '0.05em', textTransform: 'uppercase',
+                      fontSize: '0.68rem', fontWeight: 700,
+                      letterSpacing: '0.05em', textTransform: 'uppercase' as const,
                     }}>
                       {p.technology ?? 'MF'}
                     </span>
-                    {TECH_DESC[p.technology ?? 'MF'] && (
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                    {TECH_DESC[p.technology ?? 'MF']
+                      ? <button
+                          type="button"
+                          className="mvf-info-btn"
+                          onClick={() => setTechTooltipOpen(v => !v)}
+                          style={{
+                            width: 18, height: 18, borderRadius: '50%',
+                            border: '1.5px solid var(--border, #e2e4e9)',
+                            background: 'transparent', color: 'var(--muted, #6b7280)',
+                            fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            fontFamily: 'inherit', flexShrink: 0, lineHeight: 1,
+                          }}
+                          aria-label={`What is ${p.technology ?? 'MF'}?`}
+                        >?</button>
+                      : <span />
+                    }
+                    {p.battery_code && (
                       <button
-                        type="button"
-                        className="mvf-info-btn"
-                        onClick={() => setTechTooltipOpen(v => !v)}
+                        onClick={handleCopy}
                         style={{
-                          width: 20, height: 20, borderRadius: '50%',
-                          border: '1.5px solid var(--border, #e2e4e9)',
-                          background: 'transparent', color: 'var(--muted, #6b7280)',
-                          fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer',
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          fontFamily: 'inherit', flexShrink: 0, lineHeight: 1,
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                          padding: '0.22rem 0.55rem',
+                          borderRadius: '0.4rem',
+                          border: '1px solid var(--border, #e2e4e9)',
+                          background: 'var(--card-bg, #fff)',
+                          cursor: 'pointer',
+                          color: copied ? '#16a34a' : 'var(--muted, #6b7280)',
+                          fontSize: '0.7rem', fontWeight: 600,
+                          fontFamily: 'inherit',
+                          transition: 'color 0.2s',
                         }}
-                        aria-label={`What is ${p.technology ?? 'MF'}?`}
-                      >?</button>
+                      >
+                        {copied ? <ClipboardCheck size={12} /> : <Clipboard size={12} />}
+                        {copied ? 'Copied!' : 'Copy'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -926,46 +962,6 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                   </div>
                 )
               })()}
-
-              {/* ── Battery code — above stats, full width ── */}
-              <div style={{
-                background: 'var(--bg, #f4f5f7)',
-                borderRadius: '0.5rem',
-                padding: '0.65rem 0.85rem',
-                marginBottom: '0.5rem',
-                border: '1px solid var(--border, #e2e4e9)',
-                display: 'flex', flexDirection: 'column', gap: '0.5rem',
-              }}>
-                <div style={{
-                  fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
-                  color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
-                  overflowWrap: 'break-word',
-                }}>
-                  {p.battery_code || '—'}
-                </div>
-                {p.battery_code && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={handleCopy}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                      padding: '0.28rem 0.65rem',
-                      borderRadius: '0.4rem',
-                      border: '1px solid var(--border, #e2e4e9)',
-                      background: 'var(--card-bg, #fff)',
-                      cursor: 'pointer',
-                      color: copied ? '#16a34a' : 'var(--muted, #6b7280)',
-                      fontSize: '0.72rem', fontWeight: 600,
-                      fontFamily: 'inherit',
-                      transition: 'color 0.2s',
-                    }}
-                  >
-                    {copied ? <ClipboardCheck size={13} /> : <Clipboard size={13} />}
-                    {copied ? 'Copied!' : 'Copy code'}
-                  </button>
-                  </div>
-                )}
-              </div>
 
               {/* ── Stats grid — Ah + CCA ── */}
               <div style={{
