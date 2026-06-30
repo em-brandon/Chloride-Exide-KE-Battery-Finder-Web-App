@@ -7,7 +7,7 @@ import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } f
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import riderImg from '@/assets/rider.webp'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
 import powerlastLogo from '@/assets/powerlast-logo.webp'
 import sparkLogo from '@/assets/spark-logo.webp'
@@ -224,7 +224,7 @@ function LoaderCard({ minHeight = 220 }: { minHeight?: number }) {
             <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
                     strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
           </svg>
-          <img src={chlorideExideLogo} alt="" className="ce-loader__badge" />
+          <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
         </div>
       </div>
     </div>

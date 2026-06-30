@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import chlorideExideBadge from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
 
 const LOADER_MIN_MS = 2500
 const startMs = performance.now()

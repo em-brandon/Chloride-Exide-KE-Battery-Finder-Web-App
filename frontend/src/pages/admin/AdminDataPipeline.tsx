@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
 import {
   ClipboardDocumentListIcon,
   CloudArrowUpIcon,
@@ -316,7 +316,7 @@ function WebValidateLoadingOverlay() {
             <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
                     strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
           </svg>
-          <img src={chlorideExideLogo} alt="" className="ce-loader__badge" />
+          <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
         </div>
       </div>
     </div>
@@ -1025,7 +1025,7 @@ function WebValidateTab() {
                   <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
                           strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
                 </svg>
-                <img src={chlorideExideLogo} alt="" className="ce-loader__badge" />
+                <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
               </div>
             </div>
           ) : (

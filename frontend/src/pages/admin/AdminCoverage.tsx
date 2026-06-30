@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import AdminLayout from '@/components/admin/AdminLayout'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
 import {
   getWebValidateCoverage,
   getWebValidateMatched,
@@ -141,7 +141,7 @@ export default function AdminCoverage() {
                 <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
                         strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
               </svg>
-              <img src={chlorideExideLogo} alt="" className="ce-loader__badge" />
+              <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
             </div>
           </div>
         </div>
