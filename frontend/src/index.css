@@ -249,6 +249,7 @@ body {
 }
 .ce-loader__badge {
   width: 84px; height: 84px; object-fit: contain;
+  border-radius: 12px;
   filter: drop-shadow(0 12px 22px rgba(18, 20, 110, .22));
   animation: ce-breathe calc(3.4s / var(--ce-spd)) ease-in-out infinite;
 }
