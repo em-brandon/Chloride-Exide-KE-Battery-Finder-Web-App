@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchMakes, fetchModels, fetchYears, fetchRecommendation } from '@/lib/api'
+import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, friendlyError } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { AccuracyBar } from '@/components/AccuracyBar'
@@ -321,7 +321,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   useEffect(() => {
     fetchMakes()
       .then(data => { setMakes(data); onMakesLoaded?.() })
-      .catch(() => setError('Could not load vehicles. Please check your connection.'))
+      .catch((err) => setError(friendlyError(err)))
       .finally(() => setLoading(false))
   }, [onMakesLoaded])
 
@@ -354,8 +354,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       const data = await fetchModels(val)
       setModels(data)
       advanceStep('model')
-    } catch {
-      setError('Failed to load models.')
+    } catch (err) {
+      setError(friendlyError(err))
     } finally {
       setLoading(false)
     }
@@ -372,8 +372,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       const data = await fetchYears(make, val)
       setYears(data)
       advanceStep('year')
-    } catch {
-      setError('Failed to load years.')
+    } catch (err) {
+      setError(friendlyError(err))
     } finally {
       setLoading(false)
     }
@@ -425,7 +425,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
       setResult(data)
       advanceStep('result')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      setError(friendlyError(err))
     } finally {
       setSubmitting(false)
     }
@@ -1071,16 +1071,15 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                       Dial a Battery
                     </span>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.15rem 0.55rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.25rem 0.75rem' }}>
                     {[
                       { code: 'KE', num: '+254 719 080 000' },
                       { code: 'TZ', num: '+255 677 484 631' },
                       { code: 'UG', num: '+256 200 400 900' },
-                    ].map(({ code, num }, i, arr) => (
+                    ].map(({ code, num }) => (
                       <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}>
                         <ReactCountryFlag countryCode={code} svg style={{ width: '1em', height: '1em', flexShrink: 0 }} />
-                        <span style={{ fontSize: '0.76rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>{num}</span>
-                        {i < arr.length - 1 && <span style={{ fontSize: '0.6rem', color: '#fff', opacity: 0.45 }}>·</span>}
+                        <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>{num}</span>
                       </span>
                     ))}
                   </div>

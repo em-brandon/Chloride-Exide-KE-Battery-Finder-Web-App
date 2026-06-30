@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs } from '@/lib/api'
+import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs, friendlyError } from '@/lib/api'
 import type { BatterySpecResult } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
 import { useToast, Toaster } from '@/components/Notification'
@@ -538,8 +538,8 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
         onMakesLoaded?.()
         onFormReady?.()
       })
-      .catch(() => {
-        setErrorMsg('Could not load vehicle makes. Is the backend running?')
+      .catch((err) => {
+        setErrorMsg(friendlyError(err))
         setFormReady(true)
         onMakesLoaded?.()
         onFormReady?.()
@@ -561,8 +561,8 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
     try {
       const data = await fetchModels(val)
       setModels(data)
-    } catch {
-      pushToast('error', 'Failed to load models', 'Check that the backend is running.')
+    } catch (err) {
+      pushToast('error', 'Failed to load models', friendlyError(err))
     } finally {
       setLoadingModels(false)
     }
@@ -580,8 +580,8 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
     try {
       const data = await fetchYears(make, val)
       setYears(data)
-    } catch {
-      pushToast('error', 'Failed to load years', 'Check that the backend is running.')
+    } catch (err) {
+      pushToast('error', 'Failed to load years', friendlyError(err))
     } finally {
       setLoadingYears(false)
     }
@@ -666,7 +666,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       setSubmitted(true)
       pushToast('success', 'Battery found!')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      const msg = friendlyError(err)
       setErrorMsg(msg)
       pushToast('error', 'Recommendation failed', msg)
     } finally {

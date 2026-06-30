@@ -8,6 +8,32 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export function friendlyError(err: unknown): string {
+  if (err instanceof DOMException && err.name === 'AbortError')
+    return 'The request timed out. Please check your connection and try again.'
+
+  if (err instanceof TypeError && (
+    err.message.includes('fetch') ||
+    err.message.includes('NetworkError') ||
+    err.message.includes('network')
+  )) return 'No internet connection. Please check your network and try again.'
+
+  if (err instanceof Error) {
+    const msg = err.message
+    if (msg.includes('HTTP 429')) return 'Too many requests — please wait a moment and try again.'
+    if (msg.includes('HTTP 502') || msg.includes('HTTP 503') || msg.includes('HTTP 504'))
+      return 'The server is temporarily unavailable. Please try again in a moment.'
+    if (msg.includes('HTTP 500')) return 'A server error occurred. Please try again.'
+    if (msg.includes('HTTP 422')) return 'Invalid request. Please check your inputs and try again.'
+    if (msg.includes('HTTP 401') || msg.includes('HTTP 403'))
+      return 'Access denied. Please refresh the page and try again.'
+    if (msg.includes('HTTP 404')) return 'No data found for the selected vehicle.'
+    if (msg) return msg
+  }
+
+  return 'Something went wrong. Please try again.'
+}
+
 export async function fetchMakes(): Promise<string[]> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 8000)
