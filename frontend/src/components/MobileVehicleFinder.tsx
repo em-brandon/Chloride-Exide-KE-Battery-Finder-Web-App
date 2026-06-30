@@ -943,6 +943,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                         {copied ? 'Copied!' : 'Copy'}
                       </button>
                     </div>
+                  )}
                 </div>
               </div>
               {techTooltipOpen && (() => {
