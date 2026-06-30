@@ -872,57 +872,56 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 marginBottom: '0.5rem',
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
               }}>
-                {/* Logo or fallback battery icon */}
-                <div style={{ flexShrink: 0 }}>
+                {/* Left column: logo + tech badge + ? stacked */}
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
                   {logo
                     ? <img src={logo} alt="" style={{ height: 40, width: 'auto', maxWidth: 72, objectFit: 'contain' }} />
                     : <CarBatteryIcon size={40} color={iconColor} />
                   }
-                </div>
-                {/* Vertical divider */}
-                <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border, #e2e4e9)', flexShrink: 0 }} />
-                {/* Code + tech + copy */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
-                    <div style={{
-                      fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
-                      color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
-                      overflowWrap: 'break-word', minWidth: 0,
-                    }}>
-                      {p.battery_code || '—'}
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <span style={{
-                      flexShrink: 0,
-                      padding: '0.25rem 0.55rem',
+                      padding: '0.22rem 0.5rem',
                       borderRadius: '0.4rem',
                       border: `1px solid ${iconColor}40`,
                       background: `${iconColor}12`,
                       color: iconColor,
-                      fontSize: '0.68rem', fontWeight: 700,
+                      fontSize: '0.65rem', fontWeight: 700,
                       letterSpacing: '0.05em', textTransform: 'uppercase' as const,
+                      whiteSpace: 'nowrap',
                     }}>
                       {p.technology ?? 'MF'}
                     </span>
+                    {TECH_DESC[p.technology ?? 'MF'] && (
+                      <button
+                        type="button"
+                        className="mvf-info-btn"
+                        onClick={() => setTechTooltipOpen(v => !v)}
+                        style={{
+                          width: 16, height: 16, borderRadius: '50%',
+                          border: '1.5px solid var(--border, #e2e4e9)',
+                          background: 'transparent', color: 'var(--muted, #6b7280)',
+                          fontSize: '0.58rem', fontWeight: 700, cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          fontFamily: 'inherit', flexShrink: 0, lineHeight: 1,
+                        }}
+                        aria-label={`What is ${p.technology ?? 'MF'}?`}
+                      >?</button>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
-                    {TECH_DESC[p.technology ?? 'MF']
-                      ? <button
-                          type="button"
-                          className="mvf-info-btn"
-                          onClick={() => setTechTooltipOpen(v => !v)}
-                          style={{
-                            width: 18, height: 18, borderRadius: '50%',
-                            border: '1.5px solid var(--border, #e2e4e9)',
-                            background: 'transparent', color: 'var(--muted, #6b7280)',
-                            fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            fontFamily: 'inherit', flexShrink: 0, lineHeight: 1,
-                          }}
-                          aria-label={`What is ${p.technology ?? 'MF'}?`}
-                        >?</button>
-                      : <span />
-                    }
-                    {p.battery_code && (
+                </div>
+                {/* Vertical divider */}
+                <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border, #e2e4e9)', flexShrink: 0 }} />
+                {/* Right: battery code + copy */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
+                    color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
+                    overflowWrap: 'break-word',
+                  }}>
+                    {p.battery_code || '—'}
+                  </div>
+                  {p.battery_code && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button
                         onClick={handleCopy}
                         style={{
@@ -941,8 +940,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                         {copied ? <ClipboardCheck size={12} /> : <Clipboard size={12} />}
                         {copied ? 'Copied!' : 'Copy'}
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
               {techTooltipOpen && (() => {
