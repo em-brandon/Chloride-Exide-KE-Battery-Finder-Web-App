@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs, friendlyError } from '@/lib/api'
 import type { BatterySpecResult } from '@/lib/api'
 import { StartStopIcon } from '@/components/ui/StartStopIcon'
+import { OrbitLoader } from '@/components/ui/OrbitLoader'
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { AccuracyBar } from '@/components/AccuracyBar'
@@ -9,7 +10,6 @@ import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } f
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import riderImg from '@/assets/rider.webp'
-import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
 import powerlastLogo from '@/assets/powerlast-logo.webp'
 import sparkLogo from '@/assets/spark-logo.webp'
@@ -199,25 +199,7 @@ function LoaderCard({ minHeight = 220 }: { minHeight?: number }) {
       minHeight,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div className="ce-loader">
-        <div className="ce-loader__ring">
-          <svg className="ce-loader__svg ce-loader__svg--outer" viewBox="0 0 120 120">
-            <defs>
-              <linearGradient id="ce-ringB" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="var(--ce-blue)" />
-                <stop offset="1" stopColor="var(--ce-accent)" />
-              </linearGradient>
-            </defs>
-            <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ce-ringB)"
-                    strokeWidth="5" strokeLinecap="round" strokeDasharray="96 243" />
-          </svg>
-          <svg className="ce-loader__svg ce-loader__svg--inner" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
-                    strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
-          </svg>
-          <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
-        </div>
-      </div>
+      <OrbitLoader gradientId="ce-ringB" />
     </div>
   )
 }

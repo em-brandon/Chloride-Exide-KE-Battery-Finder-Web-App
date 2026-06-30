@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
+import { OrbitLoader } from '@/components/ui/OrbitLoader'
 import {
   ClipboardDocumentListIcon,
   CloudArrowUpIcon,
@@ -300,25 +300,7 @@ function WebValidateLoadingOverlay() {
       background: 'var(--adm-card-bg)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div className="ce-loader">
-        <div className="ce-loader__ring">
-          <svg className="ce-loader__svg ce-loader__svg--outer" viewBox="0 0 120 120">
-            <defs>
-              <linearGradient id="ce-ringE" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="var(--ce-blue)" />
-                <stop offset="1" stopColor="var(--ce-accent)" />
-              </linearGradient>
-            </defs>
-            <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ce-ringE)"
-                    strokeWidth="5" strokeLinecap="round" strokeDasharray="96 243" />
-          </svg>
-          <svg className="ce-loader__svg ce-loader__svg--inner" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
-                    strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
-          </svg>
-          <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
-        </div>
-      </div>
+      <OrbitLoader gradientId="ce-ringE" />
     </div>
   )
 }
@@ -1009,25 +991,7 @@ function WebValidateTab() {
         {!isRunning && !isPaused ? (
           /* ── Idle state: Phase 1 + conditional Phase 2 buttons ── */
           (loadingRun || loadingRunP2) ? (
-            <div className="ce-loader" style={{ '--ce-scale': '0.38' } as React.CSSProperties}>
-              <div className="ce-loader__ring">
-                <svg className="ce-loader__svg ce-loader__svg--outer" viewBox="0 0 120 120">
-                  <defs>
-                    <linearGradient id="ce-ringF" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0" stopColor="var(--ce-blue)" />
-                      <stop offset="1" stopColor="var(--ce-accent)" />
-                    </linearGradient>
-                  </defs>
-                  <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ce-ringF)"
-                          strokeWidth="5" strokeLinecap="round" strokeDasharray="96 243" />
-                </svg>
-                <svg className="ce-loader__svg ce-loader__svg--inner" viewBox="0 0 120 120">
-                  <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
-                          strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
-                </svg>
-                <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
-              </div>
-            </div>
+            <OrbitLoader gradientId="ce-ringF" scale={0.38} />
           ) : (
           <>
             <button
