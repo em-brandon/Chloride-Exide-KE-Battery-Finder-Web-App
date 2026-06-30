@@ -1156,6 +1156,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         matchConfidence={result?.confidence}
         matchType={result?.match_type}
         recommendedBattery={result?.primary?.battery_code ?? undefined}
+        darkMode={darkMode}
       />
 
     </div>

@@ -36,6 +36,7 @@ interface FeedbackModalProps {
   matchConfidence?: number      // 0-100
   matchType?: string            // e.g. 'exact_match'
   recommendedBattery?: string   // primary battery code returned
+  darkMode?: boolean
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ const BLANK_WRONG: WrongPart = {
   other:        false,
 }
 
-export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchConfidence, matchType, recommendedBattery }: FeedbackModalProps) {
+export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchConfidence, matchType, recommendedBattery, darkMode = false }: FeedbackModalProps) {
   const { user } = useTestUser()
   const [satisfaction, setSatisfaction] = useState(0)
   const [accuracy, setAccuracy]         = useState<Accuracy>('')
@@ -224,12 +225,22 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
 
           {/* Identity badge */}
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.35rem 0.7rem', marginBottom: '0.25rem' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', borderRadius: 8, padding: '0.35rem 0.7rem', marginBottom: '0.25rem',
+              color:      darkMode ? '#4ade80'                   : '#15803d',
+              background: darkMode ? 'rgba(74,222,128,0.1)'     : '#f0fdf4',
+              border:     `1px solid ${darkMode ? 'rgba(74,222,128,0.25)' : '#bbf7d0'}`,
+            }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg>
               Submitting as <strong style={{ marginLeft: 2 }}>{user.username}</strong>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#6b7280', background: '#f9fafb', border: '1px solid #e2e4e9', borderRadius: 8, padding: '0.35rem 0.7rem', marginBottom: '0.25rem' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', borderRadius: 8, padding: '0.35rem 0.7rem', marginBottom: '0.25rem',
+              color:      darkMode ? 'rgba(229,231,235,0.6)' : '#6b7280',
+              background: darkMode ? '#252836'               : '#f9fafb',
+              border:     `1px solid ${darkMode ? '#3a3f55' : '#e2e4e9'}`,
+            }}>
               Submitting anonymously —{' '}
               <a href="/login" target="_blank" rel="noopener noreferrer" style={{ color: '#CC0000', fontWeight: 600, textDecoration: 'none' }}>
                 Sign in
@@ -279,7 +290,7 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
           {(accuracy === 'close' || accuracy === 'wrong') && (
             <fieldset
               className="fb-fieldset"
-              style={wrongPartsError ? { border: '1px solid #dc2626', borderRadius: 8, padding: '0.5rem', background: '#fef2f2' } : undefined}
+              style={wrongPartsError ? { border: '1px solid #dc2626', borderRadius: 8, padding: '0.5rem', background: darkMode ? 'rgba(220,38,38,0.12)' : '#fef2f2' } : undefined}
             >
               <legend className="form-label" style={{ marginBottom: '0.5rem' }}>
                 3. Which part was incorrect?{' '}
@@ -344,5 +355,20 @@ export function FeedbackModal({ open, onClose, vehicleLabel, inputType, matchCon
     </div>
   )
 
-  return createPortal(drawer, document.body)
+  const darkVars: React.CSSProperties = {
+    '--text':     'rgba(229, 231, 235, 0.95)',
+    '--border':   '#2a2d3a',
+    '--bg':       '#1a1d26',
+    '--card-bg':  '#252836',
+    '--card-bg2': '#1a1d26',
+    '--muted':    '#6b7280',
+    '--muted2':   'rgba(229,231,235,0.4)',
+  } as React.CSSProperties
+
+  return createPortal(
+    darkMode
+      ? <div className="page-dark" style={darkVars}>{drawer}</div>
+      : drawer,
+    document.body
+  )
 }
