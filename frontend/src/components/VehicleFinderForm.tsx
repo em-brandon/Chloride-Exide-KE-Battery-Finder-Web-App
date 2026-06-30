@@ -15,7 +15,8 @@ import supremeLogo      from '@/assets/supreme-logo.webp'
 import sebangLogo       from '@/assets/sebang-logo.webp'
 import sbFloodedLogo    from '@/assets/sb-flooded-logo.webp'
 import exideAgmLogo     from '@/assets/exide-agm-logo.webp'
-import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideLogo  from '@/assets/chlorideexidebrandlogo.webp'
+import chlorideExideBadge from '@/assets/chloride-exide-badge.webp'
 
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
@@ -1065,8 +1066,25 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
       {/* Result column on the right */}
       {searchTab === 'vehicle' && submitting && !result && (
         <div className="result-side-card result-loader-card">
-          <CarBatteryIcon size={52} color="var(--red)" />
-          <p className="result-loader-text">Finding your battery…</p>
+          <div className="ce-loader">
+            <div className="ce-loader__ring">
+              <svg className="ce-loader__svg ce-loader__svg--outer" viewBox="0 0 120 120">
+                <defs>
+                  <linearGradient id="ce-ringG" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="var(--ce-blue)" />
+                    <stop offset="1" stopColor="var(--ce-accent)" />
+                  </linearGradient>
+                </defs>
+                <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ce-ringG)"
+                        strokeWidth="5" strokeLinecap="round" strokeDasharray="96 243" />
+              </svg>
+              <svg className="ce-loader__svg ce-loader__svg--inner" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
+                        strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
+              </svg>
+              <img src={chlorideExideBadge} alt="" className="ce-loader__badge" />
+            </div>
+          </div>
         </div>
       )}
       {searchTab === 'vehicle' && result && (
