@@ -246,19 +246,20 @@ function HealthCard({ status, latency_ms, pool_size, pool_checked_out, pool_usag
 }
 
 // ── ActionCard ────────────────────────────────────────────────────────────────
-function ActionCard({ icon, label, desc, onClick, href, download, primary }: {
+function ActionCard({ icon, label, desc, onClick, href, download, primary, loading }: {
   icon: React.ReactNode; label: string; desc: string;
-  onClick?: () => void; href?: string; download?: boolean; primary?: boolean
+  onClick?: () => void; href?: string; download?: boolean; primary?: boolean; loading?: boolean
 }) {
   const base: React.CSSProperties = {
     ...CARD,
     padding: '1rem 1.2rem',
     display: 'flex', alignItems: 'center', gap: '1rem',
-    textDecoration: 'none', cursor: 'pointer', border: '1px solid var(--adm-card-border)',
+    textDecoration: 'none', cursor: loading ? 'default' : 'pointer', border: '1px solid var(--adm-card-border)',
     width: '100%', textAlign: 'left',
     borderLeft: `4px solid ${primary ? R : 'var(--adm-card-border)'}`,
     transition: 'box-shadow 0.15s, border-color 0.15s',
     background: 'var(--adm-card-bg)',
+    opacity: loading ? 0.7 : 1,
   }
   const iconWrap: React.CSSProperties = {
     width: 38, height: 38, borderRadius: 10, background: primary ? '#fff5f5' : 'var(--adm-subtle-bg)',
@@ -269,21 +270,28 @@ function ActionCard({ icon, label, desc, onClick, href, download, primary }: {
       <span style={iconWrap}>{icon}</span>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: primary ? R : 'var(--adm-text-1)' }}>{label}</div>
-        <div style={{ fontSize: '0.72rem', color: 'var(--adm-text-2)', marginTop: '0.1rem' }}>{desc}</div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--adm-text-2)', marginTop: '0.1rem' }}>
+          {loading ? 'Refreshing…' : desc}
+        </div>
       </div>
-      <ChevronRightIcon style={{ width: 16, height: 16, color: 'rgba(107,114,128,0.4)' }} />
+      {loading
+        ? <ArrowPathIcon style={{ width: 16, height: 16, color: R, animation: 'spin 0.8s linear infinite' }} />
+        : <ChevronRightIcon style={{ width: 16, height: 16, color: 'rgba(107,114,128,0.4)' }} />
+      }
     </>
   )
   const hover = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+    if (loading) return
     e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'
     e.currentTarget.style.borderLeftColor = R
   }
   const unhover = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+    if (loading) return
     e.currentTarget.style.boxShadow = 'var(--adm-card-shadow)'
     e.currentTarget.style.borderLeftColor = primary ? R : 'var(--adm-card-border)'
   }
   if (href) return <a href={href} download={download} style={base} onMouseEnter={hover} onMouseLeave={unhover}>{content}</a>
-  return <button onClick={onClick} style={base} onMouseEnter={hover} onMouseLeave={unhover}>{content}</button>
+  return <button onClick={loading ? undefined : onClick} style={base} onMouseEnter={hover} onMouseLeave={unhover}>{content}</button>
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -292,7 +300,8 @@ export default function AdminDashboard() {
   const [health,   setHealth]   = useState<HealthStatus | null>(null)
   const [coverage, setCoverage] = useState<CoverageInfo | null>(null)
   const [loadErr,  setLoadErr]  = useState<string | null>(null)
-  const [cacheMsg, setCacheMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [cacheMsg, setCacheMsg]           = useState<{ text: string; ok: boolean } | null>(null)
+  const [cacheRefreshing, setCacheRefreshing] = useState(false)
   const [loading,  setLoading]  = useState(true)
 
   const load = useCallback(async () => {
@@ -332,13 +341,16 @@ export default function AdminDashboard() {
 
   async function handleCacheRefresh() {
     setCacheMsg(null)
+    setCacheRefreshing(true)
     try {
       await refreshCache()
       setCacheMsg({ text: 'Matcher cache refreshed successfully', ok: true })
     } catch {
       setCacheMsg({ text: 'Cache refresh failed', ok: false })
+    } finally {
+      setCacheRefreshing(false)
+      setTimeout(() => setCacheMsg(null), 4000)
     }
-    setTimeout(() => setCacheMsg(null), 4000)
   }
 
   return (
@@ -431,10 +443,11 @@ export default function AdminDashboard() {
                 download
               />
               <ActionCard
-                icon={<ArrowPathIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
+                icon={<ArrowPathIcon style={{ width: 18, height: 18, color: cacheRefreshing ? R : 'rgba(107,114,128,0.7)' }} />}
                 label="Refresh Matcher Cache"
                 desc="Force-reload the in-memory vehicle-to-battery matcher"
                 onClick={handleCacheRefresh}
+                loading={cacheRefreshing}
               />
               <ActionCard
                 icon={<ClipboardDocumentListIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
@@ -450,15 +463,31 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {cacheMsg && (
-              <div style={{ marginTop: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 600, color: cacheMsg.ok ? '#15803d' : R, padding: '0.45rem 0.85rem', background: cacheMsg.ok ? '#f0fdf4' : '#fff5f5', border: `1px solid ${cacheMsg.ok ? '#bbf7d0' : '#f5c6c6'}`, borderRadius: '8px' }}>
-                {cacheMsg.ok ? <CheckCircleIcon style={{ width: 14, height: 14 }} /> : <ExclamationCircleIcon style={{ width: 14, height: 14 }} />}
-                {cacheMsg.text}
-              </div>
-            )}
           </div>
 
         </main>
+      )}
+
+      {/* ── Cache refresh toast ── */}
+      {cacheMsg && (
+        <div style={{
+          position: 'fixed', top: '1.25rem', right: '1.25rem', zIndex: 9999,
+          display: 'flex', alignItems: 'center', gap: '0.5rem',
+          padding: '0.65rem 1rem',
+          background: cacheMsg.ok ? '#f0fdf4' : '#fff5f5',
+          border: `1px solid ${cacheMsg.ok ? '#bbf7d0' : '#f5c6c6'}`,
+          borderRadius: '10px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+          fontSize: '0.82rem', fontWeight: 600,
+          color: cacheMsg.ok ? '#15803d' : R,
+          animation: 'toastIn 0.2s ease',
+        }}>
+          {cacheMsg.ok
+            ? <CheckCircleIcon style={{ width: 15, height: 15, flexShrink: 0 }} />
+            : <ExclamationCircleIcon style={{ width: 15, height: 15, flexShrink: 0 }} />
+          }
+          {cacheMsg.text}
+        </div>
       )}
     </AdminLayout>
   )
