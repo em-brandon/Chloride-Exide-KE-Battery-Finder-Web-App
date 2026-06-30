@@ -1345,7 +1345,7 @@ body {
   50%       { color: rgba(204, 0, 0, 0.15); }
 }
 .flash-liability {
-  animation: liability-flash 0.55s ease-in-out 2;
+  animation: liability-flash 0.55s ease-in-out 6;
   animation-fill-mode: forwards;
 }
 
