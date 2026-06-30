@@ -1055,10 +1055,9 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
               <div style={DIVIDER} />
 
-              {/* ── Dial-a-Battery — numbers left, rider image right ── */}
+              {/* ── Dial-a-Battery ── */}
               <div style={{
-                background: 'var(--bg, #f4f5f7)',
-                border: '1px solid var(--border, #e5e7eb)',
+                background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
                 borderRadius: 10,
                 overflow: 'hidden',
                 display: 'flex',
@@ -1066,24 +1065,23 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               }}>
                 {/* Left: title + phone numbers */}
                 <div style={{ flex: '1 1 0', padding: '0.75rem 0.5rem 0.75rem 1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
                     <span className="dial-ring" style={{ display: 'inline-block', fontSize: '1.05rem', lineHeight: 1 }}>📞</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text, #374151)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Dial a Battery
                     </span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.15rem 0.55rem' }}>
                     {[
-                      { code: 'KE', num: '+254 719 080 000', color: 'var(--red, #CC0000)' },
-                      { code: 'TZ', num: '+255 677 484 631', color: 'var(--text, #374151)' },
-                      { code: 'UG', num: '+256 200 400 900', color: '#16a34a' },
-                    ].map(({ code, num, color }) => (
-                      <div key={code} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <ReactCountryFlag countryCode={code} svg style={{ width: '1.15em', height: '1.15em', flexShrink: 0 }} />
-                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color }}>
-                          {num}
-                        </span>
-                      </div>
+                      { code: 'KE', num: '+254 719 080 000' },
+                      { code: 'TZ', num: '+255 677 484 631' },
+                      { code: 'UG', num: '+256 200 400 900' },
+                    ].map(({ code, num }, i, arr) => (
+                      <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}>
+                        <ReactCountryFlag countryCode={code} svg style={{ width: '1em', height: '1em', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.76rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>{num}</span>
+                        {i < arr.length - 1 && <span style={{ fontSize: '0.6rem', color: '#fff', opacity: 0.45 }}>·</span>}
+                      </span>
                     ))}
                   </div>
                 </div>
