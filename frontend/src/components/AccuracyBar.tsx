@@ -5,14 +5,15 @@ type Factors = { model: number; year: number; source: number; specs: number }
 
 function calcFactors(data: RecommendationResult): Factors {
   const mt = (data.match_type ?? '').toLowerCase()
-  const isRealWorld = mt.includes('real')
-  const isExact     = mt.includes('exact')
-  const isClose     = mt.includes('close')
-  const hasModel    = !!data.matched_make
+  const isRealWorld    = mt.includes('real')
+  const isExact        = mt.includes('exact')
+  const isClose        = mt.includes('close')
+  const isWebValidated = mt.includes('web') || mt.includes('validated')
+  const hasModel       = !!data.matched_make
 
   // Car found: 0–50 pts
   let model: number
-  if (isRealWorld || isExact) model = 50
+  if (isRealWorld || isExact || isWebValidated) model = 50
   else if (isClose) model = Math.round(20 + ((Math.min(data.confidence, 89) - 60) / 29) * 20)
   else model = 0
 
