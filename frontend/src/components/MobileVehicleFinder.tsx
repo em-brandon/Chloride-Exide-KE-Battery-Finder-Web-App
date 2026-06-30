@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, friendlyError } from '@/lib/api'
+import { StartStopIcon } from '@/components/ui/StartStopIcon'
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { AccuracyBar } from '@/components/AccuracyBar'
@@ -728,6 +729,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <StartStopIcon size={28} />
                   <span style={labelStyle}>Start-Stop system?</span>
                   <button
                     type="button"
