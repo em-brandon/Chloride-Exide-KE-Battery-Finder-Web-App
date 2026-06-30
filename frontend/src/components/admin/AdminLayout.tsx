@@ -219,7 +219,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   color: isActive ? R : dark ? 'rgba(229,231,235,0.65)' : 'rgba(17,24,39,0.65)',
                   background: isActive ? (dark ? '#2d1a1a' : '#fff5f5') : 'transparent',
                   textDecoration: 'none',
-                  borderLeft: collapsed ? 'none' : `3px solid ${isActive ? R : 'transparent'}`,
                   transition: 'all 0.15s',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
