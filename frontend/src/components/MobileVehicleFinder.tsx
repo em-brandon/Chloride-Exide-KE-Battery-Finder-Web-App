@@ -7,6 +7,7 @@ import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } f
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import riderImg from '@/assets/rider.webp'
+import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
 import powerlastLogo from '@/assets/powerlast-logo.webp'
 import sparkLogo from '@/assets/spark-logo.webp'
@@ -196,84 +197,36 @@ function SelectWrap({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── Shimmer skeleton card ──────────────────────────────────────────────────────
+// ── Orbit loader card ─────────────────────────────────────────────────────────
 
-function SkeletonCard() {
+function LoaderCard({ minHeight = 220 }: { minHeight?: number }) {
   return (
     <div style={{
       background: 'var(--card-bg, #fff)',
       border: '1px solid var(--border, #e2e4e9)',
       borderRadius: '0.75rem',
-      padding: '1.5rem 1.25rem',
+      minHeight,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div className="skeleton-line" style={{ height: 6, width: '35%', marginBottom: '1.75rem' }} />
-      <div className="skeleton-line" style={{ height: 11, width: '28%', marginBottom: '0.5rem' }} />
-      <div className="skeleton-line" style={{ height: 22, width: '65%', marginBottom: '0.35rem' }} />
-      <div className="skeleton-line" style={{ height: 11, width: '45%', marginBottom: '1.5rem' }} />
-      <div className="skeleton-line" style={{ height: 52, width: '100%', borderRadius: '0.5rem' }} />
-    </div>
-  )
-}
-
-// ── Result skeleton — mirrors result card structure ───────────────────────────
-
-function ResultSkeleton() {
-  const sk = (style: React.CSSProperties) => (
-    <div className="skeleton-line" style={{ borderRadius: 6, ...style }} />
-  )
-  const divider = <div style={{ borderTop: '1px solid var(--border, #e5e7eb)', margin: '0.5rem 0' }} />
-  return (
-    <div style={{
-      position: 'relative',
-      background: 'var(--card-bg, #fff)',
-      border: '1px solid var(--border, #e2e4e9)',
-      borderRadius: '0.75rem',
-      padding: '1rem 1rem 0.9rem',
-      width: '100%',
-      boxSizing: 'border-box',
-      overflow: 'hidden',
-    }}>
-      {/* Step strip */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'var(--border, #e5e7eb)' }} />
-
-      {/* Vehicle header */}
-      {sk({ height: 9, width: '28%', marginBottom: '0.5rem' })}
-      {sk({ height: 17, width: '68%', marginBottom: '1rem' })}
-
-      {divider}
-
-      {/* Brand logo + tech badge */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0 0.5rem' }}>
-        {sk({ height: 52, width: 52, borderRadius: '50%' })}
-        {sk({ height: 18, width: 44, borderRadius: 999 })}
+      <div className="ce-loader">
+        <div className="ce-loader__ring">
+          <svg className="ce-loader__svg ce-loader__svg--outer" viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="ce-ringB" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="var(--ce-blue)" />
+                <stop offset="1" stopColor="var(--ce-accent)" />
+              </linearGradient>
+            </defs>
+            <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ce-ringB)"
+                    strokeWidth="5" strokeLinecap="round" strokeDasharray="96 243" />
+          </svg>
+          <svg className="ce-loader__svg ce-loader__svg--inner" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--ce-inner)"
+                    strokeOpacity=".5" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 250" />
+          </svg>
+          <img src={chlorideExideLogo} alt="" className="ce-loader__badge" />
+        </div>
       </div>
-
-      {/* Battery code box */}
-      {sk({ height: 68, width: '100%', borderRadius: 8, marginBottom: '0.5rem' })}
-
-      {/* Ah + CCA stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.6rem' }}>
-        {sk({ height: 72, borderRadius: 8 })}
-        {sk({ height: 72, borderRadius: 8 })}
-      </div>
-
-      {divider}
-
-      {/* Accuracy bar */}
-      {sk({ height: 34, width: '100%', borderRadius: 6 })}
-
-      {divider}
-
-      {/* Rate + Shop Now buttons */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-        {sk({ height: 46, borderRadius: 8 })}
-        {sk({ height: 46, borderRadius: 8 })}
-      </div>
-
-      {divider}
-
-      {/* Dial-a-Battery block */}
-      {sk({ height: 84, width: '100%', borderRadius: 10 })}
     </div>
   )
 }
@@ -565,7 +518,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
       {/* ── Step: Make ── */}
       {step === 'make' && (
-        loading ? <SkeletonCard /> : (
+        loading ? <LoaderCard /> : (
           <div key={animKey} className={animClass} style={card}>
             <StepStrip step="make" />
             <ModeToggle typeMode={typeMode} onToggle={handleTypeModeToggle} />
@@ -756,7 +709,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
       {/* ── Step: Details (optional) ── */}
       {step === 'details' && (
-        submitting ? <ResultSkeleton /> :
+        submitting ? <LoaderCard minHeight={400} /> :
         <div key={animKey} className={animClass} style={card}>
           <StepStrip step="details" />
           <ProgressDots current={3} />
