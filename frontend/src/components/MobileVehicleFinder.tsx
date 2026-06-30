@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, friendlyError } from '@/lib/api'
+import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs, friendlyError } from '@/lib/api'
+import type { BatterySpecResult } from '@/lib/api'
 import { StartStopIcon } from '@/components/ui/StartStopIcon'
 import type { RecommendationResult } from '@/types/battery'
 import { FeedbackModal } from '@/components/FeedbackModal'
@@ -272,6 +273,13 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
   const [stopStart, setStopStart]               = useState(true)
   const [stopStartTooltip, setStopStartTooltip] = useState(false)
 
+  const [searchMode, setSearchMode]         = useState<'vehicle' | 'battery'>('vehicle')
+  const [batteryAh, setBatteryAh]           = useState('')
+  const [batteryCca, setBatteryCca]         = useState('')
+  const [batteryResults, setBatteryResults] = useState<BatterySpecResult[] | null>(null)
+  const [batterySubmitting, setBatterySubmitting] = useState(false)
+  const [batteryError, setBatteryError]     = useState('')
+
   const [altVisible, setAltVisible]         = useState(true)
   const [techTooltipOpen, setTechTooltipOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -438,6 +446,22 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
     setAltVisible(true); setTechTooltipOpen(false)
   }
 
+  const handleBatterySearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!batteryAh && !batteryCca) return
+    setBatterySubmitting(true); setBatteryError(''); setBatteryResults(null)
+    try {
+      const ah  = batteryAh  ? parseFloat(batteryAh)  : undefined
+      const cca = batteryCca ? parseFloat(batteryCca) : undefined
+      const data = await searchBatteryBySpecs(ah, cca)
+      setBatteryResults(data.results)
+    } catch (err) {
+      setBatteryError(friendlyError(err))
+    } finally {
+      setBatterySubmitting(false)
+    }
+  }
+
   const handleCopy = () => {
     if (!result?.primary.battery_code) return
     navigator.clipboard.writeText(result.primary.battery_code)
@@ -505,6 +529,163 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
 
   return (
     <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto', width: '100%' }}>
+
+      {/* ── Search mode tabs ── */}
+      <div style={{
+        display: 'flex', gap: '3px', padding: '3px',
+        background: 'var(--bg, #f4f5f7)',
+        border: '1px solid var(--border, #e2e4e9)',
+        borderRadius: '0.65rem',
+      }}>
+        {(['vehicle', 'battery'] as const).map(mode => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setSearchMode(mode)}
+            style={{
+              flex: 1, padding: '0.48rem 0.5rem', borderRadius: '0.5rem', border: 'none',
+              background: searchMode === mode
+                ? (mode === 'battery' ? '#1A35C0' : 'var(--red, #CC0000)')
+                : 'transparent',
+              color: searchMode === mode ? '#fff' : 'var(--muted, #6b7280)',
+              fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'all 0.15s',
+            }}
+          >
+            {mode === 'vehicle' ? 'Find by Vehicle' : 'Search by Battery'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Battery search mode ── */}
+      {searchMode === 'battery' && (
+        <div style={card}>
+          <p style={stepChip}>Battery Search</p>
+          <h2 style={{ ...stepTitle, paddingRight: 0, marginBottom: '0.25rem' }}>Search by Specs</h2>
+          <p style={stepSub}>Enter Ah, CCA, or both to find matching batteries across all brands</p>
+
+          <form onSubmit={handleBatterySearch} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div>
+              <label style={labelStyle} htmlFor="mvf-ah">
+                Capacity (Ah) <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+              </label>
+              <input id="mvf-ah" type="number" style={INPUT_STYLE}
+                placeholder="e.g. 45" value={batteryAh}
+                onChange={e => setBatteryAh(e.target.value)} min={1} max={300} step={0.5} />
+            </div>
+            <div>
+              <label style={labelStyle} htmlFor="mvf-cca">
+                Cold Cranking Amps (CCA) <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+              </label>
+              <input id="mvf-cca" type="number" style={INPUT_STYLE}
+                placeholder="e.g. 350" value={batteryCca}
+                onChange={e => setBatteryCca(e.target.value)} min={1} max={2000} />
+            </div>
+            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--muted, #6b7280)', lineHeight: 1.5 }}>
+              Results include all brands within ±15% of your input, ranked by closeness.
+            </p>
+            <button
+              type="submit"
+              className="mvf-btn-primary"
+              style={{ ...BTN_PRIMARY, opacity: (!batteryAh && !batteryCca) || batterySubmitting ? 0.5 : 1 }}
+              disabled={(!batteryAh && !batteryCca) || batterySubmitting}
+            >
+              {batterySubmitting ? 'Searching…' : 'Find Batteries'}
+            </button>
+            {batteryError && <p style={{ margin: 0, fontSize: '0.82rem', color: '#dc2626' }}>{batteryError}</p>}
+          </form>
+        </div>
+      )}
+
+      {/* ── Battery search results ── */}
+      {searchMode === 'battery' && batteryResults !== null && (
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <div>
+              <p style={{ ...stepChip, marginBottom: '0.1rem' }}>Results</p>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted, #6b7280)' }}>
+                {batteryResults.length} {batteryResults.length === 1 ? 'battery' : 'batteries'} found
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setBatteryResults(null); setBatteryAh(''); setBatteryCca('') }}
+              style={{
+                padding: '0.3rem 0.75rem', borderRadius: '0.4rem',
+                border: '1px solid var(--border, #e2e4e9)',
+                background: 'var(--card-bg, #fff)', color: 'var(--muted, #6b7280)',
+                fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >Clear</button>
+          </div>
+
+          {batteryResults.length === 0 ? (
+            <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--muted, #6b7280)', padding: '1rem 0' }}>
+              No batteries found — try widening your search.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {batteryResults.map(r => {
+                const isClose   = r.match_type === 'close'
+                const techColor = techIconColor(r.technology ?? undefined)
+                return (
+                  <div key={r.battery_code} style={{
+                    background: 'var(--bg, #f4f5f7)',
+                    border: `1px solid ${isClose ? '#fcd34d' : 'var(--border, #e2e4e9)'}`,
+                    borderRadius: '0.5rem', padding: '0.65rem 0.75rem',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{
+                          fontFamily: 'monospace', fontSize: '0.95rem', fontWeight: 700,
+                          color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em', overflowWrap: 'break-word',
+                        }}>{r.battery_code}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--muted, #6b7280)', marginTop: '0.1rem' }}>
+                          {r.brand ?? '—'}
+                        </div>
+                      </div>
+                      <span style={{
+                        flexShrink: 0, padding: '0.2rem 0.5rem', borderRadius: '0.35rem',
+                        fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.04em',
+                        background: isClose ? '#fef3c7' : '#dcfce7',
+                        color: isClose ? '#92400e' : '#15803d',
+                        border: `1px solid ${isClose ? '#fcd34d' : '#bbf7d0'}`,
+                      }}>
+                        {isClose ? 'Close' : 'Direct'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.45rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {r.ah != null && (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text, #374151)', fontWeight: 600 }}>
+                          {r.ah} Ah
+                        </span>
+                      )}
+                      {r.cca != null && (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text, #374151)', fontWeight: 600 }}>
+                          {r.cca} CCA
+                        </span>
+                      )}
+                      {r.technology && (
+                        <span style={{
+                          padding: '0.15rem 0.45rem', borderRadius: '0.3rem',
+                          border: `1px solid ${techColor}40`, background: `${techColor}12`,
+                          color: techColor, fontSize: '0.65rem', fontWeight: 700,
+                          letterSpacing: '0.04em', textTransform: 'uppercase',
+                        }}>
+                          {r.technology}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Vehicle wizard (hidden in battery mode) ── */}
+      {searchMode === 'vehicle' && (<>
 
       {/* ── Step: Make ── */}
       {step === 'make' && (
@@ -1145,6 +1326,8 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
           </>
         )
       })()}
+
+      </>)}  {/* end searchMode === 'vehicle' */}
 
       <FeedbackModal
         open={feedbackOpen}
