@@ -16,7 +16,6 @@ import sebangLogo       from '@/assets/sebang-logo.webp'
 import sbFloodedLogo    from '@/assets/sb-flooded-logo.webp'
 import exideAgmLogo     from '@/assets/exide-agm-logo.webp'
 import chlorideExideLogo from '@/assets/chlorideexidebrandlogo.webp'
-import { StartStopIcon } from '@/components/ui/StartStopIcon'
 
 interface VehicleFinderFormProps {
   onMakesLoaded?: () => void
@@ -937,7 +936,6 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
         <div className="form-group full" style={{ marginTop: '0.15rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} ref={istopTooltipRef}>
-              <StartStopIcon size={28} />
               <span className="form-label" style={{ marginBottom: 0 }}>Has Start-Stop system?</span>
               <div style={{ position: 'relative' }}>
                 <button
