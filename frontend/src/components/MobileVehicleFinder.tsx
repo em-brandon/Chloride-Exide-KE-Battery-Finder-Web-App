@@ -18,17 +18,6 @@ import exideAgmLogo from '@/assets/exide-agm-logo.webp'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getBrandName(code: string): string {
-  const u = code.toUpperCase()
-  if (u.includes('MAXX'))           return 'Exide Maxx'
-  if (u.includes('POWERLAST'))      return 'Powerlast'
-  if (u.includes('SPARK'))          return 'Spark'
-  if (u.includes('SUPREME'))        return 'Supreme'
-  if (u.includes('SEBANG'))         return 'Sebang'
-  if (u.includes('CHLORIDE EXIDE')) return 'Chloride Exide'
-  if (u.includes('EXIDE'))          return 'Exide AGM'
-  return code.split(/[-_]/)[0] || code
-}
 
 function getBrandLogo(code: string): string | null {
   const u = code.toUpperCase()
