@@ -891,22 +891,21 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     }}>
                       {p.battery_code || '—'}
                     </div>
-                    <span style={{
-                      flexShrink: 0,
-                      padding: '0.25rem 0.55rem',
-                      borderRadius: '0.4rem',
-                      border: `1px solid ${iconColor}40`,
-                      background: `${iconColor}12`,
-                      color: iconColor,
-                      fontSize: '0.68rem', fontWeight: 700,
-                      letterSpacing: '0.05em', textTransform: 'uppercase' as const,
-                    }}>
-                      {p.technology ?? 'MF'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
-                    {TECH_DESC[p.technology ?? 'MF']
-                      ? <button
+                    {/* Tech badge + ? tooltip side by side */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                      <span style={{
+                        padding: '0.25rem 0.55rem',
+                        borderRadius: '0.4rem',
+                        border: `1px solid ${iconColor}40`,
+                        background: `${iconColor}12`,
+                        color: iconColor,
+                        fontSize: '0.68rem', fontWeight: 700,
+                        letterSpacing: '0.05em', textTransform: 'uppercase' as const,
+                      }}>
+                        {p.technology ?? 'MF'}
+                      </span>
+                      {TECH_DESC[p.technology ?? 'MF'] && (
+                        <button
                           type="button"
                           className="mvf-info-btn"
                           onClick={() => setTechTooltipOpen(v => !v)}
@@ -920,9 +919,11 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                           }}
                           aria-label={`What is ${p.technology ?? 'MF'}?`}
                         >?</button>
-                      : <span />
-                    }
-                    {p.battery_code && (
+                      )}
+                    </div>
+                  </div>
+                  {p.battery_code && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button
                         onClick={handleCopy}
                         style={{
@@ -941,8 +942,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                         {copied ? <ClipboardCheck size={12} /> : <Clipboard size={12} />}
                         {copied ? 'Copied!' : 'Copy'}
                       </button>
-                    )}
-                  </div>
+                    </div>
                 </div>
               </div>
               {techTooltipOpen && (() => {
