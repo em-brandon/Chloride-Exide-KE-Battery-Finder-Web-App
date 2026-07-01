@@ -575,6 +575,8 @@ Managed by Alembic (`alembic/versions/`). Apply all migrations with `alembic upg
 
 ### Core App Tables
 
+Solid lines (`--`) are enforced foreign keys. Dashed lines (`..`) are logical references by value (no DB-level FK).
+
 ```mermaid
 erDiagram
     admin_users {
@@ -686,22 +688,30 @@ erDiagram
         string vehicle_label
         int satisfaction
         string accuracy
+        text wrong_parts
         text comments
         datetime submitted_at
         string ip_address
         int test_user_id FK
-        string match_type
+        string input_type
         int match_confidence
+        string match_type
         string recommended_battery
     }
 
-    admin_users       ||--o{ admin_sessions       : "has"
-    battery_specs     ||--o{ battery_audit_log    : "logged in"
-    test_users        ||--o{ test_user_sessions   : "has"
-    test_users        ||--o{ user_feedback        : "submits"
+    admin_users      ||--o{ admin_sessions     : "admin_id → admin_users.id (CASCADE)"
+    battery_specs    ||--o{ battery_audit_log  : "battery_id → battery_specs.id (SET NULL)"
+    test_users       ||--o{ test_user_sessions : "user_id → test_users.id (CASCADE)"
+    test_users       |o--o{ user_feedback      : "test_user_id → test_users.id (SET NULL)"
+    battery_specs    }o..o{ dial_battery_inference  : "battery_code (logical ref)"
+    battery_specs    }o..o{ web_battery_validation  : "battery_code (logical ref)"
+    vehicle_years    }o..o{ web_battery_validation  : "make / model / year (logical ref)"
+    vehicle_years    }o..o{ dial_battery_inference  : "vehicle_type / vehicle_model (logical ref)"
 ```
 
-### Pipeline and Staging Tables
+### Pipeline & Staging Tables
+
+Solid lines (`--`) are enforced foreign keys. Dashed lines (`..`) show pipeline data flow (no DB-level FK).
 
 ```mermaid
 erDiagram
@@ -712,6 +722,15 @@ erDiagram
         string model_number
         int engine_capacity
         string fuel
+    }
+    vehicle_years {
+        int id PK
+        string make
+        string model
+        int year
+        int engine_capacity
+        string fuel
+        string source
     }
     vehicle_years_staging {
         int id PK
@@ -755,6 +774,15 @@ erDiagram
         string model
         string fuel
         datetime recorded_at
+    }
+    web_battery_validation {
+        int id PK
+        text make_n
+        text model_n
+        int year
+        text battery_code
+        text run_id
+        text version_id
     }
     web_battery_staging {
         int id PK
@@ -820,8 +848,13 @@ erDiagram
         datetime period_end
     }
 
-    vehicle_years_versions           ||--o{ vehicle_years_changelog           : "records"
-    web_battery_validation_versions  ||--o{ web_battery_validation_changelog  : "records"
+    vehicle_years_versions          ||--o{ vehicle_years_changelog          : "version_id → vehicle_years_versions.id (CASCADE)"
+    web_battery_validation_versions ||--o{ web_battery_validation_changelog : "version_id → web_battery_validation_versions.id (CASCADE)"
+    vehicles_raw                    }o..o{ vehicle_years                    : "dataprep.py produces"
+    fueleconomy_vehicles            }o..o{ vehicle_years                    : "enrich_years.py populates from"
+    vehicle_years_staging           }o..|| vehicle_years                    : "admin commit merges into"
+    web_battery_staging             }o..|| web_battery_validation           : "admin commit merges into"
+    web_battery_validation_versions |o..o{ web_battery_validation          : "version_id (run tracking)"
 ```
 
 ---
