@@ -175,7 +175,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
               fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
               fontFamily: 'inherit', textDecoration: 'none',
               transition: 'background 0.15s',
-              animationName: 'shopPing', animationDuration: '2.5s',
+              animationName: 'shopPing', animationDuration: '2s',
               animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
             }}
             onMouseEnter={e => {

@@ -1226,7 +1226,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
                     background: 'var(--red, #CC0000)', color: '#fff',
                     borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
                     cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none',
-                    animationName: 'shopPing', animationDuration: '2.5s',
+                    animationName: 'shopPing', animationDuration: '2s',
                     animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
                   }}
                   onMouseEnter={e => {

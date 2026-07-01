@@ -1166,9 +1166,9 @@ body {
 @keyframes toastIn  { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(110%); } }
 @keyframes shopPing {
-  0%   { box-shadow: 0 0 0 0   rgba(204, 0, 0, 0.50); }
-  70%  { box-shadow: 0 0 0 8px rgba(204, 0, 0, 0); }
-  100% { box-shadow: 0 0 0 0   rgba(204, 0, 0, 0); }
+  0%   { box-shadow: 0 0 0 0    rgba(204, 0, 0, 0.70); }
+  60%  { box-shadow: 0 0 0 14px rgba(204, 0, 0, 0.15); }
+  100% { box-shadow: 0 0 0 18px rgba(204, 0, 0, 0); }
 }
 
 
