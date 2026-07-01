@@ -909,6 +909,47 @@ erDiagram
     web_battery_validation_versions |o..o{ web_battery_validation          : "version_id (run tracking)"
 ```
 
+### Indexes
+
+All indexes are created and dropped via Alembic migrations — never applied by hand.
+
+#### `battery_specs`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `battery_specs_pkey` | `id` | Primary key | Row lookup |
+| `battery_specs_battery_code_key` | `battery_code` | Unique | Upsert deduplication |
+| `ix_battery_specs_model_key` | `model_key` | B-tree | Matcher model-key lookups |
+| `ix_battery_specs_ah` | `ah` | B-tree | Ah-bracket queries |
+| `ix_battery_specs_active` | `id WHERE deleted_at IS NULL` | Partial B-tree | Covers all admin list queries and matcher loader; only indexes active (non-deleted) rows |
+
+#### `vehicle_years`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `vehicle_years_pkey` | `id` | Primary key | Row lookup |
+| `uq_vehicle_years` | `(make, model, year)` | Unique | Prevents duplicate rows on pipeline re-import |
+| `ix_vehicle_years_make` | `make` | B-tree | Filter by make (matcher, dropdowns) |
+| `ix_vehicle_years_make_model` | `(make, model)` | B-tree | Composite filter used by matcher and model dropdown |
+
+#### `search_events`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `search_events_pkey` | `id` | Primary key | Row lookup |
+| `ix_search_events_timestamp` | `timestamp` | B-tree | `ORDER BY timestamp DESC` on search log page |
+| `ix_search_events_match_type` | `match_type` | B-tree | Filter-by-match-type on search log page |
+
+`search_events` also has `autovacuum_analyze_scale_factor = 0.05` set (default is 0.20), so Postgres re-analyzes it after every 5% growth rather than 20% — keeping planner statistics accurate as the append-only log scales.
+
+#### `user_feedback`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `user_feedback_pkey` | `id` | Primary key | Row lookup |
+| `ix_user_feedback_submitted_at` | `submitted_at` | B-tree | Date-ordered feedback listing |
+| `ix_user_feedback_accuracy` | `accuracy` | B-tree | Filter-by-accuracy on feedback page |
+
 ---
 
 ## Performance
@@ -966,6 +1007,38 @@ for row in staging_rows:
     if (row.make, row.model, row.year) in existing_keys:
         continue
 ```
+
+#### 4. Matcher result cache (`recommend()`)
+
+`matcher.recommend()` is decorated with `@lru_cache(maxsize=512)`, keyed on `(make, model, year, engine_cc, fuel_type, enable_aliases, stop_start)`. The first call for a given vehicle runs the full RapidFuzz matching logic; subsequent identical calls return the cached dict instantly. In production the most searched vehicles (Toyota Corolla, Honda Fit, Isuzu D-Max, etc.) are overwhelmingly repeat queries, so cache hit rates are high.
+
+The cache is invalidated automatically whenever battery data changes — every battery create, update, delete, bulk upload, or admin cache refresh calls `matcher.recommend.cache_clear()` alongside the existing `matcher._batteries.cache_clear()`. Stale results are never served.
+
+#### 5. Database indexes
+
+Three indexes added via Alembic migration `3c4d5e6f7a8b`:
+
+| Index | Table | Purpose |
+| --- | --- | --- |
+| `ix_search_events_match_type` | `search_events` | Covers the match_type filter on the Search Log admin page |
+| `ix_battery_specs_active` | `battery_specs` | Partial index (`WHERE deleted_at IS NULL`) — only indexes active batteries; used by every admin list query and the matcher loader |
+| `uq_vehicle_years` | `vehicle_years` | Unique composite `(make, model, year)` — prevents duplicates on pipeline re-import |
+
+#### 6. VACUUM ANALYZE
+
+Postgres does not overwrite rows when they are updated — it writes a new version alongside the old one and marks the old version dead. Dead rows accumulate between cleanup cycles, causing the query planner to work from stale statistics.
+
+**VACUUM** removes dead row versions from disk. **ANALYZE** re-samples the table and updates the planner's row count and value distribution estimates so it can choose the right query plan (index scan vs. sequential scan).
+
+This is **fully automatic** — no frontend button, no manual admin action. Postgres runs a background worker called autovacuum that fires VACUUM ANALYZE on each table once enough rows have changed. After the initial data import in June 2026 left 8,922 dead rows in `vehicle_years` and `search_events` had never been analyzed, a one-time manual `VACUUM ANALYZE` was run to clear the backlog immediately.
+
+The migration also lowers the autovacuum sensitivity for `search_events`:
+
+```sql
+ALTER TABLE search_events SET (autovacuum_analyze_scale_factor = 0.05);
+```
+
+The default threshold is 20% — autovacuum only fires after 20% of the table's rows are new or updated. For an append-only log that grows steadily, this means planner statistics can lag far behind reality. Setting it to 5% means autovacuum re-analyzes `search_events` after every 5% growth, keeping query plans accurate as the table scales.
 
 ### Frontend Bundle Splitting
 

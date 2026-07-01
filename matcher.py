@@ -780,6 +780,7 @@ def get_years(make: str, model: str) -> list[int]:
     return sorted(subset["year"].dropna().unique().astype(int).tolist(), reverse=True)
 
 
+@lru_cache(maxsize=512)
 def recommend(
     make: str,
     model: str,

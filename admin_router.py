@@ -368,6 +368,7 @@ def add_battery(
 
     # Invalidate matcher cache so new battery is visible immediately
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
 
     return {"id": new_b.id, "battery_code": new_b.battery_code}
 
@@ -430,6 +431,7 @@ def update_battery(
     db.commit()
 
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
     return {"detail": "updated", "battery_code": battery.battery_code}
 
 
@@ -468,6 +470,7 @@ def delete_battery(
     db.commit()
 
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
     return {"detail": "deleted", "battery_code": battery.battery_code}
 
 
@@ -494,6 +497,7 @@ async def upload_batteries(
         raise HTTPException(status_code=422, detail=str(exc))
 
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
 
     return {
         "inserted":          result.inserted,
@@ -636,6 +640,7 @@ def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._batteries.cache_clear()
     matcher._model_aliases.cache_clear()
     matcher._inference.cache_clear()
+    matcher.recommend.cache_clear()
     # Re-warm immediately
     matcher._vehicles()
     matcher._batteries()
