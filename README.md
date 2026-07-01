@@ -1,14 +1,10 @@
 # Chloride Exide KE — Battery Finder
 
-A full-stack production web application that recommends the correct car battery for Kenyan vehicles, built on a cleaned and enriched CRSP dataset.
+Chloride Exide KE Battery Finder is a production web application that helps Kenyan drivers and service centres identify the correct battery for any vehicle in the local market. It is built on a cleaned and enriched CRSP/NTS dataset covering tens of thousands of make-model-year combinations, extended with engine capacity and fuel type data sourced from fueleconomy.gov, NHTSA VPIC, CarAPI, Wikipedia, and Wikidata.
 
-The project is organized into three distinct layers:
+The system is organized into three layers. The data pipeline layer normalises raw CRSP vehicle records, resolves production year gaps through multi-source API enrichment, ingests real-world Dial-A-Battery call-centre order history, and stages all changes for admin review before they are committed to the live dataset. The backend is a FastAPI server running a five-layer matching engine that resolves a vehicle query against web-validated fitment data, real-world sales history, exact dataset matches, fuzzy close matches, and engine-CC rule-based fallback — returning a primary battery recommendation with confidence score, match type, and a list of alternatives. The frontend is a React 19 + TypeScript application built with Vite and Tailwind CSS v4, with a full admin dashboard for managing the battery catalogue, reviewing pipeline output, monitoring search logs and user feedback, and inspecting audit history.
 
-1. **Data pipelines** — clean and normalize raw CRSP/NTS vehicle data, enrich with production years and engine specs from multiple public APIs, and produce structured lookup datasets.
-2. **Backend API** — a FastAPI (Python) server with a 5-layer rule-based matching engine, rate limiting, admin dashboard, feedback collection, and test-user auth.
-3. **Frontend** — a React 19 + TypeScript app built with Vite and Tailwind CSS v4, served as static assets from the backend in production. Includes a dedicated mobile step-wizard UI for phone browsers.
-
-> **Audience:** This service is available to Kenyan clients only. Geographic access controls are enforced at the CDN and API gateway levels.
+The application is geo-restricted to Kenya, Uganda and Tanzania served entirely from a single FastAPI process in production — the built frontend is served as static files alongside the API.
 
 ---
 
