@@ -1198,6 +1198,18 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     background: 'var(--red, #CC0000)', color: '#fff',
                     borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
                     cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none',
+                    animationName: 'shopPing', animationDuration: '2.5s',
+                    animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLAnchorElement
+                    el.style.background = '#990000'
+                    el.style.animationPlayState = 'paused'
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLAnchorElement
+                    el.style.background = 'var(--red, #CC0000)'
+                    el.style.animationPlayState = 'running'
                   }}
                 >
                   <ShoppingBagIcon style={{ width: '1rem', height: '1rem' }} />

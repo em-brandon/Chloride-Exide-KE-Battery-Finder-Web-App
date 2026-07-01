@@ -147,9 +147,19 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: 
               fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
               fontFamily: 'inherit', textDecoration: 'none',
               transition: 'background 0.15s',
+              animationName: 'shopPing', animationDuration: '2.5s',
+              animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#990000' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#CC0000' }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLAnchorElement
+              el.style.background = '#990000'
+              el.style.animationPlayState = 'paused'
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLAnchorElement
+              el.style.background = '#CC0000'
+              el.style.animationPlayState = 'running'
+            }}
           >
             <ShoppingBagIcon style={{ width: '1rem', height: '1rem' }} />
             Shop Now
