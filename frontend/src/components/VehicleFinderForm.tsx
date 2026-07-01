@@ -343,7 +343,18 @@ function DialABatteryBanner() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Phone size={13} strokeWidth={2} style={{ flexShrink: 0, color: '#fff' }} />
-            <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#fff', letterSpacing: '0.01em' }}>Dial-A-Battery</span>
+            <span style={{
+              fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em',
+              background: 'linear-gradient(90deg, #fff 20%, #ffe88a 50%, #fff 80%)',
+              backgroundSize: '200% auto',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              animationName: 'dialShimmer',
+              animationDuration: '2.5s',
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+            }}>Dial-A-Battery</span>
           </div>
           <a
             href="https://www.chlorideexide.com/category/all-products"
