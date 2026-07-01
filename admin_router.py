@@ -184,26 +184,33 @@ def me(admin: AdminUser = Depends(require_admin)):
 
 @router.get("/stats")
 def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
-    from models import VehicleYear, VehicleRaw, ModelAlias
-
-    inf_makes   = db.execute(text("SELECT COUNT(DISTINCT vehicle_type)  FROM dial_battery_inference")).scalar() or 0
-    inf_models  = db.execute(text("SELECT COUNT(DISTINCT vehicle_model) FROM dial_battery_inference")).scalar() or 0
-    inf_records = db.execute(text("SELECT COUNT(*)                      FROM dial_battery_inference")).scalar() or 0
+    # ── 1 query: all table counts via scalar subqueries ──────────────────────
+    row = db.execute(text("""
+        SELECT
+            (SELECT COUNT(*)                                     FROM battery_specs      WHERE deleted_at IS NULL)  AS battery_specs,
+            (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years)                                AS vehicle_years,
+            (SELECT COUNT(*)                                     FROM vehicle_raw)                                  AS vehicles_raw,
+            (SELECT COUNT(*)                                     FROM model_aliases)                                AS model_aliases,
+            (SELECT COUNT(DISTINCT vehicle_type)                 FROM dial_battery_inference)                       AS inf_makes,
+            (SELECT COUNT(DISTINCT vehicle_model)                FROM dial_battery_inference)                       AS inf_models,
+            (SELECT COUNT(*)                                     FROM dial_battery_inference)                       AS inf_records
+    """)).fetchone()
 
     counts = {
-        "battery_specs":    db.query(func.count(BatterySpec.id)).filter(BatterySpec.deleted_at.is_(None)).scalar() or 0,
-        "vehicle_years":    db.query(func.count(func.distinct(VehicleYear.make + '|' + VehicleYear.model))).scalar() or 0,
-        "vehicles_raw":     db.query(func.count(VehicleRaw.id)).scalar() or 0,
-        "model_aliases":    db.query(func.count(ModelAlias.id)).scalar() or 0,
-        "inference_makes":   inf_makes,
-        "inference_models":  inf_models,
-        "inference_records": inf_records,
+        "battery_specs":    row.battery_specs    or 0,
+        "vehicle_years":    row.vehicle_years    or 0,
+        "vehicles_raw":     row.vehicles_raw     or 0,
+        "model_aliases":    row.model_aliases    or 0,
+        "inference_makes":  row.inf_makes        or 0,
+        "inference_models": row.inf_models       or 0,
+        "inference_records":row.inf_records      or 0,
     }
 
+    # ── 1 query: db_reads ────────────────────────────────────────────────────
     reads_row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
     db_reads = reads_row.stat_value if reads_row else 0
 
-    # ── Match breakdown from search_events (today only, aligned with db_reads daily window) ──
+    # ── 1 query: match breakdown via GROUP BY ─────────────────────────────────
     from datetime import timezone as _tz
     today_start = datetime.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -211,15 +218,17 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
     _CLOSE_TYPES    = ["Close Match"]
     _FALLBACK_TYPES = ["Estimated (Rule-Based)"]
 
-    def _se_count(types: list[str]) -> int:
-        return db.query(func.count(SearchEvent.id)).filter(
-            SearchEvent.timestamp >= today_start,
-            SearchEvent.match_type.in_(types),
-        ).scalar() or 0
+    type_rows = (
+        db.query(SearchEvent.match_type, func.count(SearchEvent.id))
+        .filter(SearchEvent.timestamp >= today_start)
+        .group_by(SearchEvent.match_type)
+        .all()
+    )
+    counts_by_type = {match_type: n for match_type, n in type_rows}
 
-    s_matched  = _se_count(_MATCHED_TYPES)
-    s_close    = _se_count(_CLOSE_TYPES)
-    s_fallback = _se_count(_FALLBACK_TYPES)
+    s_matched  = sum(counts_by_type.get(t, 0) for t in _MATCHED_TYPES)
+    s_close    = sum(counts_by_type.get(t, 0) for t in _CLOSE_TYPES)
+    s_fallback = sum(counts_by_type.get(t, 0) for t in _FALLBACK_TYPES)
     s_total    = s_matched + s_close + s_fallback
 
     return {
