@@ -1186,20 +1186,16 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
                     color: 'var(--blue, #005794)',
                     borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
                     cursor: 'pointer', fontFamily: 'inherit',
-                    animationName: 'faqPulse', animationDuration: '2.8s',
-                    animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
                   }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLButtonElement
                     el.style.background = 'var(--blue, #005794)'
                     el.style.color = '#fff'
-                    el.style.animationPlayState = 'paused'
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLButtonElement
                     el.style.background = 'var(--card-bg, #fff)'
                     el.style.color = 'var(--blue, #005794)'
-                    el.style.animationPlayState = 'running'
                   }}
                 >
                   <ChatBubbleLeftRightIcon style={{ width: '1.2rem', height: '1.2rem' }} />

@@ -133,20 +133,16 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
                 borderRadius: 6, padding: '0.3rem 0.9rem',
                 fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
                 fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s',
-                animationName: 'faqPulse', animationDuration: '2.8s',
-                animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
               }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLButtonElement
                 el.style.background = 'var(--blue, #005794)'
                 el.style.color = '#fff'
-                el.style.animationPlayState = 'paused'
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLButtonElement
                 el.style.background = '#fff'
                 el.style.color = 'var(--blue, #005794)'
-                el.style.animationPlayState = 'running'
               }}
             >
               <ChatBubbleLeftRightIcon style={{ width: '1.1rem', height: '1.1rem' }} />
