@@ -6,6 +6,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   InformationCircleIcon,
+  DocumentArrowDownIcon,
 } from '@heroicons/react/20/solid'
 
 const CARD: React.CSSProperties = {
@@ -82,11 +83,59 @@ const TD: React.CSSProperties = {
 }
 
 export default function AdminSearchLog() {
-  const [items, setItems]     = useState<SearchEventEntry[]>([])
-  const [total, setTotal]     = useState(0)
-  const [page, setPage]       = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
+  const [items, setItems]         = useState<SearchEventEntry[]>([])
+  const [total, setTotal]         = useState(0)
+  const [page, setPage]           = useState(1)
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
+
+  async function generatePdf() {
+    setPdfLoading(true)
+    try {
+      const res = await fetchSearchEvents(1, total || 10000)
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+      const now = new Date()
+      const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Chloride Exide (K) Ltd — Battery Finder Search Log', 14, 16)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100)
+      doc.text(`Generated: ${dateStr} ${timeStr}   ·   Total records: ${res.total.toLocaleString()}`, 14, 23)
+      doc.setTextColor(0)
+
+      autoTable(doc, {
+        startY: 28,
+        head: [['#', 'Timestamp', 'Vehicle', 'Input', 'Battery Returned', 'Match Type', 'Conf %', 'Matched', 'IP Address']],
+        body: res.items.map(r => [
+          r.id,
+          r.timestamp ? new Date(r.timestamp).toLocaleString('en-GB') : '—',
+          [r.make, r.model, r.year].filter(Boolean).join(' ') || '—',
+          [r.engine_cc ? `${r.engine_cc} cc` : null, r.fuel_type].filter(Boolean).join(' · ') || '—',
+          r.battery_returned ? `${r.battery_returned}${r.battery_ah ? ` · ${r.battery_ah} Ah` : ''}` : '—',
+          r.match_type ?? '—',
+          r.confidence !== null ? `${r.confidence}%` : '—',
+          r.matched ? 'Yes' : 'No',
+          r.ip_address ?? '—',
+        ]),
+        styles: { fontSize: 7.5, cellPadding: 2 },
+        headStyles: { fillColor: [0, 87, 148], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [245, 248, 252] },
+        columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 32 }, 4: { cellWidth: 28 }, 5: { cellWidth: 32 } },
+      })
+
+      doc.save(`search-log-${now.toISOString().slice(0, 10)}.pdf`)
+    } finally {
+      setPdfLoading(false)
+    }
+  }
 
   const load = useCallback(async (p: number) => {
     setLoading(true)
@@ -112,16 +161,35 @@ export default function AdminSearchLog() {
 
         {/* ── Page header ── */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.9rem' }}>
-            <MagnifyingGlassIcon style={{ width: 24, height: 24, color: '#005794', flexShrink: 0 }} />
-            <div>
-              <h1 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--adm-text-1)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-                Search Log
-              </h1>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--adm-text-3)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-                {total.toLocaleString()} searches recorded in total
-              </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.9rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <MagnifyingGlassIcon style={{ width: 24, height: 24, color: '#005794', flexShrink: 0 }} />
+              <div>
+                <h1 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--adm-text-1)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+                  Search Log
+                </h1>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--adm-text-3)', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+                  {total.toLocaleString()} searches recorded in total
+                </p>
+              </div>
             </div>
+            <button
+              onClick={generatePdf}
+              disabled={pdfLoading || total === 0}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
+                padding: '0.5rem 1rem', borderRadius: '8px',
+                background: pdfLoading || total === 0 ? 'var(--adm-card-border)' : '#005794',
+                color: pdfLoading || total === 0 ? 'var(--adm-text-3)' : '#fff',
+                border: 'none', cursor: pdfLoading || total === 0 ? 'not-allowed' : 'pointer',
+                fontSize: '0.78rem', fontWeight: 700,
+                fontFamily: "'Segoe UI', system-ui, sans-serif",
+                transition: 'background 0.15s',
+              }}
+            >
+              <DocumentArrowDownIcon style={{ width: 16, height: 16 }} />
+              {pdfLoading ? 'Generating…' : 'Download PDF'}
+            </button>
           </div>
 
           {/* ── Info banner ── */}
