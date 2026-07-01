@@ -28,6 +28,7 @@ interface VehicleFinderFormProps {
   onTypeModeChange: () => void
   onEstConfChange: (conf: { pct: number; label: string; cls: string } | null) => void
   darkMode?: boolean
+  onOpenFaq?: () => void
 }
 
 function techClass(tech?: string) {
@@ -85,7 +86,7 @@ function CarBatteryIcon({ size = 40, color = '#374151' }: { size?: number; color
 }
 
 // ── Result card ───────────────────────────────────────────────────
-function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: RecommendationResult; inputType: string; typedLabel?: string; darkMode?: boolean }) {
+function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq }: { data: RecommendationResult; inputType: string; typedLabel?: string; darkMode?: boolean; onOpenFaq?: () => void }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -137,6 +138,35 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: 
             <StarIcon style={{ width: '1rem', height: '1rem' }} />
             Rate this result
           </button>
+          {onOpenFaq && (
+            <button
+              type="button"
+              onClick={onOpenFaq}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                background: '#fff', border: '1.5px solid var(--blue, #005794)', color: 'var(--blue, #005794)',
+                borderRadius: 6, padding: '0.3rem 0.9rem',
+                fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s',
+                animationName: 'faqPulse', animationDuration: '2.8s',
+                animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLButtonElement
+                el.style.background = 'var(--blue, #005794)'
+                el.style.color = '#fff'
+                el.style.animationPlayState = 'paused'
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLButtonElement
+                el.style.background = '#fff'
+                el.style.color = 'var(--blue, #005794)'
+                el.style.animationPlayState = 'running'
+              }}
+            >
+              FAQ
+            </button>
+          )}
           <a
             href="https://www.chlorideexide.com/category/all-products"
             target="_blank"
@@ -508,7 +538,7 @@ function BatteryResultsPanel({
 }
 
 // ── Main form ─────────────────────────────────────────────────────
-export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange, darkMode = false }: VehicleFinderFormProps) {
+export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange, darkMode = false, onOpenFaq }: VehicleFinderFormProps) {
   const { toasts, push: pushToast, dismiss: dismissToast } = useToast()
 
   // Data
@@ -1110,6 +1140,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
             inputType={typeMode ? 'type' : 'select'}
             typedLabel={typeMode ? `${makeText.trim()} ${modelText.trim()} ${yearText.trim()}`.trim() : undefined}
             darkMode={darkMode}
+            onOpenFaq={onOpenFaq}
           />
         </div>
       )}

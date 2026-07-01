@@ -84,6 +84,7 @@ type Step = 'make' | 'model' | 'year' | 'details' | 'result'
 export interface MobileVehicleFinderProps {
   darkMode?: boolean
   onMakesLoaded?: () => void
+  onOpenFaq?: () => void
 }
 
 // ── Shared styles ──────────────────────────────────────────────────────────────
@@ -234,7 +235,7 @@ function ModeToggle({ typeMode, onToggle }: { typeMode: boolean; onToggle: () =>
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileVehicleFinderProps) {
+export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq }: MobileVehicleFinderProps) {
   const [step, setStep] = useState<Step>('make')
   const [typeMode, setTypeMode] = useState(false)
 
@@ -1172,7 +1173,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               <div style={DIVIDER} />
 
               {/* ── Action buttons ── */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.1rem 0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', padding: '0.1rem 0' }}>
                 <button
                   type="button"
                   onClick={() => setFeedbackOpen(true)}
@@ -1188,6 +1189,35 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 >
                   <StarIcon style={{ width: '1rem', height: '1rem' }} />
                   Rate
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenFaq}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    height: 46,
+                    background: 'var(--card-bg, #fff)',
+                    border: '1.5px solid var(--blue, #005794)',
+                    color: 'var(--blue, #005794)',
+                    borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    animationName: 'faqPulse', animationDuration: '2.8s',
+                    animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLButtonElement
+                    el.style.background = 'var(--blue, #005794)'
+                    el.style.color = '#fff'
+                    el.style.animationPlayState = 'paused'
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLButtonElement
+                    el.style.background = 'var(--card-bg, #fff)'
+                    el.style.color = 'var(--blue, #005794)'
+                    el.style.animationPlayState = 'running'
+                  }}
+                >
+                  FAQ
                 </button>
                 <a
                   href="https://www.chlorideexide.com/category/all-products"
