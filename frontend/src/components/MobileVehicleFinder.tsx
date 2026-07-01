@@ -1262,7 +1262,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
                     animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.3s',
                   }}>
                     <span className="dial-ring" style={{ display: 'inline-block', fontSize: '1.05rem', lineHeight: 1 }}>📞</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '0.85s' }}>
                       Dial a Battery
                     </span>
                   </div>
@@ -1278,7 +1278,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
                         animationDelay: `${0.55 + i * 0.23}s`,
                       }}>
                         <ReactCountryFlag countryCode={code} svg style={{ width: '1em', height: '1em', flexShrink: 0 }} />
-                        <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>{num}</span>
+                        <span style={{ fontSize: '0.74rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '1.6s' }}>{num}</span>
                       </span>
                     ))}
                   </div>

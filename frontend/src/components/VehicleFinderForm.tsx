@@ -280,10 +280,11 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
           display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.25rem',
         }}>
           <span style={{
-            fontWeight: 700, color: '#fff', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem',
+            fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem',
             animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.3s',
           }}>
-            <span className="dial-ring">📞</span> Dial a Battery
+            <span className="dial-ring">📞</span>
+            <span style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '0.85s' }}>Dial a Battery</span>
           </span>
           <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{
@@ -291,7 +292,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
               animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.55s',
             }}>
               <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 600, opacity: 0.95 }}>+254 719 080 000</span>
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '1.55s' }}>+254 719 080 000</span>
             </span>
             <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.65rem' }}>·</span>
             <span style={{
@@ -299,7 +300,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
               animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.78s',
             }}>
               <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 600, opacity: 0.95 }}>+255 677 484 631</span>
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '1.55s' }}>+255 677 484 631</span>
             </span>
             <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.65rem' }}>·</span>
             <span style={{
@@ -307,7 +308,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
               animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '1.0s',
             }}>
               <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 600, opacity: 0.95 }}>+256 200 400 900</span>
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '1.55s' }}>+256 200 400 900</span>
             </span>
           </div>
         </div>
@@ -345,13 +346,13 @@ function DialABatteryBanner() {
             <Phone size={13} strokeWidth={2} style={{ flexShrink: 0, color: '#fff' }} />
             <span style={{
               fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em',
-              background: 'linear-gradient(90deg, #fff 20%, #ffe88a 50%, #fff 80%)',
-              backgroundSize: '200% auto',
+              background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)',
+              backgroundSize: '220% auto',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
               animationName: 'dialShimmer',
-              animationDuration: '2.5s',
+              animationDuration: '3s',
               animationTimingFunction: 'linear',
               animationIterationCount: 'infinite',
             }}>Dial-A-Battery</span>
@@ -375,17 +376,17 @@ function DialABatteryBanner() {
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.15rem 0.55rem' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
             <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
-            <span style={{ fontSize: '0.67rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>+254 719 080 000</span>
+            <span style={{ fontSize: '0.67rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }}>+254 719 080 000</span>
           </span>
           <span style={{ fontSize: '0.6rem', color: '#fff', opacity: 0.4 }}>·</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
             <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
-            <span style={{ fontSize: '0.67rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>+255 677 484 631</span>
+            <span style={{ fontSize: '0.67rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }}>+255 677 484 631</span>
           </span>
           <span style={{ fontSize: '0.6rem', color: '#fff', opacity: 0.4 }}>·</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
             <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
-            <span style={{ fontSize: '0.67rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>+256 200 400 900</span>
+            <span style={{ fontSize: '0.67rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }}>+256 200 400 900</span>
           </span>
         </div>
       </div>

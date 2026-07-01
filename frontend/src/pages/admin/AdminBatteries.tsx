@@ -20,6 +20,7 @@ import {
   type UploadResult,
 } from '@/lib/adminApi'
 import AdminLayout from '@/components/admin/AdminLayout'
+import { OrbitLoader } from '@/components/ui/OrbitLoader'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const R   = '#CC0000'
@@ -554,8 +555,8 @@ export default function AdminBatteries() {
         {view === 'brands' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {overviewLoading ? (
-              <div style={{ ...CARD, padding: '4rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>
-                Loading brands…
+              <div style={{ ...CARD, padding: '4rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <OrbitLoader gradientId="admin-batt-brands" scale={0.6} />
               </div>
             ) : (
               <>

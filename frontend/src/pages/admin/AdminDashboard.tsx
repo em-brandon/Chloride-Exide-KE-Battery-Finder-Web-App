@@ -381,7 +381,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     load()
-    const t = setInterval(load, 30_000)
+    const t = setInterval(load, 15 * 60 * 1_000)
 
     // Force a full reload at midnight to reset daily counters
     const now = new Date()
@@ -441,7 +441,7 @@ export default function AdminDashboard() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--adm-text-1)' }}>Welcome back</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--adm-text-2)', marginTop: '0.2rem' }}>
-                Dashboard auto-refreshes every 30 seconds.
+                Dashboard auto-refreshes every 15 minutes.
                 {stats && <> Last loaded: <strong>{new Date().toLocaleTimeString()}</strong></>}
               </div>
             </div>
