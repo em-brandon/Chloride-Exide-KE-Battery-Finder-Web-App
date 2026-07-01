@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { PageLoader } from '@/components/PageLoader'
 import { VehicleFinderForm } from '@/components/VehicleFinderForm'
 import { MobileVehicleFinder } from '@/components/MobileVehicleFinder'
-import { Moon, Sun, Settings } from 'lucide-react'
+import { Moon, Sun, Settings, HelpCircle } from 'lucide-react'
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute'
 import { TestUserProvider, useTestUser } from '@/lib/TestUserContext'
 import { TermsGate } from '@/components/TermsGate'
@@ -173,6 +173,28 @@ function PublicApp({
                 Sign out
               </button>
             )}
+            <button
+              className="nav-dark-btn"
+              onClick={() => setFaqOpen(true)}
+              aria-label="FAQ & Disclaimer"
+              title="FAQ & Disclaimer"
+              style={{
+                animationName: 'faqPulse',
+                animationDuration: '2.8s',
+                animationTimingFunction: 'ease-out',
+                animationIterationCount: 'infinite',
+                color: 'var(--blue)',
+                borderRadius: '50%',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.animationPlayState = 'paused'
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.animationPlayState = 'running'
+              }}
+            >
+              <HelpCircle size={17} strokeWidth={2} />
+            </button>
             <button
               className={`nav-dark-btn nav-night-btn${darkMode ? ' active' : ''}`}
               onClick={onToggleDark}

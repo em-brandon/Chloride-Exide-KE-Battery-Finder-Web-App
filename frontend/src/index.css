@@ -1170,6 +1170,11 @@ body {
   70%  { box-shadow: 0 0 0 8px rgba(204, 0, 0, 0); }
   100% { box-shadow: 0 0 0 0   rgba(204, 0, 0, 0); }
 }
+@keyframes faqPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(0, 87, 148, 0.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(0, 87, 148, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(0, 87, 148, 0); }
+}
 
 
 @theme {
