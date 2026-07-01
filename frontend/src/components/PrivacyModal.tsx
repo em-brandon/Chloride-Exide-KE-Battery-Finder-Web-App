@@ -84,7 +84,10 @@ export function PrivacyModal({ open, onClose }: PrivacyModalProps) {
 
             <p><strong>Your Rights</strong></p>
             <p>
-              Under applicable Kenyan data protection law, you have the right to request access to or deletion of any personal data we hold that is linked to you. To make such a request, contact us at{' '}
+              Under the <strong>Kenya Data Protection Act, 2019 (Act No. 24 of 2019)</strong> and the oversight of the
+              Office of the Data Protection Commissioner (ODPC), you have the right to request access to, correction of,
+              or deletion of any personal data we hold that is linked to you. You also have the right to lodge a complaint
+              with the ODPC if you believe your data has been handled unlawfully. To make a data request, contact us at{' '}
               <a className="copyright-link" href="https://www.chlorideexide.com" target="_blank" rel="noopener noreferrer">
                 www.chlorideexide.com
               </a>.

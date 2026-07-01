@@ -90,7 +90,8 @@ export function CopyrightModal({ open, onClose }: CopyrightModalProps) {
               data collected by this application is the IP address submitted alongside voluntary user feedback, retained
               solely for spam prevention and service quality purposes. No personal account data, email addresses, or
               payment information is collected through the public-facing application. Data collected is never sold,
-              rented, or shared with third parties for commercial purposes.
+              rented, or shared with third parties for commercial purposes. For full details on data handling,
+              storage, and your rights under the Act, see our <strong>Privacy Policy</strong> accessible from the footer.
             </p>
 
             <p><strong>Governing Law</strong></p>
