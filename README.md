@@ -26,6 +26,7 @@ The project is organized into three distinct layers:
 - [Admin Dashboard](#admin-dashboard)
 - [Data Pipelines](#data-pipelines)
 - [Database Schema](#database-schema)
+- [Performance](#performance)
 - [Security](#security)
 - [Production Architecture](#production-architecture)
 - [Environment Variables](#environment-variables)
@@ -114,6 +115,7 @@ The project is organized into three distinct layers:
 │   │   │   │   ├── AdminTestSessions.tsx
 │   │   │   │   ├── AdminCoverage.tsx
 │   │   │   │   ├── AdminDataPipeline.tsx
+│   │   │   │   ├── AdminSearchLog.tsx
 │   │   │   │   └── AdminLogin.tsx
 │   │   │   └── TestUserLogin.tsx
 │   │   ├── lib/
@@ -488,21 +490,52 @@ Total (0–100) shown as a percentage with a 0.7 s ease-out fill animation.
 
 Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issued by `POST /api/admin/login`.
 
+### Pages
+
+| Page | Route | Description |
+|---|---|---|
+| Dashboard | `/admin` | Live stats, match breakdown card, data coverage tile, health indicator. Cards animate in with staggered slide-in on load. Auto-refreshes every 15 minutes. |
+| Battery Specs | `/admin/batteries` | Brand tile overview (with orbital loader), brand detail table, full search/filter/paginate table. CRUD and bulk Excel upload available in manage mode. |
+| Search Log | `/admin/search-log` | Paginated table of every `/api/recommend` call: vehicle, input, battery returned, match type, confidence, IP. Download PDF exports a full branded A4 report (jsPDF, lazy-loaded). |
+| Feedback | `/admin/feedback` | All user-submitted feedback with rating, accuracy, match metadata. Rows animate in staggered on load. |
+| Audit Log | `/admin/audit` | Immutable history of every battery spec create/update/delete. |
+| Sessions | `/admin/sessions` | Active admin sessions with revoke. |
+| Data Pipeline | `/admin/data-pipeline` | Trigger CRSP and web-validation pipelines, review staging, commit to master. |
+| Coverage | `/admin/coverage` | Vehicle/battery data coverage stats by make. |
+
+### API Endpoints
+
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/admin/login` | Admin login (5/min) |
 | `POST` | `/api/admin/logout` | Clear session |
 | `GET` | `/api/admin/me` | Current admin user |
-| `GET` | `/api/admin/stats` | Usage stats and record counts |
-| `GET` | `/api/admin/health` | Database connectivity check |
-| `GET/POST` | `/api/admin/batteries` | List or create battery specs |
+| `GET` | `/api/admin/stats` | Usage stats, table counts, today's match breakdown (3 queries) |
+| `GET` | `/api/admin/health` | Database connectivity + latency check |
+| `GET/POST` | `/api/admin/batteries` | List (paginated) or create battery specs |
 | `PATCH` | `/api/admin/batteries/{id}` | Update a battery spec |
 | `DELETE` | `/api/admin/batteries/{id}` | Soft-delete a battery spec |
 | `POST` | `/api/admin/batteries/upload` | Bulk upload from Excel |
 | `GET` | `/api/admin/batteries/export` | Export battery specs as Excel |
-| `GET` | `/api/admin/audit` | Full change history |
+| `GET` | `/api/admin/audit` | Full change history (paginated, filterable) |
+| `GET` | `/api/admin/search-events` | Paginated search event log |
 | `POST` | `/api/admin/cache/refresh` | Reload matcher caches from DB |
 | `GET/DELETE` | `/api/admin/sessions` | View or revoke admin sessions |
+
+### Search Event Logging
+
+Every call to `POST /api/recommend` is logged asynchronously to `search_events` via a fire-and-forget background thread. No latency is added to the recommendation response.
+
+Fields captured per event:
+
+| Field | Source |
+|---|---|
+| `make`, `model`, `year` | Request body |
+| `engine_cc`, `fuel_type` | Request body |
+| `battery_returned`, `battery_ah` | `result["primary"]["battery_code"]` and `ah` |
+| `match_type`, `confidence`, `matched` | Matcher result |
+| `ip_address` | `X-Forwarded-For` header (proxy-safe, comma-split, 45-char clamp) |
+| `timestamp` | UTC at time of request |
 
 ---
 
@@ -567,6 +600,7 @@ Managed by Alembic (`alembic/versions/`). Apply all migrations with `alembic upg
 | `api_usage_quota` | pipelines | admin UI | Per-provider API call quotas (30-day rolling) |
 | `admin_users` | `create_admin.py` | `admin_auth.py` | Admin credentials (bcrypt, cost 12) |
 | `admin_sessions` | `admin_auth.py` | `admin_auth.py` | Active admin sessions (8-hour TTL) |
+| `search_events` | `app.py` (`/api/recommend`) | admin UI | Append-only log of every battery recommendation request |
 | `admin_stats` | `app.py` middleware | admin UI | Persisted usage counters |
 | `app_settings` | admin UI | app | Key-value runtime configuration |
 | `test_users` | `/api/auth/register` | `app.py` | Test user accounts |
@@ -574,6 +608,8 @@ Managed by Alembic (`alembic/versions/`). Apply all migrations with `alembic upg
 | `user_feedback` | `/api/feedback` | admin UI | User feedback on recommendations |
 
 ### Core App Tables
+
+Solid lines (`--`) are enforced foreign keys. Dashed lines (`..`) are logical references by value (no DB-level FK).
 
 ```mermaid
 erDiagram
@@ -686,22 +722,48 @@ erDiagram
         string vehicle_label
         int satisfaction
         string accuracy
+        text wrong_parts
         text comments
         datetime submitted_at
         string ip_address
         int test_user_id FK
-        string match_type
+        string input_type
         int match_confidence
+        string match_type
         string recommended_battery
     }
 
-    admin_users       ||--o{ admin_sessions       : "has"
-    battery_specs     ||--o{ battery_audit_log    : "logged in"
-    test_users        ||--o{ test_user_sessions   : "has"
-    test_users        ||--o{ user_feedback        : "submits"
+    search_events {
+        int id PK
+        datetime timestamp
+        string make
+        string model
+        int year
+        int engine_cc
+        string fuel_type
+        string battery_returned
+        int battery_ah
+        string match_type
+        int confidence
+        bool matched
+        string ip_address
+    }
+
+    admin_users      ||--o{ admin_sessions     : "admin_id → admin_users.id (CASCADE)"
+    battery_specs    ||--o{ battery_audit_log  : "battery_id → battery_specs.id (SET NULL)"
+    test_users       ||--o{ test_user_sessions : "user_id → test_users.id (CASCADE)"
+    test_users       |o--o{ user_feedback      : "test_user_id → test_users.id (SET NULL)"
+    battery_specs    }o..o{ dial_battery_inference  : "battery_code (logical ref)"
+    battery_specs    }o..o{ web_battery_validation  : "battery_code (logical ref)"
+    battery_specs    }o..o{ search_events           : "battery_returned (logical ref)"
+    vehicle_years    }o..o{ web_battery_validation  : "make / model / year (logical ref)"
+    vehicle_years    }o..o{ dial_battery_inference  : "vehicle_type / vehicle_model (logical ref)"
+    vehicle_years    }o..o{ search_events           : "make / model / year (logical ref)"
 ```
 
-### Pipeline and Staging Tables
+### Pipeline & Staging Tables
+
+Solid lines (`--`) are enforced foreign keys. Dashed lines (`..`) show pipeline data flow (no DB-level FK).
 
 ```mermaid
 erDiagram
@@ -712,6 +774,15 @@ erDiagram
         string model_number
         int engine_capacity
         string fuel
+    }
+    vehicle_years {
+        int id PK
+        string make
+        string model
+        int year
+        int engine_capacity
+        string fuel
+        string source
     }
     vehicle_years_staging {
         int id PK
@@ -755,6 +826,15 @@ erDiagram
         string model
         string fuel
         datetime recorded_at
+    }
+    web_battery_validation {
+        int id PK
+        text make_n
+        text model_n
+        int year
+        text battery_code
+        text run_id
+        text version_id
     }
     web_battery_staging {
         int id PK
@@ -820,9 +900,149 @@ erDiagram
         datetime period_end
     }
 
-    vehicle_years_versions           ||--o{ vehicle_years_changelog           : "records"
-    web_battery_validation_versions  ||--o{ web_battery_validation_changelog  : "records"
+    vehicle_years_versions          ||--o{ vehicle_years_changelog          : "version_id → vehicle_years_versions.id (CASCADE)"
+    web_battery_validation_versions ||--o{ web_battery_validation_changelog : "version_id → web_battery_validation_versions.id (CASCADE)"
+    vehicles_raw                    }o..o{ vehicle_years                    : "dataprep.py produces"
+    fueleconomy_vehicles            }o..o{ vehicle_years                    : "enrich_years.py populates from"
+    vehicle_years_staging           }o..|| vehicle_years                    : "admin commit merges into"
+    web_battery_staging             }o..|| web_battery_validation           : "admin commit merges into"
+    web_battery_validation_versions |o..o{ web_battery_validation          : "version_id (run tracking)"
 ```
+
+### Indexes
+
+All indexes are created and dropped via Alembic migrations — never applied by hand.
+
+#### `battery_specs`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `battery_specs_pkey` | `id` | Primary key | Row lookup |
+| `battery_specs_battery_code_key` | `battery_code` | Unique | Upsert deduplication |
+| `ix_battery_specs_model_key` | `model_key` | B-tree | Matcher model-key lookups |
+| `ix_battery_specs_ah` | `ah` | B-tree | Ah-bracket queries |
+| `ix_battery_specs_active` | `id WHERE deleted_at IS NULL` | Partial B-tree | Covers all admin list queries and matcher loader; only indexes active (non-deleted) rows |
+
+#### `vehicle_years`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `vehicle_years_pkey` | `id` | Primary key | Row lookup |
+| `uq_vehicle_years` | `(make, model, year)` | Unique | Prevents duplicate rows on pipeline re-import |
+| `ix_vehicle_years_make` | `make` | B-tree | Filter by make (matcher, dropdowns) |
+| `ix_vehicle_years_make_model` | `(make, model)` | B-tree | Composite filter used by matcher and model dropdown |
+
+#### `search_events`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `search_events_pkey` | `id` | Primary key | Row lookup |
+| `ix_search_events_timestamp` | `timestamp` | B-tree | `ORDER BY timestamp DESC` on search log page |
+| `ix_search_events_match_type` | `match_type` | B-tree | Filter-by-match-type on search log page |
+
+`search_events` also has `autovacuum_analyze_scale_factor = 0.05` set (default is 0.20), so Postgres re-analyzes it after every 5% growth rather than 20% — keeping planner statistics accurate as the append-only log scales.
+
+#### `user_feedback`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `user_feedback_pkey` | `id` | Primary key | Row lookup |
+| `ix_user_feedback_submitted_at` | `submitted_at` | B-tree | Date-ordered feedback listing |
+| `ix_user_feedback_accuracy` | `accuracy` | B-tree | Filter-by-accuracy on feedback page |
+
+---
+
+## Performance
+
+### Database Query Strategy
+
+The app avoids N+1 query patterns through three mechanisms:
+
+#### 1. In-memory matcher cache (hot path — zero DB queries per request)
+
+`matcher.py` loads all batteries, vehicle years, model aliases, web validations, and Dial-A-Battery inference rows into memory at startup via `@lru_cache`. Every `/api/recommend` call runs entirely in memory. The cache can be flushed and reloaded from the admin dashboard without restarting the server.
+
+#### 2. Consolidated stats query (`GET /api/admin/stats`)
+
+The dashboard stats endpoint previously issued 10–11 separate `COUNT` queries per call (one per table, one per match type bucket). It now runs 3 queries total:
+
+| Before | After |
+|---|---|
+| 3 × `COUNT` on `dial_battery_inference` | 1 SQL with 7 scalar subqueries (all table counts in one round trip) |
+| 4 × ORM `COUNT` on separate tables | ↑ same query |
+| 3 × `COUNT` on `search_events` (one per match type) | 1 `GROUP BY match_type` — Python buckets Matched / Close / Estimated |
+| 1 × `AdminStats` lookup | 1 × `AdminStats` lookup (unchanged) |
+
+```sql
+-- All 7 table counts in one query
+SELECT
+    (SELECT COUNT(*) FROM battery_specs WHERE deleted_at IS NULL) AS battery_specs,
+    (SELECT COUNT(DISTINCT make || '|' || model) FROM vehicle_years) AS vehicle_years,
+    (SELECT COUNT(*) FROM vehicle_raw)         AS vehicles_raw,
+    (SELECT COUNT(*) FROM model_aliases)       AS model_aliases,
+    (SELECT COUNT(DISTINCT vehicle_type)  FROM dial_battery_inference) AS inf_makes,
+    (SELECT COUNT(DISTINCT vehicle_model) FROM dial_battery_inference) AS inf_models,
+    (SELECT COUNT(*) FROM dial_battery_inference)                      AS inf_records
+```
+
+```python
+# One GROUP BY replaces three separate COUNT queries
+rows = db.query(SearchEvent.match_type, func.count(SearchEvent.id))
+         .filter(SearchEvent.timestamp >= today_start)
+         .group_by(SearchEvent.match_type).all()
+counts_by_type = {match_type: n for match_type, n in rows}
+```
+
+#### 3. Bulk pre-fetch in CRSP pipeline commit
+
+When committing staged vehicle year rows to `vehicle_years`, all existing `(make, model, year)` keys are loaded into a Python `set` in one query before the loop. Each staging row is then checked via O(1) set membership — no per-row `SELECT`.
+
+```python
+# One query, O(1) lookup per row — no per-row SELECT
+existing_keys = {
+    (r.make, r.model, r.year)
+    for r in db.execute(text("SELECT make, model, year FROM vehicle_years")).fetchall()
+}
+for row in staging_rows:
+    if (row.make, row.model, row.year) in existing_keys:
+        continue
+```
+
+#### 4. Matcher result cache (`recommend()`)
+
+`matcher.recommend()` is decorated with `@lru_cache(maxsize=512)`, keyed on `(make, model, year, engine_cc, fuel_type, enable_aliases, stop_start)`. The first call for a given vehicle runs the full RapidFuzz matching logic; subsequent identical calls return the cached dict instantly. In production the most searched vehicles (Toyota Corolla, Honda Fit, Isuzu D-Max, etc.) are overwhelmingly repeat queries, so cache hit rates are high.
+
+The cache is invalidated automatically whenever battery data changes — every battery create, update, delete, bulk upload, or admin cache refresh calls `matcher.recommend.cache_clear()` alongside the existing `matcher._batteries.cache_clear()`. Stale results are never served.
+
+#### 5. Database indexes
+
+Three indexes added via Alembic migration `3c4d5e6f7a8b`:
+
+| Index | Table | Purpose |
+| --- | --- | --- |
+| `ix_search_events_match_type` | `search_events` | Covers the match_type filter on the Search Log admin page |
+| `ix_battery_specs_active` | `battery_specs` | Partial index (`WHERE deleted_at IS NULL`) — only indexes active batteries; used by every admin list query and the matcher loader |
+| `uq_vehicle_years` | `vehicle_years` | Unique composite `(make, model, year)` — prevents duplicates on pipeline re-import |
+
+#### 6. VACUUM ANALYZE
+
+Postgres does not overwrite rows when they are updated — it writes a new version alongside the old one and marks the old version dead. Dead rows accumulate between cleanup cycles, causing the query planner to work from stale statistics.
+
+**VACUUM** removes dead row versions from disk. **ANALYZE** re-samples the table and updates the planner's row count and value distribution estimates so it can choose the right query plan (index scan vs. sequential scan).
+
+This is **fully automatic** — no frontend button, no manual admin action. Postgres runs a background worker called autovacuum that fires VACUUM ANALYZE on each table once enough rows have changed. After the initial data import in June 2026 left 8,922 dead rows in `vehicle_years` and `search_events` had never been analyzed, a one-time manual `VACUUM ANALYZE` was run to clear the backlog immediately.
+
+The migration also lowers the autovacuum sensitivity for `search_events`:
+
+```sql
+ALTER TABLE search_events SET (autovacuum_analyze_scale_factor = 0.05);
+```
+
+The default threshold is 20% — autovacuum only fires after 20% of the table's rows are new or updated. For an append-only log that grows steadily, this means planner statistics can lag far behind reality. Setting it to 5% means autovacuum re-analyzes `search_events` after every 5% growth, keeping query plans accurate as the table scales.
+
+### Frontend Bundle Splitting
+
+Vite is configured with manual chunk splitting (`vite.config.ts`) to separate vendor libraries and icon sets from application code. Heavy optional libraries (jsPDF, jspdf-autotable) are dynamically imported and only loaded when the PDF export button is clicked — they never appear in the initial bundle.
 
 ---
 

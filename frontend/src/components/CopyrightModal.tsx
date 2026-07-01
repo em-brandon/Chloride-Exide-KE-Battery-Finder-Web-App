@@ -83,6 +83,17 @@ export function CopyrightModal({ open, onClose }: CopyrightModalProps) {
               range. Unauthorised extraction or commercial use of this data is strictly prohibited.
             </p>
 
+            <p><strong>Data Protection</strong></p>
+            <p>
+              This application is operated in compliance with the <strong>Kenya Data Protection Act, 2019 (Act No. 24 of 2019)</strong>{' '}
+              and is subject to the oversight of the Office of the Data Protection Commissioner (ODPC). The only personal
+              data collected by this application is the IP address submitted alongside voluntary user feedback, retained
+              solely for spam prevention and service quality purposes. No personal account data, email addresses, or
+              payment information is collected through the public-facing application. Data collected is never sold,
+              rented, or shared with third parties for commercial purposes. For full details on data handling,
+              storage, and your rights under the Act, see our <strong>Privacy Policy</strong> accessible from the footer.
+            </p>
+
             <p><strong>Governing Law</strong></p>
             <p>
               This application and all matters relating to its use are governed by the laws of the
@@ -90,10 +101,14 @@ export function CopyrightModal({ open, onClose }: CopyrightModalProps) {
               Kenyan courts.
             </p>
 
-            <p><strong>Contact</strong></p>
+            <p><strong>Contact &amp; Registered Office</strong></p>
             <p>
-              For licensing enquiries, permissions, or intellectual property concerns, contact
-              Chloride Exide (Kenya) Limited at{' '}
+              Chloride Exide (Kenya) Limited<br />
+              Exans House, off Enterprise Road<br />
+              Industrial Area, Nairobi, Kenya
+            </p>
+            <p>
+              For licensing enquiries, permissions, or intellectual property concerns, visit{' '}
               <a className="copyright-link" href="https://www.chlorideexide.com" target="_blank" rel="noopener noreferrer">
                 www.chlorideexide.com
               </a>.

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import {
   BoltIcon,
   CircleStackIcon,
@@ -20,6 +21,7 @@ import {
   exportBatteriesUrl,
   getWebValidateCoverage,
   type AdminStats,
+  type MatchBreakdown,
   type HealthStatus,
   type CoverageInfo,
 } from '@/lib/adminApi'
@@ -89,7 +91,7 @@ function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
   const color = accentColor ?? 'rgba(17,24,39,0.88)'
   const borderColor = accentColor ?? '#e2e4e9'
   return (
-    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderTop: `3px solid ${borderColor}` }}>
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderTop: `3px solid ${borderColor}`, height: '100%', boxSizing: 'border-box' }}>
       {/* Label + icon pinned to top */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -114,11 +116,61 @@ function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
   )
 }
 
+// ── RecommendCallsCard ────────────────────────────────────────────────────────
+function BreakdownRow({ color, label, count, total }: { color: string; label: string; count: number; total: number }) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: '0.62rem', color: 'var(--adm-text-3)', width: 54, flexShrink: 0 }}>{label}</span>
+      <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--adm-card-border)', overflow: 'hidden' }}>
+        <div style={{ width: `${Math.max(pct, total > 0 ? 2 : 0)}%`, height: '100%', borderRadius: 3, background: color, transition: 'width 0.4s ease' }} />
+      </div>
+      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--adm-text-2)', width: 28, textAlign: 'right', flexShrink: 0 }}>{total > 0 ? `${pct}%` : '—'}</span>
+    </div>
+  )
+}
+
+function RecommendCallsCard({ dbReads, breakdown }: { dbReads: number | string; breakdown: MatchBreakdown | null | undefined }) {
+  const accent = '#7e22ce'
+  const bd = breakdown
+  return (
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accent}`, height: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>Recommend Calls</span>
+        <span style={{ color: accent }}><BookOpenIcon style={{ width: 18, height: 18 }} /></span>
+      </div>
+      <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3.5rem', fontWeight: 900, color: accent, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.5rem 0' }}>
+        {typeof dbReads === 'number' ? dbReads.toLocaleString() : dbReads}
+      </span>
+      <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accent}22`, paddingTop: '0.6rem', width: '100%' }}>
+        <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block', marginBottom: '0.55rem' }}>today's /recommend requests</span>
+        <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-3)', display: 'block', marginBottom: '0.4rem' }}>Vehicle → Battery</span>
+        {bd && bd.total > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <BreakdownRow color="#10b981" label="Matched"   count={bd.matched}  total={bd.total} />
+            <BreakdownRow color="#f97316" label="Close"     count={bd.close}    total={bd.total} />
+            <BreakdownRow color="#CC0000" label="Estimated" count={bd.fallback} total={bd.total} />
+          </div>
+        ) : (
+          <span style={{ fontSize: '0.62rem', color: 'rgba(107,114,128,0.45)', fontStyle: 'italic' }}>No data yet today</span>
+        )}
+        <Link
+          to="/admin/search-log"
+          style={{ display: 'inline-block', marginTop: '0.6rem', fontSize: '0.62rem', fontWeight: 700, color: accent, textDecoration: 'none', letterSpacing: '0.01em' }}
+        >
+          View log →
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 // ── DataCoverageTile ──────────────────────────────────────────────────────────
 function DataCoverageTile({ stats, coverage }: { stats: AdminStats | null; coverage: CoverageInfo | null }) {
   const accent = '#059669'
   return (
-    <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accent}` }}>
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accent}`, height: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
@@ -216,7 +268,7 @@ function HealthCard({ status, latency_ms, pool_size, pool_checked_out, pool_usag
   const usagePct = pool_usage_pct ?? (pool_size ? Math.round((pool_checked_out / pool_size) * 100) : 0)
 
   return (
-    <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: `3px solid ${borderColor}` }}>
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: `3px solid ${borderColor}`, height: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
           Database Health
@@ -294,6 +346,18 @@ function ActionCard({ icon, label, desc, onClick, href, download, primary, loadi
   return <button onClick={loading ? undefined : onClick} style={base} onMouseEnter={hover} onMouseLeave={unhover}>{content}</button>
 }
 
+// ── Animation helper ─────────────────────────────────────────────────────────
+function cardAnim(delayMs: number, fillHeight = false): React.CSSProperties {
+  return {
+    animationName: 'admCardIn',
+    animationDuration: '0.48s',
+    animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    animationFillMode: 'both',
+    animationDelay: `${delayMs}ms`,
+    ...(fillHeight ? { height: '100%' } : {}),
+  }
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [stats,    setStats]    = useState<AdminStats | null>(null)
@@ -317,7 +381,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     load()
-    const t = setInterval(load, 30_000)
+    const t = setInterval(load, 15 * 60 * 1_000)
 
     // Force a full reload at midnight to reset daily counters
     const now = new Date()
@@ -372,11 +436,12 @@ export default function AdminDashboard() {
           )}
 
           {/* ── Welcome strip ── */}
+          <div style={{ ...cardAnim(0) }}>
           <div style={{ ...CARD, padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.25rem', borderLeft: `5px solid ${R}` }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--adm-text-1)' }}>Welcome back</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--adm-text-2)', marginTop: '0.2rem' }}>
-                Dashboard auto-refreshes every 30 seconds.
+                Dashboard auto-refreshes every 15 minutes.
                 {stats && <> Last loaded: <strong>{new Date().toLocaleTimeString()}</strong></>}
               </div>
             </div>
@@ -387,11 +452,12 @@ export default function AdminDashboard() {
               <ArrowPathIcon style={{ width: 13, height: 13 }} /> Refresh now
             </button>
           </div>
+          </div>
 
           {/* ── Stat cards — all five in one row ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
-            <StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} />
-            <StatCard
+            <div style={cardAnim(80, true)}><StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
+            <div style={cardAnim(160, true)}><StatCard
               accentColor="#1d4ed8"
               label="Makes & Models"
               value={stats?.counts.vehicle_years ?? '—'}
@@ -399,50 +465,50 @@ export default function AdminDashboard() {
                 ? `${stats.counts.vehicle_years.toLocaleString()} pairs · ${stats.counts.vehicles_raw.toLocaleString()} raw · ${(stats.counts.vehicle_years + stats.counts.vehicles_raw).toLocaleString()} total`
                 : undefined}
               icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
-            />
-            <StatCard accentColor="#7e22ce" label="Recommend Calls" value={stats?.db_reads ?? '—'} sub="cumulative /recommend requests" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
-            <DataCoverageTile stats={stats} coverage={coverage} />
-            {health && <HealthCard {...health} />}
+            /></div>
+            <div style={cardAnim(240, true)}><RecommendCallsCard dbReads={stats?.db_reads ?? '—'} breakdown={stats?.match_breakdown} /></div>
+            <div style={cardAnim(320, true)}><DataCoverageTile stats={stats} coverage={coverage} /></div>
+            {health && <div style={cardAnim(400, true)}><HealthCard {...health} /></div>}
           </div>
 
           {/* ── Quick actions ── */}
           <div>
-            <h2 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.75rem' }}>
+            <h2 style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.75rem', ...cardAnim(460) }}>
               Quick Actions
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
-              <ActionCard primary
+              <div style={cardAnim(510)}><ActionCard primary
                 icon={<BoltIcon style={{ width: 18, height: 18, color: R }} />}
                 label="Manage Batteries"
                 desc="Add, edit, delete or bulk-upload battery records"
                 href="/admin/batteries?manage=true"
-              />
-              <ActionCard
+              /></div>
+              <div style={cardAnim(560)}><ActionCard
                 icon={<ArrowDownTrayIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
                 label="Export Dataset"
                 desc="Download the full battery dataset as .xlsx"
                 href={exportBatteriesUrl()}
                 download
-              />
-              <ActionCard
+              /></div>
+              <div style={cardAnim(610)}><ActionCard
                 icon={<ArrowPathIcon style={{ width: 18, height: 18, color: cacheRefreshing ? R : 'rgba(107,114,128,0.7)' }} />}
                 label="Refresh Matcher Cache"
                 desc="Force-reload the in-memory vehicle-to-battery matcher"
                 onClick={handleCacheRefresh}
                 loading={cacheRefreshing}
-              />
-              <ActionCard
+              /></div>
+              <div style={cardAnim(660)}><ActionCard
                 icon={<ClipboardDocumentListIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
                 label="View Audit Log"
                 desc="Browse change history and field-level diffs"
                 href="/admin/audit"
-              />
-              <ActionCard
+              /></div>
+              <div style={cardAnim(710)}><ActionCard
                 icon={<FunnelIcon style={{ width: 18, height: 18, color: 'rgba(107,114,128,0.7)' }} />}
                 label="Data Pipeline"
                 desc="Clean and normalise CRSP and NTSA vehicle datasets"
                 href="/admin/pipeline"
-              />
+              /></div>
             </div>
 
           </div>

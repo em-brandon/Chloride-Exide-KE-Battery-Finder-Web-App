@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { stripMakePrefix } from '@/lib/utils'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs, friendlyError } from '@/lib/api'
 import type { BatterySpecResult } from '@/lib/api'
 import { StartStopIcon } from '@/components/ui/StartStopIcon'
@@ -9,6 +10,7 @@ import { AccuracyBar } from '@/components/AccuracyBar'
 import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid'
 import riderImg from '@/assets/rider.webp'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
 import powerlastLogo from '@/assets/powerlast-logo.webp'
@@ -83,6 +85,7 @@ type Step = 'make' | 'model' | 'year' | 'details' | 'result'
 export interface MobileVehicleFinderProps {
   darkMode?: boolean
   onMakesLoaded?: () => void
+  onOpenFaq?: () => void
 }
 
 // ── Shared styles ──────────────────────────────────────────────────────────────
@@ -233,7 +236,7 @@ function ModeToggle({ typeMode, onToggle }: { typeMode: boolean; onToggle: () =>
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileVehicleFinderProps) {
+export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq }: MobileVehicleFinderProps) {
   const [step, setStep] = useState<Step>('make')
   const [typeMode, setTypeMode] = useState(false)
 
@@ -1007,7 +1010,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 <p style={{ ...stepChip, color: '#16a34a' }}>Battery Found</p>
                 <h2 style={{ ...stepTitle, fontSize: '1.05rem', paddingRight: 0, marginBottom: '0.5rem' }}>
                   {result.matched_make
-                    ? `${result.matched_make} ${result.matched_model} · ${result.matched_year}`
+                    ? `${result.matched_make} ${stripMakePrefix(result.matched_make, result.matched_model)} · ${result.matched_year}`
                     : `${result.make} ${result.model} · ${result.year}`}
                 </h2>
                 {!result.matched_make && (
@@ -1080,6 +1083,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
                     color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
                     overflowWrap: 'break-word',
+                    animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.1s',
                   }}>
                     {p.battery_code || '—'}
                   </div>
@@ -1133,12 +1137,14 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 {[
                   { value: p.ah,     unit: 'Ah',       label: 'Capacity' },
                   { value: p.cca_en, unit: 'CCA (EN)', label: 'Cold Crank' },
-                ].map(({ value, unit, label }) => (
+                ].map(({ value, unit, label }, i) => (
                   <div key={unit} style={{
                     background: 'var(--bg, #f4f5f7)',
                     borderRadius: '0.5rem',
                     padding: '0.7rem 0.85rem',
                     border: '1px solid var(--border, #e2e4e9)',
+                    animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both',
+                    animationDelay: `${0.2 + i * 0.12}s`,
                   }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text, #111827)', lineHeight: 1 }}>
                       {value ?? '—'}
@@ -1168,7 +1174,32 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               <div style={DIVIDER} />
 
               {/* ── Action buttons ── */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.1rem 0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', padding: '0.1rem 0' }}>
+                <button
+                  type="button"
+                  onClick={onOpenFaq}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+                    height: 46,
+                    background: 'var(--card-bg, #fff)',
+                    border: '1.5px solid var(--blue, #005794)',
+                    color: 'var(--blue, #005794)',
+                    borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLButtonElement
+                    el.style.background = 'var(--blue, #005794)'
+                    el.style.color = '#fff'
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLButtonElement
+                    el.style.background = 'var(--card-bg, #fff)'
+                    el.style.color = 'var(--blue, #005794)'
+                  }}
+                >
+                  <ChatBubbleLeftRightIcon style={{ width: '1.2rem', height: '1.2rem' }} />
+                </button>
                 <button
                   type="button"
                   onClick={() => setFeedbackOpen(true)}
@@ -1195,6 +1226,18 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     background: 'var(--red, #CC0000)', color: '#fff',
                     borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
                     cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none',
+                    animationName: 'shopPing', animationDuration: '2s',
+                    animationTimingFunction: 'ease-out', animationIterationCount: 'infinite',
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLAnchorElement
+                    el.style.background = '#990000'
+                    el.style.animationPlayState = 'paused'
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLAnchorElement
+                    el.style.background = 'var(--red, #CC0000)'
+                    el.style.animationPlayState = 'running'
                   }}
                 >
                   <ShoppingBagIcon style={{ width: '1rem', height: '1rem' }} />
@@ -1214,9 +1257,12 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               }}>
                 {/* Left: title + phone numbers */}
                 <div style={{ flex: '1 1 0', padding: '0.75rem 0.5rem 0.75rem 1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem',
+                    animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.3s',
+                  }}>
                     <span className="dial-ring" style={{ display: 'inline-block', fontSize: '1.05rem', lineHeight: 1 }}>📞</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '0.85s' }}>
                       Dial a Battery
                     </span>
                   </div>
@@ -1225,28 +1271,31 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                       { code: 'KE', num: '+254 719 080 000' },
                       { code: 'TZ', num: '+255 677 484 631' },
                       { code: 'UG', num: '+256 200 400 900' },
-                    ].map(({ code, num }) => (
-                      <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}>
+                    ].map(({ code, num }, i) => (
+                      <span key={code} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap',
+                        animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both',
+                        animationDelay: `${0.55 + i * 0.23}s`,
+                      }}>
                         <ReactCountryFlag countryCode={code} svg style={{ width: '1em', height: '1em', flexShrink: 0 }} />
-                        <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>{num}</span>
+                        <span style={{ fontSize: '0.74rem', fontWeight: 600, background: 'linear-gradient(90deg, rgba(255,255,255,0.65) 15%, #FFE030 50%, rgba(255,255,255,0.65) 85%)', backgroundSize: '220% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animationName: 'dialShimmer', animationDuration: '3s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationDelay: '1.6s' }}>{num}</span>
                       </span>
                     ))}
                   </div>
                 </div>
 
                 {/* Right: rider image */}
-                <div style={{ width: 84, flexShrink: 0, position: 'relative' }}>
+                <div style={{ width: 100, flexShrink: 0, background: '#d8d8d8' }}>
                   <img
                     src={riderImg}
                     alt=""
                     aria-hidden="true"
                     style={{
-                      position: 'absolute',
-                      inset: 0,
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover',
-                      objectPosition: 'center top',
+                      objectFit: 'contain',
+                      objectPosition: 'center bottom',
+                      display: 'block',
                     }}
                   />
                 </div>
@@ -1316,7 +1365,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         onClose={() => setFeedbackOpen(false)}
         vehicleLabel={result
           ? result.matched_make
-            ? `${result.matched_make} ${result.matched_model} (${result.matched_year})`
+            ? `${result.matched_make} ${stripMakePrefix(result.matched_make, result.matched_model)} (${result.matched_year})`
             : `${result.make} ${result.model} ${result.year}`
           : `${make} ${model} ${year}`}
         inputType="select"

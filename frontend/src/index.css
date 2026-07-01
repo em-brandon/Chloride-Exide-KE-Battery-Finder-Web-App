@@ -19,16 +19,29 @@
 /* ── Global reset ───────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  overflow-x: hidden;
+  background: var(--bg);
+  background-image: linear-gradient(160deg, #f4f5f7 0%, #eef0f4 100%);
+  min-height: 100%;
+  min-height: 100dvh;
+}
 body {
   font-family: 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  background: var(--bg);
+  background-image: linear-gradient(160deg, #f4f5f7 0%, #eef0f4 100%);
+  min-height: 100%;
+  min-height: 100dvh;
 }
 
 /* ── Page wrapper ───────────────────────────────────────────────── */
 .page-wrapper {
   min-height: 100vh;
-  overflow-x: hidden;
+  min-height: 100svh;
+  overflow-x: clip;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1147,10 +1160,20 @@ body {
 
 /* ── End feedback drawer ────────────────────────────────────────── */
 @keyframes ldrPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.7; } }
-@keyframes slideIn  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes spin     { to { transform: rotate(360deg); } }
+@keyframes slideIn   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dialNumIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes spin      { to { transform: rotate(360deg); } }
 @keyframes toastIn  { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(110%); } }
+@keyframes dialShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes shopPing {
+  0%   { box-shadow: 0 0 0 0   rgba(204, 0, 0, 0.70); }
+  70%  { box-shadow: 0 0 0 8px rgba(204, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(204, 0, 0, 0); }
+}
 
 
 @theme {
@@ -1221,6 +1244,8 @@ body {
   /* Tighten outer padding and compensate nav negative margins */
   .page-wrapper {
     padding: 0 0.75rem 0.75rem;
+    min-height: 100svh;
+    min-height: 100dvh;
   }
   .page-nav {
     padding: 0.6rem 0.75rem;
@@ -1438,6 +1463,11 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-slide-up { animation: slideUp 0.3s ease forwards; }
+
+@keyframes admCardIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* Success pop */
 @keyframes successPop {

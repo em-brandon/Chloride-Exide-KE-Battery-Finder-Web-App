@@ -82,6 +82,53 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     q: 'How current is the vehicle and battery data?',
     a: 'The vehicle database is refreshed periodically to include new models entering the Kenyan market. The battery catalogue reflects Chloride Exide Kenya\'s active product range. For very new vehicles or the latest battery availability, contact your nearest Chloride Exide dealer directly.',
   },
+  {
+    q: 'How long should a car battery last, and when should I replace it?',
+    a: (
+      <span>
+        In Kenya's climate, a well-maintained car battery typically lasts <strong>3 to 5 years</strong>. Heat accelerates battery wear, so batteries in vehicles with poor engine-bay ventilation or that spend long periods idling may need replacement sooner. Replace your battery if you notice any of the following:
+        <ul className="faq-inner-list">
+          <li>• Slow or sluggish cranking on startup — especially in the morning</li>
+          <li>• Headlights or interior lights dimming when you turn the key</li>
+          <li>• Battery warning light appearing on your dashboard</li>
+          <li>• The battery is more than 4 years old</li>
+          <li>• The car needed a jump-start more than once in a short period</li>
+        </ul>
+        Don't wait for a complete failure — a flat battery in traffic or away from town is costly and dangerous.
+      </span>
+    ),
+  },
+  {
+    q: 'What does the "Alternative Battery" shown on my result mean?',
+    a: 'The alternative is a different battery with the same or compatible specifications that will also fit your vehicle. It\'s your second option if the primary recommendation is out of stock, or if you want to compare pricing between product lines. Both batteries are suitable — the primary is simply the most commonly supplied for your vehicle by Chloride Exide dealers across Kenya.',
+  },
+  {
+    q: 'My car is a JDM import (Vitz, Fielder, Allion, Premio, Demio, etc.) — will it be found?',
+    a: 'Yes. The database includes the Japanese domestic market (JDM) model names used on grey imports that are common across Kenya. If your result shows a low accuracy, try the Japanese model name — for example, search "VITZ" rather than "YARIS", or "FIELDER" rather than "COROLLA WAGON". JDM vehicles automatically receive the NS/JIS battery standard, which is correct for all Japanese-market cars.',
+  },
+  {
+    q: 'Can I search by battery Ah or CCA instead of my vehicle details?',
+    a: 'Yes. Use the "Search by Battery Specs" tab (on desktop) and enter the Ah or CCA value printed on your existing battery label. This is useful when your vehicle isn\'t in the database, when replacing a battery on a non-standard or modified vehicle, or when you simply want to find a compatible replacement for an existing battery by specification.',
+  },
+  {
+    q: 'What is the warranty on Chloride Exide batteries?',
+    a: 'Warranty periods vary by product line and are confirmed at the point of purchase. To activate your warranty, scan the QR code on the battery label at the time of purchase. Always keep your purchase receipt — it is required for any warranty claim. Bring both the receipt and the battery to the dealer where it was purchased. Warranty covers manufacturing defects and does not cover damage from incorrect installation, deep discharge, or use in a vehicle with a faulty charging system.',
+  },
+  {
+    q: 'Where can I buy the recommended battery?',
+    a: (
+      <span>
+        Use the <strong>Shop Now</strong> button on the result card to visit the Chloride Exide Kenya online store. You can also call the <strong>Dial-a-Battery</strong> service shown at the bottom of your result for home or roadside delivery in major Kenyan towns. To find your nearest dealer branch, visit{' '}
+        <a href="https://www.chlorideexide.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue, #005794)', fontWeight: 600 }}>
+          chlorideexide.com
+        </a>.
+      </span>
+    ),
+  },
+  {
+    q: 'How do I dispose of my old battery?',
+    a: 'Car batteries contain lead and sulphuric acid — they must never be disposed of in household waste or dumped. Return your old battery to any Chloride Exide dealer or licensed auto parts outlet. Most dealers accept old batteries for recycling and may offer a trade-in credit toward your new purchase. Proper recycling recovers up to 99% of the lead for reuse and prevents soil and water contamination.',
+  },
 ]
 
 function AccordionItem({ q, a }: { q: string; a: React.ReactNode }) {

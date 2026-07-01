@@ -21,6 +21,7 @@ admin_stats       — persisted counters (e.g. total DB reads)
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -263,6 +264,38 @@ class AdminStats(Base):
 
     def __repr__(self) -> str:
         return f"<AdminStats {self.stat_key}={self.stat_value}>"
+
+
+class SearchEvent(Base):
+    """
+    One row per /api/recommend call. Written fire-and-forget in a background
+    thread by app.py so it never adds latency to the recommendation response.
+
+    match_type values (from matcher.py):
+      'Exact Match', 'Web-Validated Match', 'Real-World Data Match' → matched=True
+      'Close Match'                                                  → matched=True
+      'Estimated (Rule-Based)'                                       → matched=False
+    """
+
+    __tablename__ = "search_events"
+
+    id               = Column(Integer,               primary_key=True, autoincrement=True)
+    timestamp        = Column(DateTime(timezone=True), nullable=False)
+    make             = Column(String(80),            nullable=True)
+    model            = Column(String(80),            nullable=True)
+    year             = Column(Integer,               nullable=True)
+    engine_cc        = Column(Integer,               nullable=True)
+    fuel_type        = Column(String(20),            nullable=True)
+    battery_returned = Column(String(50),            nullable=True)
+    battery_ah       = Column(Integer,               nullable=True)
+    match_type       = Column(String(50),            nullable=True)
+    confidence       = Column(Integer,               nullable=True)
+    matched          = Column(Boolean,               nullable=False, default=False)
+    ip_address       = Column(String(45),            nullable=True)
+
+    __table_args__ = (
+        Index("ix_search_events_timestamp", "timestamp"),
+    )
 
 
 class AppSettings(Base):

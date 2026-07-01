@@ -387,7 +387,7 @@ def _vehicles() -> pd.DataFrame:
 def _batteries() -> pd.DataFrame:
     from db import engine
     df = pd.read_sql(
-        "SELECT battery_code, model_key, ah, cca_en, technology, origin"
+        "SELECT battery_code, model_key, ah, cca_en, technology, origin, brand"
         " FROM battery_specs WHERE deleted_at IS NULL",
         engine,
     )
@@ -399,6 +399,7 @@ def _batteries() -> pd.DataFrame:
         "cca_en":       "CCA (A EN)",
         "technology":   "Technology",
         "origin":       "Origin",
+        "brand":        "Brand",
     })
     df["Ah"] = pd.to_numeric(df["Ah"], errors="coerce")
     df["CCA (A EN)"] = pd.to_numeric(df["CCA (A EN)"], errors="coerce")
@@ -410,42 +411,35 @@ _SPEC_TOLERANCE = 0.15  # ±15% window for AH/CCA spec search
 
 def search_by_specs(ah: float | None = None, cca: float | None = None) -> list[dict]:
     """Return all active batteries within ±15% of the given AH and/or CCA, sorted by closeness."""
-    from db import engine as _engine
-    df = pd.read_sql(
-        "SELECT battery_code, model_key, ah, cca_en, technology, origin, brand"
-        " FROM battery_specs WHERE deleted_at IS NULL",
-        _engine,
-    )
-    df["ah"]     = pd.to_numeric(df["ah"],     errors="coerce")
-    df["cca_en"] = pd.to_numeric(df["cca_en"], errors="coerce")
+    df = _batteries().copy()
 
     mask = pd.Series([True] * len(df), index=df.index)
     if ah is not None:
         lo, hi = ah * (1 - _SPEC_TOLERANCE), ah * (1 + _SPEC_TOLERANCE)
-        mask &= df["ah"].between(lo, hi)
+        mask &= df["Ah"].between(lo, hi)
     if cca is not None:
         lo, hi = cca * (1 - _SPEC_TOLERANCE), cca * (1 + _SPEC_TOLERANCE)
-        mask &= df["cca_en"].between(lo, hi)
+        mask &= df["CCA (A EN)"].between(lo, hi)
 
     hits = df[mask].copy()
     if hits.empty:
         return []
 
-    hits["_ah_dev"]  = ((hits["ah"]     - ah)  / ah).abs()  if ah  is not None else 0.0
-    hits["_cca_dev"] = ((hits["cca_en"] - cca) / cca).abs() if cca is not None else 0.0
+    hits["_ah_dev"]  = ((hits["Ah"]         - ah)  / ah).abs()  if ah  is not None else 0.0
+    hits["_cca_dev"] = ((hits["CCA (A EN)"] - cca) / cca).abs() if cca is not None else 0.0
     hits["_score"]   = hits["_ah_dev"] + hits["_cca_dev"]
     hits = hits.sort_values("_score")
 
     results = []
     for _, r in hits.iterrows():
         results.append({
-            "battery_code": r["battery_code"],
-            "model_key":    r["model_key"],
-            "ah":           None if pd.isna(r["ah"])     else float(r["ah"]),
-            "cca":          None if pd.isna(r["cca_en"]) else float(r["cca_en"]),
-            "technology":   r["technology"] if pd.notna(r["technology"]) else None,
-            "brand":        r["brand"]      if pd.notna(r["brand"])      else None,
-            "origin":       r["origin"]     if pd.notna(r["origin"])     else None,
+            "battery_code": r["Battery Code"],
+            "model_key":    r["Model Key"],
+            "ah":           None if pd.isna(r["Ah"])          else float(r["Ah"]),
+            "cca":          None if pd.isna(r["CCA (A EN)"])  else float(r["CCA (A EN)"]),
+            "technology":   r["Technology"] if pd.notna(r["Technology"]) else None,
+            "brand":        r["Brand"]      if pd.notna(r["Brand"])      else None,
+            "origin":       r["Origin"]     if pd.notna(r["Origin"])     else None,
             "match_type":   "direct" if r["_score"] < 0.05 else "close",
         })
     return results
@@ -786,6 +780,7 @@ def get_years(make: str, model: str) -> list[int]:
     return sorted(subset["year"].dropna().unique().astype(int).tolist(), reverse=True)
 
 
+@lru_cache(maxsize=512)
 def recommend(
     make: str,
     model: str,

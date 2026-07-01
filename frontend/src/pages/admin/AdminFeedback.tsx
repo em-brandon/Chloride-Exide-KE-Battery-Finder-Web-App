@@ -349,7 +349,7 @@ export default function AdminFeedback() {
                   <tr><td colSpan={11} style={{ padding: '3rem', textAlign: 'center', color: 'var(--adm-text-2)' }}>No feedback entries found.</td></tr>
                 )}
                 {!loading && items.map((row, i) => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid var(--adm-row-border)', background: i % 2 === 0 ? 'var(--adm-card-bg)' : 'var(--adm-faint-bg)' }}>
+                  <tr key={row.id} style={{ borderBottom: '1px solid var(--adm-row-border)', background: i % 2 === 0 ? 'var(--adm-card-bg)' : 'var(--adm-faint-bg)', animationName: 'admCardIn', animationDuration: '0.38s', animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', animationFillMode: 'both', animationDelay: `${Math.min(i * 30, 450)}ms` }}>
                     <td style={{ padding: '0.7rem 1rem', whiteSpace: 'nowrap' }}>
                       {row.test_username
                         ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.55rem', borderRadius: '999px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', fontSize: '0.75rem', fontWeight: 700 }}>

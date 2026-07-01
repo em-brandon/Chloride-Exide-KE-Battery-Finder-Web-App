@@ -56,7 +56,7 @@ from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, Uplo
 from fastapi.responses import JSONResponse, StreamingResponse
 from models import (
     AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
-    UserFeedback, TestUser, TestUserSession,
+    SearchEvent, UserFeedback, TestUser, TestUserSession,
     VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog,
     EnrichmentCacheMeta, FueleconomyVehicle,
 )
@@ -184,26 +184,63 @@ def me(admin: AdminUser = Depends(require_admin)):
 
 @router.get("/stats")
 def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
-    from models import VehicleYear, VehicleRaw, ModelAlias
-
-    inf_makes   = db.execute(text("SELECT COUNT(DISTINCT vehicle_type)  FROM dial_battery_inference")).scalar() or 0
-    inf_models  = db.execute(text("SELECT COUNT(DISTINCT vehicle_model) FROM dial_battery_inference")).scalar() or 0
-    inf_records = db.execute(text("SELECT COUNT(*)                      FROM dial_battery_inference")).scalar() or 0
+    # ── 1 query: all table counts via scalar subqueries ──────────────────────
+    row = db.execute(text("""
+        SELECT
+            (SELECT COUNT(*)                                     FROM battery_specs      WHERE deleted_at IS NULL)  AS battery_specs,
+            (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years)                                AS vehicle_years,
+            (SELECT COUNT(*)                                     FROM vehicle_raw)                                  AS vehicles_raw,
+            (SELECT COUNT(*)                                     FROM model_aliases)                                AS model_aliases,
+            (SELECT COUNT(DISTINCT vehicle_type)                 FROM dial_battery_inference)                       AS inf_makes,
+            (SELECT COUNT(DISTINCT vehicle_model)                FROM dial_battery_inference)                       AS inf_models,
+            (SELECT COUNT(*)                                     FROM dial_battery_inference)                       AS inf_records
+    """)).fetchone()
 
     counts = {
-        "battery_specs":    db.query(func.count(BatterySpec.id)).filter(BatterySpec.deleted_at.is_(None)).scalar() or 0,
-        "vehicle_years":    db.query(func.count(func.distinct(VehicleYear.make + '|' + VehicleYear.model))).scalar() or 0,
-        "vehicles_raw":     db.query(func.count(VehicleRaw.id)).scalar() or 0,
-        "model_aliases":    db.query(func.count(ModelAlias.id)).scalar() or 0,
-        "inference_makes":   inf_makes,
-        "inference_models":  inf_models,
-        "inference_records": inf_records,
+        "battery_specs":    row.battery_specs    or 0,
+        "vehicle_years":    row.vehicle_years    or 0,
+        "vehicles_raw":     row.vehicles_raw     or 0,
+        "model_aliases":    row.model_aliases    or 0,
+        "inference_makes":  row.inf_makes        or 0,
+        "inference_models": row.inf_models       or 0,
+        "inference_records":row.inf_records      or 0,
     }
 
+    # ── 1 query: db_reads ────────────────────────────────────────────────────
     reads_row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
     db_reads = reads_row.stat_value if reads_row else 0
 
-    return {"counts": counts, "db_reads": db_reads}
+    # ── 1 query: match breakdown via GROUP BY ─────────────────────────────────
+    from datetime import timezone as _tz
+    today_start = datetime.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    _MATCHED_TYPES  = ["Exact Match", "Web-Validated Match", "Real-World Data Match"]
+    _CLOSE_TYPES    = ["Close Match"]
+    _FALLBACK_TYPES = ["Estimated (Rule-Based)"]
+
+    type_rows = (
+        db.query(SearchEvent.match_type, func.count(SearchEvent.id))
+        .filter(SearchEvent.timestamp >= today_start)
+        .group_by(SearchEvent.match_type)
+        .all()
+    )
+    counts_by_type = {match_type: n for match_type, n in type_rows}
+
+    s_matched  = sum(counts_by_type.get(t, 0) for t in _MATCHED_TYPES)
+    s_close    = sum(counts_by_type.get(t, 0) for t in _CLOSE_TYPES)
+    s_fallback = sum(counts_by_type.get(t, 0) for t in _FALLBACK_TYPES)
+    s_total    = s_matched + s_close + s_fallback
+
+    return {
+        "counts":    counts,
+        "db_reads":  db_reads,
+        "match_breakdown": {
+            "matched":  s_matched,
+            "close":    s_close,
+            "fallback": s_fallback,
+            "total":    s_total,
+        },
+    }
 
 
 @router.get("/health")
@@ -331,6 +368,7 @@ def add_battery(
 
     # Invalidate matcher cache so new battery is visible immediately
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
 
     return {"id": new_b.id, "battery_code": new_b.battery_code}
 
@@ -393,6 +431,7 @@ def update_battery(
     db.commit()
 
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
     return {"detail": "updated", "battery_code": battery.battery_code}
 
 
@@ -431,6 +470,7 @@ def delete_battery(
     db.commit()
 
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
     return {"detail": "deleted", "battery_code": battery.battery_code}
 
 
@@ -457,6 +497,7 @@ async def upload_batteries(
         raise HTTPException(status_code=422, detail=str(exc))
 
     matcher._batteries.cache_clear()
+    matcher.recommend.cache_clear()
 
     return {
         "inserted":          result.inserted,
@@ -599,6 +640,7 @@ def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._batteries.cache_clear()
     matcher._model_aliases.cache_clear()
     matcher._inference.cache_clear()
+    matcher.recommend.cache_clear()
     # Re-warm immediately
     matcher._vehicles()
     matcher._batteries()
@@ -696,6 +738,44 @@ def revoke_session(
 
 
 # ---------------------------------------------------------------------------
+# Search events log
+# ---------------------------------------------------------------------------
+
+@router.get("/search-events", summary="Paginated search events log")
+def list_search_events(
+    page: int = 1,
+    page_size: int = 50,
+    match_type: Optional[str] = None,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    page_size = min(max(page_size, 1), 100)
+    q = db.query(SearchEvent)
+    if match_type:
+        q = q.filter(SearchEvent.match_type == match_type)
+    total = q.count()
+    rows = q.order_by(SearchEvent.timestamp.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    items = [
+        {
+            "id":               r.id,
+            "timestamp":        r.timestamp.isoformat(),
+            "make":             r.make,
+            "model":            r.model,
+            "year":             r.year,
+            "engine_cc":        r.engine_cc,
+            "fuel_type":        r.fuel_type,
+            "battery_returned": r.battery_returned,
+            "battery_ah":       r.battery_ah,
+            "match_type":       r.match_type,
+            "confidence":       r.confidence,
+            "matched":          r.matched,
+            "ip_address":       r.ip_address,
+        }
+        for r in rows
+    ]
+    return {"total": total, "page": page, "page_size": page_size, "items": items}
+
+
 # Feedback report
 # ---------------------------------------------------------------------------
 
@@ -1054,22 +1134,33 @@ def list_test_users(
     admin: AdminUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    users = db.query(TestUser).order_by(TestUser.created_at.desc()).all()
     now = datetime.now(timezone.utc)
+    session_counts_sq = (
+        db.query(
+            TestUserSession.user_id,
+            func.count(TestUserSession.id).label("active_sessions"),
+        )
+        .filter(TestUserSession.expires_at > now)
+        .group_by(TestUserSession.user_id)
+        .subquery()
+    )
+    rows = (
+        db.query(TestUser, func.coalesce(session_counts_sq.c.active_sessions, 0).label("active_sessions"))
+        .outerjoin(session_counts_sq, session_counts_sq.c.user_id == TestUser.id)
+        .order_by(TestUser.created_at.desc())
+        .all()
+    )
     return {
         "users": [
             {
-                "id":         u.id,
-                "username":   u.username,
-                "email":      u.email,
-                "created_at": u.created_at.isoformat(),
-                "is_active":  bool(u.is_active),
-                "active_sessions": db.query(TestUserSession).filter(
-                    TestUserSession.user_id == u.id,
-                    TestUserSession.expires_at > now,
-                ).count(),
+                "id":              u.id,
+                "username":        u.username,
+                "email":           u.email,
+                "created_at":      u.created_at.isoformat(),
+                "is_active":       bool(u.is_active),
+                "active_sessions": int(count),
             }
-            for u in users
+            for u, count in rows
         ]
     }
 

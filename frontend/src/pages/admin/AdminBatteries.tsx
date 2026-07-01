@@ -20,6 +20,7 @@ import {
   type UploadResult,
 } from '@/lib/adminApi'
 import AdminLayout from '@/components/admin/AdminLayout'
+import { OrbitLoader } from '@/components/ui/OrbitLoader'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const R   = '#CC0000'
@@ -322,13 +323,13 @@ const TILE_STYLE: React.CSSProperties = {
   transition: 'box-shadow 0.15s, transform 0.1s',
 }
 
-function BrandTile({ brand, count, onClick }: { brand: string; count: number; onClick?: () => void }) {
+function BrandTile({ brand, count, onClick, animDelay = 0 }: { brand: string; count: number; onClick?: () => void; animDelay?: number }) {
   const color = brandColor(brand)
   const logo  = BRAND_LOGO[brand]
   return (
     <div
       onClick={onClick}
-      style={{ ...TILE_STYLE, borderTop: `3px solid ${color}`, cursor: 'pointer' }}
+      style={{ ...TILE_STYLE, borderTop: `3px solid ${color}`, cursor: 'pointer', animationName: 'admCardIn', animationDuration: '0.4s', animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', animationFillMode: 'both', animationDelay: `${animDelay}ms` }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,0,0,0.13)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'none' }}
     >
@@ -356,11 +357,11 @@ function BrandTile({ brand, count, onClick }: { brand: string; count: number; on
   )
 }
 
-function SearchTile({ onClick }: { onClick: () => void }) {
+function SearchTile({ onClick, animDelay = 0 }: { onClick: () => void; animDelay?: number }) {
   return (
     <div
       onClick={onClick}
-      style={{ ...TILE_STYLE, borderTop: '3px solid #6b7280', cursor: 'pointer' }}
+      style={{ ...TILE_STYLE, borderTop: '3px solid #6b7280', cursor: 'pointer', animationName: 'admCardIn', animationDuration: '0.4s', animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', animationFillMode: 'both', animationDelay: `${animDelay}ms` }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,0,0,0.13)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'none' }}
     >
@@ -554,8 +555,8 @@ export default function AdminBatteries() {
         {view === 'brands' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {overviewLoading ? (
-              <div style={{ ...CARD, padding: '4rem', textAlign: 'center', color: 'rgba(107,114,128,0.6)', fontSize: '0.85rem' }}>
-                Loading brands…
+              <div style={{ ...CARD, padding: '4rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <OrbitLoader gradientId="admin-batt-brands" scale={0.6} />
               </div>
             ) : (
               <>
@@ -570,7 +571,7 @@ export default function AdminBatteries() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.1rem' }}>
-                    {localBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
+                    {localBrands.map((b, i) => <BrandTile key={b.brand} brand={b.brand} count={b.count} animDelay={i * 45} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
                   </div>
                 </div>
 
@@ -585,8 +586,8 @@ export default function AdminBatteries() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.1rem' }}>
-                    {importedBrands.map(b => <BrandTile key={b.brand} brand={b.brand} count={b.count} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
-                    <SearchTile onClick={() => setView('search')} />
+                    {importedBrands.map((b, i) => <BrandTile key={b.brand} brand={b.brand} count={b.count} animDelay={200 + i * 45} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
+                    <SearchTile onClick={() => setView('search')} animDelay={200 + importedBrands.length * 45} />
                   </div>
                 </div>
               </>
