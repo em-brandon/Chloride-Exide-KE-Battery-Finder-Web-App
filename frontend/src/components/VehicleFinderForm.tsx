@@ -84,7 +84,7 @@ function CarBatteryIcon({ size = 40, color = '#374151' }: { size?: number; color
 }
 
 // ── Result card ───────────────────────────────────────────────────
-function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResult; inputType: string; typedLabel?: string }) {
+function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: RecommendationResult; inputType: string; typedLabel?: string; darkMode?: boolean }) {
   const p = data.primary
   const [altVisible, setAltVisible] = useState(true)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -154,38 +154,6 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
             <ShoppingBagIcon style={{ width: '1rem', height: '1rem' }} />
             Shop Now
           </a>
-        </div>
-      </div>
-
-      {/* Dial a Battery */}
-      <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', minHeight: 88, marginBottom: '0.25rem' }}>
-        <div style={{
-          flex: 1, padding: '0.55rem 0.8rem',
-          background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.3rem',
-        }}>
-          <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <span className="dial-ring">📞</span> Dial a Battery
-          </span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.15rem 0.55rem' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-              <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ color: '#fff', fontSize: '0.68rem', fontWeight: 600, opacity: 0.95 }}>+254 719 080 000</span>
-            </span>
-            <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.6rem' }}>·</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-              <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ color: '#fff', fontSize: '0.68rem', fontWeight: 600, opacity: 0.95 }}>+255 677 484 631</span>
-            </span>
-            <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.6rem' }}>·</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-              <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ color: '#fff', fontSize: '0.68rem', fontWeight: 600, opacity: 0.95 }}>+256 200 400 900</span>
-            </span>
-          </div>
-        </div>
-        <div style={{ width: 100, flexShrink: 0, background: '#d8d8d8' }}>
-          <img src={riderImg} alt="" aria-hidden="true" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', display: 'block' }} />
         </div>
       </div>
 
@@ -266,6 +234,50 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
         </div>
       )}
 
+      {/* Dial a Battery */}
+      <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', minHeight: 68, marginTop: '0.5rem' }}>
+        <div style={{
+          flex: 1, padding: '0.45rem 0.8rem',
+          background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.25rem',
+        }}>
+          <span style={{
+            fontWeight: 700, color: '#fff', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem',
+            animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.3s',
+          }}>
+            <span className="dial-ring">📞</span> Dial a Battery
+          </span>
+          <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.2rem', whiteSpace: 'nowrap',
+              animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.55s',
+            }}>
+              <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 600, opacity: 0.95 }}>+254 719 080 000</span>
+            </span>
+            <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.65rem' }}>·</span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.2rem', whiteSpace: 'nowrap',
+              animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.78s',
+            }}>
+              <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 600, opacity: 0.95 }}>+255 677 484 631</span>
+            </span>
+            <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.65rem' }}>·</span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.2rem', whiteSpace: 'nowrap',
+              animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '1.0s',
+            }}>
+              <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 600, opacity: 0.95 }}>+256 200 400 900</span>
+            </span>
+          </div>
+        </div>
+        <div style={{ width: 80, flexShrink: 0, background: '#d8d8d8' }}>
+          <img src={riderImg} alt="" aria-hidden="true" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', display: 'block' }} />
+        </div>
+      </div>
+
       <FeedbackModal
         open={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
@@ -274,6 +286,7 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
         matchConfidence={data.confidence}
         matchType={data.match_type}
         recommendedBattery={data.primary?.battery_code ?? undefined}
+        darkMode={darkMode}
       />
     </div>
   )
@@ -484,7 +497,7 @@ function BatteryResultsPanel({
 }
 
 // ── Main form ─────────────────────────────────────────────────────
-export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange }: VehicleFinderFormProps) {
+export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onTypeModeChange, onEstConfChange, darkMode = false }: VehicleFinderFormProps) {
   const { toasts, push: pushToast, dismiss: dismissToast } = useToast()
 
   // Data
@@ -1085,6 +1098,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
             data={result}
             inputType={typeMode ? 'type' : 'select'}
             typedLabel={typeMode ? `${makeText.trim()} ${modelText.trim()} ${yearText.trim()}`.trim() : undefined}
+            darkMode={darkMode}
           />
         </div>
       )}
