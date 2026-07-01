@@ -166,6 +166,43 @@ export async function fetchHealthStatus(): Promise<HealthStatus> {
 }
 
 // ---------------------------------------------------------------------------
+// Search Events
+// ---------------------------------------------------------------------------
+
+export interface SearchEventEntry {
+  id:               number
+  timestamp:        string
+  make:             string | null
+  model:            string | null
+  year:             number | null
+  engine_cc:        number | null
+  fuel_type:        string | null
+  battery_returned: string | null
+  battery_ah:       number | null
+  match_type:       string | null
+  confidence:       number | null
+  matched:          boolean
+  ip_address:       string | null
+}
+
+export interface SearchEventsResponse {
+  total:     number
+  page:      number
+  page_size: number
+  items:     SearchEventEntry[]
+}
+
+export async function fetchSearchEvents(
+  page = 1,
+  pageSize = 50,
+  matchType?: string,
+): Promise<SearchEventsResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (matchType) params.set('match_type', matchType)
+  return adminFetch(`/api/admin/search-events?${params}`)
+}
+
+// ---------------------------------------------------------------------------
 // Batteries
 // ---------------------------------------------------------------------------
 

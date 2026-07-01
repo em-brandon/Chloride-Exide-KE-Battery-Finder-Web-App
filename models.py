@@ -279,11 +279,19 @@ class SearchEvent(Base):
 
     __tablename__ = "search_events"
 
-    id         = Column(Integer,              primary_key=True, autoincrement=True)
-    timestamp  = Column(DateTime(timezone=True), nullable=False)
-    match_type = Column(String(50),           nullable=True)
-    confidence = Column(Integer,              nullable=True)
-    matched    = Column(Boolean,              nullable=False, default=False)
+    id               = Column(Integer,               primary_key=True, autoincrement=True)
+    timestamp        = Column(DateTime(timezone=True), nullable=False)
+    make             = Column(String(80),            nullable=True)
+    model            = Column(String(80),            nullable=True)
+    year             = Column(Integer,               nullable=True)
+    engine_cc        = Column(Integer,               nullable=True)
+    fuel_type        = Column(String(20),            nullable=True)
+    battery_returned = Column(String(50),            nullable=True)
+    battery_ah       = Column(Integer,               nullable=True)
+    match_type       = Column(String(50),            nullable=True)
+    confidence       = Column(Integer,               nullable=True)
+    matched          = Column(Boolean,               nullable=False, default=False)
+    ip_address       = Column(String(45),            nullable=True)
 
     __table_args__ = (
         Index("ix_search_events_timestamp", "timestamp"),

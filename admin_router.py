@@ -724,6 +724,44 @@ def revoke_session(
 
 
 # ---------------------------------------------------------------------------
+# Search events log
+# ---------------------------------------------------------------------------
+
+@router.get("/search-events", summary="Paginated search events log")
+def list_search_events(
+    page: int = 1,
+    page_size: int = 50,
+    match_type: Optional[str] = None,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    page_size = min(max(page_size, 1), 100)
+    q = db.query(SearchEvent)
+    if match_type:
+        q = q.filter(SearchEvent.match_type == match_type)
+    total = q.count()
+    rows = q.order_by(SearchEvent.timestamp.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    items = [
+        {
+            "id":               r.id,
+            "timestamp":        r.timestamp.isoformat(),
+            "make":             r.make,
+            "model":            r.model,
+            "year":             r.year,
+            "engine_cc":        r.engine_cc,
+            "fuel_type":        r.fuel_type,
+            "battery_returned": r.battery_returned,
+            "battery_ah":       r.battery_ah,
+            "match_type":       r.match_type,
+            "confidence":       r.confidence,
+            "matched":          r.matched,
+            "ip_address":       r.ip_address,
+        }
+        for r in rows
+    ]
+    return {"total": total, "page": page, "page_size": page_size, "items": items}
+
+
 # Feedback report
 # ---------------------------------------------------------------------------
 

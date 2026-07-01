@@ -20,6 +20,7 @@ const AdminFeedback     = lazy(() => import('@/pages/admin/AdminFeedback'))
 const AdminTestSessions = lazy(() => import('@/pages/admin/AdminTestSessions'))
 const AdminSettings     = lazy(() => import('@/pages/admin/AdminSettings'))
 const AdminDataPipeline = lazy(() => import('@/pages/admin/AdminDataPipeline'))
+const AdminSearchLog    = lazy(() => import('@/pages/admin/AdminSearchLog'))
 const TestUserLogin     = lazy(() => import('@/pages/TestUserLogin'))
 const FaqModal          = lazy(() => import('@/components/FaqModal').then(m => ({ default: m.FaqModal })))
 const CopyrightModal    = lazy(() => import('@/components/CopyrightModal').then(m => ({ default: m.CopyrightModal })))
@@ -301,6 +302,7 @@ function App() {
       <Route path="/admin/feedback"      element={<ProtectedRoute><AdminFeedback      /></ProtectedRoute>} />
       <Route path="/admin/test-sessions" element={<ProtectedRoute><AdminTestSessions /></ProtectedRoute>} />
       <Route path="/admin/settings"      element={<ProtectedRoute><AdminSettings     /></ProtectedRoute>} />
+      <Route path="/admin/search-log"    element={<ProtectedRoute><AdminSearchLog    /></ProtectedRoute>} />
       {/* ── Test user login ── */}
       <Route path="/login" element={<TestUserLogin />} />
     </Routes>

@@ -17,6 +17,7 @@ import {
   SunIcon,
   MoonIcon,
   ServerStackIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/20/solid'
 import { adminLogout } from '@/lib/adminApi'
 
@@ -27,7 +28,7 @@ const SIDEBAR_W      = 180
 const SIDEBAR_W_ICON = 52
 
 // Pages that auto-collapse the sidebar for more content space
-const AUTO_COLLAPSE_PATHS = ['/admin/feedback']
+const AUTO_COLLAPSE_PATHS = ['/admin/feedback', '/admin/search-log']
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard',     label: 'Dashboard',  Icon: Squares2X2Icon },
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { to: '/admin/coverage',      label: 'Coverage',   Icon: ChartBarIcon },
   { to: '/admin/data-pipeline', label: 'Data Pipeline', Icon: ServerStackIcon },
   { to: '/admin/feedback',      label: 'Feedback',   Icon: ChatBubbleLeftRightIcon },
+  { to: '/admin/search-log',    label: 'Search Log', Icon: MagnifyingGlassIcon },
   { to: '/admin/test-sessions', label: 'Test Users', Icon: UserGroupIcon },
   { to: '/admin/settings',      label: 'Settings',   Icon: CogIcon },
 ]

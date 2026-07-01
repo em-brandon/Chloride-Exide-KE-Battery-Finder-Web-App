@@ -301,14 +301,34 @@ def list_years(request: Request, make: str, model: str):
     return {"years": years}
 
 
-def _log_search_event(match_type: Optional[str], confidence: Optional[int], matched: bool) -> None:
+def _log_search_event(
+    make: Optional[str],
+    model: Optional[str],
+    year: Optional[int],
+    engine_cc: Optional[int],
+    fuel_type: Optional[str],
+    battery_returned: Optional[str],
+    battery_ah: Optional[int],
+    match_type: Optional[str],
+    confidence: Optional[int],
+    matched: bool,
+    ip_address: Optional[str] = None,
+) -> None:
     try:
         db = SessionLocal()
         db.add(SearchEvent(
-            timestamp  = datetime.now(timezone.utc),
-            match_type = match_type,
-            confidence = confidence,
-            matched    = matched,
+            timestamp        = datetime.now(timezone.utc),
+            make             = make,
+            model            = model,
+            year             = year,
+            engine_cc        = engine_cc,
+            fuel_type        = fuel_type,
+            battery_returned = battery_returned,
+            battery_ah       = battery_ah,
+            match_type       = match_type,
+            confidence       = confidence,
+            matched          = matched,
+            ip_address       = ip_address,
         ))
         db.commit()
     except Exception as exc:
@@ -329,12 +349,24 @@ def recommend(request: Request, req: RecommendRequest):
         req.fuel_type,
         stop_start=req.stop_start,
     )
+    ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
+    if ip:
+        ip = ip.split(",")[0].strip()[:45]
+    primary = result.get("primary") or {}
     threading.Thread(
         target=_log_search_event,
         args=(
+            req.make,
+            req.model,
+            req.year,
+            req.engine_cc,
+            req.fuel_type,
+            primary.get("battery_code"),
+            primary.get("ah"),
             result.get("match_type"),
             result.get("confidence"),
             result.get("matched_make") is not None,
+            ip,
         ),
         daemon=True,
     ).start()
