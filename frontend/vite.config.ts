@@ -14,6 +14,23 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router')) {
+            return 'vendor'
+          }
+          if (id.includes('node_modules/lucide-react') || id.includes('node_modules/@heroicons')) {
+            return 'icons'
+          }
+          if (id.includes('node_modules/@radix-ui')) {
+            return 'ui'
+          }
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     allowedHosts: [

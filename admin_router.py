@@ -1054,22 +1054,33 @@ def list_test_users(
     admin: AdminUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    users = db.query(TestUser).order_by(TestUser.created_at.desc()).all()
     now = datetime.now(timezone.utc)
+    session_counts_sq = (
+        db.query(
+            TestUserSession.user_id,
+            func.count(TestUserSession.id).label("active_sessions"),
+        )
+        .filter(TestUserSession.expires_at > now)
+        .group_by(TestUserSession.user_id)
+        .subquery()
+    )
+    rows = (
+        db.query(TestUser, func.coalesce(session_counts_sq.c.active_sessions, 0).label("active_sessions"))
+        .outerjoin(session_counts_sq, session_counts_sq.c.user_id == TestUser.id)
+        .order_by(TestUser.created_at.desc())
+        .all()
+    )
     return {
         "users": [
             {
-                "id":         u.id,
-                "username":   u.username,
-                "email":      u.email,
-                "created_at": u.created_at.isoformat(),
-                "is_active":  bool(u.is_active),
-                "active_sessions": db.query(TestUserSession).filter(
-                    TestUserSession.user_id == u.id,
-                    TestUserSession.expires_at > now,
-                ).count(),
+                "id":              u.id,
+                "username":        u.username,
+                "email":           u.email,
+                "created_at":      u.created_at.isoformat(),
+                "is_active":       bool(u.is_active),
+                "active_sessions": int(count),
             }
-            for u in users
+            for u, count in rows
         ]
     }
 
