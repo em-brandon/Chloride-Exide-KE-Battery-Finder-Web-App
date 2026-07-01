@@ -19,16 +19,21 @@
 /* ── Global reset ───────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  overflow-x: hidden;
+}
 body {
   font-family: 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* ── Page wrapper ───────────────────────────────────────────────── */
 .page-wrapper {
   min-height: 100vh;
-  overflow-x: hidden;
+  min-height: 100svh;
+  overflow-x: clip;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1222,7 +1227,7 @@ body {
   /* Tighten outer padding and compensate nav negative margins */
   .page-wrapper {
     padding: 0 0.75rem 0.75rem;
-    min-height: auto;
+    min-height: 0;
   }
   .page-nav {
     padding: 0.6rem 0.75rem;
