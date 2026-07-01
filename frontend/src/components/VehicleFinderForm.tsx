@@ -166,7 +166,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
             onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#CC0000' }}
           >
             <StarIcon style={{ width: '1rem', height: '1rem' }} />
-            Rate this result
+            Rate
           </button>
           <a
             href="https://www.chlorideexide.com/category/all-products"

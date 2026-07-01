@@ -88,11 +88,11 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
       <span>
         In Kenya's climate, a well-maintained car battery typically lasts <strong>3 to 5 years</strong>. Heat accelerates battery wear, so batteries in vehicles with poor engine-bay ventilation or that spend long periods idling may need replacement sooner. Replace your battery if you notice any of the following:
         <ul className="faq-inner-list">
-          <li>Slow or sluggish cranking on startup — especially in the morning</li>
-          <li>Headlights or interior lights dimming when you turn the key</li>
-          <li>Battery warning light appearing on your dashboard</li>
-          <li>The battery is more than 4 years old</li>
-          <li>The car needed a jump-start more than once in a short period</li>
+          <li>• Slow or sluggish cranking on startup — especially in the morning</li>
+          <li>• Headlights or interior lights dimming when you turn the key</li>
+          <li>• Battery warning light appearing on your dashboard</li>
+          <li>• The battery is more than 4 years old</li>
+          <li>• The car needed a jump-start more than once in a short period</li>
         </ul>
         Don't wait for a complete failure — a flat battery in traffic or away from town is costly and dangerous.
       </span>
