@@ -334,9 +334,9 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
 // TODO: replace href="#" with the actual Dial-A-Battery shop URL
 function DialABatteryBanner() {
   return (
-    <div style={{ display: 'flex', borderRadius: '0.5rem', overflow: 'hidden', marginTop: '0.75rem', minHeight: 96 }}>
+    <div style={{ display: 'flex', borderRadius: '0.5rem', overflow: 'hidden', marginTop: '0.75rem', minHeight: 70 }}>
       <div style={{
-        flex: 1, padding: '0.6rem 0.85rem',
+        flex: 1, padding: '0.4rem 0.85rem',
         background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.35rem',
       }}>
