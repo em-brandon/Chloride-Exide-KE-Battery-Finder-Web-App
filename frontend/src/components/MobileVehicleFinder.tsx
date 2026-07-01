@@ -1080,6 +1080,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                     fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
                     color: 'var(--blue, #1A35C0)', letterSpacing: '0.03em',
                     overflowWrap: 'break-word',
+                    animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.1s',
                   }}>
                     {p.battery_code || '—'}
                   </div>
@@ -1133,12 +1134,14 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 {[
                   { value: p.ah,     unit: 'Ah',       label: 'Capacity' },
                   { value: p.cca_en, unit: 'CCA (EN)', label: 'Cold Crank' },
-                ].map(({ value, unit, label }) => (
+                ].map(({ value, unit, label }, i) => (
                   <div key={unit} style={{
                     background: 'var(--bg, #f4f5f7)',
                     borderRadius: '0.5rem',
                     padding: '0.7rem 0.85rem',
                     border: '1px solid var(--border, #e2e4e9)',
+                    animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both',
+                    animationDelay: `${0.2 + i * 0.12}s`,
                   }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text, #111827)', lineHeight: 1 }}>
                       {value ?? '—'}
@@ -1214,7 +1217,10 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
               }}>
                 {/* Left: title + phone numbers */}
                 <div style={{ flex: '1 1 0', padding: '0.75rem 0.5rem 0.75rem 1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem',
+                    animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.3s',
+                  }}>
                     <span className="dial-ring" style={{ display: 'inline-block', fontSize: '1.05rem', lineHeight: 1 }}>📞</span>
                     <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Dial a Battery
@@ -1225,8 +1231,12 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                       { code: 'KE', num: '+254 719 080 000' },
                       { code: 'TZ', num: '+255 677 484 631' },
                       { code: 'UG', num: '+256 200 400 900' },
-                    ].map(({ code, num }) => (
-                      <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}>
+                    ].map(({ code, num }, i) => (
+                      <span key={code} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap',
+                        animationName: 'dialNumIn', animationDuration: '0.5s', animationTimingFunction: 'ease', animationFillMode: 'both',
+                        animationDelay: `${0.55 + i * 0.23}s`,
+                      }}>
                         <ReactCountryFlag countryCode={code} svg style={{ width: '1em', height: '1em', flexShrink: 0 }} />
                         <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>{num}</span>
                       </span>

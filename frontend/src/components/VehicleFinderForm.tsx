@@ -172,7 +172,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: 
       )}
 
       <div className="primary-card">
-        <div className="primary-battery-icon">
+        <div className="primary-battery-icon" style={{ animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.1s' }}>
           {brandLogo
             ? <img src={brandLogo} alt="" style={{ height: 42, width: 'auto', maxWidth: 80, objectFit: 'contain' }} />
             : <CarBatteryIcon size={42} color={techIconColor(p.technology)} />
@@ -181,15 +181,15 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: 
             {p.technology ?? 'MF'}
           </div>
         </div>
-        <div className="primary-spec">
+        <div className="primary-spec" style={{ animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.2s' }}>
           <div className="value">{p.ah ?? '—'}</div>
           <div className="unit">Ah</div>
         </div>
-        <div className="primary-spec">
+        <div className="primary-spec" style={{ animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.3s' }}>
           <div className="value">{p.cca_en ?? '—'}</div>
           <div className="unit">CCA (EN)</div>
         </div>
-        <div className="primary-name">
+        <div className="primary-name" style={{ animationName: 'slideIn', animationDuration: '0.6s', animationTimingFunction: 'ease', animationFillMode: 'both', animationDelay: '0.4s' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <div className="battery-code">{p.battery_code || '—'}</div>
             {p.battery_code && (
