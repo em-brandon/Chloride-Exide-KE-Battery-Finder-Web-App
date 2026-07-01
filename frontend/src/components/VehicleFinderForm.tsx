@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { stripMakePrefix } from '@/lib/utils'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs, friendlyError } from '@/lib/api'
 import type { BatterySpecResult } from '@/lib/api'
 import type { RecommendationResult } from '@/types/battery'
@@ -98,7 +99,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: 
   const vehicleLabel = inputType === 'type' && typedLabel
     ? typedLabel
     : data.matched_make
-      ? `${data.matched_make} ${data.matched_model} (${data.matched_year})`
+      ? `${data.matched_make} ${stripMakePrefix(data.matched_make, data.matched_model)} (${data.matched_year})`
       : `${data.make} ${data.model} ${data.year}`
 
   const sameTechAlts = data.alternatives.filter(
@@ -115,7 +116,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false }: { data: 
           <h2 className="result-title">Battery Recommendation</h2>
           {!isFallback && (
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted-foreground, #6b7280)' }}>
-              {data.matched_make} {data.matched_model} · {data.matched_year}
+              {data.matched_make} {stripMakePrefix(data.matched_make, data.matched_model)} · {data.matched_year}
             </p>
           )}
         </div>

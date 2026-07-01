@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { stripMakePrefix } from '@/lib/utils'
 import { fetchMakes, fetchModels, fetchYears, fetchRecommendation, searchBatteryBySpecs, friendlyError } from '@/lib/api'
 import type { BatterySpecResult } from '@/lib/api'
 import { StartStopIcon } from '@/components/ui/StartStopIcon'
@@ -1007,7 +1008,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 <p style={{ ...stepChip, color: '#16a34a' }}>Battery Found</p>
                 <h2 style={{ ...stepTitle, fontSize: '1.05rem', paddingRight: 0, marginBottom: '0.5rem' }}>
                   {result.matched_make
-                    ? `${result.matched_make} ${result.matched_model} · ${result.matched_year}`
+                    ? `${result.matched_make} ${stripMakePrefix(result.matched_make, result.matched_model)} · ${result.matched_year}`
                     : `${result.make} ${result.model} · ${result.year}`}
                 </h2>
                 {!result.matched_make && (
@@ -1337,7 +1338,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
         onClose={() => setFeedbackOpen(false)}
         vehicleLabel={result
           ? result.matched_make
-            ? `${result.matched_make} ${result.matched_model} (${result.matched_year})`
+            ? `${result.matched_make} ${stripMakePrefix(result.matched_make, result.matched_model)} (${result.matched_year})`
             : `${result.make} ${result.model} ${result.year}`
           : `${make} ${model} ${year}`}
         inputType="select"
