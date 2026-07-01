@@ -50,31 +50,31 @@ export function PrivacyModal({ open, onClose }: PrivacyModalProps) {
               The Battery Finder is designed to collect as little personal data as possible. When you use the tool, the following information may be recorded:
             </p>
             <ul className="faq-inner-list">
-              <li><strong>Vehicle search queries</strong> — the make, model, year, engine size, and fuel type you enter. This data is used solely to generate your battery recommendation and to improve the accuracy of our vehicle database over time.</li>
-              <li><strong>IP address</strong> — your network IP address is logged automatically with each request for rate limiting and abuse prevention purposes. It is not used to build a profile of you.</li>
-              <li><strong>Optional feedback</strong> — if you submit a satisfaction rating or accuracy score after receiving a recommendation, that rating is stored alongside the anonymised match details (vehicle category, battery code, confidence level). No name, email, or other identifying information is requested or stored with feedback.</li>
+              <li>• <strong>Vehicle search queries</strong> — the make, model, year, engine size, and fuel type you enter. This data is used solely to generate your battery recommendation and to improve the accuracy of our vehicle database over time.</li>
+              <li>• <strong>IP address</strong> — your network IP address is logged automatically with each request for rate limiting and abuse prevention purposes. It is not used to build a profile of you.</li>
+              <li>• <strong>Optional feedback</strong> — if you submit a satisfaction rating or accuracy score after receiving a recommendation, that rating is stored alongside the anonymised match details (vehicle category, battery code, confidence level). No name, email, or other identifying information is requested or stored with feedback.</li>
             </ul>
 
             <p><strong>Session Data</strong></p>
             <ul className="faq-inner-list">
-              <li>If you have been granted a test-user account, a session token is stored in your browser's local storage with a 24-hour expiry. This token identifies your session for support and testing purposes only.</li>
-              <li>Your acknowledgement of this disclaimer is stored in your browser's session storage and is cleared automatically when you close your browser tab.</li>
-              <li>No tracking cookies, advertising cookies, or third-party analytics scripts are used on this application.</li>
+              <li>• If you have been granted a test-user account, a session token is stored in your browser's local storage with a 24-hour expiry. This token identifies your session for support and testing purposes only.</li>
+              <li>• Your acknowledgement of this disclaimer is stored in your browser's session storage and is cleared automatically when you close your browser tab.</li>
+              <li>• No tracking cookies, advertising cookies, or third-party analytics scripts are used on this application.</li>
             </ul>
 
             <p><strong>How We Use Your Data</strong></p>
             <ul className="faq-inner-list">
-              <li>To return an accurate battery recommendation for your vehicle.</li>
-              <li>To prevent automated abuse and enforce fair-use rate limits.</li>
-              <li>To identify gaps in our vehicle database and prioritise updates.</li>
-              <li>Aggregated, anonymised usage patterns may be reviewed internally to improve the tool — no individual usage history is shared outside Chloride Exide Kenya.</li>
+              <li>• To return an accurate battery recommendation for your vehicle.</li>
+              <li>• To prevent automated abuse and enforce fair-use rate limits.</li>
+              <li>• To identify gaps in our vehicle database and prioritise updates.</li>
+              <li>• Aggregated, anonymised usage patterns may be reviewed internally to improve the tool — no individual usage history is shared outside Chloride Exide Kenya.</li>
             </ul>
 
             <p><strong>Data Retention</strong></p>
             <ul className="faq-inner-list">
-              <li>Raw IP logs are retained for a limited period for abuse investigation purposes and are not linked to your search queries beyond the immediate request.</li>
-              <li>Anonymised feedback and usage statistics are retained indefinitely for product improvement.</li>
-              <li>No personal data is sold, rented, or disclosed to third parties for marketing purposes.</li>
+              <li>• Raw IP logs are retained for a limited period for abuse investigation purposes and are not linked to your search queries beyond the immediate request.</li>
+              <li>• Anonymised feedback and usage statistics are retained indefinitely for product improvement.</li>
+              <li>• No personal data is sold, rented, or disclosed to third parties for marketing purposes.</li>
             </ul>
 
             <p><strong>Third Parties</strong></p>
