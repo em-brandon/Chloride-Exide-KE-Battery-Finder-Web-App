@@ -10,6 +10,7 @@ import { AccuracyBar } from '@/components/AccuracyBar'
 import { Clipboard, ClipboardCheck, ChevronLeft, Keyboard, MousePointerClick } from 'lucide-react'
 import ReactCountryFlag from 'react-country-flag'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid'
 import riderImg from '@/assets/rider.webp'
 import exideMaxxLogo from '@/assets/exide-max-logo.webp'
 import powerlastLogo from '@/assets/powerlast-logo.webp'
@@ -1176,25 +1177,9 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', padding: '0.1rem 0' }}>
                 <button
                   type="button"
-                  onClick={() => setFeedbackOpen(true)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
-                    height: 46,
-                    background: 'var(--card-bg, #fff)',
-                    border: '1.5px solid var(--red, #CC0000)',
-                    color: 'var(--red, #CC0000)',
-                    borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  <StarIcon style={{ width: '1rem', height: '1rem' }} />
-                  Rate
-                </button>
-                <button
-                  type="button"
                   onClick={onOpenFaq}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
                     height: 46,
                     background: 'var(--card-bg, #fff)',
                     border: '1.5px solid var(--blue, #005794)',
@@ -1217,7 +1202,23 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
                     el.style.animationPlayState = 'running'
                   }}
                 >
-                  FAQ
+                  <ChatBubbleLeftRightIcon style={{ width: '1.2rem', height: '1.2rem' }} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFeedbackOpen(true)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
+                    height: 46,
+                    background: 'var(--card-bg, #fff)',
+                    border: '1.5px solid var(--red, #CC0000)',
+                    color: 'var(--red, #CC0000)',
+                    borderRadius: 8, fontSize: '0.85rem', fontWeight: 700,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  <StarIcon style={{ width: '1rem', height: '1rem' }} />
+                  Rate
                 </button>
                 <a
                   href="https://www.chlorideexide.com/category/all-products"

@@ -8,6 +8,7 @@ import { AccuracyBar } from '@/components/AccuracyBar'
 import { FeedbackModal } from '@/components/FeedbackModal'
 import { Search, MousePointerClick, Keyboard, Copy, Check, Car, Battery, Phone } from 'lucide-react'
 import { StarIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid'
 import ReactCountryFlag from 'react-country-flag'
 import { StartStopIcon } from '@/components/ui/StartStopIcon'
 import exideMaxxLogo    from '@/assets/exide-max-logo.webp'
@@ -122,22 +123,6 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={() => setFeedbackOpen(true)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              background: '#fff', border: '1.5px solid #CC0000', color: '#CC0000',
-              borderRadius: 6, padding: '0.3rem 0.9rem',
-              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#CC0000'; e.currentTarget.style.color = '#fff' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#CC0000' }}
-          >
-            <StarIcon style={{ width: '1rem', height: '1rem' }} />
-            Rate this result
-          </button>
           {onOpenFaq && (
             <button
               type="button"
@@ -164,9 +149,25 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
                 el.style.animationPlayState = 'running'
               }}
             >
-              FAQ
+              <ChatBubbleLeftRightIcon style={{ width: '1.1rem', height: '1.1rem' }} />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setFeedbackOpen(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+              background: '#fff', border: '1.5px solid #CC0000', color: '#CC0000',
+              borderRadius: 6, padding: '0.3rem 0.9rem',
+              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#CC0000'; e.currentTarget.style.color = '#fff' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#CC0000' }}
+          >
+            <StarIcon style={{ width: '1rem', height: '1rem' }} />
+            Rate this result
+          </button>
           <a
             href="https://www.chlorideexide.com/category/all-products"
             target="_blank"
