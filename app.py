@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from models import AdminStats, TestUser, TestUserSession, UserFeedback
+from models import AdminStats, SearchEvent, TestUser, TestUserSession, UserFeedback
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -301,6 +301,22 @@ def list_years(request: Request, make: str, model: str):
     return {"years": years}
 
 
+def _log_search_event(match_type: Optional[str], confidence: Optional[int], matched: bool) -> None:
+    try:
+        db = SessionLocal()
+        db.add(SearchEvent(
+            timestamp  = datetime.now(timezone.utc),
+            match_type = match_type,
+            confidence = confidence,
+            matched    = matched,
+        ))
+        db.commit()
+    except Exception as exc:
+        logger.debug("search_event log failed: %s", exc)
+    finally:
+        db.close()
+
+
 @app.post("/api/recommend", summary="Get a battery recommendation")
 @limiter.limit("10/minute")
 def recommend(request: Request, req: RecommendRequest):
@@ -313,6 +329,15 @@ def recommend(request: Request, req: RecommendRequest):
         req.fuel_type,
         stop_start=req.stop_start,
     )
+    threading.Thread(
+        target=_log_search_event,
+        args=(
+            result.get("match_type"),
+            result.get("confidence"),
+            result.get("matched_make") is not None,
+        ),
+        daemon=True,
+    ).start()
     return result
 
 

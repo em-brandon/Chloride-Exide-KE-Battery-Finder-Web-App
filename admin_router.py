@@ -56,7 +56,7 @@ from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, Uplo
 from fastapi.responses import JSONResponse, StreamingResponse
 from models import (
     AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
-    UserFeedback, TestUser, TestUserSession,
+    SearchEvent, UserFeedback, TestUser, TestUserSession,
     VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog,
     EnrichmentCacheMeta, FueleconomyVehicle,
 )
@@ -203,7 +203,35 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
     reads_row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
     db_reads = reads_row.stat_value if reads_row else 0
 
-    return {"counts": counts, "db_reads": db_reads}
+    # ── Match breakdown from search_events (today only, aligned with db_reads daily window) ──
+    from datetime import timezone as _tz
+    today_start = datetime.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    _MATCHED_TYPES  = ["Exact Match", "Web-Validated Match", "Real-World Data Match"]
+    _CLOSE_TYPES    = ["Close Match"]
+    _FALLBACK_TYPES = ["Estimated (Rule-Based)"]
+
+    def _se_count(types: list[str]) -> int:
+        return db.query(func.count(SearchEvent.id)).filter(
+            SearchEvent.timestamp >= today_start,
+            SearchEvent.match_type.in_(types),
+        ).scalar() or 0
+
+    s_matched  = _se_count(_MATCHED_TYPES)
+    s_close    = _se_count(_CLOSE_TYPES)
+    s_fallback = _se_count(_FALLBACK_TYPES)
+    s_total    = s_matched + s_close + s_fallback
+
+    return {
+        "counts":    counts,
+        "db_reads":  db_reads,
+        "match_breakdown": {
+            "matched":  s_matched,
+            "close":    s_close,
+            "fallback": s_fallback,
+            "total":    s_total,
+        },
+    }
 
 
 @router.get("/health")

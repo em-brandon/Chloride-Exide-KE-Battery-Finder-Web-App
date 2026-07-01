@@ -20,6 +20,7 @@ import {
   exportBatteriesUrl,
   getWebValidateCoverage,
   type AdminStats,
+  type MatchBreakdown,
   type HealthStatus,
   type CoverageInfo,
 } from '@/lib/adminApi'
@@ -110,6 +111,50 @@ function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
           <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block' }}>{sub}</span>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── RecommendCallsCard ────────────────────────────────────────────────────────
+function BreakdownRow({ color, label, count, total }: { color: string; label: string; count: number; total: number }) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: '0.62rem', color: 'var(--adm-text-3)', width: 54, flexShrink: 0 }}>{label}</span>
+      <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--adm-card-border)', overflow: 'hidden' }}>
+        <div style={{ width: `${Math.max(pct, total > 0 ? 2 : 0)}%`, height: '100%', borderRadius: 3, background: color, transition: 'width 0.4s ease' }} />
+      </div>
+      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--adm-text-2)', width: 28, textAlign: 'right', flexShrink: 0 }}>{total > 0 ? `${pct}%` : '—'}</span>
+    </div>
+  )
+}
+
+function RecommendCallsCard({ dbReads, breakdown }: { dbReads: number | string; breakdown: MatchBreakdown | null | undefined }) {
+  const accent = '#7e22ce'
+  const bd = breakdown
+  return (
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accent}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>Recommend Calls</span>
+        <span style={{ color: accent }}><BookOpenIcon style={{ width: 18, height: 18 }} /></span>
+      </div>
+      <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3.5rem', fontWeight: 900, color: accent, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.5rem 0' }}>
+        {typeof dbReads === 'number' ? dbReads.toLocaleString() : dbReads}
+      </span>
+      <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accent}22`, paddingTop: '0.6rem', width: '100%' }}>
+        <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block', marginBottom: '0.55rem' }}>today's /recommend requests</span>
+        <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--adm-text-3)', display: 'block', marginBottom: '0.4rem' }}>Vehicle → Battery</span>
+        {bd && bd.total > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <BreakdownRow color="#10b981" label="Matched"   count={bd.matched}  total={bd.total} />
+            <BreakdownRow color="#3b82f6" label="Close"     count={bd.close}    total={bd.total} />
+            <BreakdownRow color="#f59e0b" label="Estimated" count={bd.fallback} total={bd.total} />
+          </div>
+        ) : (
+          <span style={{ fontSize: '0.62rem', color: 'rgba(107,114,128,0.45)', fontStyle: 'italic' }}>No data yet today</span>
+        )}
+      </div>
     </div>
   )
 }
@@ -400,7 +445,7 @@ export default function AdminDashboard() {
                 : undefined}
               icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
             />
-            <StatCard accentColor="#7e22ce" label="Recommend Calls" value={stats?.db_reads ?? '—'} sub="cumulative /recommend requests" icon={<BookOpenIcon style={{ width: 18, height: 18 }} />} />
+            <RecommendCallsCard dbReads={stats?.db_reads ?? '—'} breakdown={stats?.match_breakdown} />
             <DataCoverageTile stats={stats} coverage={coverage} />
             {health && <HealthCard {...health} />}
           </div>

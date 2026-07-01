@@ -10,6 +10,13 @@
 // Types
 // ---------------------------------------------------------------------------
 
+export interface MatchBreakdown {
+  matched:  number
+  close:    number
+  fallback: number
+  total:    number
+}
+
 export interface AdminStats {
   counts: {
     battery_specs: number
@@ -21,6 +28,7 @@ export interface AdminStats {
     inference_records: number
   }
   db_reads: number
+  match_breakdown: MatchBreakdown | null
 }
 
 export interface HealthStatus {
