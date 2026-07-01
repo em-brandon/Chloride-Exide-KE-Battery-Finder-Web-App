@@ -39,16 +39,18 @@ The project is organized into three distinct layers:
 ### Backend
 | Layer | Technology |
 |---|---|
-| Language | Python 3.10+ |
+| Language | [Python 3.10+](https://www.python.org/) |
 | Web framework | [FastAPI](https://fastapi.tiangolo.com/) (`app.py`) |
-| ASGI server | Uvicorn |
-| Rate limiting | `slowapi` — per-endpoint limits in `app.py` and `admin_router.py` |
-| ORM | SQLAlchemy 2.0 (`db.py`, `models.py`) |
-| Migrations | Alembic (`alembic/`) |
-| Auth | bcrypt + HttpOnly session cookies (`admin_auth.py`) |
-| Database | PostgreSQL via `psycopg2-binary` |
-| File uploads | `python-multipart` — multipart form parsing for battery Excel uploads |
-| PDF export | `reportlab` — admin battery catalogue PDF generation |
+| ASGI server | [Uvicorn](https://www.uvicorn.org/) |
+| Middleware | [GZip](https://www.starlette.io/middleware/#gzipmiddleware) · maintenance mode · read counter · cache control · [slowapi](https://github.com/laurentS/slowapi) rate limiting |
+| Rate limiting | [slowapi](https://github.com/laurentS/slowapi) — per-endpoint limits (10/min recommend, 5/min feedback, 20/min dropdowns) |
+| ORM | [SQLAlchemy 2.0](https://www.sqlalchemy.org/) (`db.py`, `models.py`) |
+| Migrations | [Alembic](https://alembic.sqlalchemy.org/) (`alembic/`) |
+| Auth | [bcrypt](https://pypi.org/project/bcrypt/) + HttpOnly session cookies (`admin_auth.py`) |
+| Database | [PostgreSQL](https://www.postgresql.org/) via [psycopg2](https://www.psycopg.org/) |
+| Fuzzy matching | [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) — vehicle model name matching in `matcher.py` |
+| File uploads | [python-multipart](https://github.com/Kludex/python-multipart) — multipart form parsing for battery Excel uploads |
+| PDF export | [ReportLab](https://www.reportlab.com/) — admin battery catalogue PDF generation |
 
 ### Frontend
 | Layer | Technology |
@@ -65,14 +67,14 @@ The project is organized into three distinct layers:
 ### Data Pipeline
 | Tool | Purpose |
 |---|---|
-| Pandas | Data cleaning, normalization, and output |
-| `rapidfuzz` | Fuzzy model name matching across external API results |
-| NHTSA VPIC API | Vehicle make/model lookup |
-| CarAPI | Year-range data per model |
-| fueleconomy.gov | US DOE/EPA bulk CSV (local cache) |
-| Wikidata / Wikipedia | Supplementary year and fuel-type enrichment |
-| `ddgs` | DuckDuckGo Search — web battery validation pipeline |
-| `tavily-python` | Tavily AI Search — web battery validation pipeline |
+| [Pandas](https://pandas.pydata.org/) | Data cleaning, normalization, and output |
+| [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) | Fuzzy model name matching across external API results |
+| [NHTSA VPIC API](https://vpic.nhtsa.dot.gov/api/) | Vehicle make/model lookup |
+| [CarAPI](https://carapi.app/) | Year-range data per model |
+| [fueleconomy.gov](https://www.fueleconomy.gov/) | US DOE/EPA bulk CSV (local cache) |
+| [Wikidata](https://www.wikidata.org/) / [Wikipedia](https://www.wikipedia.org/) | Supplementary year and fuel-type enrichment |
+| [duckduckgo-search](https://github.com/deedy5/duckduckgo_search) | Web battery validation pipeline |
+| [Tavily](https://tavily.com/) | AI-powered web search — battery validation pipeline |
 
 ---
 
