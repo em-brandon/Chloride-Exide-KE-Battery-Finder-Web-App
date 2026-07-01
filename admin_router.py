@@ -189,7 +189,7 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
         SELECT
             (SELECT COUNT(*)                                     FROM battery_specs      WHERE deleted_at IS NULL)  AS battery_specs,
             (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years)                                AS vehicle_years,
-            (SELECT COUNT(*)                                     FROM vehicle_raw)                                  AS vehicles_raw,
+            (SELECT COUNT(*)                                     FROM vehicles_raw)                                 AS vehicles_raw,
             (SELECT COUNT(*)                                     FROM model_aliases)                                AS model_aliases,
             (SELECT COUNT(DISTINCT vehicle_type)                 FROM dial_battery_inference)                       AS inf_makes,
             (SELECT COUNT(DISTINCT vehicle_model)                FROM dial_battery_inference)                       AS inf_models,
