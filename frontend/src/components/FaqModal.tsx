@@ -112,7 +112,7 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'What is the warranty on Chloride Exide batteries?',
-    a: 'Warranty periods vary by product line and are confirmed at the point of purchase. Always keep your purchase receipt — it is required for any warranty claim. Bring both the receipt and the battery to the dealer where it was purchased. Warranty covers manufacturing defects and does not cover damage from incorrect installation, deep discharge, or use in a vehicle with a faulty charging system.',
+    a: 'Warranty periods vary by product line and are confirmed at the point of purchase. To activate your warranty, scan the QR code on the battery label at the time of purchase. Always keep your purchase receipt — it is required for any warranty claim. Bring both the receipt and the battery to the dealer where it was purchased. Warranty covers manufacturing defects and does not cover damage from incorrect installation, deep discharge, or use in a vehicle with a faulty charging system.',
   },
   {
     q: 'Where can I buy the recommended battery?',
