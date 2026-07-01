@@ -1235,18 +1235,17 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded }: MobileV
                 </div>
 
                 {/* Right: rider image */}
-                <div style={{ width: 84, flexShrink: 0, position: 'relative' }}>
+                <div style={{ width: 100, flexShrink: 0, background: '#d8d8d8' }}>
                   <img
                     src={riderImg}
                     alt=""
                     aria-hidden="true"
                     style={{
-                      position: 'absolute',
-                      inset: 0,
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover',
-                      objectPosition: 'center top',
+                      objectFit: 'contain',
+                      objectPosition: 'center bottom',
+                      display: 'block',
                     }}
                   />
                 </div>

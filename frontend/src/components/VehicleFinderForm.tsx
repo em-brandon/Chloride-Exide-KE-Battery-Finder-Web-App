@@ -17,6 +17,7 @@ import sebangLogo       from '@/assets/sebang-logo.webp'
 import sbFloodedLogo    from '@/assets/sb-flooded-logo.webp'
 import exideAgmLogo     from '@/assets/exide-agm-logo.webp'
 import chlorideExideLogo  from '@/assets/chlorideexidebrandlogo.webp'
+import riderImg            from '@/assets/rider.webp'
 import { OrbitLoader } from '@/components/ui/OrbitLoader'
 
 interface VehicleFinderFormProps {
@@ -157,31 +158,35 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
       </div>
 
       {/* Dial a Battery */}
-      <div style={{
-        display: 'flex', alignItems: 'center', flexWrap: 'wrap',
-        gap: '0.4rem 0.9rem',
-        background: '#f9fafb', border: '1px solid #e5e7eb',
-        borderRadius: 8, padding: '0.45rem 0.75rem',
-        fontSize: '0.72rem', marginBottom: '0.25rem',
-      }}>
-        <span style={{ fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>
-          <span className="dial-ring">📞</span>{' '}Dial a Battery
-        </span>
-        <span style={{ color: '#d1d5db' }}>·</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-          <ReactCountryFlag countryCode="KE" svg style={{ width: '1.1em', height: '1.1em' }} />
-          <span style={{ color: '#CC0000', fontWeight: 600 }}>+254 719 080 000</span>
-        </span>
-        <span style={{ color: '#d1d5db' }}>·</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-          <ReactCountryFlag countryCode="TZ" svg style={{ width: '1.1em', height: '1.1em' }} />
-          <span style={{ color: '#111827', fontWeight: 600 }}>+255 677 484 631</span>
-        </span>
-        <span style={{ color: '#d1d5db' }}>·</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-          <ReactCountryFlag countryCode="UG" svg style={{ width: '1.1em', height: '1.1em' }} />
-          <span style={{ color: '#16a34a', fontWeight: 600 }}>+256 200 400 900</span>
-        </span>
+      <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', minHeight: 88, marginBottom: '0.25rem' }}>
+        <div style={{
+          flex: 1, padding: '0.55rem 0.8rem',
+          background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.3rem',
+        }}>
+          <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <span className="dial-ring">📞</span> Dial a Battery
+          </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.15rem 0.55rem' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+              <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ color: '#fff', fontSize: '0.68rem', fontWeight: 600, opacity: 0.95 }}>+254 719 080 000</span>
+            </span>
+            <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.6rem' }}>·</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+              <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ color: '#fff', fontSize: '0.68rem', fontWeight: 600, opacity: 0.95 }}>+255 677 484 631</span>
+            </span>
+            <span style={{ color: '#fff', opacity: 0.4, fontSize: '0.6rem' }}>·</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+              <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
+              <span style={{ color: '#fff', fontSize: '0.68rem', fontWeight: 600, opacity: 0.95 }}>+256 200 400 900</span>
+            </span>
+          </div>
+        </div>
+        <div style={{ width: 100, flexShrink: 0, background: '#d8d8d8' }}>
+          <img src={riderImg} alt="" aria-hidden="true" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', display: 'block' }} />
+        </div>
       </div>
 
       {isFallback && (
@@ -278,50 +283,53 @@ function ResultPanel({ data, inputType, typedLabel }: { data: RecommendationResu
 // TODO: replace href="#" with the actual Dial-A-Battery shop URL
 function DialABatteryBanner() {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      marginTop: '0.75rem', padding: '0.55rem 0.75rem',
-      borderRadius: '0.5rem',
-      background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
-      color: '#fff', gap: '0.5rem',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
-        <Phone size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em' }}>Dial-A-Battery</div>
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.15rem 0.55rem', marginTop: '0.18rem' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
-              <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ fontSize: '0.67rem', fontWeight: 600, opacity: 0.95 }}>+254 719 080 000</span>
-            </span>
-            <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>·</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
-              <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ fontSize: '0.67rem', fontWeight: 600, opacity: 0.95 }}>+255 677 484 631</span>
-            </span>
-            <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>·</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
-              <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
-              <span style={{ fontSize: '0.67rem', fontWeight: 600, opacity: 0.95 }}>+256 200 400 900</span>
-            </span>
+    <div style={{ display: 'flex', borderRadius: '0.5rem', overflow: 'hidden', marginTop: '0.75rem', minHeight: 96 }}>
+      <div style={{
+        flex: 1, padding: '0.6rem 0.85rem',
+        background: 'linear-gradient(135deg, #CC0000 0%, #1A35C0 100%)',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.35rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Phone size={13} strokeWidth={2} style={{ flexShrink: 0, color: '#fff' }} />
+            <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#fff', letterSpacing: '0.01em' }}>Dial-A-Battery</span>
           </div>
+          <a
+            href="https://www.chlorideexide.com/category/all-products"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+              padding: '0.25rem 0.6rem', borderRadius: '0.375rem',
+              background: '#fff', color: '#CC0000',
+              fontWeight: 700, fontSize: '0.7rem', textDecoration: 'none',
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+          >
+            <ShoppingBagIcon style={{ width: '0.8rem', height: '0.8rem' }} />
+            Shop Now
+          </a>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.15rem 0.55rem' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
+            <ReactCountryFlag countryCode="KE" svg style={{ width: '1em', height: '1em' }} />
+            <span style={{ fontSize: '0.67rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>+254 719 080 000</span>
+          </span>
+          <span style={{ fontSize: '0.6rem', color: '#fff', opacity: 0.4 }}>·</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
+            <ReactCountryFlag countryCode="TZ" svg style={{ width: '1em', height: '1em' }} />
+            <span style={{ fontSize: '0.67rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>+255 677 484 631</span>
+          </span>
+          <span style={{ fontSize: '0.6rem', color: '#fff', opacity: 0.4 }}>·</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.22rem', whiteSpace: 'nowrap' }}>
+            <ReactCountryFlag countryCode="UG" svg style={{ width: '1em', height: '1em' }} />
+            <span style={{ fontSize: '0.67rem', fontWeight: 600, color: '#fff', opacity: 0.95 }}>+256 200 400 900</span>
+          </span>
         </div>
       </div>
-      <a
-        href="https://www.chlorideexide.com/category/all-products"
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-          padding: '0.3rem 0.65rem', borderRadius: '0.375rem',
-          background: '#fff', color: '#CC0000',
-          fontWeight: 700, fontSize: '0.73rem', textDecoration: 'none',
-          whiteSpace: 'nowrap', flexShrink: 0,
-        }}
-      >
-        <ShoppingBagIcon style={{ width: '0.85rem', height: '0.85rem' }} />
-        Shop Now
-      </a>
+      <div style={{ width: 110, flexShrink: 0, background: '#d8d8d8' }}>
+        <img src={riderImg} alt="" aria-hidden="true" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', display: 'block' }} />
+      </div>
     </div>
   )
 }
