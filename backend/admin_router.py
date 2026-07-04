@@ -3824,3 +3824,13 @@ def run_expansion_pipeline(
     t.start()
     logger.info("vehicle_coverage_expansion started by %s run_id=%s", admin.username, run_id)
     return {"run_id": run_id}
+
+
+@router.get("/pipeline/expansion/status", summary="Get vehicle coverage expansion pipeline status")
+def get_expansion_status(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        state = dict(_expansion_state)
+        state["logs"] = list(state["logs"])
+        state.pop("cancel_event", None)
+        state.pop("pause_event", None)
+    return state
