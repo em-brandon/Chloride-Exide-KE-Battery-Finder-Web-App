@@ -3999,3 +3999,23 @@ def update_expansion_make(
 
     logger.info("Expansion make '%s' (id=%d) updated by %s", row.make, make_id, admin.username)
     return _serialize_expansion_make(row)
+
+
+@router.delete("/pipeline/expansion/makes/{make_id}", summary="Remove an expansion pipeline target make")
+def delete_expansion_make(
+    make_id: int,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.query(ExpansionMake).filter(ExpansionMake.id == make_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Expansion make not found")
+
+    # Hard delete — this is pipeline input config, not audited catalogue data
+    # like battery_specs, so there's no soft-delete/audit-log requirement here.
+    make = row.make
+    db.delete(row)
+    db.commit()
+
+    logger.info("Expansion make '%s' (id=%d) deleted by %s", make, make_id, admin.username)
+    return {"detail": "deleted"}
