@@ -433,13 +433,22 @@ flowchart TD
 
 ### Fuzzy Model Scoring
 
-`_fuzzy_model_score_for_year()` runs three scorers in priority order, selecting candidates that exist near the requested year:
+The same base model (e.g. "COROLLA") can exist in the dataset as dozens of distinct trims ("COROLLA AXIO G", "COROLLA FIELDER X", ...), and users rarely type the full trim name. `_fuzzy_model_score_for_year()` decides which stored trim a typed model name actually refers to.
 
-1. `partial_ratio` (≥ 80, query len ≥ 4) — catches prefix inputs like "COROLLA" → "COROLLA AXIO G"
-2. `token_set_ratio` (≥ 72) — handles variant-token inputs like "MARCH ACTIVE" → "MARCH G"
-3. `WRatio` (≥ 60) — legacy fallback
+It tries three RapidFuzz scoring methods in order, from most to least strict, and stops at the first one that produces a usable match:
 
-Among candidates that tie, selection prefers: semantic prefix match → exact year hit → smallest year delta → highest fuzzy score.
+1. **`partial_ratio`** (score ≥ 80, only for queries of 4+ characters) — checks whether the typed text appears as a prefix/substring of the candidate name. This is what lets "COROLLA" match "COROLLA AXIO G". Short queries are excluded here because a 2-3 letter substring would match almost anything.
+2. **`token_set_ratio`** (score ≥ 72) — compares the *set* of words in each name, ignoring order and duplicates, so it still scores well when the query and candidate share some words but not all — e.g. "MARCH ACTIVE" matching "MARCH G" (both share "MARCH", even though the trim word differs).
+3. **`WRatio`** (score ≥ 60) — a general-purpose blended score RapidFuzz derives from several comparison methods at once. Used only as a last-resort fallback when the two more targeted methods above find nothing.
+
+Whichever method finds candidates, the single highest fuzzy score isn't the deciding factor — several real trims often land at nearly the same score, and the top-scoring one isn't always the one actually sold in the year the user asked about. Instead, among candidates that clear the threshold, the matcher picks in this priority order:
+
+1. **Prefix match** — does the candidate genuinely start with the words the user typed?
+2. **Exact year** — does that candidate exist in the dataset for the exact year requested?
+3. **Closest year** — if not exact, which candidate's nearest recorded year (within ±3 years) is closest?
+4. **Fuzzy score** — only used as the final tiebreaker once the above are equal.
+
+This ordering is why the matcher reliably lands on the correct year's trim instead of a different-year trim that happened to score marginally higher on text similarity alone.
 
 ### Ah Bracket Rules
 
