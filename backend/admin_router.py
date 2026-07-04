@@ -3707,3 +3707,75 @@ def refresh_crsp_cache(admin: AdminUser = Depends(require_admin), db: Session = 
 
     logger.info("CRSP year cache cleared by %s", admin.username)
     return {"detail": "Year cache cleared. fueleconomy data is untouched. Next Stage 2 run will re-fetch NHTSA, CarAPI and year lookups.", "actions": results}
+
+
+# ===========================================================================
+# VEHICLE EXPANSION PIPELINE — run / control / makes CRUD
+# ===========================================================================
+
+_expansion_lock = threading.Lock()
+_expansion_state: dict = {
+    "run_id":          None,
+    "status":          "idle",   # idle | running | paused | done | cancelled | error
+    "current_make":    None,
+    "makes_total":     0,
+    "makes_processed": 0,
+    "rows_staged":     0,
+    "rows_skipped":    0,
+    "source_counts":   {},
+    "logs":            deque(maxlen=50),
+    "started_at":      None,
+    "finished_at":     None,
+    "error_detail":    None,
+    "cancel_event":    None,
+    "pause_event":     None,
+    "initiated_by":    None,
+}
+
+
+def _expansion_thread(
+    run_id: str, cancel_ev: threading.Event, pause_ev: threading.Event,
+    target_makes: list[str] | None,
+) -> None:
+    from pipelines.vehicle_coverage_expansion import main as _run_expansion
+
+    def _log(line: str) -> None:
+        with _expansion_lock:
+            _expansion_state["logs"].append(line)
+        logger.debug("[Expansion] %s", line)
+
+    def _progress(processed: int, total: int, make: str, source: str) -> None:
+        with _expansion_lock:
+            _expansion_state["makes_processed"] = processed
+            _expansion_state["makes_total"]      = total
+            _expansion_state["current_make"]     = make
+
+    db = SessionLocal()
+    try:
+        result = _run_expansion(
+            run_id=run_id,
+            db=db,
+            target_makes=target_makes,
+            log_callback=_log,
+            progress_callback=_progress,
+            cancel_event=cancel_ev,
+            pause_event=pause_ev,
+        )
+        staging = result.get("staging") or {}
+
+        with _expansion_lock:
+            _expansion_state["status"]         = "cancelled" if cancel_ev.is_set() else "done"
+            _expansion_state["rows_staged"]     = staging.get("staged", 0)
+            _expansion_state["rows_skipped"]    = staging.get("skipped_unchanged", 0)
+            _expansion_state["source_counts"]   = result.get("source_counts", {})
+            _expansion_state["finished_at"]     = datetime.now(timezone.utc).isoformat()
+            _expansion_state["error_detail"]    = None
+
+    except Exception as exc:
+        with _expansion_lock:
+            _expansion_state["status"]      = "error"
+            _expansion_state["finished_at"] = datetime.now(timezone.utc).isoformat()
+            _expansion_state["error_detail"] = str(exc)
+        logger.exception("vehicle_coverage_expansion pipeline error: %s", exc)
+    finally:
+        db.close()
