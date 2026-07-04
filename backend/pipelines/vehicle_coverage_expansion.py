@@ -10,6 +10,10 @@ primary source), using four data sources in priority order:
   3. cars-data.com          — scraper for Chinese & commercial vehicle makes
   4. car.info               — scraper for JDM and European model lineups
 
+Target makes and their per-source slugs live in the expansion_makes table (managed
+via the admin UI's Expansion tab), not hardcoded in this file. Each make's year_tier
+(default/commercial/chinese) controls its query year window via TIER_YEAR_RANGES.
+
 Results go to vehicle_years_staging (same staging → commit workflow as CRSP pipeline).
 engine_capacity and fuel are best-effort filled from CarQuery's getTrims endpoint
 (same CarQuery API used elsewhere in the codebase) for makes/models it recognizes;
@@ -46,6 +50,14 @@ CURRENT_YEAR   = 2026
 YEAR_FROM      = 1981
 REQUEST_DELAY  = 0.5   # seconds between API calls
 
+# Per-make year window, keyed by expansion_makes.year_tier. Editable here without
+# a migration; only affects which years get queried, not what's already staged.
+TIER_YEAR_RANGES: dict[str, tuple[int, int]] = {
+    "default":    (1981, CURRENT_YEAR),
+    "commercial": (1990, CURRENT_YEAR),
+    "chinese":    (2005, CURRENT_YEAR),
+}
+
 NHTSA_YEAR_URL  = (
     "https://vpic.nhtsa.dot.gov/api/vehicles/"
     "GetModelsForMakeYear/make/{make}/modelYear/{year}?format=json"
@@ -63,67 +75,6 @@ SESSION.headers.update({
     ),
     "Accept-Language": "en-US,en;q=0.9",
 })
-
-# =============================================================================
-# TARGET MAKES — curated for Kenya/East Africa market
-# =============================================================================
-# Maps our internal make name → (nhtsa_name, carquery_id, carsdata_slug, carinfo_slug)
-# None means the source doesn't cover that make.
-TARGET_MAKES: dict[str, dict] = {
-    # Japanese (core Kenya market)
-    "TOYOTA":          {"nhtsa": "Toyota",      "cq": "toyota",      "carsdata": "toyota",      "carinfo": "toyota"},
-    "NISSAN":          {"nhtsa": "Nissan",       "cq": "nissan",      "carsdata": "nissan",      "carinfo": "nissan"},
-    "HONDA":           {"nhtsa": "Honda",        "cq": "honda",       "carsdata": "honda",       "carinfo": "honda"},
-    "MAZDA":           {"nhtsa": "Mazda",        "cq": "mazda",       "carsdata": "mazda",       "carinfo": "mazda"},
-    "MITSUBISHI":      {"nhtsa": "Mitsubishi",   "cq": "mitsubishi",  "carsdata": "mitsubishi",  "carinfo": "mitsubishi"},
-    "SUBARU":          {"nhtsa": "Subaru",       "cq": "subaru",      "carsdata": "subaru",      "carinfo": "subaru"},
-    "DAIHATSU":        {"nhtsa": "Daihatsu",     "cq": "daihatsu",    "carsdata": "daihatsu",    "carinfo": "daihatsu"},
-    "ISUZU":           {"nhtsa": "Isuzu",        "cq": "isuzu",       "carsdata": "isuzu",       "carinfo": "isuzu"},
-    "SUZUKI":          {"nhtsa": "Suzuki",       "cq": "suzuki",      "carsdata": "suzuki",      "carinfo": "suzuki"},
-    "LEXUS":           {"nhtsa": "Lexus",        "cq": "lexus",       "carsdata": "lexus",       "carinfo": "lexus"},
-    "HINO":            {"nhtsa": "Hino",         "cq": None,          "carsdata": "hino",        "carinfo": "hino"},
-    # European (poor fueleconomy.gov coverage)
-    "PEUGEOT":         {"nhtsa": None,           "cq": "peugeot",     "carsdata": "peugeot",     "carinfo": "peugeot"},
-    "RENAULT":         {"nhtsa": None,           "cq": "renault",     "carsdata": "renault",     "carinfo": "renault"},
-    "CITROEN":         {"nhtsa": None,           "cq": "citroen",     "carsdata": "citroen",     "carinfo": "citroen"},
-    "FIAT":            {"nhtsa": "Fiat",         "cq": "fiat",        "carsdata": "fiat",        "carinfo": "fiat"},
-    "OPEL":            {"nhtsa": None,           "cq": "opel",        "carsdata": "opel",        "carinfo": "opel"},
-    "VAUXHALL":        {"nhtsa": None,           "cq": "vauxhall",    "carsdata": "vauxhall",    "carinfo": "vauxhall"},
-    "VOLVO":           {"nhtsa": "Volvo",        "cq": "volvo",       "carsdata": "volvo",       "carinfo": "volvo"},
-    "SKODA":           {"nhtsa": None,           "cq": "skoda",       "carsdata": "skoda",       "carinfo": "skoda"},
-    # German
-    "MERCEDES":        {"nhtsa": "Mercedes-Benz","cq": "mercedes-benz","carsdata": "mercedes-benz","carinfo": "mercedes-benz"},
-    "BMW":             {"nhtsa": "BMW",          "cq": "bmw",         "carsdata": "bmw",         "carinfo": "bmw"},
-    "AUDI":            {"nhtsa": "Audi",         "cq": "audi",        "carsdata": "audi",        "carinfo": "audi"},
-    "VOLKSWAGEN":      {"nhtsa": "Volkswagen",   "cq": "volkswagen",  "carsdata": "volkswagen",  "carinfo": "volkswagen"},
-    # Korean
-    "HYUNDAI":         {"nhtsa": "Hyundai",      "cq": "hyundai",     "carsdata": "hyundai",     "carinfo": "hyundai"},
-    "KIA":             {"nhtsa": "Kia",          "cq": "kia",         "carsdata": "kia",         "carinfo": "kia"},
-    # Chinese (growing East Africa segment)
-    "HAVAL":           {"nhtsa": None,           "cq": None,          "carsdata": "haval",       "carinfo": "haval"},
-    "GREAT WALL":      {"nhtsa": None,           "cq": "great-wall",  "carsdata": "great-wall",  "carinfo": "great-wall"},
-    "CHERY":           {"nhtsa": None,           "cq": "chery",       "carsdata": "chery",       "carinfo": "chery"},
-    "DONGFENG":        {"nhtsa": None,           "cq": None,          "carsdata": "dongfeng",    "carinfo": "dongfeng"},
-    "FOTON":           {"nhtsa": None,           "cq": None,          "carsdata": "foton",       "carinfo": "foton"},
-    "FAW":             {"nhtsa": None,           "cq": None,          "carsdata": "faw",         "carinfo": "faw"},
-    "SAIC MOTORS":     {"nhtsa": None,           "cq": None,          "carsdata": "saic",        "carinfo": "saic"},
-    # Commercial trucks
-    "MAN":             {"nhtsa": None,           "cq": "man",         "carsdata": "man",         "carinfo": "man"},
-    "SCANIA":          {"nhtsa": None,           "cq": None,          "carsdata": "scania",      "carinfo": "scania"},
-    "IVECO DAILY":     {"nhtsa": None,           "cq": "iveco",       "carsdata": "iveco",       "carinfo": "iveco"},
-    "MITSUBISHI FUSO": {"nhtsa": "Mitsubishi",   "cq": "mitsubishi",  "carsdata": "mitsubishi-fuso","carinfo": "mitsubishi-fuso"},
-    "HINO":            {"nhtsa": "Hino",         "cq": None,          "carsdata": "hino",        "carinfo": "hino"},
-    "MARUTI SUZUKI":   {"nhtsa": "Suzuki",       "cq": "suzuki",      "carsdata": "maruti-suzuki","carinfo": "maruti-suzuki"},
-    "TATA":            {"nhtsa": None,           "cq": None,          "carsdata": "tata",        "carinfo": "tata"},
-    "EICHER":          {"nhtsa": None,           "cq": None,          "carsdata": "eicher",      "carinfo": "eicher"},
-    # Other
-    "FORD":            {"nhtsa": "Ford",         "cq": "ford",        "carsdata": "ford",        "carinfo": "ford"},
-    "JEEP":            {"nhtsa": "Jeep",         "cq": "jeep",        "carsdata": "jeep",        "carinfo": "jeep"},
-    "LANDROVER":       {"nhtsa": "Land Rover",   "cq": "land-rover",  "carsdata": "land-rover",  "carinfo": "land-rover"},
-    "CHEVROLET":       {"nhtsa": "Chevrolet",    "cq": "chevrolet",   "carsdata": "chevrolet",   "carinfo": "chevrolet"},
-    "DODGE":           {"nhtsa": "Dodge",        "cq": "dodge",       "carsdata": "dodge",       "carinfo": "dodge"},
-    "JAGUAR":          {"nhtsa": "Jaguar",       "cq": "jaguar",      "carsdata": "jaguar",      "carinfo": "jaguar"},
-}
 
 # =============================================================================
 # SOURCE 1 — NHTSA VPIC per-year
@@ -566,9 +517,12 @@ def main(
     Parameters
     ----------
     run_id           : str   — UUID for this run (auto-generated if omitted)
-    db               : SQLAlchemy Session — used to check existing rows + write staging
-    target_makes     : list  — subset of TARGET_MAKES keys; defaults to all
-    year_from / year_to : int — year range for NHTSA per-year queries
+    db               : SQLAlchemy Session — required; used to load make config from
+                       expansion_makes, check existing rows, and write staging
+    target_makes     : list  — subset of expansion_makes.make values; defaults to
+                       all enabled makes
+    year_from / year_to : int — fallback year range for makes whose year_tier isn't
+                       in TIER_YEAR_RANGES; per-make ranges normally come from there
     log_callback     : callable(str)
     progress_callback: callable(processed, total, make, source)
     cancel_event     : threading.Event
@@ -576,8 +530,13 @@ def main(
 
     Returns
     -------
-    dict: {run_id, makes_processed, new_rows, staged, skipped, conflicts}
+    dict: {run_id, makes_processed, new_rows, staging, source_counts}
     """
+    if db is None:
+        raise ValueError(
+            "vehicle_coverage_expansion.main() requires a db session — "
+            "make config now lives in the expansion_makes table, not a hardcoded dict"
+        )
     if run_id is None:
         run_id = str(uuid.uuid4())
     log = log_callback or print
@@ -590,9 +549,17 @@ def main(
                 raise InterruptedError("Cancelled")
             time.sleep(0.5)
 
+    from models import ExpansionMake
+    q = db.query(ExpansionMake).filter(ExpansionMake.enabled.is_(True))
+    if target_makes is not None:
+        q = q.filter(ExpansionMake.make.in_(target_makes))
     makes_to_process = {
-        k: v for k, v in TARGET_MAKES.items()
-        if target_makes is None or k in target_makes
+        r.make: {
+            "nhtsa": r.nhtsa_slug, "cq": r.cq_slug,
+            "carsdata": r.carsdata_slug, "carinfo": r.carinfo_slug,
+            "year_tier": r.year_tier,
+        }
+        for r in q.order_by(ExpansionMake.make).all()
     }
     total_makes = len(makes_to_process)
 
