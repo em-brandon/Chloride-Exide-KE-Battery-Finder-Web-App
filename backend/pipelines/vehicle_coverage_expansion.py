@@ -177,7 +177,10 @@ def fetch_carquery_models(cq_make: str, cache: dict, log=print) -> list[dict]:
         return []
 
 
-def carquery_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
+def carquery_to_pairs(
+    make: str, records: list[dict],
+    year_from: int = YEAR_FROM, year_to: int = CURRENT_YEAR,
+) -> set[tuple[str, int]]:
     """
     Converts CarQuery model records to (model_name_upper, year) pairs.
     CarQuery returns one record per trim per year; we use model_year field.
@@ -192,7 +195,7 @@ def carquery_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
             year = int(str(year_raw)[:4])
         except ValueError:
             continue
-        if YEAR_FROM <= year <= CURRENT_YEAR:
+        if year_from <= year <= year_to:
             pairs.add((model.upper(), year))
     return pairs
 
@@ -369,15 +372,18 @@ def _scrape_carsdata(slug: str, cache: dict, log=print) -> list[dict]:
         return []
 
 
-def carsdata_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
+def carsdata_to_pairs(
+    make: str, records: list[dict],
+    year_from: int = YEAR_FROM, year_to: int = CURRENT_YEAR,
+) -> set[tuple[str, int]]:
     pairs: set[tuple[str, int]] = set()
     for r in records:
         model = (r.get("model") or "").strip().upper()
-        yf = r.get("year_from") or YEAR_FROM
-        yt = min(r.get("year_to") or CURRENT_YEAR, CURRENT_YEAR)
+        yf = max(int(r.get("year_from") or year_from), year_from)
+        yt = min(int(r.get("year_to") or year_to), year_to)
         if not model:
             continue
-        for year in range(int(yf), int(yt) + 1):
+        for year in range(yf, yt + 1):
             pairs.add((model, year))
     return pairs
 
@@ -461,8 +467,11 @@ def _scrape_carinfo(slug: str, cache: dict, log=print) -> list[dict]:
         return []
 
 
-def carinfo_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
-    return carsdata_to_pairs(make, records)  # identical structure
+def carinfo_to_pairs(
+    make: str, records: list[dict],
+    year_from: int = YEAR_FROM, year_to: int = CURRENT_YEAR,
+) -> set[tuple[str, int]]:
+    return carsdata_to_pairs(make, records, year_from, year_to)  # identical structure
 
 
 # =============================================================================
@@ -584,15 +593,19 @@ def main(
         make_pairs: set[tuple[str, int]] = set()  # (model_upper, year)
         source_tag = "nhtsa_peryear"
 
-        log(f"\n[{makes_done}/{total_makes}] {make}")
+        mk_year_from, mk_year_to = TIER_YEAR_RANGES.get(
+            cfg.get("year_tier"), (year_from, year_to)
+        )
+
+        log(f"\n[{makes_done}/{total_makes}] {make} (years {mk_year_from}–{mk_year_to}, tier={cfg.get('year_tier')})")
 
         # --- Source 1: NHTSA per-year ---
         nhtsa_name = cfg.get("nhtsa")
         if nhtsa_name:
-            log(f"  [NHTSA per-year] {nhtsa_name} {year_from}–{year_to}")
+            log(f"  [NHTSA per-year] {nhtsa_name} {mk_year_from}–{mk_year_to}")
             try:
                 nhtsa_pairs = collect_nhtsa_per_year(
-                    make, nhtsa_name, year_from, year_to, cache, log=log,
+                    make, nhtsa_name, mk_year_from, mk_year_to, cache, log=log,
                     cancel_event=cancel_event,
                 )
                 make_pairs |= nhtsa_pairs
@@ -609,7 +622,7 @@ def main(
             log(f"  [CarQuery] {cq_name}")
             try:
                 records = fetch_carquery_models(cq_name, cache, log=log)
-                cq_pairs = carquery_to_pairs(make, records)
+                cq_pairs = carquery_to_pairs(make, records, mk_year_from, mk_year_to)
                 new_from_cq = cq_pairs - make_pairs
                 make_pairs |= cq_pairs
                 log(f"  [CarQuery] {len(cq_pairs)} pairs, +{len(new_from_cq)} new")
@@ -625,7 +638,7 @@ def main(
             log(f"  [cars-data] {cd_slug}")
             try:
                 records = _scrape_carsdata(cd_slug, cache, log=log)
-                cd_pairs = carsdata_to_pairs(make, records)
+                cd_pairs = carsdata_to_pairs(make, records, mk_year_from, mk_year_to)
                 new_from_cd = cd_pairs - make_pairs
                 make_pairs |= cd_pairs
                 log(f"  [cars-data] +{len(new_from_cd)} new pairs")
@@ -641,7 +654,7 @@ def main(
             log(f"  [car.info] {ci_slug}")
             try:
                 records = _scrape_carinfo(ci_slug, cache, log=log)
-                ci_pairs = carinfo_to_pairs(make, records)
+                ci_pairs = carinfo_to_pairs(make, records, mk_year_from, mk_year_to)
                 new_from_ci = ci_pairs - make_pairs
                 make_pairs |= ci_pairs
                 log(f"  [car.info] +{len(new_from_ci)} new pairs")
