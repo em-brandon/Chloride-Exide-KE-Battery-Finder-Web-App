@@ -3858,3 +3858,33 @@ def resume_expansion(admin: AdminUser = Depends(require_admin)):
     if pause_ev:
         pause_ev.clear()
     return {"detail": "Resume signal sent"}
+
+
+@router.post("/pipeline/expansion/cancel", summary="Cancel the running expansion pipeline")
+def cancel_expansion(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        if _expansion_state["status"] not in ("running", "paused"):
+            raise HTTPException(status_code=400, detail="Expansion pipeline is not running or paused")
+        cancel_ev = _expansion_state.get("cancel_event")
+        pause_ev  = _expansion_state.get("pause_event")
+
+    if pause_ev:
+        pause_ev.clear()
+    if cancel_ev:
+        cancel_ev.set()
+
+    # Wait up to 3 s for thread to settle — the pipeline itself stages
+    # whatever it collected so far before returning, so no separate
+    # "populate staging" step is needed here (unlike web-validate).
+    deadline = time.time() + 3.0
+    while time.time() < deadline:
+        with _expansion_lock:
+            if _expansion_state["status"] not in ("running", "paused"):
+                break
+        time.sleep(0.1)
+
+    with _expansion_lock:
+        _expansion_state["status"] = "cancelled"
+
+    logger.info("Expansion pipeline cancelled by %s", admin.username)
+    return {"detail": "Expansion pipeline cancelled. Staged rows (if any) are now available for review."}
