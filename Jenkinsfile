@@ -15,7 +15,7 @@ pipeline {
             steps {
                 sh 'python --version || sudo apt-get install python${PYTHON_VERSION}'
                 sh 'python -m pip install --upgrade pip'
-                sh 'pip install -r requirements.txt'
+                sh 'pip install -r backend/requirements.txt'
             }
         }
         stage('Set up Node.js & Bun') {
@@ -36,7 +36,7 @@ pipeline {
         }
         stage('Test Python (if tests)') {
             steps {
-                sh 'pytest || echo "No tests found"'
+                sh 'cd backend && pytest || echo "No tests found"'
             }
         }
         stage('Archive Artifacts') {
