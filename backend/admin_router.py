@@ -3934,3 +3934,32 @@ def list_expansion_makes(
 ):
     rows = db.query(ExpansionMake).order_by(ExpansionMake.make).all()
     return [_serialize_expansion_make(r) for r in rows]
+
+
+@router.post("/pipeline/expansion/makes", status_code=201, summary="Add a new expansion pipeline target make")
+def create_expansion_make(
+    body: ExpansionMakeBody,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    make_upper = body.make.strip().upper()
+    existing = db.query(ExpansionMake).filter(ExpansionMake.make == make_upper).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"'{make_upper}' already exists")
+
+    row = ExpansionMake(
+        make=make_upper,
+        year_tier=body.year_tier,
+        nhtsa_slug=body.nhtsa_slug,
+        cq_slug=body.cq_slug,
+        carsdata_slug=body.carsdata_slug,
+        carinfo_slug=body.carinfo_slug,
+        enabled=body.enabled,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    logger.info("Expansion make '%s' created by %s", make_upper, admin.username)
+    return _serialize_expansion_make(row)
