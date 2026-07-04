@@ -613,3 +613,33 @@ class FueleconomyVehicle(Base):
 
     def __repr__(self) -> str:
         return f"<FueleconomyVehicle {self.year} {self.make} {self.model}>"
+
+
+class ExpansionMake(Base):
+    """
+    Config table for the Vehicle Coverage Expansion pipeline's target makes.
+    Replaces the old hardcoded TARGET_MAKES dict in pipelines/vehicle_coverage_expansion.py.
+
+    Written by: admin_router.py expansion makes CRUD routes (admin dashboard).
+    Read by:    pipelines/vehicle_coverage_expansion.py main() to build the per-run make list.
+    """
+
+    __tablename__ = "expansion_makes"
+
+    id            = Column(Integer,     primary_key=True, autoincrement=True)
+    make          = Column(String(100), nullable=False)
+    year_tier     = Column(String(20),  nullable=False, default="default")  # default|commercial|chinese
+    nhtsa_slug    = Column(String(100), nullable=True)
+    cq_slug       = Column(String(100), nullable=True)
+    carsdata_slug = Column(String(100), nullable=True)
+    carinfo_slug  = Column(String(100), nullable=True)
+    enabled       = Column(Boolean,     nullable=False, default=True)
+    created_at    = Column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("make", name="uq_expansion_makes_make"),
+        Index("ix_expansion_makes_enabled", "enabled"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ExpansionMake {self.make} tier={self.year_tier} enabled={self.enabled}>"
