@@ -9,7 +9,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Backend
+All backend code lives in `backend/` (commands below run from there):
 ```bash
+cd backend
 pip install -r requirements.txt
 alembic upgrade head
 python scripts/create_admin.py --username admin --password <password>
@@ -29,7 +31,7 @@ bun run preview
 
 ### Data Pipelines
 
-CRSP pipeline runs in two stages (triggered via admin UI at /admin/data-pipeline):
+CRSP pipeline runs in two stages (triggered via admin UI at /admin/data-pipeline). Run from `backend/`:
 ```bash
 python pipelines/dataprep.py            # Stage 1: CRSP Excel → battery_lookup_dataset.csv (clean + dedupe)
 python pipelines/enrich_years.py        # Stage 2: multi-source year enrichment → vehicle_years_staging (review before commit)
@@ -45,7 +47,7 @@ Stages: Checkout → Setup Python → Setup Node.js & Bun → Lint Frontend → 
 
 ## Architecture
 
-### Matching Engine (`matcher.py`)
+### Matching Engine (`backend/matcher.py`)
 Three layers applied in order, returning at first match:
 1. **Exact** — make + fuzzy model (≥90 score) + exact year → confidence 100%
 2. **Soft** — make + fuzzy model (≥60 score) + year within ±3 years → confidence 60–89%
@@ -55,7 +57,7 @@ Pre-match steps: resolve international model names to JDM equivalents via `model
 
 All vehicle/battery/alias data is loaded at startup into an LRU cache and held in memory for fast matching.
 
-### Backend (`app.py` + `admin_router.py`)
+### Backend (`backend/app.py` + `backend/admin_router.py`)
 - `app.py` — public API routes, auth middleware, static file serving (serves built frontend), lifespan events, read-counter middleware (flushes to `admin_stats` every 60 s)
 - `admin_router.py` — all `/api/admin/*` routes: batteries CRUD, audit log, sessions, stats, data pipeline trigger
 - `admin_auth.py` — bcrypt (cost 12) + HttpOnly/Secure/SameSite=Strict session cookies (8-hour TTL)
@@ -71,7 +73,7 @@ Key tables:
 - `battery_audit_log` — immutable change history (old/new values as JSON)
 - `user_feedback` — user feedback with satisfaction, accuracy rating, match metadata, IP
 
-Migrations live in `alembic/versions/`. Always run `alembic upgrade head` after pulling.
+Migrations live in `backend/alembic/versions/`. Always run `alembic upgrade head` (from `backend/`) after pulling.
 
 ### Frontend (`frontend/src/`)
 React 19 + TypeScript + Vite + Tailwind CSS v4. Key areas:
@@ -90,15 +92,14 @@ DATABASE_URL=postgresql://user:password@localhost:5432/batteryfinderdev
 ADMIN_COOKIE_SECURE=false   # set false for local HTTP dev; true in production (HTTPS)
 ```
 
-Loaded via `python-dotenv` in `db.py`. Never commit `.env`.
+`.env` lives at the repo root (loaded via `python-dotenv` in `backend/db.py`, found by walking up from wherever the process is started). Never commit `.env`.
 
 ## Key Patterns
 
-- **Upload pipeline** (`upload_pipeline.py`): handles Excel battery data cleanup, validation, and upsert — used by the admin DataPipeline page
-- **Accuracy scripts** live in `scripts/` and are standalone — not part of the app runtime
-- **Enrichment caches** (`cache/year_cache.json`, `cache/enrichment_cache.json`) speed up re-runs of the data pipelines; safe to delete to force a full re-fetch
-- **Source data files** live in `data/` (e.g. `data/Dial-A-Battery Data - 2023-2026.xlsx`)
-- **Assets** (logos, diagrams) live in `assets/`
+- All backend code, scripts, pipelines, and their supporting data/cache/upload directories live under `backend/`; run backend commands with `backend/` as the working directory.
+- **Upload pipeline** (`backend/upload_pipeline.py`): handles Excel battery data cleanup, validation, and upsert — used by the admin DataPipeline page
+- **Accuracy scripts** live in `backend/scripts/` and are standalone — not part of the app runtime
+- **Enrichment caches** (`backend/cache/year_cache.json`, `backend/cache/enrichment_cache.json`) speed up re-runs of the data pipelines; safe to delete to force a full re-fetch
+- **Source data files** live in `backend/data/` (e.g. `backend/data/Dial-A-Battery Data - 2023-2026.xlsx`)
+- **Assets** (logos, diagrams) live in `assets/` at the repo root
 - The `battery_specs` table uses soft-delete; always filter `deleted_at IS NULL` when querying active batteries
-
-THESE ARE YOUR TAKS:
