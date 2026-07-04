@@ -3963,3 +3963,39 @@ def create_expansion_make(
 
     logger.info("Expansion make '%s' created by %s", make_upper, admin.username)
     return _serialize_expansion_make(row)
+
+
+@router.patch("/pipeline/expansion/makes/{make_id}", summary="Update an expansion pipeline target make")
+def update_expansion_make(
+    make_id: int,
+    body: ExpansionMakePatchBody,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.query(ExpansionMake).filter(ExpansionMake.id == make_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Expansion make not found")
+
+    # exclude_unset: the frontend sends single-field bodies (e.g. just
+    # {"enabled": false}) — a full dump would null out the other columns.
+    updates = body.model_dump(exclude_unset=True)
+
+    if "make" in updates:
+        new_make = updates["make"].strip().upper()
+        collision = (
+            db.query(ExpansionMake)
+            .filter(ExpansionMake.make == new_make, ExpansionMake.id != make_id)
+            .first()
+        )
+        if collision:
+            raise HTTPException(status_code=409, detail=f"'{new_make}' already exists")
+        updates["make"] = new_make
+
+    for field, value in updates.items():
+        setattr(row, field, value)
+
+    db.commit()
+    db.refresh(row)
+
+    logger.info("Expansion make '%s' (id=%d) updated by %s", row.make, make_id, admin.username)
+    return _serialize_expansion_make(row)
