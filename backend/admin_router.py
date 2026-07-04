@@ -37,7 +37,7 @@ import uuid
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import requests
 import matcher
@@ -58,7 +58,7 @@ from models import (
     AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
     SearchEvent, UserFeedback, TestUser, TestUserSession,
     VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog,
-    EnrichmentCacheMeta, FueleconomyVehicle,
+    EnrichmentCacheMeta, FueleconomyVehicle, ExpansionMake,
 )
 from pydantic import BaseModel, Field
 from slowapi import Limiter
@@ -3707,3 +3707,315 @@ def refresh_crsp_cache(admin: AdminUser = Depends(require_admin), db: Session = 
 
     logger.info("CRSP year cache cleared by %s", admin.username)
     return {"detail": "Year cache cleared. fueleconomy data is untouched. Next Stage 2 run will re-fetch NHTSA, CarAPI and year lookups.", "actions": results}
+
+
+# ===========================================================================
+# VEHICLE EXPANSION PIPELINE — run / control / makes CRUD
+# ===========================================================================
+
+_expansion_lock = threading.Lock()
+_expansion_state: dict = {
+    "run_id":          None,
+    "status":          "idle",   # idle | running | paused | done | cancelled | error
+    "current_make":    None,
+    "makes_total":     0,
+    "makes_processed": 0,
+    "rows_staged":     0,
+    "rows_skipped":    0,
+    "source_counts":   {},
+    "logs":            deque(maxlen=50),
+    "started_at":      None,
+    "finished_at":     None,
+    "error_detail":    None,
+    "cancel_event":    None,
+    "pause_event":     None,
+    "initiated_by":    None,
+}
+
+
+def _expansion_thread(
+    run_id: str, cancel_ev: threading.Event, pause_ev: threading.Event,
+    target_makes: list[str] | None,
+) -> None:
+    from pipelines.vehicle_coverage_expansion import main as _run_expansion
+
+    def _log(line: str) -> None:
+        with _expansion_lock:
+            _expansion_state["logs"].append(line)
+        logger.debug("[Expansion] %s", line)
+
+    def _progress(processed: int, total: int, make: str, source: str) -> None:
+        with _expansion_lock:
+            _expansion_state["makes_processed"] = processed
+            _expansion_state["makes_total"]      = total
+            _expansion_state["current_make"]     = make
+
+    db = SessionLocal()
+    try:
+        result = _run_expansion(
+            run_id=run_id,
+            db=db,
+            target_makes=target_makes,
+            log_callback=_log,
+            progress_callback=_progress,
+            cancel_event=cancel_ev,
+            pause_event=pause_ev,
+        )
+        staging = result.get("staging") or {}
+
+        with _expansion_lock:
+            _expansion_state["status"]         = "cancelled" if cancel_ev.is_set() else "done"
+            _expansion_state["rows_staged"]     = staging.get("staged", 0)
+            _expansion_state["rows_skipped"]    = staging.get("skipped_unchanged", 0)
+            _expansion_state["source_counts"]   = result.get("source_counts", {})
+            _expansion_state["finished_at"]     = datetime.now(timezone.utc).isoformat()
+            _expansion_state["error_detail"]    = None
+
+    except Exception as exc:
+        with _expansion_lock:
+            _expansion_state["status"]      = "error"
+            _expansion_state["finished_at"] = datetime.now(timezone.utc).isoformat()
+            _expansion_state["error_detail"] = str(exc)
+        logger.exception("vehicle_coverage_expansion pipeline error: %s", exc)
+    finally:
+        db.close()
+
+
+class ExpansionRunBody(BaseModel):
+    target_makes: Optional[list[str]] = None  # None = all enabled makes
+
+
+@router.post("/pipeline/expansion/run", summary="Launch the vehicle coverage expansion pipeline")
+def run_expansion_pipeline(
+    body: ExpansionRunBody = Body(default_factory=ExpansionRunBody),
+    admin: AdminUser = Depends(require_admin),
+):
+    with _expansion_lock:
+        if _expansion_state["status"] == "running":
+            raise HTTPException(status_code=409, detail="Expansion pipeline is already running")
+
+        run_id    = str(uuid.uuid4())
+        cancel_ev = threading.Event()
+        pause_ev  = threading.Event()
+        _expansion_state.update({
+            "run_id":          run_id,
+            "status":          "running",
+            "current_make":    None,
+            "makes_total":     0,
+            "makes_processed": 0,
+            "rows_staged":     0,
+            "rows_skipped":    0,
+            "source_counts":   {},
+            "logs":            deque(maxlen=50),
+            "started_at":      datetime.now(timezone.utc).isoformat(),
+            "finished_at":     None,
+            "error_detail":    None,
+            "cancel_event":    cancel_ev,
+            "pause_event":     pause_ev,
+            "initiated_by":    admin.username,
+        })
+
+    t = threading.Thread(
+        target=_expansion_thread,
+        args=(run_id, cancel_ev, pause_ev, body.target_makes),
+        daemon=True,
+        name=f"expansion-{run_id[:8]}",
+    )
+    t.start()
+    logger.info("vehicle_coverage_expansion started by %s run_id=%s", admin.username, run_id)
+    return {"run_id": run_id}
+
+
+@router.get("/pipeline/expansion/status", summary="Get vehicle coverage expansion pipeline status")
+def get_expansion_status(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        state = dict(_expansion_state)
+        state["logs"] = list(state["logs"])
+        state.pop("cancel_event", None)
+        state.pop("pause_event", None)
+    return state
+
+
+@router.post("/pipeline/expansion/pause", summary="Pause the running expansion pipeline")
+def pause_expansion(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        if _expansion_state["status"] != "running":
+            raise HTTPException(status_code=400, detail="Expansion pipeline is not running")
+        pause_ev = _expansion_state.get("pause_event")
+        _expansion_state["status"] = "paused"
+    if pause_ev:
+        pause_ev.set()
+    return {"detail": "Pause signal sent"}
+
+
+@router.post("/pipeline/expansion/resume", summary="Resume a paused expansion pipeline")
+def resume_expansion(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        if _expansion_state["status"] != "paused":
+            raise HTTPException(status_code=400, detail="Expansion pipeline is not paused")
+        pause_ev = _expansion_state.get("pause_event")
+        _expansion_state["status"] = "running"
+    if pause_ev:
+        pause_ev.clear()
+    return {"detail": "Resume signal sent"}
+
+
+@router.post("/pipeline/expansion/cancel", summary="Cancel the running expansion pipeline")
+def cancel_expansion(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        if _expansion_state["status"] not in ("running", "paused"):
+            raise HTTPException(status_code=400, detail="Expansion pipeline is not running or paused")
+        cancel_ev = _expansion_state.get("cancel_event")
+        pause_ev  = _expansion_state.get("pause_event")
+
+    if pause_ev:
+        pause_ev.clear()
+    if cancel_ev:
+        cancel_ev.set()
+
+    # Wait up to 3 s for thread to settle — the pipeline itself stages
+    # whatever it collected so far before returning, so no separate
+    # "populate staging" step is needed here (unlike web-validate).
+    deadline = time.time() + 3.0
+    while time.time() < deadline:
+        with _expansion_lock:
+            if _expansion_state["status"] not in ("running", "paused"):
+                break
+        time.sleep(0.1)
+
+    with _expansion_lock:
+        _expansion_state["status"] = "cancelled"
+
+    logger.info("Expansion pipeline cancelled by %s", admin.username)
+    return {"detail": "Expansion pipeline cancelled. Staged rows (if any) are now available for review."}
+
+
+# ---------------------------------------------------------------------------
+# Expansion makes CRUD
+# ---------------------------------------------------------------------------
+
+class ExpansionMakeBody(BaseModel):
+    make:          str = Field(..., min_length=1, max_length=100)
+    year_tier:     Literal["default", "commercial", "chinese"] = "default"
+    nhtsa_slug:    Optional[str] = None
+    cq_slug:       Optional[str] = None
+    carsdata_slug: Optional[str] = None
+    carinfo_slug:  Optional[str] = None
+    enabled:       bool = True
+
+
+class ExpansionMakePatchBody(BaseModel):
+    make:          Optional[str] = Field(None, min_length=1, max_length=100)
+    year_tier:     Optional[Literal["default", "commercial", "chinese"]] = None
+    nhtsa_slug:    Optional[str] = None
+    cq_slug:       Optional[str] = None
+    carsdata_slug: Optional[str] = None
+    carinfo_slug:  Optional[str] = None
+    enabled:       Optional[bool] = None
+
+
+def _serialize_expansion_make(m: ExpansionMake) -> dict:
+    return {
+        "id":            m.id,
+        "make":          m.make,
+        "year_tier":     m.year_tier,
+        "nhtsa_slug":    m.nhtsa_slug,
+        "cq_slug":       m.cq_slug,
+        "carsdata_slug": m.carsdata_slug,
+        "carinfo_slug":  m.carinfo_slug,
+        "enabled":       m.enabled,
+    }
+
+
+@router.get("/pipeline/expansion/makes", summary="List all expansion pipeline target makes")
+def list_expansion_makes(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(ExpansionMake).order_by(ExpansionMake.make).all()
+    return [_serialize_expansion_make(r) for r in rows]
+
+
+@router.post("/pipeline/expansion/makes", status_code=201, summary="Add a new expansion pipeline target make")
+def create_expansion_make(
+    body: ExpansionMakeBody,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    make_upper = body.make.strip().upper()
+    existing = db.query(ExpansionMake).filter(ExpansionMake.make == make_upper).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"'{make_upper}' already exists")
+
+    row = ExpansionMake(
+        make=make_upper,
+        year_tier=body.year_tier,
+        nhtsa_slug=body.nhtsa_slug,
+        cq_slug=body.cq_slug,
+        carsdata_slug=body.carsdata_slug,
+        carinfo_slug=body.carinfo_slug,
+        enabled=body.enabled,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    logger.info("Expansion make '%s' created by %s", make_upper, admin.username)
+    return _serialize_expansion_make(row)
+
+
+@router.patch("/pipeline/expansion/makes/{make_id}", summary="Update an expansion pipeline target make")
+def update_expansion_make(
+    make_id: int,
+    body: ExpansionMakePatchBody,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.query(ExpansionMake).filter(ExpansionMake.id == make_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Expansion make not found")
+
+    # exclude_unset: the frontend sends single-field bodies (e.g. just
+    # {"enabled": false}) — a full dump would null out the other columns.
+    updates = body.model_dump(exclude_unset=True)
+
+    if "make" in updates:
+        new_make = updates["make"].strip().upper()
+        collision = (
+            db.query(ExpansionMake)
+            .filter(ExpansionMake.make == new_make, ExpansionMake.id != make_id)
+            .first()
+        )
+        if collision:
+            raise HTTPException(status_code=409, detail=f"'{new_make}' already exists")
+        updates["make"] = new_make
+
+    for field, value in updates.items():
+        setattr(row, field, value)
+
+    db.commit()
+    db.refresh(row)
+
+    logger.info("Expansion make '%s' (id=%d) updated by %s", row.make, make_id, admin.username)
+    return _serialize_expansion_make(row)
+
+
+@router.delete("/pipeline/expansion/makes/{make_id}", summary="Remove an expansion pipeline target make")
+def delete_expansion_make(
+    make_id: int,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.query(ExpansionMake).filter(ExpansionMake.id == make_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Expansion make not found")
+
+    # Hard delete — this is pipeline input config, not audited catalogue data
+    # like battery_specs, so there's no soft-delete/audit-log requirement here.
+    make = row.make
+    db.delete(row)
+    db.commit()
+
+    logger.info("Expansion make '%s' (id=%d) deleted by %s", make, make_id, admin.username)
+    return {"detail": "deleted"}
