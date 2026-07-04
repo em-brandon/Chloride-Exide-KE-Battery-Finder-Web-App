@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend
 All backend code lives in `backend/` (commands below run from there):
 ```bash
+docker compose up -d      # local Postgres 15, matches RDS (run from repo root)
 cd backend
 pip install -r requirements.txt
 alembic upgrade head
@@ -103,3 +104,8 @@ ADMIN_COOKIE_SECURE=false   # set false for local HTTP dev; true in production (
 - **Source data files** live in `backend/data/` (e.g. `backend/data/Dial-A-Battery Data - 2023-2026.xlsx`)
 - **Assets** (logos, diagrams) live in `assets/` at the repo root
 - The `battery_specs` table uses soft-delete; always filter `deleted_at IS NULL` when querying active batteries
+
+## Local Postgres & Secrets
+
+- **Local Postgres**: `docker-compose.yml` at the repo root runs a `postgres:15` service (pinned to match the RDS engine version — see README Production Architecture) with a named volume, wired to the existing `DATABASE_URL` convention in `.env`. `docker compose up -d` gives a reproducible local Postgres that matches prod; `alembic upgrade head` runs against it unchanged.
+- **Secret handling**: production credentials come from AWS SSM Parameter Store / Secrets Manager, injected by ECS as real environment variables at task runtime (see README Production Architecture) — `backend/db.py` never talks to AWS directly. `load_dotenv(override=False)` in `db.py` ensures those injected env vars always win over anything in a `.env` file, so a stray `.env` baked into a production image can never clobber a real secret; `.env` remains purely a local-dev convenience. `.env.example` at the repo root documents the expected variables.
