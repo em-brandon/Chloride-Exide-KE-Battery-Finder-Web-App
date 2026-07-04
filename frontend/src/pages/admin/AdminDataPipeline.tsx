@@ -3640,10 +3640,11 @@ function CrspTab() {
 // ── ExpansionTab ──────────────────────────────────────────────────────────────
 
 const EXP_SOURCE_LABELS: Record<string, string> = {
-  nhtsa:    'NHTSA',
-  carquery: 'CarQuery',
-  carsdata: 'cars-data',
-  carinfo:  'car.info',
+  nhtsa_peryear: 'NHTSA',
+  carquery:      'CarQuery',
+  carsdata:      'cars-data',
+  carinfo:       'car.info',
+  brave:         'Brave Search',
 }
 
 function ExpansionTab() {

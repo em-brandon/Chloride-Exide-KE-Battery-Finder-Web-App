@@ -10,6 +10,10 @@ primary source), using four data sources in priority order:
   3. cars-data.com          — scraper for Chinese & commercial vehicle makes
   4. car.info               — scraper for JDM and European model lineups
 
+Target makes and their per-source slugs live in the expansion_makes table (managed
+via the admin UI's Expansion tab), not hardcoded in this file. Each make's year_tier
+(default/commercial/chinese) controls its query year window via TIER_YEAR_RANGES.
+
 Results go to vehicle_years_staging (same staging → commit workflow as CRSP pipeline).
 engine_capacity and fuel are best-effort filled from CarQuery's getTrims endpoint
 (same CarQuery API used elsewhere in the codebase) for makes/models it recognizes;
@@ -27,6 +31,7 @@ Run from admin UI:
 import json
 import os
 import re
+import sys
 import threading
 import time
 import uuid
@@ -46,6 +51,14 @@ CURRENT_YEAR   = 2026
 YEAR_FROM      = 1981
 REQUEST_DELAY  = 0.5   # seconds between API calls
 
+# Per-make year window, keyed by expansion_makes.year_tier. Editable here without
+# a migration; only affects which years get queried, not what's already staged.
+TIER_YEAR_RANGES: dict[str, tuple[int, int]] = {
+    "default":    (1981, CURRENT_YEAR),
+    "commercial": (1990, CURRENT_YEAR),
+    "chinese":    (2005, CURRENT_YEAR),
+}
+
 NHTSA_YEAR_URL  = (
     "https://vpic.nhtsa.dot.gov/api/vehicles/"
     "GetModelsForMakeYear/make/{make}/modelYear/{year}?format=json"
@@ -63,67 +76,6 @@ SESSION.headers.update({
     ),
     "Accept-Language": "en-US,en;q=0.9",
 })
-
-# =============================================================================
-# TARGET MAKES — curated for Kenya/East Africa market
-# =============================================================================
-# Maps our internal make name → (nhtsa_name, carquery_id, carsdata_slug, carinfo_slug)
-# None means the source doesn't cover that make.
-TARGET_MAKES: dict[str, dict] = {
-    # Japanese (core Kenya market)
-    "TOYOTA":          {"nhtsa": "Toyota",      "cq": "toyota",      "carsdata": "toyota",      "carinfo": "toyota"},
-    "NISSAN":          {"nhtsa": "Nissan",       "cq": "nissan",      "carsdata": "nissan",      "carinfo": "nissan"},
-    "HONDA":           {"nhtsa": "Honda",        "cq": "honda",       "carsdata": "honda",       "carinfo": "honda"},
-    "MAZDA":           {"nhtsa": "Mazda",        "cq": "mazda",       "carsdata": "mazda",       "carinfo": "mazda"},
-    "MITSUBISHI":      {"nhtsa": "Mitsubishi",   "cq": "mitsubishi",  "carsdata": "mitsubishi",  "carinfo": "mitsubishi"},
-    "SUBARU":          {"nhtsa": "Subaru",       "cq": "subaru",      "carsdata": "subaru",      "carinfo": "subaru"},
-    "DAIHATSU":        {"nhtsa": "Daihatsu",     "cq": "daihatsu",    "carsdata": "daihatsu",    "carinfo": "daihatsu"},
-    "ISUZU":           {"nhtsa": "Isuzu",        "cq": "isuzu",       "carsdata": "isuzu",       "carinfo": "isuzu"},
-    "SUZUKI":          {"nhtsa": "Suzuki",       "cq": "suzuki",      "carsdata": "suzuki",      "carinfo": "suzuki"},
-    "LEXUS":           {"nhtsa": "Lexus",        "cq": "lexus",       "carsdata": "lexus",       "carinfo": "lexus"},
-    "HINO":            {"nhtsa": "Hino",         "cq": None,          "carsdata": "hino",        "carinfo": "hino"},
-    # European (poor fueleconomy.gov coverage)
-    "PEUGEOT":         {"nhtsa": None,           "cq": "peugeot",     "carsdata": "peugeot",     "carinfo": "peugeot"},
-    "RENAULT":         {"nhtsa": None,           "cq": "renault",     "carsdata": "renault",     "carinfo": "renault"},
-    "CITROEN":         {"nhtsa": None,           "cq": "citroen",     "carsdata": "citroen",     "carinfo": "citroen"},
-    "FIAT":            {"nhtsa": "Fiat",         "cq": "fiat",        "carsdata": "fiat",        "carinfo": "fiat"},
-    "OPEL":            {"nhtsa": None,           "cq": "opel",        "carsdata": "opel",        "carinfo": "opel"},
-    "VAUXHALL":        {"nhtsa": None,           "cq": "vauxhall",    "carsdata": "vauxhall",    "carinfo": "vauxhall"},
-    "VOLVO":           {"nhtsa": "Volvo",        "cq": "volvo",       "carsdata": "volvo",       "carinfo": "volvo"},
-    "SKODA":           {"nhtsa": None,           "cq": "skoda",       "carsdata": "skoda",       "carinfo": "skoda"},
-    # German
-    "MERCEDES":        {"nhtsa": "Mercedes-Benz","cq": "mercedes-benz","carsdata": "mercedes-benz","carinfo": "mercedes-benz"},
-    "BMW":             {"nhtsa": "BMW",          "cq": "bmw",         "carsdata": "bmw",         "carinfo": "bmw"},
-    "AUDI":            {"nhtsa": "Audi",         "cq": "audi",        "carsdata": "audi",        "carinfo": "audi"},
-    "VOLKSWAGEN":      {"nhtsa": "Volkswagen",   "cq": "volkswagen",  "carsdata": "volkswagen",  "carinfo": "volkswagen"},
-    # Korean
-    "HYUNDAI":         {"nhtsa": "Hyundai",      "cq": "hyundai",     "carsdata": "hyundai",     "carinfo": "hyundai"},
-    "KIA":             {"nhtsa": "Kia",          "cq": "kia",         "carsdata": "kia",         "carinfo": "kia"},
-    # Chinese (growing East Africa segment)
-    "HAVAL":           {"nhtsa": None,           "cq": None,          "carsdata": "haval",       "carinfo": "haval"},
-    "GREAT WALL":      {"nhtsa": None,           "cq": "great-wall",  "carsdata": "great-wall",  "carinfo": "great-wall"},
-    "CHERY":           {"nhtsa": None,           "cq": "chery",       "carsdata": "chery",       "carinfo": "chery"},
-    "DONGFENG":        {"nhtsa": None,           "cq": None,          "carsdata": "dongfeng",    "carinfo": "dongfeng"},
-    "FOTON":           {"nhtsa": None,           "cq": None,          "carsdata": "foton",       "carinfo": "foton"},
-    "FAW":             {"nhtsa": None,           "cq": None,          "carsdata": "faw",         "carinfo": "faw"},
-    "SAIC MOTORS":     {"nhtsa": None,           "cq": None,          "carsdata": "saic",        "carinfo": "saic"},
-    # Commercial trucks
-    "MAN":             {"nhtsa": None,           "cq": "man",         "carsdata": "man",         "carinfo": "man"},
-    "SCANIA":          {"nhtsa": None,           "cq": None,          "carsdata": "scania",      "carinfo": "scania"},
-    "IVECO DAILY":     {"nhtsa": None,           "cq": "iveco",       "carsdata": "iveco",       "carinfo": "iveco"},
-    "MITSUBISHI FUSO": {"nhtsa": "Mitsubishi",   "cq": "mitsubishi",  "carsdata": "mitsubishi-fuso","carinfo": "mitsubishi-fuso"},
-    "HINO":            {"nhtsa": "Hino",         "cq": None,          "carsdata": "hino",        "carinfo": "hino"},
-    "MARUTI SUZUKI":   {"nhtsa": "Suzuki",       "cq": "suzuki",      "carsdata": "maruti-suzuki","carinfo": "maruti-suzuki"},
-    "TATA":            {"nhtsa": None,           "cq": None,          "carsdata": "tata",        "carinfo": "tata"},
-    "EICHER":          {"nhtsa": None,           "cq": None,          "carsdata": "eicher",      "carinfo": "eicher"},
-    # Other
-    "FORD":            {"nhtsa": "Ford",         "cq": "ford",        "carsdata": "ford",        "carinfo": "ford"},
-    "JEEP":            {"nhtsa": "Jeep",         "cq": "jeep",        "carsdata": "jeep",        "carinfo": "jeep"},
-    "LANDROVER":       {"nhtsa": "Land Rover",   "cq": "land-rover",  "carsdata": "land-rover",  "carinfo": "land-rover"},
-    "CHEVROLET":       {"nhtsa": "Chevrolet",    "cq": "chevrolet",   "carsdata": "chevrolet",   "carinfo": "chevrolet"},
-    "DODGE":           {"nhtsa": "Dodge",        "cq": "dodge",       "carsdata": "dodge",       "carinfo": "dodge"},
-    "JAGUAR":          {"nhtsa": "Jaguar",       "cq": "jaguar",      "carsdata": "jaguar",      "carinfo": "jaguar"},
-}
 
 # =============================================================================
 # SOURCE 1 — NHTSA VPIC per-year
@@ -226,7 +178,10 @@ def fetch_carquery_models(cq_make: str, cache: dict, log=print) -> list[dict]:
         return []
 
 
-def carquery_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
+def carquery_to_pairs(
+    make: str, records: list[dict],
+    year_from: int = YEAR_FROM, year_to: int = CURRENT_YEAR,
+) -> set[tuple[str, int]]:
     """
     Converts CarQuery model records to (model_name_upper, year) pairs.
     CarQuery returns one record per trim per year; we use model_year field.
@@ -241,7 +196,7 @@ def carquery_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
             year = int(str(year_raw)[:4])
         except ValueError:
             continue
-        if YEAR_FROM <= year <= CURRENT_YEAR:
+        if year_from <= year <= year_to:
             pairs.add((model.upper(), year))
     return pairs
 
@@ -344,6 +299,76 @@ def engine_specs_by_year(trims: list[dict]) -> dict[int, tuple[int | None, str |
 
 
 # =============================================================================
+# ENGINE SPECS FALLBACK — Brave Search (used only when CarQuery has no data)
+# =============================================================================
+# Reuses the Brave integration + quota tracking already used by
+# pipelines/web_battery_validate.py (same real-world Brave account/quota —
+# sharing the "brave" bucket in api_usage_quota is intentional, not a bug).
+
+MAX_BRAVE_LOOKUPS_PER_RUN = 200  # safety cap — quota is shared with web_battery_validate
+
+_CC_RE    = re.compile(r'\b(\d{3,4})\s*(?:cc|CC)\b')
+_LITER_RE = re.compile(r'\b(\d(?:\.\d)?)\s*[Ll](?:itre|iter)?s?\b')
+
+
+def _parse_engine_text(raw: str) -> tuple[int | None, str | None]:
+    """Extracts (engine_cc, fuel) from free-text search-result snippets."""
+    cc = None
+    m = _CC_RE.search(raw)
+    if m:
+        cc = int(m.group(1))
+    else:
+        m = _LITER_RE.search(raw)
+        if m:
+            cc = round(float(m.group(1)) * 1000)
+    fuel = _normalize_carquery_fuel(raw)  # generic fuel-keyword classifier, reused as-is
+    return cc, fuel
+
+
+def _brave_engine_lookup(
+    make: str, model: str, year: int,
+    cancel_event: threading.Event | None = None,
+) -> tuple[int | None, str | None]:
+    """
+    Best-effort engine spec lookup via Brave Search, for a (make, model, year)
+    CarQuery's getTrims had no data for. Returns (None, None) on any miss/error —
+    never raises, so a Brave outage can't break the pipeline run.
+    """
+    from pipelines.web_battery_validate import (
+        BRAVE_SEARCH_API_KEY, BRAVE_SEARCH_API_URL, SESSION as _WBV_SESSION,
+        _interruptible_sleep,
+    )
+    if not BRAVE_SEARCH_API_KEY:
+        return None, None
+
+    query = f"{make} {model} {year} engine specifications displacement liters"
+    headers = {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": BRAVE_SEARCH_API_KEY,
+    }
+    for attempt in range(3):
+        try:
+            resp = _WBV_SESSION.get(
+                BRAVE_SEARCH_API_URL, params={"q": query, "count": 5},
+                headers=headers, timeout=15,
+            )
+            if resp.status_code == 429:
+                _interruptible_sleep(30 * (attempt + 1), cancel_event)
+                continue
+            if not resp.ok:
+                return None, None
+            results = resp.json().get("web", {}).get("results", [])
+            combined = " ".join(
+                (r.get("title", "") + " " + r.get("description", "")) for r in results
+            )
+            return _parse_engine_text(combined) if combined.strip() else (None, None)
+        except Exception:
+            return None, None
+    return None, None
+
+
+# =============================================================================
 # SOURCE 3 — cars-data.com scraper
 # =============================================================================
 
@@ -418,15 +443,18 @@ def _scrape_carsdata(slug: str, cache: dict, log=print) -> list[dict]:
         return []
 
 
-def carsdata_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
+def carsdata_to_pairs(
+    make: str, records: list[dict],
+    year_from: int = YEAR_FROM, year_to: int = CURRENT_YEAR,
+) -> set[tuple[str, int]]:
     pairs: set[tuple[str, int]] = set()
     for r in records:
         model = (r.get("model") or "").strip().upper()
-        yf = r.get("year_from") or YEAR_FROM
-        yt = min(r.get("year_to") or CURRENT_YEAR, CURRENT_YEAR)
+        yf = max(int(r.get("year_from") or year_from), year_from)
+        yt = min(int(r.get("year_to") or year_to), year_to)
         if not model:
             continue
-        for year in range(int(yf), int(yt) + 1):
+        for year in range(yf, yt + 1):
             pairs.add((model, year))
     return pairs
 
@@ -510,8 +538,11 @@ def _scrape_carinfo(slug: str, cache: dict, log=print) -> list[dict]:
         return []
 
 
-def carinfo_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
-    return carsdata_to_pairs(make, records)  # identical structure
+def carinfo_to_pairs(
+    make: str, records: list[dict],
+    year_from: int = YEAR_FROM, year_to: int = CURRENT_YEAR,
+) -> set[tuple[str, int]]:
+    return carsdata_to_pairs(make, records, year_from, year_to)  # identical structure
 
 
 # =============================================================================
@@ -566,9 +597,12 @@ def main(
     Parameters
     ----------
     run_id           : str   — UUID for this run (auto-generated if omitted)
-    db               : SQLAlchemy Session — used to check existing rows + write staging
-    target_makes     : list  — subset of TARGET_MAKES keys; defaults to all
-    year_from / year_to : int — year range for NHTSA per-year queries
+    db               : SQLAlchemy Session — required; used to load make config from
+                       expansion_makes, check existing rows, and write staging
+    target_makes     : list  — subset of expansion_makes.make values; defaults to
+                       all enabled makes
+    year_from / year_to : int — fallback year range for makes whose year_tier isn't
+                       in TIER_YEAR_RANGES; per-make ranges normally come from there
     log_callback     : callable(str)
     progress_callback: callable(processed, total, make, source)
     cancel_event     : threading.Event
@@ -576,8 +610,13 @@ def main(
 
     Returns
     -------
-    dict: {run_id, makes_processed, new_rows, staged, skipped, conflicts}
+    dict: {run_id, makes_processed, new_rows, staging, source_counts}
     """
+    if db is None:
+        raise ValueError(
+            "vehicle_coverage_expansion.main() requires a db session — "
+            "make config now lives in the expansion_makes table, not a hardcoded dict"
+        )
     if run_id is None:
         run_id = str(uuid.uuid4())
     log = log_callback or print
@@ -590,9 +629,18 @@ def main(
                 raise InterruptedError("Cancelled")
             time.sleep(0.5)
 
+    from models import ExpansionMake
+    from db import engine as _sa_engine  # for Brave quota checks (Engine, not Session)
+    q = db.query(ExpansionMake).filter(ExpansionMake.enabled.is_(True))
+    if target_makes is not None:
+        q = q.filter(ExpansionMake.make.in_(target_makes))
     makes_to_process = {
-        k: v for k, v in TARGET_MAKES.items()
-        if target_makes is None or k in target_makes
+        r.make: {
+            "nhtsa": r.nhtsa_slug, "cq": r.cq_slug,
+            "carsdata": r.carsdata_slug, "carinfo": r.carinfo_slug,
+            "year_tier": r.year_tier,
+        }
+        for r in q.order_by(ExpansionMake.make).all()
     }
     total_makes = len(makes_to_process)
 
@@ -610,114 +658,134 @@ def main(
 
     all_new_rows: list[dict] = []
     makes_done = 0
+    brave_calls = 0
+    brave_specs_filled = 0
 
     for make, cfg in makes_to_process.items():
-        _check()
-        makes_done += 1
-        make_pairs: set[tuple[str, int]] = set()  # (model_upper, year)
-        source_tag = "nhtsa_peryear"
-
-        log(f"\n[{makes_done}/{total_makes}] {make}")
-
-        # --- Source 1: NHTSA per-year ---
-        nhtsa_name = cfg.get("nhtsa")
-        if nhtsa_name:
-            log(f"  [NHTSA per-year] {nhtsa_name} {year_from}–{year_to}")
-            try:
-                nhtsa_pairs = collect_nhtsa_per_year(
-                    make, nhtsa_name, year_from, year_to, cache, log=log,
-                    cancel_event=cancel_event,
-                )
-                make_pairs |= nhtsa_pairs
-                log(f"  [NHTSA per-year] {len(nhtsa_pairs)} (model, year) pairs")
-            except InterruptedError:
-                raise
-            except Exception as e:
-                log(f"  [NHTSA per-year WARN] {make}: {e}")
-
-        # --- Source 2: CarQuery ---
-        cq_name = cfg.get("cq")
-        if cq_name:
+        try:
             _check()
-            log(f"  [CarQuery] {cq_name}")
-            try:
-                records = fetch_carquery_models(cq_name, cache, log=log)
-                cq_pairs = carquery_to_pairs(make, records)
-                new_from_cq = cq_pairs - make_pairs
-                make_pairs |= cq_pairs
-                log(f"  [CarQuery] {len(cq_pairs)} pairs, +{len(new_from_cq)} new")
-                if not nhtsa_name and cq_pairs:
-                    source_tag = "carquery"
-            except Exception as e:
-                log(f"  [CarQuery WARN] {make}: {e}")
+            makes_done += 1
+            make_pairs: set[tuple[str, int]] = set()  # (model_upper, year)
+            source_tag = "nhtsa_peryear"
 
-        # --- Source 3: cars-data.com ---
-        cd_slug = cfg.get("carsdata")
-        if cd_slug:
-            _check()
-            log(f"  [cars-data] {cd_slug}")
-            try:
-                records = _scrape_carsdata(cd_slug, cache, log=log)
-                cd_pairs = carsdata_to_pairs(make, records)
-                new_from_cd = cd_pairs - make_pairs
-                make_pairs |= cd_pairs
-                log(f"  [cars-data] +{len(new_from_cd)} new pairs")
-                if not nhtsa_name and not cq_name and cd_pairs:
-                    source_tag = "carsdata"
-            except Exception as e:
-                log(f"  [cars-data WARN] {make}: {e}")
+            mk_year_from, mk_year_to = TIER_YEAR_RANGES.get(
+                cfg.get("year_tier"), (year_from, year_to)
+            )
 
-        # --- Source 4: car.info ---
-        ci_slug = cfg.get("carinfo")
-        if ci_slug:
-            _check()
-            log(f"  [car.info] {ci_slug}")
-            try:
-                records = _scrape_carinfo(ci_slug, cache, log=log)
-                ci_pairs = carinfo_to_pairs(make, records)
-                new_from_ci = ci_pairs - make_pairs
-                make_pairs |= ci_pairs
-                log(f"  [car.info] +{len(new_from_ci)} new pairs")
-                if not nhtsa_name and not cq_name and not cd_slug and ci_pairs:
-                    source_tag = "carinfo"
-            except Exception as e:
-                log(f"  [car.info WARN] {make}: {e}")
+            log(f"\n[{makes_done}/{total_makes}] {make} (years {mk_year_from}–{mk_year_to}, tier={cfg.get('year_tier')})")
 
-        # --- Engine specs (CarQuery getTrims), best-effort, for models with new rows ---
-        model_specs: dict[str, dict[int, tuple]] = {}
-        if cq_name:
-            new_models = {m for (m, y) in make_pairs if (make, m, y) not in existing_pairs}
-            for model_name in new_models:
+            # --- Source 1: NHTSA per-year ---
+            nhtsa_name = cfg.get("nhtsa")
+            if nhtsa_name:
+                log(f"  [NHTSA per-year] {nhtsa_name} {mk_year_from}–{mk_year_to}")
+                try:
+                    nhtsa_pairs = collect_nhtsa_per_year(
+                        make, nhtsa_name, mk_year_from, mk_year_to, cache, log=log,
+                        cancel_event=cancel_event,
+                    )
+                    make_pairs |= nhtsa_pairs
+                    log(f"  [NHTSA per-year] {len(nhtsa_pairs)} (model, year) pairs")
+                except InterruptedError:
+                    raise
+                except Exception as e:
+                    log(f"  [NHTSA per-year WARN] {make}: {e}")
+
+            # --- Source 2: CarQuery ---
+            cq_name = cfg.get("cq")
+            if cq_name:
                 _check()
-                trims = fetch_carquery_trims(cq_name, model_name, cache, log=log)
-                if trims:
-                    model_specs[model_name] = engine_specs_by_year(trims)
-            if new_models:
-                log(f"  [CarQuery specs] engine data found for {len(model_specs)}/{len(new_models)} new models")
+                log(f"  [CarQuery] {cq_name}")
+                try:
+                    records = fetch_carquery_models(cq_name, cache, log=log)
+                    cq_pairs = carquery_to_pairs(make, records, mk_year_from, mk_year_to)
+                    new_from_cq = cq_pairs - make_pairs
+                    make_pairs |= cq_pairs
+                    log(f"  [CarQuery] {len(cq_pairs)} pairs, +{len(new_from_cq)} new")
+                    if not nhtsa_name and cq_pairs:
+                        source_tag = "carquery"
+                except Exception as e:
+                    log(f"  [CarQuery WARN] {make}: {e}")
 
-        # --- Build rows, deduplicate against existing vehicle_years ---
-        new_for_make = 0
-        specs_filled = 0
-        for (model, year) in make_pairs:
-            if (make, model, year) not in existing_pairs:
-                cc, fuel = model_specs.get(model, {}).get(year, (None, None))
-                if cc is not None or fuel is not None:
-                    specs_filled += 1
-                all_new_rows.append({
-                    "make":            make,
-                    "model":           model,
-                    "year":            year,
-                    "engine_capacity": cc,
-                    "fuel":            fuel,
-                    "source":          source_tag,
-                })
-                existing_pairs.add((make, model, year))  # prevent intra-run dupes
-                new_for_make += 1
+            # --- Source 3: cars-data.com ---
+            cd_slug = cfg.get("carsdata")
+            if cd_slug:
+                _check()
+                log(f"  [cars-data] {cd_slug}")
+                try:
+                    records = _scrape_carsdata(cd_slug, cache, log=log)
+                    cd_pairs = carsdata_to_pairs(make, records, mk_year_from, mk_year_to)
+                    new_from_cd = cd_pairs - make_pairs
+                    make_pairs |= cd_pairs
+                    log(f"  [cars-data] +{len(new_from_cd)} new pairs")
+                    if not nhtsa_name and not cq_name and cd_pairs:
+                        source_tag = "carsdata"
+                except Exception as e:
+                    log(f"  [cars-data WARN] {make}: {e}")
 
-        log(f"  → {new_for_make} new rows for {make} ({specs_filled} with engine specs; total so far: {len(all_new_rows):,})")
+            # --- Source 4: car.info ---
+            ci_slug = cfg.get("carinfo")
+            if ci_slug:
+                _check()
+                log(f"  [car.info] {ci_slug}")
+                try:
+                    records = _scrape_carinfo(ci_slug, cache, log=log)
+                    ci_pairs = carinfo_to_pairs(make, records, mk_year_from, mk_year_to)
+                    new_from_ci = ci_pairs - make_pairs
+                    make_pairs |= ci_pairs
+                    log(f"  [car.info] +{len(new_from_ci)} new pairs")
+                    if not nhtsa_name and not cq_name and not cd_slug and ci_pairs:
+                        source_tag = "carinfo"
+                except Exception as e:
+                    log(f"  [car.info WARN] {make}: {e}")
 
-        if progress_callback:
-            progress_callback(makes_done, total_makes, make, source_tag)
+            # --- Engine specs (CarQuery getTrims), best-effort, for models with new rows ---
+            model_specs: dict[str, dict[int, tuple]] = {}
+            if cq_name:
+                new_models = {m for (m, y) in make_pairs if (make, m, y) not in existing_pairs}
+                for model_name in new_models:
+                    _check()
+                    trims = fetch_carquery_trims(cq_name, model_name, cache, log=log)
+                    if trims:
+                        model_specs[model_name] = engine_specs_by_year(trims)
+                if new_models:
+                    log(f"  [CarQuery specs] engine data found for {len(model_specs)}/{len(new_models)} new models")
+
+            # --- Build rows, deduplicate against existing vehicle_years ---
+            new_for_make = 0
+            specs_filled = 0
+            for (model, year) in make_pairs:
+                if (make, model, year) not in existing_pairs:
+                    cc, fuel = model_specs.get(model, {}).get(year, (None, None))
+                    if cc is None and fuel is None and brave_calls < MAX_BRAVE_LOOKUPS_PER_RUN:
+                        from pipelines.web_battery_validate import _check_quota, _increment_quota
+                        if _check_quota(_sa_engine, "brave"):
+                            _check()
+                            b_cc, b_fuel = _brave_engine_lookup(make, model, year, cancel_event)
+                            _increment_quota(_sa_engine, "brave")
+                            brave_calls += 1
+                            if b_cc is not None or b_fuel is not None:
+                                cc, fuel = b_cc, b_fuel
+                                brave_specs_filled += 1
+                    if cc is not None or fuel is not None:
+                        specs_filled += 1
+                    all_new_rows.append({
+                        "make":            make,
+                        "model":           model,
+                        "year":            year,
+                        "engine_capacity": cc,
+                        "fuel":            fuel,
+                        "source":          source_tag,
+                    })
+                    existing_pairs.add((make, model, year))  # prevent intra-run dupes
+                    new_for_make += 1
+
+            log(f"  → {new_for_make} new rows for {make} ({specs_filled} with engine specs; total so far: {len(all_new_rows):,})")
+
+            if progress_callback:
+                progress_callback(makes_done, total_makes, make, source_tag)
+        except InterruptedError:
+            log(f"[Expansion] Cancelled during {make} - staging {len(all_new_rows):,} rows collected so far")
+            break
 
     log(f"\n[Expansion] Total new rows to stage: {len(all_new_rows):,}")
 
@@ -733,11 +801,16 @@ def main(
     elif not all_new_rows:
         log("[Expansion] No new rows to stage — vehicle_years is already fully covered.")
 
+    source_counts = dict(Counter(row["source"] for row in all_new_rows))
+    if brave_specs_filled:
+        source_counts["brave"] = brave_specs_filled
+
     return {
         "run_id":         run_id,
         "makes_processed": makes_done,
         "new_rows":       len(all_new_rows),
         "staging":        staging_result,
+        "source_counts":  source_counts,
     }
 
 
@@ -747,6 +820,11 @@ def main(
 if __name__ == "__main__":
     import argparse
 
+    # Needed to import db/models/other pipelines below when run directly as a
+    # script (python pipelines/vehicle_coverage_expansion.py) — when imported
+    # via admin_router.py instead, backend/ is already on sys.path.
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
     parser = argparse.ArgumentParser(description="Vehicle coverage expansion pipeline")
     parser.add_argument("--makes",    help="Comma-separated makes to process (default: all)")
     parser.add_argument("--year-from", type=int, default=YEAR_FROM, dest="year_from")
@@ -755,7 +833,16 @@ if __name__ == "__main__":
 
     makes = [m.strip().upper() for m in args.makes.split(",")] if args.makes else None
 
-    result = main(target_makes=makes, year_from=args.year_from, year_to=args.year_to)
+    # A db session is now required — make config lives in expansion_makes, not a
+    # hardcoded dict, so even resolving which makes/slugs to query needs one.
+    # This also means CLI runs now write to staging (previously a no-op with db=None).
+    from db import SessionLocal
+    _db = SessionLocal()
+    try:
+        result = main(db=_db, target_makes=makes, year_from=args.year_from, year_to=args.year_to)
+    finally:
+        _db.close()
+
     print(f"\nDone. run_id={result['run_id']}")
     print(f"  Makes processed : {result['makes_processed']}")
     print(f"  New rows        : {result['new_rows']:,}")

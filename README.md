@@ -973,7 +973,7 @@ All indexes are created and dropped via Alembic migrations — never applied by 
 
 The app avoids N+1 query patterns through three mechanisms:
 
-#### 1. In-memory matcher cache (hot path — zero DB queries per request)
+#### 1. Least Recent Used (LRU) In-memory matcher cache (hot path — zero DB queries per request)
 
 `matcher.py` loads all batteries, vehicle years, model aliases, web validations, and Dial-A-Battery inference rows into memory at startup via `@lru_cache`. Every `/api/recommend` call runs entirely in memory. The cache can be flushed and reloaded from the admin dashboard without restarting the server.
 
