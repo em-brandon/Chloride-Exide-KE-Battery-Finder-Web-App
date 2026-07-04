@@ -43,6 +43,7 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 | Migrations | [Alembic](https://alembic.sqlalchemy.org/) (`alembic/`) |
 | Auth | [bcrypt](https://pypi.org/project/bcrypt/) + HttpOnly session cookies (`admin_auth.py`) |
 | Database | [PostgreSQL](https://www.postgresql.org/) via [psycopg2](https://www.psycopg.org/) |
+| Local database (dev) | [Docker Compose](https://docs.docker.com/compose/) running `postgres:15` (`docker-compose.yml`, repo root) — pinned to match the production RDS engine version; see [Local Postgres (Docker)](#local-postgres-docker) |
 | Fuzzy matching | [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) — vehicle model name matching in `matcher.py` |
 | File uploads | [python-multipart](https://github.com/Kludex/python-multipart) — multipart form parsing for battery Excel uploads |
 | PDF export | [ReportLab](https://www.reportlab.com/) — admin battery catalogue PDF generation |
@@ -1095,6 +1096,8 @@ Pipelines
 ```
 
 Secrets are stored in AWS SSM Parameter Store or Secrets Manager and injected as environment variables at task runtime.
+
+Docker is not part of this production path — ECS Fargate runs the FastAPI backend directly, and RDS is a managed Postgres instance, not a container. Docker is only used locally (see [Local Postgres (Docker)](#local-postgres-docker)), running the same PostgreSQL 15 engine version as RDS so migrations and queries behave identically before they ever reach production.
 
 ---
 
