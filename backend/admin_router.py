@@ -37,7 +37,7 @@ import uuid
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import requests
 import matcher
@@ -58,7 +58,7 @@ from models import (
     AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
     SearchEvent, UserFeedback, TestUser, TestUserSession,
     VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog,
-    EnrichmentCacheMeta, FueleconomyVehicle,
+    EnrichmentCacheMeta, FueleconomyVehicle, ExpansionMake,
 )
 from pydantic import BaseModel, Field
 from slowapi import Limiter
