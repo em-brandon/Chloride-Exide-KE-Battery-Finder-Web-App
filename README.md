@@ -15,7 +15,6 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 - [Getting Started](#getting-started)
 - [Running the App](#running-the-app)
 - [Testing on a Real Device](#testing-on-a-real-device)
-- [Pipeline App](#pipeline-app)
 - [Mobile Experience](#mobile-experience)
 - [API Reference](#api-reference)
 - [Matching Engine](#matching-engine)
@@ -77,17 +76,27 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 ## Project Structure
 
 ```
-├── app.py                      # FastAPI entrypoint — public API, auth, middleware
-├── admin_router.py             # All /api/admin/* routes (batteries, audit, sessions)
-├── admin_auth.py               # bcrypt + HttpOnly cookie session management
-├── matcher.py                  # 5-layer battery matching engine
-├── models.py                   # SQLAlchemy ORM models for all tables
-├── db.py                       # SQLAlchemy engine + SessionLocal factory
-├── upload_pipeline.py          # Battery spec upload/import handler
-├── seed.py                     # Seed DB from battery_specs_output.xlsx
-│
-├── alembic/                    # Database migration scripts
-│   └── versions/               # One migration file per schema change
+├── backend/                     # All backend Python code
+│   ├── app.py                   # FastAPI entrypoint — public API, auth, middleware
+│   ├── admin_router.py          # All /api/admin/* routes (batteries, audit, sessions, pipelines)
+│   ├── admin_auth.py            # bcrypt + HttpOnly cookie session management
+│   ├── app_state.py             # In-process maintenance-mode flag
+│   ├── matcher.py                # 5-layer battery matching engine
+│   ├── models.py                # SQLAlchemy ORM models for all tables
+│   ├── db.py                    # SQLAlchemy engine + SessionLocal factory
+│   ├── upload_pipeline.py        # Battery spec upload/import handler
+│   ├── requirements.txt          # Python dependencies
+│   │
+│   ├── alembic/                  # Database migration scripts
+│   │   ├── env.py
+│   │   └── versions/             # One migration file per schema change
+│   │
+│   ├── pipelines/                 # Data pipeline scripts (see Data Pipelines)
+│   ├── scripts/                   # Standalone accuracy/admin/analysis scripts
+│   ├── cache/                     # Enrichment cache files (safe to delete)
+│   ├── data/                      # Source data files (e.g. Dial-A-Battery Excel)
+│   ├── static/                    # Maintenance page + fallback static assets
+│   └── uploads/                   # Uploaded battery/CRSP Excel files
 │
 ├── frontend/                   # React + TypeScript frontend
 │   ├── src/
@@ -128,22 +137,13 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 │   ├── vite.config.ts
 │   └── tsconfig.app.json
 │
-├── pipeline_app/               # Standalone pipeline browser app (separate from admin)
-│   ├── app.py                  # FastAPI backend — pipeline routes only, port 8001
-│   ├── requirements.txt
-│   └── frontend/               # Vite/React pipeline UI, port 5175
-│
-├── pipelines/                  # Data pipeline scripts
-│   ├── dataprep.py             # Pipeline 1: CRSP Excel → vehicles_raw
-│   ├── enrich_years.py         # Pipeline 2: enrich with production years
-│   └── dial_battery_clean.py   # Pipeline 3: Dial-A-Battery inference table
-│
-├── scripts/                    # Accuracy and failure mode analysis scripts
-├── requirements.txt            # Python dependencies
-├── alembic.ini                 # Alembic configuration
-├── Jenkinsfile                 # CI/CD pipeline definition
-└── .env                        # Environment variables (not committed)
+├── docker-compose.yml           # Local Postgres 15 (matches RDS engine version)
+├── .env.example                 # Template for .env — copy and fill in real values
+├── Jenkinsfile                  # CI/CD pipeline definition
+└── .env                         # Environment variables (not committed)
 ```
+
+Backend `pipelines/` contains: `dataprep.py` (Pipeline 1: CRSP Excel → `vehicles_raw`), `enrich_years.py` (Pipeline 2: production-year enrichment), `dial_battery_clean.py` (Pipeline 3: Dial-A-Battery inference), `web_battery_validate.py` (internet fitment validation, run from the admin UI's Web Validate tab), and `vehicle_coverage_expansion.py` (supplementary make/model/year coverage beyond the CRSP catalogue, run from the admin UI's Expansion tab). See [Data Pipelines](#data-pipelines) for details.
 
 ---
 
@@ -158,17 +158,32 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 
 ### Local Postgres (Docker)
 
-A `docker-compose.yml` at the repo root runs a local Postgres pinned to the same engine version as production RDS (PostgreSQL 15), so migrations and queries that pass locally behave the same way in production.
+A `docker-compose.yml` at the repo root runs a local Postgres pinned to the same engine version as production RDS (PostgreSQL 15), so migrations and queries that pass locally behave the same way in production. **This is the primary local Postgres for this project.**
 
 ```bash
 docker compose up -d
 ```
 
-This starts Postgres on `localhost:5432` with a named volume (`battery_finder_pgdata`) so data survives container restarts. Defaults (`batteryfinder` / `batteryfinder` / `batteryfinderdev`) match `.env.example` — copy it to `.env` and it works out of the box, or override via `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` env vars if you point `DATABASE_URL` at different credentials.
+This starts Postgres on `localhost:5434` (not 5432 — see the comment in `docker-compose.yml`: a native Postgres install commonly already owns 5432 on Windows, and Docker Desktop would otherwise silently bind the container's side on IPv6 instead of erroring, splitting `localhost:5432` across two different databases depending on which address family a client resolves first) with a named volume (`battery_finder_pgdata`) so data survives container restarts. Defaults (`batteryfinder` / `batteryfinder` / `batteryfinderdev`) match `.env.example` — copy it to `.env` and it works out of the box, or override via `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` env vars if you point `DATABASE_URL` at different credentials.
 
 ```bash
 docker compose down       # stop the container, keep data
 docker compose down -v    # stop and wipe the volume for a clean slate
+```
+
+If you have an existing local Postgres install with real data (e.g. from before this project moved to Docker), migrate it in once:
+
+```bash
+# Dump from your existing Postgres (adjust host/port/user/db to match)
+pg_dump -h 127.0.0.1 -p 5432 -U <user> -d <db> --no-owner --no-acl --no-comments -F p -f dump.sql
+
+# pg_dump from a newer major version can emit syntax the container's
+# Postgres 15 doesn't recognize (e.g. Postgres 18's `\restrict` and
+# `transaction_timeout`) — strip those lines before restoring
+grep -vF '\restrict' dump.sql | grep -vF '\unrestrict' | grep -vF 'SET transaction_timeout' > dump_clean.sql
+
+# Restore into the (empty) Docker Postgres
+cat dump_clean.sql | docker exec -i battery-finder-postgres psql -U batteryfinder -d batteryfinderdev -v ON_ERROR_STOP=1
 ```
 
 ### Set Up Python Virtual Environment
@@ -264,51 +279,6 @@ ngrok http 5173
 Open the ngrok HTTPS URL on your phone. The mobile wizard activates automatically at screen widths ≤ 600 px.
 
 > **Note:** The app has geo-restriction middleware that blocks non-Kenyan IPs. If your ngrok exit node resolves as a non-KE IP, you may hit the geo-gate. Test from the same network or temporarily bypass the restriction in development.
-
----
-
-## Pipeline App
-
-The pipeline app is a **standalone browser application** that runs separately from the main admin dashboard. It connects directly to the same PostgreSQL database and is designed to be used locally during data preparation.
-
-### Running the Pipeline App
-
-```bash
-# Terminal 1 — pipeline backend (port 8001)
-source .venv/Scripts/activate
-cd pipeline_app
-pip install -r requirements.txt      # first time only
-uvicorn app:app --port 8001 --reload
-
-# Terminal 2 — pipeline frontend (port 5175, proxies /api to port 8001)
-cd pipeline_app/frontend
-bun install                          # first time only
-bun run dev
-```
-
-Open **<http://localhost:5175>** and sign in with the same admin credentials created during Getting Started.
-
-### Pipeline App Features
-
-| Tab | Description |
-|---|---|
-| **Web Validate** | Run the web battery validation pipeline — toggle providers, choose phase (Phase 1 prefetch / Phase 2 lookup / Both), monitor live progress, review staging area, fix suspicious Ah values, resolve conflicts, and commit to master |
-| **CRSP Dataset** | Run the CRSP data prep pipeline — specify the Excel file path, stream stage progress, and review the output summary |
-
-### Building the Desktop `.exe` (Windows)
-
-```bash
-# 1. Compile the React frontend
-bun --cwd pipeline_app/frontend run build
-
-# 2. Bundle into a single .exe
-cd pipeline_app
-pyinstaller pipeline_app.spec
-
-# 3. Compile the Windows installer
-iscc installer.iss
-# → dist/PipelineApp-Setup-1.0.0.exe
-```
 
 ---
 
@@ -513,7 +483,7 @@ Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issue
 | Feedback | `/admin/feedback` | All user-submitted feedback with rating, accuracy, match metadata. Rows animate in staggered on load. |
 | Audit Log | `/admin/audit` | Immutable history of every battery spec create/update/delete. |
 | Sessions | `/admin/sessions` | Active admin sessions with revoke. |
-| Data Pipeline | `/admin/data-pipeline` | Trigger CRSP and web-validation pipelines, review staging, commit to master. |
+| Data Pipeline | `/admin/data-pipeline` | Three tabs: **CRSP Pipeline** (run `dataprep.py`, stream stage progress, review output summary, then Staging Review to commit to `vehicle_years`), **Web Validate** (run `web_battery_validate.py` — toggle providers, choose phase, monitor live progress with pause/resume/cancel, fix suspicious Ah values, resolve conflicts, commit to master), **Expansion** (run `vehicle_coverage_expansion.py` to widen make/model/year coverage beyond the CRSP catalogue). |
 | Coverage | `/admin/coverage` | Vehicle/battery data coverage stats by make. |
 
 ### API Endpoints
@@ -580,8 +550,30 @@ Results cached in `backend/cache/year_cache.json` and `backend/cache/fueleconomy
 cd backend && python pipelines/dial_battery_clean.py
 ```
 
-Input: `data/Dial-A-Battery Data - 2023-2026.xlsx`
+Input: `backend/data/Dial-A-Battery Data - 2023-2026.xlsx`
 Output: `dial_battery_inference` table
+
+### Pipeline 4 — Web Battery Validation
+
+Normally run from the admin UI (`/admin/data-pipeline` → Web Validate tab), which adds pause/resume/cancel controls and a staging review step. Can also run standalone:
+
+```bash
+cd backend && python pipelines/web_battery_validate.py
+```
+
+Queries external sources (SearXNG → DuckDuckGo → Brave → Tavily, in order) for the internet-accepted battery on each `(make, model, year)` combination not already in `web_battery_validation`. See [Environment Variables](#environment-variables) for the optional provider keys (`SEARXNG_URL`, `BRAVE_SEARCH_API_KEY`, `TAVILY_API_KEY`) — any source without a key/URL configured is simply skipped.
+Output: `web_battery_validation` table (via `web_battery_staging` review)
+
+### Pipeline 5 — Vehicle Coverage Expansion
+
+Supplementary pipeline that widens `vehicle_years` beyond the CRSP catalogue for Kenya-relevant makes underserved by fueleconomy.gov, using NHTSA VPIC, CarQuery, and two scrapers (cars-data.com, car.info). Normally run from the admin UI (`/admin/data-pipeline` → Expansion tab); can also run standalone:
+
+```bash
+cd backend && python pipelines/vehicle_coverage_expansion.py [--makes toyota,nissan,...] [--years 1990-2026]
+```
+
+`engine_capacity` and `fuel` are left `NULL` for these rows — the matcher's exact/soft-match layers only need make/model/year.
+Output: `vehicle_years_staging` (same staging → commit workflow as the CRSP pipeline)
 
 ---
 
@@ -595,20 +587,20 @@ Managed by Alembic (`backend/alembic/versions/`). Apply all migrations with `ale
 |---|---|---|---|
 | `vehicles_raw` | `dataprep.py` | pipelines | Cleaned CRSP vehicle records |
 | `vehicle_years` | `enrich_years.py` | `matcher.py` | Per-make/model/year rows with CC + fuel |
-| `vehicle_years_staging` | pipeline app | admin UI | Enriched rows pending admin review |
+| `vehicle_years_staging` | `enrich_years.py` / `vehicle_coverage_expansion.py` | admin UI | Enriched rows pending admin review |
 | `vehicle_years_versions` | admin UI | admin UI | One record per approved merge commit |
 | `vehicle_years_changelog` | admin UI | admin UI | Row-level diffs for rollback |
 | `vehicle_years_unmatched` | `enrich_years.py` | admin UI | Models that failed year enrichment |
-| `battery_specs` | seed / admin upload | `matcher.py` | Battery catalogue (soft-delete via `deleted_at`) |
+| `battery_specs` | admin upload | `matcher.py` | Battery catalogue (soft-delete via `deleted_at`) |
 | `battery_audit_log` | `admin_router.py` | admin UI | Immutable change history |
-| `model_aliases` | seed | `matcher.py` | International → JDM model name mappings |
+| `model_aliases` | one-time import | `matcher.py` | International → JDM model name mappings |
 | `dial_battery_inference` | `dial_battery_clean.py` | `matcher.py` | Real-world call-centre order data |
-| `web_battery_validation` | pipeline app | `matcher.py` | Internet-validated fitment data |
-| `web_battery_staging` | pipeline app | admin UI | Web validation rows pending review |
+| `web_battery_validation` | `web_battery_validate.py` | `matcher.py` | Internet-validated fitment data |
+| `web_battery_staging` | `web_battery_validate.py` | admin UI | Web validation rows pending review |
 | `web_battery_validation_versions` | admin UI | admin UI | One record per approved web validation commit |
 | `web_battery_validation_changelog` | admin UI | admin UI | Row-level diffs |
 | `enrichment_cache_meta` | pipelines | admin UI | Cache download timestamps for external sources |
-| `pipeline_run_log` | pipeline app | admin UI | Web validation run history |
+| `pipeline_run_log` | `web_battery_validate.py` | admin UI | Web validation run history |
 | `fueleconomy_vehicles` | `enrich_years.py` | pipelines | fueleconomy.gov vehicle cache |
 | `api_usage_quota` | pipelines | admin UI | Per-provider API call quotas (30-day rolling) |
 | `admin_users` | `create_admin.py` | `admin_auth.py` | Admin credentials (bcrypt, cost 12) |
@@ -1112,13 +1104,18 @@ Copy `.env.example` to `.env` and fill in your values before running the app:
 
 | Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `DATABASE_URL` | Yes | PostgreSQL connection string. Matches `docker-compose.yml`'s Postgres service by default — see [Local Postgres (Docker)](#local-postgres-docker) |
 | `ADMIN_COOKIE_SECURE` | No | Set `false` for local HTTP dev (default `true`) |
+| `SEARXNG_URL` | No | SearXNG instance base URL for web battery validation; skipped if unset |
+| `BRAVE_SEARCH_API_KEY` | No | Brave Search API key for web battery validation; skipped if unset |
+| `BRAVE_MONTHLY_QUOTA` | No | Override Brave's monthly call quota (default 2000) |
+| `TAVILY_API_KEY` | No | Tavily API key for web battery validation; skipped if unset |
+| `TAVILY_MONTHLY_QUOTA` | No | Override Tavily's monthly call quota (default 1000) |
 
 Example `.env`:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/battery_finder
+DATABASE_URL=postgresql://batteryfinder:batteryfinder@127.0.0.1:5434/batteryfinderdev
 ADMIN_COOKIE_SECURE=false
 ```
 
