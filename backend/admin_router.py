@@ -3888,3 +3888,40 @@ def cancel_expansion(admin: AdminUser = Depends(require_admin)):
 
     logger.info("Expansion pipeline cancelled by %s", admin.username)
     return {"detail": "Expansion pipeline cancelled. Staged rows (if any) are now available for review."}
+
+
+# ---------------------------------------------------------------------------
+# Expansion makes CRUD
+# ---------------------------------------------------------------------------
+
+class ExpansionMakeBody(BaseModel):
+    make:          str = Field(..., min_length=1, max_length=100)
+    year_tier:     Literal["default", "commercial", "chinese"] = "default"
+    nhtsa_slug:    Optional[str] = None
+    cq_slug:       Optional[str] = None
+    carsdata_slug: Optional[str] = None
+    carinfo_slug:  Optional[str] = None
+    enabled:       bool = True
+
+
+class ExpansionMakePatchBody(BaseModel):
+    make:          Optional[str] = Field(None, min_length=1, max_length=100)
+    year_tier:     Optional[Literal["default", "commercial", "chinese"]] = None
+    nhtsa_slug:    Optional[str] = None
+    cq_slug:       Optional[str] = None
+    carsdata_slug: Optional[str] = None
+    carinfo_slug:  Optional[str] = None
+    enabled:       Optional[bool] = None
+
+
+def _serialize_expansion_make(m: ExpansionMake) -> dict:
+    return {
+        "id":            m.id,
+        "make":          m.make,
+        "year_tier":     m.year_tier,
+        "nhtsa_slug":    m.nhtsa_slug,
+        "cq_slug":       m.cq_slug,
+        "carsdata_slug": m.carsdata_slug,
+        "carinfo_slug":  m.carinfo_slug,
+        "enabled":       m.enabled,
+    }
