@@ -153,8 +153,23 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 
 - Python 3.10 or later
 - [Bun](https://bun.sh/) (for frontend builds)
-- PostgreSQL running and accessible
+- PostgreSQL running and accessible (see [Local Postgres (Docker)](#local-postgres-docker) for a one-command option)
 - `.env` file configured (see [Environment Variables](#environment-variables))
+
+### Local Postgres (Docker)
+
+A `docker-compose.yml` at the repo root runs a local Postgres pinned to the same engine version as production RDS (PostgreSQL 15), so migrations and queries that pass locally behave the same way in production.
+
+```bash
+docker compose up -d
+```
+
+This starts Postgres on `localhost:5432` with a named volume (`battery_finder_pgdata`) so data survives container restarts. Defaults (`batteryfinder` / `batteryfinder` / `batteryfinderdev`) match `.env.example` — copy it to `.env` and it works out of the box, or override via `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` env vars if you point `DATABASE_URL` at different credentials.
+
+```bash
+docker compose down       # stop the container, keep data
+docker compose down -v    # stop and wipe the volume for a clean slate
+```
 
 ### Set Up Python Virtual Environment
 
