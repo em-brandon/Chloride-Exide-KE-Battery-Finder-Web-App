@@ -17,14 +17,16 @@ try:
 except ImportError:
     raise SystemExit("Pillow not installed. Run: pip install Pillow")
 
-# Project root is one level above the scripts/ folder
-ROOT = Path(__file__).resolve().parent.parent
+# backend/ is one level above the scripts/ folder; frontend/ lives beside
+# backend/ at the repo root, so it's one level above that.
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+ROOT = BACKEND_ROOT.parent
 
 # Directories to scan for source images (searched recursively)
 SCAN_DIRS = [
     ROOT / "frontend" / "src" / "assets",
     ROOT / "frontend" / "public",
-    ROOT / "static",
+    BACKEND_ROOT / "static",
 ]
 
 # Default output folder when the user presses Enter without typing a path
