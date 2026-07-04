@@ -16,13 +16,14 @@ from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
 # ---------------------------------------------------------------------------
-# Ensure the project root is on sys.path so we can import db and models.
+# Ensure the backend directory is on sys.path so we can import db and models.
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# Load .env before importing db (which reads DATABASE_URL at import time).
-load_dotenv(ROOT / ".env")
+# Load .env (lives at the repo root, one level above backend/) before
+# importing db (which reads DATABASE_URL at import time).
+load_dotenv(ROOT.parent / ".env")
 
 # Import Base and all models so autogenerate can see them.
 from db import Base       # noqa: E402
