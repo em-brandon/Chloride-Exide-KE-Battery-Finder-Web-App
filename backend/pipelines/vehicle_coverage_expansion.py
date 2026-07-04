@@ -588,116 +588,120 @@ def main(
     makes_done = 0
 
     for make, cfg in makes_to_process.items():
-        _check()
-        makes_done += 1
-        make_pairs: set[tuple[str, int]] = set()  # (model_upper, year)
-        source_tag = "nhtsa_peryear"
-
-        mk_year_from, mk_year_to = TIER_YEAR_RANGES.get(
-            cfg.get("year_tier"), (year_from, year_to)
-        )
-
-        log(f"\n[{makes_done}/{total_makes}] {make} (years {mk_year_from}–{mk_year_to}, tier={cfg.get('year_tier')})")
-
-        # --- Source 1: NHTSA per-year ---
-        nhtsa_name = cfg.get("nhtsa")
-        if nhtsa_name:
-            log(f"  [NHTSA per-year] {nhtsa_name} {mk_year_from}–{mk_year_to}")
-            try:
-                nhtsa_pairs = collect_nhtsa_per_year(
-                    make, nhtsa_name, mk_year_from, mk_year_to, cache, log=log,
-                    cancel_event=cancel_event,
-                )
-                make_pairs |= nhtsa_pairs
-                log(f"  [NHTSA per-year] {len(nhtsa_pairs)} (model, year) pairs")
-            except InterruptedError:
-                raise
-            except Exception as e:
-                log(f"  [NHTSA per-year WARN] {make}: {e}")
-
-        # --- Source 2: CarQuery ---
-        cq_name = cfg.get("cq")
-        if cq_name:
+        try:
             _check()
-            log(f"  [CarQuery] {cq_name}")
-            try:
-                records = fetch_carquery_models(cq_name, cache, log=log)
-                cq_pairs = carquery_to_pairs(make, records, mk_year_from, mk_year_to)
-                new_from_cq = cq_pairs - make_pairs
-                make_pairs |= cq_pairs
-                log(f"  [CarQuery] {len(cq_pairs)} pairs, +{len(new_from_cq)} new")
-                if not nhtsa_name and cq_pairs:
-                    source_tag = "carquery"
-            except Exception as e:
-                log(f"  [CarQuery WARN] {make}: {e}")
+            makes_done += 1
+            make_pairs: set[tuple[str, int]] = set()  # (model_upper, year)
+            source_tag = "nhtsa_peryear"
 
-        # --- Source 3: cars-data.com ---
-        cd_slug = cfg.get("carsdata")
-        if cd_slug:
-            _check()
-            log(f"  [cars-data] {cd_slug}")
-            try:
-                records = _scrape_carsdata(cd_slug, cache, log=log)
-                cd_pairs = carsdata_to_pairs(make, records, mk_year_from, mk_year_to)
-                new_from_cd = cd_pairs - make_pairs
-                make_pairs |= cd_pairs
-                log(f"  [cars-data] +{len(new_from_cd)} new pairs")
-                if not nhtsa_name and not cq_name and cd_pairs:
-                    source_tag = "carsdata"
-            except Exception as e:
-                log(f"  [cars-data WARN] {make}: {e}")
+            mk_year_from, mk_year_to = TIER_YEAR_RANGES.get(
+                cfg.get("year_tier"), (year_from, year_to)
+            )
 
-        # --- Source 4: car.info ---
-        ci_slug = cfg.get("carinfo")
-        if ci_slug:
-            _check()
-            log(f"  [car.info] {ci_slug}")
-            try:
-                records = _scrape_carinfo(ci_slug, cache, log=log)
-                ci_pairs = carinfo_to_pairs(make, records, mk_year_from, mk_year_to)
-                new_from_ci = ci_pairs - make_pairs
-                make_pairs |= ci_pairs
-                log(f"  [car.info] +{len(new_from_ci)} new pairs")
-                if not nhtsa_name and not cq_name and not cd_slug and ci_pairs:
-                    source_tag = "carinfo"
-            except Exception as e:
-                log(f"  [car.info WARN] {make}: {e}")
+            log(f"\n[{makes_done}/{total_makes}] {make} (years {mk_year_from}–{mk_year_to}, tier={cfg.get('year_tier')})")
 
-        # --- Engine specs (CarQuery getTrims), best-effort, for models with new rows ---
-        model_specs: dict[str, dict[int, tuple]] = {}
-        if cq_name:
-            new_models = {m for (m, y) in make_pairs if (make, m, y) not in existing_pairs}
-            for model_name in new_models:
+            # --- Source 1: NHTSA per-year ---
+            nhtsa_name = cfg.get("nhtsa")
+            if nhtsa_name:
+                log(f"  [NHTSA per-year] {nhtsa_name} {mk_year_from}–{mk_year_to}")
+                try:
+                    nhtsa_pairs = collect_nhtsa_per_year(
+                        make, nhtsa_name, mk_year_from, mk_year_to, cache, log=log,
+                        cancel_event=cancel_event,
+                    )
+                    make_pairs |= nhtsa_pairs
+                    log(f"  [NHTSA per-year] {len(nhtsa_pairs)} (model, year) pairs")
+                except InterruptedError:
+                    raise
+                except Exception as e:
+                    log(f"  [NHTSA per-year WARN] {make}: {e}")
+
+            # --- Source 2: CarQuery ---
+            cq_name = cfg.get("cq")
+            if cq_name:
                 _check()
-                trims = fetch_carquery_trims(cq_name, model_name, cache, log=log)
-                if trims:
-                    model_specs[model_name] = engine_specs_by_year(trims)
-            if new_models:
-                log(f"  [CarQuery specs] engine data found for {len(model_specs)}/{len(new_models)} new models")
+                log(f"  [CarQuery] {cq_name}")
+                try:
+                    records = fetch_carquery_models(cq_name, cache, log=log)
+                    cq_pairs = carquery_to_pairs(make, records, mk_year_from, mk_year_to)
+                    new_from_cq = cq_pairs - make_pairs
+                    make_pairs |= cq_pairs
+                    log(f"  [CarQuery] {len(cq_pairs)} pairs, +{len(new_from_cq)} new")
+                    if not nhtsa_name and cq_pairs:
+                        source_tag = "carquery"
+                except Exception as e:
+                    log(f"  [CarQuery WARN] {make}: {e}")
 
-        # --- Build rows, deduplicate against existing vehicle_years ---
-        new_for_make = 0
-        specs_filled = 0
-        for (model, year) in make_pairs:
-            if (make, model, year) not in existing_pairs:
-                cc, fuel = model_specs.get(model, {}).get(year, (None, None))
-                if cc is not None or fuel is not None:
-                    specs_filled += 1
-                all_new_rows.append({
-                    "make":            make,
-                    "model":           model,
-                    "year":            year,
-                    "engine_capacity": cc,
-                    "fuel":            fuel,
-                    "source":          source_tag,
-                })
-                existing_pairs.add((make, model, year))  # prevent intra-run dupes
-                new_for_make += 1
+            # --- Source 3: cars-data.com ---
+            cd_slug = cfg.get("carsdata")
+            if cd_slug:
+                _check()
+                log(f"  [cars-data] {cd_slug}")
+                try:
+                    records = _scrape_carsdata(cd_slug, cache, log=log)
+                    cd_pairs = carsdata_to_pairs(make, records, mk_year_from, mk_year_to)
+                    new_from_cd = cd_pairs - make_pairs
+                    make_pairs |= cd_pairs
+                    log(f"  [cars-data] +{len(new_from_cd)} new pairs")
+                    if not nhtsa_name and not cq_name and cd_pairs:
+                        source_tag = "carsdata"
+                except Exception as e:
+                    log(f"  [cars-data WARN] {make}: {e}")
 
-        log(f"  → {new_for_make} new rows for {make} ({specs_filled} with engine specs; total so far: {len(all_new_rows):,})")
+            # --- Source 4: car.info ---
+            ci_slug = cfg.get("carinfo")
+            if ci_slug:
+                _check()
+                log(f"  [car.info] {ci_slug}")
+                try:
+                    records = _scrape_carinfo(ci_slug, cache, log=log)
+                    ci_pairs = carinfo_to_pairs(make, records, mk_year_from, mk_year_to)
+                    new_from_ci = ci_pairs - make_pairs
+                    make_pairs |= ci_pairs
+                    log(f"  [car.info] +{len(new_from_ci)} new pairs")
+                    if not nhtsa_name and not cq_name and not cd_slug and ci_pairs:
+                        source_tag = "carinfo"
+                except Exception as e:
+                    log(f"  [car.info WARN] {make}: {e}")
 
-        if progress_callback:
-            progress_callback(makes_done, total_makes, make, source_tag)
+            # --- Engine specs (CarQuery getTrims), best-effort, for models with new rows ---
+            model_specs: dict[str, dict[int, tuple]] = {}
+            if cq_name:
+                new_models = {m for (m, y) in make_pairs if (make, m, y) not in existing_pairs}
+                for model_name in new_models:
+                    _check()
+                    trims = fetch_carquery_trims(cq_name, model_name, cache, log=log)
+                    if trims:
+                        model_specs[model_name] = engine_specs_by_year(trims)
+                if new_models:
+                    log(f"  [CarQuery specs] engine data found for {len(model_specs)}/{len(new_models)} new models")
+
+            # --- Build rows, deduplicate against existing vehicle_years ---
+            new_for_make = 0
+            specs_filled = 0
+            for (model, year) in make_pairs:
+                if (make, model, year) not in existing_pairs:
+                    cc, fuel = model_specs.get(model, {}).get(year, (None, None))
+                    if cc is not None or fuel is not None:
+                        specs_filled += 1
+                    all_new_rows.append({
+                        "make":            make,
+                        "model":           model,
+                        "year":            year,
+                        "engine_capacity": cc,
+                        "fuel":            fuel,
+                        "source":          source_tag,
+                    })
+                    existing_pairs.add((make, model, year))  # prevent intra-run dupes
+                    new_for_make += 1
+
+            log(f"  → {new_for_make} new rows for {make} ({specs_filled} with engine specs; total so far: {len(all_new_rows):,})")
+
+            if progress_callback:
+                progress_callback(makes_done, total_makes, make, source_tag)
+        except InterruptedError:
+            log(f"[Expansion] Cancelled during {make} - staging {len(all_new_rows):,} rows collected so far")
+            break
 
     log(f"\n[Expansion] Total new rows to stage: {len(all_new_rows):,}")
 
