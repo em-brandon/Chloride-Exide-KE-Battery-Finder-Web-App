@@ -548,7 +548,7 @@ def me_test_user(request: Request):
 # ------------------------------------------------------------------
 # Serve frontend — mount last so API routes take priority
 # ------------------------------------------------------------------
-dist_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+dist_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 
 _frontend_dir = dist_dir if os.path.isdir(dist_dir) else static_dir
