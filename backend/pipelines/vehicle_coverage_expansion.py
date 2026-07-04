@@ -31,6 +31,7 @@ Run from admin UI:
 import json
 import os
 import re
+import sys
 import threading
 import time
 import uuid
@@ -819,6 +820,11 @@ def main(
 if __name__ == "__main__":
     import argparse
 
+    # Needed to import db/models/other pipelines below when run directly as a
+    # script (python pipelines/vehicle_coverage_expansion.py) — when imported
+    # via admin_router.py instead, backend/ is already on sys.path.
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
     parser = argparse.ArgumentParser(description="Vehicle coverage expansion pipeline")
     parser.add_argument("--makes",    help="Comma-separated makes to process (default: all)")
     parser.add_argument("--year-from", type=int, default=YEAR_FROM, dest="year_from")
@@ -827,7 +833,16 @@ if __name__ == "__main__":
 
     makes = [m.strip().upper() for m in args.makes.split(",")] if args.makes else None
 
-    result = main(target_makes=makes, year_from=args.year_from, year_to=args.year_to)
+    # A db session is now required — make config lives in expansion_makes, not a
+    # hardcoded dict, so even resolving which makes/slugs to query needs one.
+    # This also means CLI runs now write to staging (previously a no-op with db=None).
+    from db import SessionLocal
+    _db = SessionLocal()
+    try:
+        result = main(db=_db, target_makes=makes, year_from=args.year_from, year_to=args.year_to)
+    finally:
+        _db.close()
+
     print(f"\nDone. run_id={result['run_id']}")
     print(f"  Makes processed : {result['makes_processed']}")
     print(f"  New rows        : {result['new_rows']:,}")
