@@ -3779,3 +3779,48 @@ def _expansion_thread(
         logger.exception("vehicle_coverage_expansion pipeline error: %s", exc)
     finally:
         db.close()
+
+
+class ExpansionRunBody(BaseModel):
+    target_makes: Optional[list[str]] = None  # None = all enabled makes
+
+
+@router.post("/pipeline/expansion/run", summary="Launch the vehicle coverage expansion pipeline")
+def run_expansion_pipeline(
+    body: ExpansionRunBody = Body(default_factory=ExpansionRunBody),
+    admin: AdminUser = Depends(require_admin),
+):
+    with _expansion_lock:
+        if _expansion_state["status"] == "running":
+            raise HTTPException(status_code=409, detail="Expansion pipeline is already running")
+
+        run_id    = str(uuid.uuid4())
+        cancel_ev = threading.Event()
+        pause_ev  = threading.Event()
+        _expansion_state.update({
+            "run_id":          run_id,
+            "status":          "running",
+            "current_make":    None,
+            "makes_total":     0,
+            "makes_processed": 0,
+            "rows_staged":     0,
+            "rows_skipped":    0,
+            "source_counts":   {},
+            "logs":            deque(maxlen=50),
+            "started_at":      datetime.now(timezone.utc).isoformat(),
+            "finished_at":     None,
+            "error_detail":    None,
+            "cancel_event":    cancel_ev,
+            "pause_event":     pause_ev,
+            "initiated_by":    admin.username,
+        })
+
+    t = threading.Thread(
+        target=_expansion_thread,
+        args=(run_id, cancel_ev, pause_ev, body.target_makes),
+        daemon=True,
+        name=f"expansion-{run_id[:8]}",
+    )
+    t.start()
+    logger.info("vehicle_coverage_expansion started by %s run_id=%s", admin.username, run_id)
+    return {"run_id": run_id}
