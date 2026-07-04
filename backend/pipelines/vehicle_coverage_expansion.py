@@ -11,8 +11,11 @@ primary source), using four data sources in priority order:
   4. car.info               — scraper for JDM and European model lineups
 
 Results go to vehicle_years_staging (same staging → commit workflow as CRSP pipeline).
-engine_capacity and fuel are NULL for these rows — matcher Layers 1 & 2 only need
-make/model/year; Layer 3 (CC-based fallback) is unaffected.
+engine_capacity and fuel are best-effort filled from CarQuery's getTrims endpoint
+(same CarQuery API used elsewhere in the codebase) for makes/models it recognizes;
+they fall back to NULL when CarQuery has no coverage. Layer 3 (CC-based fallback)
+only works for rows where a spec was found — Layers 1 & 2 work either way since
+they only need make/model/year.
 
 Run from CLI:
     python pipelines/vehicle_coverage_expansion.py [--makes toyota,nissan,...] [--years 1990-2026]
@@ -27,6 +30,7 @@ import re
 import threading
 import time
 import uuid
+from collections import Counter
 
 import requests
 import urllib3
@@ -240,6 +244,103 @@ def carquery_to_pairs(make: str, records: list[dict]) -> set[tuple[str, int]]:
         if YEAR_FROM <= year <= CURRENT_YEAR:
             pairs.add((model.upper(), year))
     return pairs
+
+
+# =============================================================================
+# ENGINE SPECS (CarQuery getTrims) — best-effort cc/fuel for new rows
+# =============================================================================
+
+def fetch_carquery_trims(cq_make: str, cq_model: str, cache: dict, log=print) -> list[dict]:
+    """
+    Fetches trims (with engine specs) for one make+model from CarQuery API.
+    Same endpoint/params pattern as enrich_years.get_years_from_carquery(), just
+    without a year filter so we get every year's trims in one call.
+    Cached in cache['carquery_trims'][f"{cq_make}|{cq_model}"].
+    """
+    trims_cache = cache.setdefault("carquery_trims", {})
+    key = f"{cq_make}|{cq_model}"
+    if key in trims_cache:
+        return trims_cache[key]
+
+    try:
+        resp = SESSION.get(
+            CARQUERY_URL,
+            params={"cmd": "getTrims", "make": cq_make, "model": cq_model},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        body = resp.text.strip()
+        if not body:
+            trims_cache[key] = []
+            _save_cache(cache)
+            return []
+        data = resp.json()
+        trims = data.get("Trims", [])
+        trims_cache[key] = trims
+        _save_cache(cache)
+        time.sleep(REQUEST_DELAY)
+        return trims
+    except Exception as e:
+        log(f"    [CarQuery trims WARN] {cq_make} {cq_model}: {e}")
+        trims_cache[key] = []
+        _save_cache(cache)
+        return []
+
+
+def _normalize_carquery_fuel(raw: str | None) -> str | None:
+    """
+    Maps CarQuery's free-text model_engine_fuel (e.g. "Petrol - Regular unleaded
+    (91)", "Diesel", "Hybrid (Electric/Gasoline)") onto the same fuel tokens
+    already used elsewhere in vehicle_years (matcher._FUEL_MAP understands all
+    of these). Returns None for unrecognized fuels (e.g. CNG, flex-fuel) rather
+    than guessing.
+    """
+    if not raw:
+        return None
+    s = raw.strip().upper()
+    if "HYBRID" in s:
+        return "HYBRID"
+    if "ELECTRIC" in s or s == "EV":
+        return "ELECTRIC"
+    if "DIESEL" in s:
+        return "DIESEL"
+    if "PETROL" in s or "GASOLINE" in s or "GAS" in s:
+        return "PETROL"
+    return None
+
+
+def engine_specs_by_year(trims: list[dict]) -> dict[int, tuple[int | None, str | None]]:
+    """
+    Reduces a list of CarQuery trims to one (engine_cc, fuel) per model_year —
+    picking the most common cc/fuel combination when a year has multiple trims
+    (e.g. different engine options).
+    """
+    by_year: dict[int, Counter] = {}
+    for t in trims:
+        year_raw = t.get("model_year")
+        if not year_raw:
+            continue
+        try:
+            year = int(str(year_raw)[:4])
+        except ValueError:
+            continue
+
+        cc = None
+        cc_raw = t.get("model_engine_cc")
+        if cc_raw:
+            try:
+                cc = int(float(cc_raw))
+            except (TypeError, ValueError):
+                cc = None
+
+        fuel = _normalize_carquery_fuel(t.get("model_engine_fuel"))
+        by_year.setdefault(year, Counter())[(cc, fuel)] += 1
+
+    result: dict[int, tuple[int | None, str | None]] = {}
+    for year, counter in by_year.items():
+        (cc, fuel), _ = counter.most_common(1)[0]
+        result[year] = (cc, fuel)
+    return result
 
 
 # =============================================================================
@@ -582,22 +683,38 @@ def main(
             except Exception as e:
                 log(f"  [car.info WARN] {make}: {e}")
 
+        # --- Engine specs (CarQuery getTrims), best-effort, for models with new rows ---
+        model_specs: dict[str, dict[int, tuple]] = {}
+        if cq_name:
+            new_models = {m for (m, y) in make_pairs if (make, m, y) not in existing_pairs}
+            for model_name in new_models:
+                _check()
+                trims = fetch_carquery_trims(cq_name, model_name, cache, log=log)
+                if trims:
+                    model_specs[model_name] = engine_specs_by_year(trims)
+            if new_models:
+                log(f"  [CarQuery specs] engine data found for {len(model_specs)}/{len(new_models)} new models")
+
         # --- Build rows, deduplicate against existing vehicle_years ---
         new_for_make = 0
+        specs_filled = 0
         for (model, year) in make_pairs:
             if (make, model, year) not in existing_pairs:
+                cc, fuel = model_specs.get(model, {}).get(year, (None, None))
+                if cc is not None or fuel is not None:
+                    specs_filled += 1
                 all_new_rows.append({
                     "make":            make,
                     "model":           model,
                     "year":            year,
-                    "engine_capacity": None,
-                    "fuel":            None,
+                    "engine_capacity": cc,
+                    "fuel":            fuel,
                     "source":          source_tag,
                 })
                 existing_pairs.add((make, model, year))  # prevent intra-run dupes
                 new_for_make += 1
 
-        log(f"  → {new_for_make} new rows for {make} (total so far: {len(all_new_rows):,})")
+        log(f"  → {new_for_make} new rows for {make} ({specs_filled} with engine specs; total so far: {len(all_new_rows):,})")
 
         if progress_callback:
             progress_callback(makes_done, total_makes, make, source_tag)
