@@ -8,7 +8,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-batteryfinder}
       POSTGRES_DB: ${POSTGRES_DB:-batteryfinderdev}
     ports:
-      - "5432:5432"
+      # Published on 5434, not 5432: a native PostgreSQL install commonly
+      # already owns 5432 on the host (IPv4), and Docker Desktop on Windows
+      # would otherwise bind the container's mapping on IPv6 instead of
+      # erroring — silently splitting "localhost:5432" across two different
+      # Postgres instances depending on which address family a client picks.
+      - "${POSTGRES_PORT:-5434}:5432"
     volumes:
       - battery_finder_pgdata:/var/lib/postgresql/data
     healthcheck:
