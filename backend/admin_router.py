@@ -3925,3 +3925,12 @@ def _serialize_expansion_make(m: ExpansionMake) -> dict:
         "carinfo_slug":  m.carinfo_slug,
         "enabled":       m.enabled,
     }
+
+
+@router.get("/pipeline/expansion/makes", summary="List all expansion pipeline target makes")
+def list_expansion_makes(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(ExpansionMake).order_by(ExpansionMake.make).all()
+    return [_serialize_expansion_make(r) for r in rows]
