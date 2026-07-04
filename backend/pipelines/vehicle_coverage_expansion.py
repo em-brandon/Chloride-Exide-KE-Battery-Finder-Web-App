@@ -629,6 +629,7 @@ def main(
             time.sleep(0.5)
 
     from models import ExpansionMake
+    from db import engine as _sa_engine  # for Brave quota checks (Engine, not Session)
     q = db.query(ExpansionMake).filter(ExpansionMake.enabled.is_(True))
     if target_makes is not None:
         q = q.filter(ExpansionMake.make.in_(target_makes))
@@ -656,6 +657,8 @@ def main(
 
     all_new_rows: list[dict] = []
     makes_done = 0
+    brave_calls = 0
+    brave_specs_filled = 0
 
     for make, cfg in makes_to_process.items():
         try:
@@ -752,6 +755,16 @@ def main(
             for (model, year) in make_pairs:
                 if (make, model, year) not in existing_pairs:
                     cc, fuel = model_specs.get(model, {}).get(year, (None, None))
+                    if cc is None and fuel is None and brave_calls < MAX_BRAVE_LOOKUPS_PER_RUN:
+                        from pipelines.web_battery_validate import _check_quota, _increment_quota
+                        if _check_quota(_sa_engine, "brave"):
+                            _check()
+                            b_cc, b_fuel = _brave_engine_lookup(make, model, year, cancel_event)
+                            _increment_quota(_sa_engine, "brave")
+                            brave_calls += 1
+                            if b_cc is not None or b_fuel is not None:
+                                cc, fuel = b_cc, b_fuel
+                                brave_specs_filled += 1
                     if cc is not None or fuel is not None:
                         specs_filled += 1
                     all_new_rows.append({
@@ -787,11 +800,16 @@ def main(
     elif not all_new_rows:
         log("[Expansion] No new rows to stage — vehicle_years is already fully covered.")
 
+    source_counts = dict(Counter(row["source"] for row in all_new_rows))
+    if brave_specs_filled:
+        source_counts["brave"] = brave_specs_filled
+
     return {
         "run_id":         run_id,
         "makes_processed": makes_done,
         "new_rows":       len(all_new_rows),
         "staging":        staging_result,
+        "source_counts":  source_counts,
     }
 
 
