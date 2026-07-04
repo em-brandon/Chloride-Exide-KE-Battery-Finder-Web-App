@@ -3834,3 +3834,27 @@ def get_expansion_status(admin: AdminUser = Depends(require_admin)):
         state.pop("cancel_event", None)
         state.pop("pause_event", None)
     return state
+
+
+@router.post("/pipeline/expansion/pause", summary="Pause the running expansion pipeline")
+def pause_expansion(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        if _expansion_state["status"] != "running":
+            raise HTTPException(status_code=400, detail="Expansion pipeline is not running")
+        pause_ev = _expansion_state.get("pause_event")
+        _expansion_state["status"] = "paused"
+    if pause_ev:
+        pause_ev.set()
+    return {"detail": "Pause signal sent"}
+
+
+@router.post("/pipeline/expansion/resume", summary="Resume a paused expansion pipeline")
+def resume_expansion(admin: AdminUser = Depends(require_admin)):
+    with _expansion_lock:
+        if _expansion_state["status"] != "paused":
+            raise HTTPException(status_code=400, detail="Expansion pipeline is not paused")
+        pause_ev = _expansion_state.get("pause_event")
+        _expansion_state["status"] = "running"
+    if pause_ev:
+        pause_ev.clear()
+    return {"detail": "Resume signal sent"}
