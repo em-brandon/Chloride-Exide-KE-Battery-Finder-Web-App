@@ -174,8 +174,8 @@ source .venv/Scripts/activate
 ### Install Dependencies
 
 ```bash
-# Python (with .venv active)
-pip install -r requirements.txt
+# Python (with .venv active) — all backend code lives in backend/
+cd backend && pip install -r requirements.txt
 
 # Frontend
 cd frontend && bun install
@@ -184,13 +184,13 @@ cd frontend && bun install
 ### Apply Database Migrations
 
 ```bash
-alembic upgrade head
+cd backend && alembic upgrade head
 ```
 
 ### Create First Admin User
 
 ```bash
-python scripts/create_admin.py --username admin --password yourpassword
+cd backend && python scripts/create_admin.py --username admin --password yourpassword
 ```
 
 Use `--force` to update an existing password:
@@ -211,7 +211,7 @@ cd frontend && bun run build && cd ..
 
 # Start the backend (serves built frontend from frontend/dist/)
 source .venv/Scripts/activate   # or .venv\Scripts\Activate.ps1 on PowerShell
-uvicorn app:app --host 0.0.0.0 --port 8000
+cd backend && uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
 The app starts on **http://localhost:8000**. Static frontend assets are served directly from `frontend/dist/` by FastAPI.
@@ -221,7 +221,7 @@ The app starts on **http://localhost:8000**. Static frontend assets are served d
 ```bash
 # Terminal 1 — backend (port 8000)
 source .venv/Scripts/activate
-uvicorn app:app --reload
+cd backend && uvicorn app:app --reload
 
 # Terminal 2 — frontend (port 5173, proxies /api to port 8000)
 cd frontend && bun run dev
@@ -237,7 +237,7 @@ To test the mobile wizard on your phone during development, expose the Vite dev 
 
 ```bash
 # Terminal 1 — backend
-uvicorn app:app --reload
+cd backend && uvicorn app:app --reload
 
 # Terminal 2 — frontend
 cd frontend && bun run dev
@@ -539,12 +539,12 @@ Fields captured per event:
 
 ## Data Pipelines
 
-Run scripts in order when refreshing the dataset.
+Run scripts in order when refreshing the dataset. All pipeline scripts live in `backend/pipelines/` and are run with `backend/` as the working directory.
 
 ### Pipeline 1 — CRSP Data Prep
 
 ```bash
-python pipelines/dataprep.py
+cd backend && python pipelines/dataprep.py
 ```
 
 Input: `New-CRSP---July-2025.xlsx` (not committed)
@@ -553,16 +553,16 @@ Output: `battery_lookup_dataset.csv`
 ### Pipeline 2 — Year Enrichment
 
 ```bash
-python pipelines/enrich_years.py
+cd backend && python pipelines/enrich_years.py
 ```
 
 Fetches production years from (in order): fueleconomy.gov bulk CSV → NHTSA VPIC → CarAPI → Wikidata/Wikipedia.
-Results cached in `cache/year_cache.json` and `cache/fueleconomy_vehicles.csv`. Safe to delete to force a full re-fetch.
+Results cached in `backend/cache/year_cache.json` and `backend/cache/fueleconomy_vehicles.csv`. Safe to delete to force a full re-fetch.
 
 ### Pipeline 3 — Dial-A-Battery Inference
 
 ```bash
-python pipelines/dial_battery_clean.py
+cd backend && python pipelines/dial_battery_clean.py
 ```
 
 Input: `data/Dial-A-Battery Data - 2023-2026.xlsx`
@@ -572,7 +572,7 @@ Output: `dial_battery_inference` table
 
 ## Database Schema
 
-Managed by Alembic (`alembic/versions/`). Apply all migrations with `alembic upgrade head`.
+Managed by Alembic (`backend/alembic/versions/`). Apply all migrations with `alembic upgrade head` from `backend/`.
 
 ### Table Overview
 
