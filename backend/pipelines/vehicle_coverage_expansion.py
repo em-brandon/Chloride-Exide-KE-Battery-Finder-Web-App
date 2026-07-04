@@ -298,6 +298,76 @@ def engine_specs_by_year(trims: list[dict]) -> dict[int, tuple[int | None, str |
 
 
 # =============================================================================
+# ENGINE SPECS FALLBACK — Brave Search (used only when CarQuery has no data)
+# =============================================================================
+# Reuses the Brave integration + quota tracking already used by
+# pipelines/web_battery_validate.py (same real-world Brave account/quota —
+# sharing the "brave" bucket in api_usage_quota is intentional, not a bug).
+
+MAX_BRAVE_LOOKUPS_PER_RUN = 200  # safety cap — quota is shared with web_battery_validate
+
+_CC_RE    = re.compile(r'\b(\d{3,4})\s*(?:cc|CC)\b')
+_LITER_RE = re.compile(r'\b(\d(?:\.\d)?)\s*[Ll](?:itre|iter)?s?\b')
+
+
+def _parse_engine_text(raw: str) -> tuple[int | None, str | None]:
+    """Extracts (engine_cc, fuel) from free-text search-result snippets."""
+    cc = None
+    m = _CC_RE.search(raw)
+    if m:
+        cc = int(m.group(1))
+    else:
+        m = _LITER_RE.search(raw)
+        if m:
+            cc = round(float(m.group(1)) * 1000)
+    fuel = _normalize_carquery_fuel(raw)  # generic fuel-keyword classifier, reused as-is
+    return cc, fuel
+
+
+def _brave_engine_lookup(
+    make: str, model: str, year: int,
+    cancel_event: threading.Event | None = None,
+) -> tuple[int | None, str | None]:
+    """
+    Best-effort engine spec lookup via Brave Search, for a (make, model, year)
+    CarQuery's getTrims had no data for. Returns (None, None) on any miss/error —
+    never raises, so a Brave outage can't break the pipeline run.
+    """
+    from pipelines.web_battery_validate import (
+        BRAVE_SEARCH_API_KEY, BRAVE_SEARCH_API_URL, SESSION as _WBV_SESSION,
+        _interruptible_sleep,
+    )
+    if not BRAVE_SEARCH_API_KEY:
+        return None, None
+
+    query = f"{make} {model} {year} engine specifications displacement liters"
+    headers = {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": BRAVE_SEARCH_API_KEY,
+    }
+    for attempt in range(3):
+        try:
+            resp = _WBV_SESSION.get(
+                BRAVE_SEARCH_API_URL, params={"q": query, "count": 5},
+                headers=headers, timeout=15,
+            )
+            if resp.status_code == 429:
+                _interruptible_sleep(30 * (attempt + 1), cancel_event)
+                continue
+            if not resp.ok:
+                return None, None
+            results = resp.json().get("web", {}).get("results", [])
+            combined = " ".join(
+                (r.get("title", "") + " " + r.get("description", "")) for r in results
+            )
+            return _parse_engine_text(combined) if combined.strip() else (None, None)
+        except Exception:
+            return None, None
+    return None, None
+
+
+# =============================================================================
 # SOURCE 3 — cars-data.com scraper
 # =============================================================================
 
