@@ -1,0 +1,60 @@
+// On-demand Postgres backup pipeline for the local Docker dev database.
+// Not wired to SCM triggers — run manually from Jenkins ("Build Now") whenever
+// you need a portable dump (e.g. to move data to another work computer).
+//
+// Set up as its own Jenkins Pipeline job pointing at this file
+// (Pipeline script from SCM -> Script Path: Jenkinsfile.db-backup),
+// separate from the main Jenkinsfile's push-triggered CI/CD job.
+pipeline {
+    agent any
+    environment {
+        CONTAINER_NAME = 'battery-finder-postgres'
+        DB_USER        = 'batteryfinder'
+        DB_NAME        = 'batteryfinderdev'
+    }
+    options {
+        // Dumps can be large; don't let artifacts pile up forever.
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+    stages {
+        stage('Verify container is running') {
+            steps {
+                sh 'docker ps --filter "name=${CONTAINER_NAME}" --filter "status=running" --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"'
+            }
+        }
+        stage('Dump database') {
+            steps {
+                script {
+                    env.DUMP_FILE = "batteryfinderdev_${env.BUILD_TIMESTAMP ?: new Date().format('yyyyMMdd_HHmmss')}.dump"
+                }
+                sh '''
+                    docker exec "$CONTAINER_NAME" pg_dump -U "$DB_USER" -d "$DB_NAME" -F c -f "/tmp/${DUMP_FILE}"
+                    docker exec "$CONTAINER_NAME" test -s "/tmp/${DUMP_FILE}"
+                '''
+            }
+        }
+        stage('Copy dump to workspace') {
+            steps {
+                sh '''
+                    docker cp "$CONTAINER_NAME:/tmp/${DUMP_FILE}" "./${DUMP_FILE}"
+                    docker exec "$CONTAINER_NAME" rm "/tmp/${DUMP_FILE}"
+                '''
+            }
+        }
+        stage('Archive dump') {
+            steps {
+                archiveArtifacts artifacts: "${env.DUMP_FILE}", fingerprint: true
+            }
+        }
+    }
+    post {
+        success {
+            echo "Backup complete: ${env.DUMP_FILE}. Download it from this build's Artifacts page, then restore on the target machine with:\n" +
+                 "  docker cp ${env.DUMP_FILE} battery-finder-postgres:/tmp/${env.DUMP_FILE}\n" +
+                 "  docker exec battery-finder-postgres pg_restore -U batteryfinder -d batteryfinderdev --clean --if-exists -F c /tmp/${env.DUMP_FILE}"
+        }
+        failure {
+            echo 'Backup failed — check that the postgres container is up (docker compose up -d) and Jenkins has access to the Docker socket.'
+        }
+    }
+}
