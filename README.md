@@ -41,12 +41,16 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 | Rate limiting | [slowapi](https://github.com/laurentS/slowapi) — per-endpoint limits (10/min recommend, 5/min feedback, 20/min dropdowns) |
 | ORM | [SQLAlchemy 2.0](https://www.sqlalchemy.org/) (`db.py`, `models.py`) |
 | Migrations | [Alembic](https://alembic.sqlalchemy.org/) (`alembic/`) |
+| Data validation | [Pydantic 2](https://docs.pydantic.dev/) — request/response schemas across `app.py` and `admin_router.py` |
+| Config | [python-dotenv](https://pypi.org/project/python-dotenv/) — loads `.env` in `db.py` (`override=False`, never clobbers real env vars injected by ECS) |
 | Auth | [bcrypt](https://pypi.org/project/bcrypt/) + HttpOnly session cookies (`admin_auth.py`) |
 | Database | [PostgreSQL](https://www.postgresql.org/) via [psycopg2](https://www.psycopg.org/) |
 | Local database (dev) | [Docker Compose](https://docs.docker.com/compose/) running `postgres:15` (`docker-compose.yml`, repo root) — pinned to match the production RDS engine version; see [Local Postgres (Docker)](#local-postgres-docker) |
 | Fuzzy matching | [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) — vehicle model name matching in `matcher.py` |
 | File uploads | [python-multipart](https://github.com/Kludex/python-multipart) — multipart form parsing for battery Excel uploads |
 | PDF export | [ReportLab](https://www.reportlab.com/) — admin battery catalogue PDF generation |
+
+Full pinned list: [`backend/requirements.txt`](backend/requirements.txt).
 
 ### Frontend
 | Layer | Technology |
@@ -59,6 +63,13 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 | Routing | [React Router v7](https://reactrouter.com/) |
 | Icons | [Lucide React](https://lucide.dev/) + [Heroicons](https://heroicons.com/) |
 | Country flags | [react-country-flag](https://www.npmjs.com/package/react-country-flag) — SVG flag icons in result card |
+| Component variants | [class-variance-authority](https://cva.style/) + [clsx](https://github.com/lukeed/clsx) + [tailwind-merge](https://github.com/dcastil/tailwind-merge) |
+| PDF export | [jsPDF](https://github.com/parallax/jsPDF) + [jspdf-autotable](https://github.com/simonbengtsson/jsPDF-AutoTable) — admin battery catalogue PDF generation |
+| Linting | [ESLint 10](https://eslint.org/) + [typescript-eslint](https://typescript-eslint.io/) |
+| Type checking | [TypeScript 6](https://www.typescriptlang.org/) (`tsc -b`) |
+| Asset build | [sharp](https://sharp.pixelplumbing.com/) — image compression (`scripts/compress-assets.mjs`) |
+
+Full pinned list: [`frontend/package.json`](frontend/package.json).
 
 ### Data Pipeline
 | Tool | Purpose |
@@ -69,8 +80,14 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 | [CarAPI](https://carapi.app/) | Year-range data per model |
 | [fueleconomy.gov](https://www.fueleconomy.gov/) | US DOE/EPA bulk CSV (local cache) |
 | [Wikidata](https://www.wikidata.org/) / [Wikipedia](https://www.wikipedia.org/) | Supplementary year and fuel-type enrichment |
-| [duckduckgo-search](https://github.com/deedy5/duckduckgo_search) | Web battery validation pipeline |
+| [duckduckgo-search](https://github.com/deedy5/duckduckgo_search) (`ddgs`) | Web battery validation pipeline |
 | [Tavily](https://tavily.com/) | AI-powered web search — battery validation pipeline |
+| [Requests](https://requests.readthedocs.io/) | HTTP client underlying all external API/scraping calls |
+| [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) + [lxml](https://lxml.de/) | HTML parsing in `vehicle_coverage_expansion.py` |
+| [openpyxl](https://openpyxl.readthedocs.io/) / [xlrd](https://pypi.org/project/xlrd/) | Excel (`.xlsx`/`.xls`) reading for CRSP and Dial-A-Battery source files |
+| [NumPy](https://numpy.org/) | Numerical operations underpinning Pandas transforms |
+| [Matplotlib](https://matplotlib.org/) / [Seaborn](https://seaborn.pydata.org/) | Charting in accuracy-report scripts (`scripts/generate_accuracy_report_hard_failure_modes_200.py`) |
+| [Jupyter](https://jupyter.org/) / [ipykernel](https://github.com/ipython/ipykernel) | `scripts/analysis.ipynb` exploratory analysis notebook |
 
 ---
 
