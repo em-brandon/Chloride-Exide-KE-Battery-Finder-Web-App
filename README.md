@@ -1093,6 +1093,16 @@ Vite is configured with manual chunk splitting (`vite.config.ts`) to separate ve
 - **IP handling** — client IPs are captured and truncated to 45 characters (the max length of a textual IPv6 address) before being stored in feedback/session records
 - **Geographic restriction** — access is restricted to Kenya, Uganda and Tanzania, enforced at the CloudFront/WAF edge layer before traffic ever reaches the application
 
+### AWS-Only Measures (Load-Balanced Deployment Architecture)
+
+These depend on the production topology — CloudFront → ALB + WAF → ECS Fargate (2+ tasks) → RDS/ElastiCache (see [Production Architecture](#production-architecture)) — and have no equivalent in a single-process local run:
+
+- **CloudFront geo-restriction** — the Kenya/Uganda/Tanzania allowlist is enforced at CloudFront's global edge locations, before a request ever reaches the load balancer or a Fargate task. A blocked request never consumes app compute, database connections, or bandwidth on the backend — the rejection happens outside the deployment entirely, which an app-level check cannot replicate (the request would already have used a connection slot and a worker by the time app code ran).
+- **AWS WAF, attached to the ALB** — network-edge rate limiting and bot/exploit filtering ahead of the application. This matters specifically because of the multi-task topology: the app's own `slowapi` rate limiter tracks counters in each Fargate task's local memory, so two tasks behind the same ALB do not share a rate-limit bucket with each other. WAF sits in front of all tasks as a single point of enforcement, giving a consistent view of traffic that no per-task, in-process limiter can provide on its own.
+- **ALB TLS termination** — HTTPS is terminated once, at the load balancer, rather than in every Fargate task; traffic from the ALB to the tasks stays inside the VPC. Only one place needs the TLS certificate, and app code never has to manage raw TLS sockets.
+- **ALB health checks across multiple tasks** — with 2+ Fargate tasks registered as targets, the ALB continuously health-checks each one and stops routing to any task that fails, without interrupting traffic to the healthy ones. A single-process deployment has no peer to fail over to; a crash there is user-visible downtime, while here it's an invisible target-group deregistration.
+- **SSM Parameter Store / Secrets Manager, injected via the ECS task definition** — secrets exist as real environment variables inside the running task, injected by the AWS control plane at container start, and are never written to disk in the image or checked into `.env`. This delivery mechanism is specific to running as ECS tasks — it's what the "Secrets & configuration" bullet above and `load_dotenv(override=False)` in `db.py` are built to defer to.
+
 ---
 
 ## Production Architecture
@@ -1169,3 +1179,19 @@ Defined in `Jenkinsfile`. Pipeline stages:
 7. Archive `frontend/dist/` artifacts
 
 Build failure notifications are sent by email.
+
+### Local Postgres Dev DB Backup (`Jenkinsfile.db-backup`)
+
+A separate, on-demand pipeline for dumping the local Docker dev database — e.g. to move data to another work computer. It is **not** wired to SCM push triggers like the main `Jenkinsfile`; it's set up as its own Jenkins Pipeline job (Pipeline script from SCM → Script Path: `Jenkinsfile.db-backup`) and run manually via "Build Now". Stages:
+
+1. Verify the `battery-finder-postgres` container is running
+2. `pg_dump` the `batteryfinderdev` database inside the container to a timestamped custom-format (`-F c`) file
+3. Copy the dump out of the container into the Jenkins workspace
+4. Archive the dump as a build artifact (fingerprinted; the last 10 builds are kept, per `buildDiscarder`)
+
+To restore a downloaded dump on another machine:
+
+```bash
+docker cp batteryfinderdev_<timestamp>.dump battery-finder-postgres:/tmp/batteryfinderdev_<timestamp>.dump
+docker exec battery-finder-postgres pg_restore -U batteryfinder -d batteryfinderdev --clean --if-exists -F c /tmp/batteryfinderdev_<timestamp>.dump
+```
