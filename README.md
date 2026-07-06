@@ -44,7 +44,8 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 | Data validation | [Pydantic 2](https://docs.pydantic.dev/) — request/response schemas across `app.py` and `admin_router.py` |
 | Config | [python-dotenv](https://pypi.org/project/python-dotenv/) — loads `.env` in `db.py` (`override=False`, never clobbers real env vars injected by ECS) |
 | Auth | [bcrypt](https://pypi.org/project/bcrypt/) + HttpOnly session cookies (`admin_auth.py`) |
-| Database | [PostgreSQL](https://www.postgresql.org/) via [psycopg2](https://www.psycopg.org/) |
+| Database | [PostgreSQL](https://www.postgresql.org/) |
+| DB driver | [psycopg2](https://www.psycopg.org/) — DBAPI adapter SQLAlchemy uses to talk to PostgreSQL |
 | Local database (dev) | [Docker Compose](https://docs.docker.com/compose/) running `postgres:15` (`docker-compose.yml`, repo root) — pinned to match the production RDS engine version; see [Local Postgres (Docker)](#local-postgres-docker) |
 | Fuzzy matching | [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) — vehicle model name matching in `matcher.py` |
 | File uploads | [python-multipart](https://github.com/Kludex/python-multipart) — multipart form parsing for battery Excel uploads |
