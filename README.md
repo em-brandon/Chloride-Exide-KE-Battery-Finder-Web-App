@@ -156,7 +156,6 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 │   └── tsconfig.app.json
 │
 ├── docker-compose.yml           # Local Postgres 15 (matches RDS engine version)
-├── .env.example                 # Template for .env — copy and fill in real values
 ├── Jenkinsfile                  # CI/CD pipeline definition
 └── .env                         # Environment variables (not committed)
 ```
@@ -182,7 +181,7 @@ A `docker-compose.yml` at the repo root runs a local Postgres pinned to the same
 docker compose up -d
 ```
 
-This starts Postgres on `localhost:5434` (not 5432 — see the comment in `docker-compose.yml`: a native Postgres install commonly already owns 5432 on Windows, and Docker Desktop would otherwise silently bind the container's side on IPv6 instead of erroring, splitting `localhost:5432` across two different databases depending on which address family a client resolves first) with a named volume (`battery_finder_pgdata`) so data survives container restarts. Defaults (`batteryfinder` / `batteryfinder` / `batteryfinderdev`) match `.env.example` — copy it to `.env` and it works out of the box, or override via `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` env vars if you point `DATABASE_URL` at different credentials.
+This starts Postgres on `localhost:5434` (not 5432 — see the comment in `docker-compose.yml`: a native Postgres install commonly already owns 5432 on Windows, and Docker Desktop would otherwise silently bind the container's side on IPv6 instead of erroring, splitting `localhost:5432` across two different databases depending on which address family a client resolves first) with a named volume (`battery_finder_pgdata`) so data survives container restarts. Defaults (`batteryfinder` / `batteryfinder` / `batteryfinderdev`) match the example `.env` below — use it as-is and it works out of the box, or override via `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` env vars if you point `DATABASE_URL` at different credentials.
 
 ```bash
 docker compose down       # stop the container, keep data
@@ -1134,7 +1133,7 @@ Docker is not part of this production path — ECS Fargate runs the FastAPI back
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in your values before running the app:
+Create a `.env` file at the repo root and fill in your values before running the app:
 
 | Variable | Required | Description |
 |---|---|---|

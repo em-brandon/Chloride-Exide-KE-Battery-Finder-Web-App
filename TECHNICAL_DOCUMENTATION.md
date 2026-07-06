@@ -879,7 +879,8 @@ The pipeline stages are:
 
 ```bash
 # 1. Set up environment
-cp .env.example .env   # fill in DATABASE_URL
+# Create .env at the repo root (see README.md's Environment Variables section)
+# and fill in DATABASE_URL
 
 # 2. Run migrations
 alembic upgrade head

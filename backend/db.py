@@ -22,7 +22,8 @@ _DATABASE_URL = os.environ.get("DATABASE_URL")
 if not _DATABASE_URL:
     raise RuntimeError(
         "DATABASE_URL environment variable is not set. "
-        "Copy .env.example to .env and fill in your connection string."
+        "Create a .env file at the repo root with your connection string "
+        "(see README.md's Environment Variables section)."
     )
 
 engine = create_engine(
