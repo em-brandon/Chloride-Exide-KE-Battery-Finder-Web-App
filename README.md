@@ -296,7 +296,7 @@ ngrok http 5173
 
 Open the ngrok HTTPS URL on your phone. The mobile wizard activates automatically at screen widths ≤ 600 px.
 
-> **Note:** The app has geo-restriction middleware that blocks non-Kenyan IPs. If your ngrok exit node resolves as a non-KE IP, you may hit the geo-gate. Test from the same network or temporarily bypass the restriction in development.
+> **Note:** Geo-restriction (Kenya, Uganda, Tanzania) is enforced at the CloudFront edge in production, not in the app itself — a local `uvicorn` + ngrok setup bypasses CloudFront entirely, so there's no geo-gate to hit here regardless of your ngrok exit node's location.
 
 ---
 
@@ -1115,10 +1115,10 @@ These depend on the production topology — CloudFront → ALB + WAF → ECS Far
 ## Production Architecture
 
 ```
-Users (Kenya only — geo-restricted)
+Users (Kenya, Uganda & Tanzania — geo-restricted)
   │
   ▼
-Route 53 ─► CloudFront (KE geo-restriction)
+Route 53 ─► CloudFront (KE/UG/TZ geo-restriction)
                │                  │
         static assets        API requests
                │                  │
