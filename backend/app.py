@@ -11,6 +11,7 @@ from admin_router import router as admin_router
 from db import SessionLocal, engine
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -125,6 +126,18 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Battery Finder API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# CloudFront/ALB serve the built SPA and API same-origin in production, so no
+# cross-origin origins are trusted unless explicitly configured — set
+# ALLOWED_ORIGINS (comma-separated) to enable a genuine cross-origin caller.
+_allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 # ------------------------------------------------------------------
 # Admin router
