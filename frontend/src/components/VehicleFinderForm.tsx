@@ -18,6 +18,7 @@ import supremeLogo      from '@/assets/supreme-logo.webp'
 import sebangLogo       from '@/assets/sebang-logo.webp'
 import sbFloodedLogo    from '@/assets/sb-flooded-logo.webp'
 import exideAgmLogo     from '@/assets/exide-agm-logo.webp'
+import exideEfbLogo     from '@/assets/exide-efb-logo.webp'
 import chlorideExideLogo  from '@/assets/chlorideexidebrandlogo.webp'
 import riderImg            from '@/assets/rider.webp'
 import { OrbitLoader } from '@/components/ui/OrbitLoader'
@@ -51,7 +52,7 @@ function techIconColor(tech?: string): string {
   return '#374151'
 }
 
-function getBrandLogo(code: string): string | null {
+function getBrandLogo(code: string, technology?: string | null): string | null {
   const u = code.toUpperCase()
   if (u.includes('MAXX'))                                    return exideMaxxLogo
   if (u.includes('POWERLAST'))                               return powerlastLogo
@@ -59,7 +60,12 @@ function getBrandLogo(code: string): string | null {
   if (u.includes('SUPREME'))                                 return supremeLogo
   if (u.includes('SEBANG'))                                  return sebangLogo
   if (u.includes('CHLORIDE EXIDE'))                          return sbFloodedLogo
-  if (u.includes('EXIDE'))                                   return exideAgmLogo
+  if (u.includes('EXIDE')) {
+    const t = (technology ?? '').toUpperCase()
+    if (t === 'AGM') return exideAgmLogo
+    if (t === 'EFB') return exideEfbLogo
+    return sbFloodedLogo
+  }
   return null
 }
 
@@ -109,7 +115,7 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
   )
 
   const isFallback = !data.matched_make
-  const brandLogo = getBrandLogo(p.battery_code)
+  const brandLogo = getBrandLogo(p.battery_code, p.technology)
 
   return (
     <div className="result-card">
@@ -405,7 +411,7 @@ function brandColor(brand: string | null): string {
   return `hsl(${Math.abs(h) % 360}, 55%, 38%)`
 }
 
-function getBrandLogoByName(brand: string | null): string | null {
+function getBrandLogoByName(brand: string | null, technology?: string | null): string | null {
   if (!brand) return null
   const u = brand.toUpperCase()
   if (u.includes('MAXX'))           return exideMaxxLogo
@@ -414,13 +420,18 @@ function getBrandLogoByName(brand: string | null): string | null {
   if (u.includes('SUPREME'))        return supremeLogo
   if (u.includes('SEBANG'))         return sebangLogo
   if (u.includes('CHLORIDE EXIDE')) return chlorideExideLogo
-  if (u.includes('EXIDE'))          return exideAgmLogo
+  if (u.includes('EXIDE')) {
+    const t = (technology ?? '').toUpperCase()
+    if (t === 'AGM') return exideAgmLogo
+    if (t === 'EFB') return exideEfbLogo
+    return sbFloodedLogo
+  }
   if (u.includes('SB') || u.includes('FLOODED')) return sbFloodedLogo
   return null
 }
 
-function BrandAvatar({ brand }: { brand: string | null }) {
-  const logo = getBrandLogoByName(brand)
+function BrandAvatar({ brand, technology }: { brand: string | null; technology?: string | null }) {
+  const logo = getBrandLogoByName(brand, technology)
   if (logo) {
     return (
       <div style={{ width: '32px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px', overflow: 'hidden' }}>
@@ -446,7 +457,7 @@ function BatteryTableRow({ r }: { r: BatterySpecResult }) {
     <tr style={{ borderBottom: '1px solid var(--border, #f3f4f6)' }}>
       <td style={{ padding: '0.3rem 0.4rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <BrandAvatar brand={r.brand} />
+          <BrandAvatar brand={r.brand} technology={r.technology} />
           <span style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--foreground, #111827)', whiteSpace: 'nowrap' }}>
             {r.brand ?? '—'}
           </span>

@@ -19,11 +19,12 @@ import supremeLogo from '@/assets/supreme-logo.webp'
 import sebangLogo from '@/assets/sebang-logo.webp'
 import sbFloodedLogo from '@/assets/sb-flooded-logo.webp'
 import exideAgmLogo from '@/assets/exide-agm-logo.webp'
+import exideEfbLogo from '@/assets/exide-efb-logo.webp'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 
-function getBrandLogo(code: string): string | null {
+function getBrandLogo(code: string, technology?: string | null): string | null {
   const u = code.toUpperCase()
   if (u.includes('MAXX'))           return exideMaxxLogo
   if (u.includes('POWERLAST'))      return powerlastLogo
@@ -31,7 +32,12 @@ function getBrandLogo(code: string): string | null {
   if (u.includes('SUPREME'))        return supremeLogo
   if (u.includes('SEBANG'))         return sebangLogo
   if (u.includes('CHLORIDE EXIDE')) return sbFloodedLogo
-  if (u.includes('EXIDE'))          return exideAgmLogo
+  if (u.includes('EXIDE')) {
+    const t = (technology ?? '').toUpperCase()
+    if (t === 'AGM') return exideAgmLogo
+    if (t === 'EFB') return exideEfbLogo
+    return sbFloodedLogo
+  }
   return null
 }
 
@@ -396,7 +402,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
         fuel_type:  !skipDetails && fuelType  ? fuelType  : null,
         stop_start: stopStart,
       })
-      const logoSrc = getBrandLogo(data.primary.battery_code)
+      const logoSrc = getBrandLogo(data.primary.battery_code, data.primary.technology)
       if (logoSrc) {
         await new Promise<void>(resolve => {
           const img = new Image()
@@ -997,7 +1003,7 @@ export function MobileVehicleFinder({ darkMode = false, onMakesLoaded, onOpenFaq
       {/* ── Step: Result ── */}
       {step === 'result' && result && (() => {
         const p = result.primary
-        const logo = getBrandLogo(p.battery_code)
+        const logo = getBrandLogo(p.battery_code, p.technology)
         const iconColor = techIconColor(p.technology)
         const alts = result.alternatives.filter(a => (a.technology ?? 'MF') === (p.technology ?? 'MF'))
 

@@ -8,6 +8,7 @@ import supremeLogo     from '@/assets/supreme-logo.webp'
 import sebangLogo      from '@/assets/sebang-logo.webp'
 import exideAgmLogo    from '@/assets/exide-agm-logo.webp'
 import sbFloodedLogo   from '@/assets/sb-flooded-logo.webp'
+import exideEfbLogo    from '@/assets/exide-efb-logo.webp'
 import {
   fetchBatteries,
   addBattery,
@@ -283,6 +284,8 @@ const BRAND_LOGO: Record<string, string> = {
   'Sebang':             sebangLogo,
   'Chloride Exide AGM': exideAgmLogo,
   'SB Flooded':         sbFloodedLogo,
+  'Exide Matrix EFB':   exideEfbLogo,
+  'Exide Matrix MF':    sbFloodedLogo,
 }
 
 // Resolve DB brand → display brand.
@@ -295,7 +298,9 @@ function resolveDisplayBrand(b: BatteryRow): string {
     return techUp === 'AGM' ? 'Chloride Exide AGM' : 'SB Flooded'
   }
   if (brandUp === 'EXIDE MATRIX') {
-    return techUp === 'AGM' ? 'Chloride Exide AGM' : 'Exide Matrix'
+    if (techUp === 'AGM') return 'Chloride Exide AGM'
+    if (techUp === 'EFB') return 'Exide Matrix EFB'
+    return 'Exide Matrix MF'
   }
   return b.brand ?? 'Unknown'
 }
@@ -560,21 +565,6 @@ export default function AdminBatteries() {
               </div>
             ) : (
               <>
-                {/* LOCAL section */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
-                    <span style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.2rem 0.65rem', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                      Local
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: 'rgba(107,114,128,0.55)' }}>
-                      {localItems.length} batteries · {localBrands.length} brand{localBrands.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.1rem' }}>
-                    {localBrands.map((b, i) => <BrandTile key={b.brand} brand={b.brand} count={b.count} animDelay={i * 45} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
-                  </div>
-                </div>
-
                 {/* IMPORTED section */}
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
@@ -586,8 +576,23 @@ export default function AdminBatteries() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.1rem' }}>
-                    {importedBrands.map((b, i) => <BrandTile key={b.brand} brand={b.brand} count={b.count} animDelay={200 + i * 45} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
-                    <SearchTile onClick={() => setView('search')} animDelay={200 + importedBrands.length * 45} />
+                    {importedBrands.map((b, i) => <BrandTile key={b.brand} brand={b.brand} count={b.count} animDelay={i * 45} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
+                  </div>
+                </div>
+
+                {/* LOCAL section */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+                    <span style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.2rem 0.65rem', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      Local
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(107,114,128,0.55)' }}>
+                      {localItems.length} batteries · {localBrands.length} brand{localBrands.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.1rem' }}>
+                    {localBrands.map((b, i) => <BrandTile key={b.brand} brand={b.brand} count={b.count} animDelay={200 + i * 45} onClick={() => { setSelectedBrand(b.brand); setView('brand-detail') }} />)}
+                    <SearchTile onClick={() => setView('search')} animDelay={200 + localBrands.length * 45} />
                   </div>
                 </div>
               </>
