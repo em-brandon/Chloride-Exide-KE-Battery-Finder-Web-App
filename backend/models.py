@@ -171,10 +171,12 @@ class AdminUser(Base):
 
     __tablename__ = "admin_users"
 
-    id            = Column(Integer,              primary_key=True, autoincrement=True)
-    username      = Column(String(100),          nullable=False, unique=True)
-    password_hash = Column(String(255),          nullable=False)
-    created_at    = Column(DateTime(timezone=True), nullable=False)
+    id                     = Column(Integer,              primary_key=True, autoincrement=True)
+    username               = Column(String(100),          nullable=False, unique=True)
+    password_hash          = Column(String(255),          nullable=False)
+    created_at             = Column(DateTime(timezone=True), nullable=False)
+    failed_login_attempts  = Column(Integer, nullable=False, default=0, server_default="0")
+    locked_until           = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_admin_users_username", "username", unique=True),

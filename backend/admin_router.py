@@ -35,7 +35,7 @@ import threading
 import time
 import uuid
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -142,17 +142,38 @@ class BatteryUpdateRequest(BaseModel):
 # Auth endpoints (rate-limited — no auth required)
 # ---------------------------------------------------------------------------
 
+LOGIN_MAX_ATTEMPTS  = 8
+LOGIN_LOCKOUT_MINS  = 15
+
+
 @router.post("/login")
 @_limiter.limit("5/minute")
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(AdminUser).filter(AdminUser.username == body.username).first()
+
+    now = datetime.now(timezone.utc)
+    if user and user.locked_until and user.locked_until > now:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Account locked due to repeated failed logins. Try again after {user.locked_until.isoformat()}.",
+        )
+
     # Always run verify_password to prevent timing attacks even on missing user
     dummy_hash = "$2b$12$notarealhashXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
     hashed = user.password_hash if user else dummy_hash
     valid = verify_password(body.password, hashed)
 
     if not user or not valid:
+        if user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= LOGIN_MAX_ATTEMPTS:
+                user.locked_until = now + timedelta(minutes=LOGIN_LOCKOUT_MINS)
+            db.commit()
         raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
 
     ip = request.client.host if request.client else None
     token = create_session(db, user, ip)
