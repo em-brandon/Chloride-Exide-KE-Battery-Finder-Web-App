@@ -1192,18 +1192,31 @@ Defined in `Jenkinsfile`. Pipeline stages:
 
 Build failure notifications are sent by email.
 
-### Local Postgres Dev DB Backup (`Jenkinsfile.db-backup`)
+### Local Postgres Dev DB Backup (`db-backup-script/`)
 
-A separate, on-demand pipeline for dumping the local Docker dev database — e.g. to move data to another work computer. It is **not** wired to SCM push triggers like the main `Jenkinsfile`; it's set up as its own Jenkins Pipeline job (Pipeline script from SCM → Script Path: `Jenkinsfile.db-backup`) and run manually via "Build Now". Stages:
+On-demand PowerShell scripts for dumping/restoring the local Docker dev database — e.g. to move data to another work computer. Run locally, no Jenkins job required (this replaces the old `Jenkinsfile.db-backup` pipeline).
 
-1. Verify the `battery-finder-postgres` container is running
-2. `pg_dump` the `batteryfinderdev` database inside the container to a timestamped custom-format (`-F c`) file
-3. Copy the dump out of the container into the Jenkins workspace
-4. Archive the dump as a build artifact (fingerprinted; the last 10 builds are kept, per `buildDiscarder`)
+**Backup** (`db-backup-script/backup-db.ps1`):
 
-To restore a downloaded dump on another machine:
+1. Verifies the `battery-finder-postgres` container is running
+2. `pg_dump`s the `batteryfinderdev` database inside the container to a timestamped custom-format (`-F c`) file
+3. Copies the dump out of the container into `backups/` at the repo root
+4. Prunes old dumps, keeping only the newest 10 by default
 
-```bash
-docker cp batteryfinderdev_<timestamp>.dump battery-finder-postgres:/tmp/batteryfinderdev_<timestamp>.dump
-docker exec battery-finder-postgres pg_restore -U batteryfinder -d batteryfinderdev --clean --if-exists -F c /tmp/batteryfinderdev_<timestamp>.dump
+```powershell
+powershell -File db-backup-script/backup-db.ps1
+powershell -File db-backup-script/backup-db.ps1 -KeepCount 20   # keep more than the default 10
+```
+
+**Restore** (`db-backup-script/restore-db.ps1`) — copies a dump into the container and `pg_restore`s it with `--clean --if-exists`, overwriting the target database's contents:
+
+```powershell
+# drop a .dump file into db-restore/, then run with no args — restores the newest one found there, after a confirmation prompt
+powershell -File db-backup-script/restore-db.ps1
+
+# or restore a specific file from anywhere (e.g. a dump from backups/)
+powershell -File db-backup-script/restore-db.ps1 -DumpFile backups\batteryfinderdev_20260708_082639.dump
+
+# skip the confirmation prompt
+powershell -File db-backup-script/restore-db.ps1 -DumpFile path\to\some.dump -Force
 ```
