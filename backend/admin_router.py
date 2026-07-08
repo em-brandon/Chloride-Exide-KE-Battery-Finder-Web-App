@@ -30,7 +30,6 @@ import io
 import json
 import logging
 import os
-import shutil
 import threading
 import time
 import uuid
@@ -2799,9 +2798,14 @@ async def crsp_upload(
     suffix = Path(file.filename or "crsp.xlsx").suffix.lower()
     if suffix not in {".xlsx", ".xls"}:
         raise HTTPException(status_code=400, detail="Only .xlsx / .xls files are accepted")
+
+    raw = await file.read()
+    if len(raw) > 10 * 1024 * 1024:  # 10 MB guard
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+
     dest = _CRSP_UPLOAD_DIR / f"crsp_{uuid.uuid4().hex[:8]}{suffix}"
     with dest.open("wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(raw)
     logger.info("CRSP file uploaded by %s → %s", admin.username, dest)
     return {"file_path": str(dest)}
 
