@@ -17,7 +17,7 @@ pip install -r requirements.txt
 alembic upgrade head
 python scripts/create_admin.py --username admin --password <password>
 uvicorn app:app --reload          # dev server at http://localhost:8000
-uvicorn app:app --host 0.0.0.0 --port 8000   # production
+uvicorn app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"   # production — required behind the ALB, see README "Running the App"
 ```
 
 ### Frontend (Bun)

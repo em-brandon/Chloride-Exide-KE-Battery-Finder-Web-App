@@ -259,10 +259,12 @@ cd frontend && bun run build && cd ..
 
 # Start the backend (serves built frontend from frontend/dist/)
 source .venv/Scripts/activate   # or .venv\Scripts\Activate.ps1 on PowerShell
-cd backend && uvicorn app:app --host 0.0.0.0 --port 8000
+cd backend && uvicorn app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"
 ```
 
 The app starts on **http://localhost:8000**. Static frontend assets are served directly from `frontend/dist/` by FastAPI.
+
+`--proxy-headers --forwarded-allow-ips="*"` is required in production: the app runs behind an ALB (see Production Architecture below), so without it every request's `request.client.host` is the ALB's own IP rather than the real client's, which silently collapses slowapi's per-client rate limits into one shared bucket for all users. `--forwarded-allow-ips="*"` is safe here because ECS Fargate tasks are only reachable via the ALB — there is no direct public path to the container that could spoof `X-Forwarded-For` from outside.
 
 ### Development (hot reload)
 
