@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-**Chloride Exide KE — Battery Finder**: A production web app that recommends the correct car battery for Kenyan vehicles. It uses a cleaned CRSP/NTS dataset, a 3-layer rule-based matching engine, and is geo-restricted to Kenya.
+**Chloride Exide KE — Battery Finder**: A production web app that recommends the correct car battery for Kenyan vehicles. It uses a cleaned CRSP/NTS dataset, a 3-layer rule-based matching engine, and is geo-restricted to Kenya, Uganda and Tanzania.
 
 ## Commands
 
@@ -17,7 +17,7 @@ pip install -r requirements.txt
 alembic upgrade head
 python scripts/create_admin.py --username admin --password <password>
 uvicorn app:app --reload          # dev server at http://localhost:8000
-uvicorn app:app --host 0.0.0.0 --port 8000   # production
+uvicorn app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"   # production — required behind the ALB, see README "Running the App"
 ```
 
 ### Frontend (Bun)

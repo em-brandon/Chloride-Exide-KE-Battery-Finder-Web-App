@@ -30,12 +30,11 @@ import io
 import json
 import logging
 import os
-import shutil
 import threading
 import time
 import uuid
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -142,17 +141,38 @@ class BatteryUpdateRequest(BaseModel):
 # Auth endpoints (rate-limited — no auth required)
 # ---------------------------------------------------------------------------
 
+LOGIN_MAX_ATTEMPTS  = 8
+LOGIN_LOCKOUT_MINS  = 15
+
+
 @router.post("/login")
 @_limiter.limit("5/minute")
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(AdminUser).filter(AdminUser.username == body.username).first()
+
+    now = datetime.now(timezone.utc)
+    if user and user.locked_until and user.locked_until > now:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Account locked due to repeated failed logins. Try again after {user.locked_until.isoformat()}.",
+        )
+
     # Always run verify_password to prevent timing attacks even on missing user
     dummy_hash = "$2b$12$notarealhashXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
     hashed = user.password_hash if user else dummy_hash
     valid = verify_password(body.password, hashed)
 
     if not user or not valid:
+        if user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= LOGIN_MAX_ATTEMPTS:
+                user.locked_until = now + timedelta(minutes=LOGIN_LOCKOUT_MINS)
+            db.commit()
         raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
 
     ip = request.client.host if request.client else None
     token = create_session(db, user, ip)
@@ -2778,9 +2798,14 @@ async def crsp_upload(
     suffix = Path(file.filename or "crsp.xlsx").suffix.lower()
     if suffix not in {".xlsx", ".xls"}:
         raise HTTPException(status_code=400, detail="Only .xlsx / .xls files are accepted")
+
+    raw = await file.read()
+    if len(raw) > 10 * 1024 * 1024:  # 10 MB guard
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+
     dest = _CRSP_UPLOAD_DIR / f"crsp_{uuid.uuid4().hex[:8]}{suffix}"
     with dest.open("wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(raw)
     logger.info("CRSP file uploaded by %s → %s", admin.username, dest)
     return {"file_path": str(dest)}
 
@@ -3526,8 +3551,25 @@ def revert_crsp_version(
 
     new_version_id     = str(uuid.uuid4())
     new_version_number = (db.query(func.max(VehicleYearVersion.version_number)).scalar() or 0) + 1
-    reverted = 0
+    reverted = len(entries)
     now      = datetime.now(timezone.utc)
+
+    # Insert the version row FIRST and flush it so the FK from vehicle_years_changelog
+    # is satisfied before any changelog rows are written.
+    db.add(VehicleYearVersion(
+        id              = new_version_id,
+        version_number  = new_version_number,
+        committed_at    = now,
+        run_id          = None,
+        committed_count = reverted,
+        updated_count   = 0,
+        removed_count   = 0,
+        conflict_count  = 0,
+        committed_by    = admin.username,
+        initiated_by    = None,
+        notes           = f"Revert of version #{version.version_number}",
+    ))
+    db.flush()  # version must exist in DB before changelog FK references it
 
     for entry in entries:
         existing = db.query(VehicleYear).filter(
@@ -3575,21 +3617,7 @@ def revert_crsp_version(
                 old_values=entry.new_values,
                 new_values=entry.old_values,
             ))
-        reverted += 1
 
-    db.add(VehicleYearVersion(
-        id              = new_version_id,
-        version_number  = new_version_number,
-        committed_at    = now,
-        run_id          = None,
-        committed_count = reverted,
-        updated_count   = 0,
-        removed_count   = 0,
-        conflict_count  = 0,
-        committed_by    = admin.username,
-        initiated_by    = None,
-        notes           = f"Revert of version #{version.version_number}",
-    ))
     db.commit()
 
     logger.info(
