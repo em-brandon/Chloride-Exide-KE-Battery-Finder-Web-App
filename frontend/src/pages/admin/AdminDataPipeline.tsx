@@ -103,6 +103,7 @@ import {
   type CrspUnmatchedModel,
   type CrspUnmatchedResponse,
   type CrspRejectedRow,
+  type CrspPrefixConflict,
   type CrspProviderDetail,
   type FueleconomyDownloadStatus,
   // Expansion pipeline
@@ -2277,8 +2278,9 @@ function ValidationCard({ result }: { result: CrspValidateResult }) {
 
 // ── DataprepResultCard ────────────────────────────────────────────────────────
 function DataprepResultCard({ result }: { result: CrspDataprepResult }) {
-  const [showRejected, setShowRejected] = useState(false)
-  const [showLogs, setShowLogs]         = useState(false)
+  const [showRejected, setShowRejected]   = useState(false)
+  const [showConflicts, setShowConflicts] = useState(false)
+  const [showLogs, setShowLogs]           = useState(false)
 
   const REASON_LABEL: Record<string, string> = {
     empty_make:       'Empty make',
@@ -2294,6 +2296,7 @@ function DataprepResultCard({ result }: { result: CrspDataprepResult }) {
           { label: 'Rejected',   value: result.rejected.toLocaleString(),   color: result.rejected > 0 ? '#b45309' : '#6b7280' },
           { label: 'Duplicates', value: result.duplicates.toLocaleString(), color: result.duplicates > 0 ? '#6b7280' : '#15803d' },
           { label: 'Prefix Stripped', value: result.prefix_stripped.toLocaleString(), color: result.prefix_stripped > 0 ? '#6b7280' : '#15803d' },
+          { label: 'Prefix Conflicts', value: result.prefix_conflicts.length.toLocaleString(), color: result.prefix_conflicts.length > 0 ? '#b45309' : '#15803d' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'var(--adm-subtle-bg)', borderRadius: 9, padding: '0.5rem 0.9rem', textAlign: 'center', minWidth: 72 }}>
             <div style={{ fontSize: '1rem', fontWeight: 800, color }}>{value}</div>
@@ -2324,6 +2327,37 @@ function DataprepResultCard({ result }: { result: CrspDataprepResult }) {
                       <td style={{ padding: '0.22rem 0.5rem', fontWeight: 600 }}>{r.make || <span style={{ color: '#d1d5db' }}>—</span>}</td>
                       <td style={{ padding: '0.22rem 0.5rem' }}>{r.model}</td>
                       <td style={{ padding: '0.22rem 0.5rem', color: '#b45309', fontWeight: 600 }}>{REASON_LABEL[r.reason] ?? r.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+      {result.prefix_conflicts.length > 0 && (
+        <div style={{ marginBottom: '0.5rem' }}>
+          <button onClick={() => setShowConflicts(p => !p)} style={{ fontSize: '0.68rem', color: '#b45309', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
+            <ExclamationCircleIcon style={{ width: 12, height: 12 }} />
+            {showConflicts ? 'Hide prefix conflicts' : `Show ${result.prefix_conflicts.length} prefix conflicts (needs manual review)`}
+          </button>
+          {showConflicts && (
+            <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #fde68a', borderRadius: 8, background: '#fffbeb' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.67rem' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(0,0,0,0.03)' }}>
+                    {['Row #', 'Make', 'Model (kept as-is)', 'Clean name (already exists)'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.2rem 0.5rem', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.59rem', borderBottom: '1px solid #fde68a' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.prefix_conflicts.map((c: CrspPrefixConflict, i: number) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? '1px solid #fde68a' : 'none' }}>
+                      <td style={{ padding: '0.22rem 0.5rem', color: '#9ca3af', fontFamily: 'monospace' }}>{c.row_number}</td>
+                      <td style={{ padding: '0.22rem 0.5rem', fontWeight: 600 }}>{c.make}</td>
+                      <td style={{ padding: '0.22rem 0.5rem' }}>{c.model}</td>
+                      <td style={{ padding: '0.22rem 0.5rem', color: '#b45309', fontWeight: 600 }}>{c.clean_model}</td>
                     </tr>
                   ))}
                 </tbody>
