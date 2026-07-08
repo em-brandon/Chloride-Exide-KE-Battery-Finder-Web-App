@@ -2293,6 +2293,7 @@ function DataprepResultCard({ result }: { result: CrspDataprepResult }) {
           { label: 'Clean Rows', value: result.clean_rows.toLocaleString(), color: '#15803d' },
           { label: 'Rejected',   value: result.rejected.toLocaleString(),   color: result.rejected > 0 ? '#b45309' : '#6b7280' },
           { label: 'Duplicates', value: result.duplicates.toLocaleString(), color: result.duplicates > 0 ? '#6b7280' : '#15803d' },
+          { label: 'Prefix Stripped', value: result.prefix_stripped.toLocaleString(), color: result.prefix_stripped > 0 ? '#6b7280' : '#15803d' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'var(--adm-subtle-bg)', borderRadius: 9, padding: '0.5rem 0.9rem', textAlign: 'center', minWidth: 72 }}>
             <div style={{ fontSize: '1rem', fontWeight: 800, color }}>{value}</div>

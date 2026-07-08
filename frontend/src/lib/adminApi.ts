@@ -803,6 +803,7 @@ export interface CrspDataprepResult {
   clean_rows:    number
   rejected:      number
   duplicates:    number
+  prefix_stripped: number
   output_csv:    string
   columns_found: string[]
   rejected_rows: CrspRejectedRow[]

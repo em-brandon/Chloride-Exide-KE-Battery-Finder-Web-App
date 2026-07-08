@@ -40,6 +40,20 @@ def normalize_battery(battery: str) -> str:
     return battery.upper().replace(" ", "") if battery else ""
 
 
+def strip_redundant_make_prefix(make: str, model: str) -> str:
+    """Strip a redundant leading '{MAKE} ' from model, e.g. make='BMW',
+    model='BMW 3 SERIES 320D' -> '3 SERIES 320D'. The source CRSP data
+    repeats the make inside the model field for some makes, which then
+    double-prints as 'BMW BMW 3 SERIES 320D' wherever make+model are
+    displayed together (search log, results, etc)."""
+    prefix = make.strip().upper() + " "
+    if prefix.strip() and model.strip().upper().startswith(prefix):
+        stripped = model.strip()[len(prefix):].strip()
+        if stripped:
+            return stripped
+    return model
+
+
 # ── Main callable ─────────────────────────────────────────────────────────────
 
 def main(
@@ -115,6 +129,7 @@ def main(
     rows              = []
     rejected          = 0
     rejected_rows: list[dict] = []
+    prefix_stripped   = 0
     MAX_REJECTED_DETAIL = 200
 
     for idx, (_, row) in enumerate(df.iterrows(), start=1):
@@ -122,6 +137,11 @@ def main(
             return {"status": "cancelled"}
 
         record = {c: str(row.get(c, "")).strip() for c in present_cols}
+        if record.get("make") and record.get("model"):
+            cleaned_model = strip_redundant_make_prefix(record["make"], record["model"])
+            if cleaned_model != record["model"]:
+                prefix_stripped += 1
+                record["model"] = cleaned_model
         if not record.get("make") or record["make"].lower() == "nan":
             rejected += 1
             if len(rejected_rows) < MAX_REJECTED_DETAIL:
@@ -148,7 +168,7 @@ def main(
             progress("Normalizing", idx, total_rows)
             log(f"[PROGRESS] Normalized {idx}/{total_rows} rows")
 
-    log(f"[OK] {len(rows)} valid rows, {rejected} rejected")
+    log(f"[OK] {len(rows)} valid rows, {rejected} rejected, {prefix_stripped} redundant make-prefix stripped from model")
     progress("Normalizing", total_rows, total_rows)
 
     # ── Stage 4: Deduplicate ──────────────────────────────────────────────────
@@ -183,6 +203,7 @@ def main(
         "clean_rows":    len(final_df),
         "rejected":      rejected,
         "duplicates":    duplicates,
+        "prefix_stripped": prefix_stripped,
         "output_csv":    output_csv,
         "columns_found": present_cols,
         "rejected_rows": rejected_rows,
