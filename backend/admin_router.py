@@ -3526,8 +3526,25 @@ def revert_crsp_version(
 
     new_version_id     = str(uuid.uuid4())
     new_version_number = (db.query(func.max(VehicleYearVersion.version_number)).scalar() or 0) + 1
-    reverted = 0
+    reverted = len(entries)
     now      = datetime.now(timezone.utc)
+
+    # Insert the version row FIRST and flush it so the FK from vehicle_years_changelog
+    # is satisfied before any changelog rows are written.
+    db.add(VehicleYearVersion(
+        id              = new_version_id,
+        version_number  = new_version_number,
+        committed_at    = now,
+        run_id          = None,
+        committed_count = reverted,
+        updated_count   = 0,
+        removed_count   = 0,
+        conflict_count  = 0,
+        committed_by    = admin.username,
+        initiated_by    = None,
+        notes           = f"Revert of version #{version.version_number}",
+    ))
+    db.flush()  # version must exist in DB before changelog FK references it
 
     for entry in entries:
         existing = db.query(VehicleYear).filter(
@@ -3575,21 +3592,7 @@ def revert_crsp_version(
                 old_values=entry.new_values,
                 new_values=entry.old_values,
             ))
-        reverted += 1
 
-    db.add(VehicleYearVersion(
-        id              = new_version_id,
-        version_number  = new_version_number,
-        committed_at    = now,
-        run_id          = None,
-        committed_count = reverted,
-        updated_count   = 0,
-        removed_count   = 0,
-        conflict_count  = 0,
-        committed_by    = admin.username,
-        initiated_by    = None,
-        notes           = f"Revert of version #{version.version_number}",
-    ))
     db.commit()
 
     logger.info(
