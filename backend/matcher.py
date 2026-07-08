@@ -1,16 +1,28 @@
 """
 Battery recommendation rule engine.
 
-Data sources
-------------
-vehicle_years.csv        : make, model, year, engine_capacity, fuel
-battery_specs_output.xlsx: Battery Code, Model Key, Ah, CCA (A EN), Technology
+Data sources (all Postgres tables, loaded once at startup into an in-memory
+pandas cache — see the @lru_cache loaders below)
+------------------------------------------------------------------------
+vehicle_years           : make, model, year, engine_capacity, fuel
+battery_specs           : Battery Code, Model Key, Ah, CCA (A EN), Technology
+dial_battery_inference  : real-world call-centre sales data (highest-frequency
+                          battery code sold per make/model)
+web_battery_validation  : internet-sourced fitment data, populated offline by
+                          pipelines/web_battery_validate.py
 
-Matching layers
----------------
-1. Exact   — make + fuzzy model (≥90) + exact year          → confidence 100
-2. Soft    — make + fuzzy model (≥60) + year within ±3      → confidence 60–89
-3. Rule    — engine_cc + normalised fuel_type → Ah bracket  → confidence 40
+Matching layers (checked in order in `recommend()`; first hit wins)
+---------------------------------------------------------------------
+0a. Web validation — year-specific internet-sourced fitment      → confidence 75–90
+0b. Inference      — real-world call-centre sales data            → confidence 80–95
+1.  Exact          — make + fuzzy model (≥90) + exact year        → confidence 100
+2.  Soft           — make + fuzzy model (≥60) + year within ±3    → confidence 60–89
+3.  Rule           — engine_cc + normalised fuel_type → Ah bracket → confidence 40
+
+Layers 0a/0b take priority over 1–3 because they reflect actual fitment
+outcomes (real sales, internet-verified) rather than a rule-of-thumb Ah
+estimate — but they only fire when a matching row exists in their source
+table, so most searches still fall through to layers 1–3.
 """
 
 from __future__ import annotations
@@ -174,8 +186,11 @@ _DIN_MAKES: frozenset[str] = frozenset({
     "VOLKSWAGEN", "VOLVO",
 })
 
-# Subset used for year-based stop-start inference. DIN includes US/Indian makes,
-# so this stays conservative to avoid misclassifying non-European vehicles.
+# _EU_MAKES, _KOREAN_MAKES and the two _is_*_make() helpers below exist only
+# to support _infer_stop_start(), which is currently dead code (see its
+# docstring) — none of these four are called from anywhere else. DIN includes
+# US/Indian makes, so _EU_MAKES stays conservative to avoid misclassifying
+# non-European vehicles if/when _infer_stop_start is wired back in.
 _EU_MAKES: frozenset[str] = frozenset({
     "AUDI", "BENTLEY", "BMW", "BRABUS", "CITROEN", "FERRARI", "FIAT",
     "JAGUAR", "LANDROVER", "MERCEDES", "MERCEDES-BENZ", "MINI", "OPEL",
@@ -194,18 +209,23 @@ _LUXURY_MAKES: frozenset[str] = frozenset({
 
 
 def _is_european_make(make: str) -> bool:
+    """Unused (dead code) — only referenced by the unused _infer_stop_start()."""
     return make.upper().strip() in _EU_MAKES
 
 
 def _is_korean_make(make: str) -> bool:
+    """Unused (dead code) — only referenced by the unused _infer_stop_start()."""
     return make.upper().strip() in _KOREAN_MAKES
 
 
 def _infer_stop_start(make: str, year: Optional[int], fuel: str) -> bool:
     """
     Infer whether a vehicle is likely stop-start equipped based on make + year.
-    This is only used when the user does not explicitly tick the stop-start box.
-    will need to change this inference behaviour since the useer already selects it from the dropdown
+
+    Currently unused (dead code): `recommend()` takes `stop_start` as an
+    explicit parameter supplied by the caller (the frontend now has its own
+    stop-start selector), so this fallback inference never runs. Kept in case
+    that explicit input is ever made optional again.
     """
     if fuel == "HYBRID":
         return True  # hybrids always have engine on/off cycling
