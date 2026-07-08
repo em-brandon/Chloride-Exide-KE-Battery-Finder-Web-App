@@ -40,6 +40,20 @@ def normalize_battery(battery: str) -> str:
     return battery.upper().replace(" ", "") if battery else ""
 
 
+def strip_redundant_make_prefix(make: str, model: str) -> str:
+    """Strip a redundant leading '{MAKE} ' from model, e.g. make='BMW',
+    model='BMW 3 SERIES 320D' -> '3 SERIES 320D'. The source CRSP data
+    repeats the make inside the model field for some makes, which then
+    double-prints as 'BMW BMW 3 SERIES 320D' wherever make+model are
+    displayed together (search log, results, etc)."""
+    prefix = make.strip().upper() + " "
+    if prefix.strip() and model.strip().upper().startswith(prefix):
+        stripped = model.strip()[len(prefix):].strip()
+        if stripped:
+            return stripped
+    return model
+
+
 # ── Main callable ─────────────────────────────────────────────────────────────
 
 def main(
@@ -115,13 +129,38 @@ def main(
     rows              = []
     rejected          = 0
     rejected_rows: list[dict] = []
+    prefix_stripped   = 0
+    prefix_conflicts: list[dict] = []
     MAX_REJECTED_DETAIL = 200
+
+    # Raw (make, model) pairs exactly as given in the source, used below to
+    # detect when stripping a redundant prefix would collide with an
+    # unrelated row that already uses the clean name — those two rows may
+    # carry different specs (engine_capacity/fuel), so they're flagged for
+    # manual review instead of being silently merged.
+    raw_pairs = {
+        (str(r.get("make", "")).strip().upper(), str(r.get("model", "")).strip().upper())
+        for _, r in df.iterrows()
+    }
 
     for idx, (_, row) in enumerate(df.iterrows(), start=1):
         if cancelled():
             return {"status": "cancelled"}
 
         record = {c: str(row.get(c, "")).strip() for c in present_cols}
+        if record.get("make") and record.get("model"):
+            cleaned_model = strip_redundant_make_prefix(record["make"], record["model"])
+            if cleaned_model != record["model"]:
+                if (record["make"].upper(), cleaned_model.upper()) in raw_pairs:
+                    prefix_conflicts.append({
+                        "row_number":   idx,
+                        "make":         record["make"],
+                        "model":        record["model"],
+                        "clean_model":  cleaned_model,
+                    })
+                else:
+                    prefix_stripped += 1
+                    record["model"] = cleaned_model
         if not record.get("make") or record["make"].lower() == "nan":
             rejected += 1
             if len(rejected_rows) < MAX_REJECTED_DETAIL:
@@ -148,7 +187,7 @@ def main(
             progress("Normalizing", idx, total_rows)
             log(f"[PROGRESS] Normalized {idx}/{total_rows} rows")
 
-    log(f"[OK] {len(rows)} valid rows, {rejected} rejected")
+    log(f"[OK] {len(rows)} valid rows, {rejected} rejected, {prefix_stripped} redundant make-prefix stripped from model, {len(prefix_conflicts)} left as-is (clean name already exists — needs manual review)")
     progress("Normalizing", total_rows, total_rows)
 
     # ── Stage 4: Deduplicate ──────────────────────────────────────────────────
@@ -183,6 +222,8 @@ def main(
         "clean_rows":    len(final_df),
         "rejected":      rejected,
         "duplicates":    duplicates,
+        "prefix_stripped":  prefix_stripped,
+        "prefix_conflicts": prefix_conflicts,
         "output_csv":    output_csv,
         "columns_found": present_cols,
         "rejected_rows": rejected_rows,

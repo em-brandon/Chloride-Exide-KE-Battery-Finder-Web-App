@@ -797,12 +797,21 @@ export interface CrspRejectedRow {
   reason:     'empty_make' | 'electric_vehicle'
 }
 
+export interface CrspPrefixConflict {
+  row_number:  number
+  make:        string
+  model:       string
+  clean_model: string
+}
+
 export interface CrspDataprepResult {
   status:        'done' | 'cancelled'
   total_rows:    number
   clean_rows:    number
   rejected:      number
   duplicates:    number
+  prefix_stripped:  number
+  prefix_conflicts: CrspPrefixConflict[]
   output_csv:    string
   columns_found: string[]
   rejected_rows: CrspRejectedRow[]
