@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import matcher
+from admin_auth import _IS_SECURE
 from admin_router import router as admin_router
 from db import SessionLocal, engine
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -126,6 +127,40 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Battery Finder API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# CSP verified against the actual built frontend/dist output: no inline
+# scripts, no data: image URIs — except react-country-flag (svg mode), which
+# genuinely fetches flag images from the jsdelivr CDN at runtime. style-src
+# needs 'unsafe-inline' because the frontend renders inline style={{}} props
+# throughout rather than Tailwind utility classes (see CLAUDE.md).
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' https://cdn.jsdelivr.net; "
+    "font-src 'self'; "
+    "connect-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'; "
+    "frame-ancestors 'none'"
+)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+    )
+    response.headers["Content-Security-Policy"] = _CSP
+    if _IS_SECURE:
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    return response
+
 
 # CloudFront/ALB serve the built SPA and API same-origin in production, so no
 # cross-origin origins are trusted unless explicitly configured — set
