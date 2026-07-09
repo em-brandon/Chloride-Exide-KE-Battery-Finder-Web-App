@@ -1290,16 +1290,30 @@ function WebValidateTab() {
           {(() => {
             const r = 45, cx = 60, cy = 60
             const circ = 2 * Math.PI * r
-            const arc  = (matchedPct / 100) * circ
+            const stagingCount = coverage?.staging_count ?? 0
+            const stagingPct   = totalCount > 0 ? (stagingCount / totalCount) * 100 : 0
+            const matchedArc   = (matchedPct / 100) * circ
+            const stagingArc   = (stagingPct / 100) * circ
             return (
               <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
                 <svg width="110" height="110" viewBox="0 0 120 120">
                   <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e4e9" strokeWidth="15" />
+                  {/* Staging segment drawn first, directly after the matched arc (dashoffset by matchedArc) */}
+                  {stagingArc > 0 && (
+                    <circle
+                      cx={cx} cy={cy} r={r} fill="none"
+                      stroke="#f59e0b" strokeWidth="15"
+                      strokeDasharray={`${stagingArc} ${circ - stagingArc}`}
+                      strokeDashoffset={-matchedArc}
+                      transform={`rotate(-90 ${cx} ${cy})`}
+                      style={{ transition: 'stroke-dasharray 0.6s ease, stroke-dashoffset 0.6s ease' }}
+                    />
+                  )}
                   {matchedPct > 0 && (
                     <circle
                       cx={cx} cy={cy} r={r} fill="none"
                       stroke="#22c55e" strokeWidth="15"
-                      strokeDasharray={`${arc} ${circ - arc}`}
+                      strokeDasharray={`${matchedArc} ${circ - matchedArc}`}
                       transform={`rotate(-90 ${cx} ${cy})`}
                       style={{ transition: 'stroke-dasharray 0.6s ease' }}
                     />
@@ -1307,6 +1321,11 @@ function WebValidateTab() {
                   <text x={cx} y={cy - 4} textAnchor="middle" fontSize="17" fontWeight="800" fill="rgba(17,24,39,0.88)">{matchedPct.toFixed(1)}%</text>
                   <text x={cx} y={cy + 12} textAnchor="middle" fontSize="8.5" fill="#6b7280" letterSpacing="0.08em">COVERED</text>
                 </svg>
+                {stagingCount > 0 && (
+                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#f59e0b' }}>
+                    +{stagingPct.toFixed(1)}% in staging
+                  </span>
+                )}
               </div>
             )
           })()}
