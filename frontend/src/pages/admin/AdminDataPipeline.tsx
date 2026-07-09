@@ -1086,31 +1086,39 @@ function WebValidateTab() {
                       <label
                         key={m.make}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: '0.6rem',
+                          display: 'flex', flexDirection: 'column', gap: '0.4rem',
                           padding: '0.5rem 0.75rem', borderRadius: 10, cursor: 'pointer',
                           background: isOn ? '#f0fdf4' : 'var(--adm-subtle-bg)',
                           border: `1px solid ${isOn ? '#bbf7d0' : 'var(--adm-card-border)'}`,
                         }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isOn}
-                          onChange={() => setEnabledMakes(prev => {
-                            const next = new Set(prev)
-                            if (next.has(m.make)) next.delete(m.make); else next.add(m.make)
-                            return next
-                          })}
-                          style={{ flexShrink: 0 }}
-                        />
-                        <img
-                          src={makeLogoUrl(m.make)}
-                          alt=""
-                          loading="lazy"
-                          onError={e => { e.currentTarget.style.visibility = 'hidden' }}
-                          style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }}
-                        />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1 }}>{m.make}</span>
-                        <span style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{m.pct_matched.toFixed(0)}%</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={isOn}
+                            onChange={() => setEnabledMakes(prev => {
+                              const next = new Set(prev)
+                              if (next.has(m.make)) next.delete(m.make); else next.add(m.make)
+                              return next
+                            })}
+                            style={{ flexShrink: 0 }}
+                          />
+                          <img
+                            src={makeLogoUrl(m.make)}
+                            alt=""
+                            loading="lazy"
+                            onError={e => { e.currentTarget.style.visibility = 'hidden' }}
+                            style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }}
+                          />
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1 }}>{m.make}</span>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#16a34a' }}>{m.pct_matched.toFixed(0)}%</span>
+                        </div>
+                        <div style={{ width: '100%', background: '#e2e4e9', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${Math.min(m.pct_matched, 100)}%`, background: '#22c55e',
+                            height: '100%', borderRadius: 99, transition: 'width 0.3s',
+                          }} />
+                        </div>
                       </label>
                     )
                   })}
