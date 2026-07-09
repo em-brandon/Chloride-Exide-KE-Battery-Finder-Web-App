@@ -1191,6 +1191,7 @@ def list_test_users(
 
 class RunWebValidateBody(BaseModel):
     enabled_providers: list[str] | None = None  # None = use all available providers
+    enabled_makes: list[str] | None = None      # None = all makes; [] = zero makes
     phase: str = "phase1"                       # "phase1", "phase2", or "both"
 
 
@@ -1200,6 +1201,7 @@ def _web_validate_thread(
     pause_event: threading.Event,
     enabled_providers: list[str] | None = None,
     phase: str = "phase1",
+    enabled_makes: list[str] | None = None,
 ) -> None:
     """Background thread that runs the web_battery_validate pipeline."""
     from pipelines.web_battery_validate import main as _run_web_validate
@@ -1227,7 +1229,10 @@ def _web_validate_thread(
             _pipeline_state["phase1_total"]     = total
 
     try:
-        result = _run_web_validate(cancel_event, pause_event, _progress, _log_cb, enabled_providers, run_id,
+        result = _run_web_validate(cancel_event, pause_event, _progress, _log_cb,
+                                   enabled_providers=enabled_providers,
+                                   enabled_makes=enabled_makes,
+                                   run_id=run_id,
                                    phase1_progress_callback=_phase1_progress,
                                    phase=phase)
         # Populate staging when Phase 2 completes normally (not on cancel)
@@ -1273,6 +1278,7 @@ def run_web_validate(
             "current_provider":   None,
             "current_combo":      None,
             "enabled_providers":  body.enabled_providers,
+            "enabled_makes":      body.enabled_makes,
             "provider_counts":    {"duckduckgo": 0, "searxng": 0, "brave": 0, "tavily": 0},
             "logs":               deque(maxlen=50),
             "started_at":         datetime.now(timezone.utc).isoformat(),
@@ -1288,14 +1294,14 @@ def run_web_validate(
 
     t = threading.Thread(
         target=_web_validate_thread,
-        args=(run_id, cancel_ev, pause_ev, body.enabled_providers, body.phase),
+        args=(run_id, cancel_ev, pause_ev, body.enabled_providers, body.phase, body.enabled_makes),
         daemon=True,
         name=f"web-validate-{run_id[:8]}",
     )
     t.start()
     logger.info(
-        "web_battery_validate started by %s, run_id=%s, providers=%s",
-        admin.username, run_id, body.enabled_providers,
+        "web_battery_validate started by %s, run_id=%s, providers=%s, makes=%s",
+        admin.username, run_id, body.enabled_providers, body.enabled_makes,
     )
     return {"run_id": run_id}
 
