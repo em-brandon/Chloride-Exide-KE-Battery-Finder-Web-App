@@ -167,6 +167,25 @@ const PROVIDER_LABELS: Record<string, string> = {
   tavily:     'Tavily',
 }
 
+// Car brand logos — served from filippofilip95/car-logos-dataset (MIT) via jsDelivr's
+// GitHub CDN. Most makes slugify cleanly (lowercase, spaces → hyphens); the exceptions
+// below either use a different slug in the dataset or don't exist there at all, in
+// which case we fall back to the closest parent-brand logo rather than showing nothing.
+const MAKE_LOGO_SLUG_OVERRIDES: Record<string, string> = {
+  'LANDROVER':        'land-rover',
+  'MARUTI SUZUKI':     'suzuki',            // dataset has no Maruti-specific logo
+  'MERCEDES':          'mercedes-benz',
+  'MITSUBISHI FUSO':   'mitsubishi',         // dataset has no Fuso-specific logo
+  'NISSAN DIESEL/UD':  'nissan',             // dataset has no UD Trucks logo
+  'SAIC MOTORS':       'saic-motor',
+}
+
+function makeLogoUrl(make: string): string {
+  const slug = MAKE_LOGO_SLUG_OVERRIDES[make.toUpperCase()]
+    ?? make.toLowerCase().trim().replace(/\//g, '-').replace(/\s+/g, '-')
+  return `https://cdn.jsdelivr.net/gh/filippofilip95/car-logos-dataset@master/logos/thumb/${slug}.png`
+}
+
 function QuotaBar({ pct, quota_limit }: { pct: number; quota_limit: number }) {
   if (quota_limit === -1) {
     return (
@@ -1082,6 +1101,13 @@ function WebValidateTab() {
                             return next
                           })}
                           style={{ flexShrink: 0 }}
+                        />
+                        <img
+                          src={makeLogoUrl(m.make)}
+                          alt=""
+                          loading="lazy"
+                          onError={e => { e.currentTarget.style.visibility = 'hidden' }}
+                          style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
                         />
                         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1 }}>{m.make}</span>
                         <span style={{ fontSize: '0.62rem', color: '#9ca3af' }}>{m.pct_matched.toFixed(0)}%</span>
