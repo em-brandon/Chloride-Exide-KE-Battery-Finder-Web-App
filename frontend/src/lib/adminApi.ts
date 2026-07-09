@@ -470,6 +470,12 @@ export interface CoverageInfo {
     engine_cc:  number | null
     fuel_type:  string | null
   }>
+  by_make: Array<{
+    make:        string
+    total:       number
+    matched:     number
+    pct_matched: number
+  }>
   total_buckets:     number
   resolved_buckets:  number
   remaining_buckets: number
