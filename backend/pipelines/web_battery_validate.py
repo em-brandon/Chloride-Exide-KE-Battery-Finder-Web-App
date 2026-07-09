@@ -908,13 +908,26 @@ def main(
         with _cache_lock:
             _save_web_model_cache(_model_web_cache)
 
-        web_hits = sum(1 for v in _model_web_cache.values() if v is not None)
+        # web_hits scoped to *this run's* buckets — _model_web_cache itself is the
+        # global, all-time persistent cache (spans every make/model ever fetched
+        # across every run), so counting its non-null entries directly would report
+        # a nonsensical hit count once a run is scoped to a handful of makes
+        # (e.g. "4697/685 buckets cached" — more hits than buckets even exist here).
+        run_bucket_keys = {f"{m}|{mo}|{b}" for m, mo, b, _ in all_unique_buckets}
+        run_hits = sum(1 for k in run_bucket_keys if _model_web_cache.get(k) is not None)
         total_buckets = len(all_unique_buckets)
+        cache_total = sum(1 for v in _model_web_cache.values() if v is not None)
         if _is_cancelled():
-            _log(f"  [CANCELLED] Phase 1 stopped early — {web_hits}/{total_buckets} buckets cached. Phase 2 skipped.")
+            _log("  [CANCELLED] Phase 1 stopped early — Phase 2 skipped.")
+            _log(f"  {total_buckets} buckets found during this run")
+            _log(f"  {run_hits}/{total_buckets} buckets matched")
+            _log(f"  {cache_total} total buckets in cache")
             return {"fetched": 0, "cached": 0, "failed": 0, "provider_counts": dict(provider_counts)}
         else:
-            _log(f"  Phase 1 complete — {web_hits}/{total_buckets} buckets matched via web search")
+            _log("  Phase 1 complete")
+            _log(f"  {total_buckets} buckets found during this run")
+            _log(f"  {run_hits}/{total_buckets} buckets matched via web search")
+            _log(f"  {cache_total} total buckets in cache")
 
         if phase == "phase1":
             _log("  Phase 1 only — done. Run Phase 2 separately when ready.")
