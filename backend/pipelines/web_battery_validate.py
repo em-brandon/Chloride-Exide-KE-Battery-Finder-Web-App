@@ -377,7 +377,7 @@ def _brave_lookup(make: str, model: str, year: int, cancel_event: threading.Even
         try:
             resp = SESSION.get(
                 BRAVE_SEARCH_API_URL,
-                params={"q": query, "count": 5},
+                params={"q": query, "count": 20},
                 headers=headers,
                 timeout=15,
             )
@@ -562,6 +562,7 @@ def main(
     progress_callback: Callable | None = None,         # (processed, total, provider)
     log_callback: Callable | None = None,              # (line: str)
     enabled_providers: list[str] | None = None,        # None = all available providers
+    enabled_makes: list[str] | None = None,             # None = all makes; [] = zero makes
     run_id: str | None = None,                         # UUID from admin_router — tags DB rows
     phase1_progress_callback: Callable | None = None,  # (fetched, total)
     phase: str = "both",                               # "phase1", "phase2", or "both"
@@ -707,6 +708,11 @@ def main(
     )
     combos["year"] = combos["year"].astype(int)
     _log(f"  {len(combos)} unique (make, model, year) combinations in vehicle_years")
+
+    if enabled_makes is not None:
+        _em = {m.upper().strip() for m in enabled_makes}
+        combos = combos[combos["make_n"].isin(_em)]
+        _log(f"  [CONFIG] scoped to {len(_em)} make(s): {', '.join(sorted(_em))} — {len(combos)} combos remain")
 
     try:
         existing = pd.read_sql(
