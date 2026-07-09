@@ -1300,8 +1300,7 @@ function WebValidateTab() {
           fontSize: '0.72rem', color: '#6b7280', whiteSpace: 'nowrap',
         }}>
           {(coverage?.web_cache_size ?? 0).toLocaleString()} buckets in cache
-          <QuestionMarkCircleIcon
-            style={{ width: 14, height: 14, color: '#9ca3af', cursor: 'help', flexShrink: 0 }}
+          <span
             title={
               'A "bucket" is a 5-year model-year window (e.g. 2010–2014) for one make/model — '
               + 'Phase 1 searches it once and reuses that result for every year inside it, to '
@@ -1310,7 +1309,10 @@ function WebValidateTab() {
               + 'results and the Phase 2 lookup cache, so already-fetched buckets are reused '
               + 'on the next run.'
             }
-          />
+            style={{ display: 'inline-flex', cursor: 'help', flexShrink: 0 }}
+          >
+            <QuestionMarkCircleIcon style={{ width: 14, height: 14, color: '#9ca3af' }} />
+          </span>
         </span>
 
         {/* Clear Cache */}
