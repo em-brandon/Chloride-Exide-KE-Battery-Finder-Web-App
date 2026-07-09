@@ -378,6 +378,7 @@ function WebValidateTab() {
   const [limitToMakes, setLimitToMakes]   = useState(false)
   const [enabledMakes, setEnabledMakes]   = useState<Set<string>>(new Set())
   const [makeFilterText, setMakeFilterText] = useState('')
+  const [showBucketInfo, setShowBucketInfo] = useState(false)
   const [actionError, setActionError]     = useState<string | null>(null)
   const [loadingRun, setLoadingRun]       = useState(false)
   const [loadingRunP2, setLoadingRunP2]   = useState(false)
@@ -1300,18 +1301,52 @@ function WebValidateTab() {
           fontSize: '0.72rem', color: '#6b7280', whiteSpace: 'nowrap',
         }}>
           {(coverage?.web_cache_size ?? 0).toLocaleString()} buckets in cache
-          <span
-            title={
-              'A "bucket" is a 5-year model-year window (e.g. 2010–2014) for one make/model — '
-              + 'Phase 1 searches it once and reuses that result for every year inside it, to '
-              + 'conserve API quota. This count is the web_model_cache.json pre-fetch cache. '
-              + 'Clear Cache (below) does NOT clear it — that only clears final per-vehicle '
-              + 'results and the Phase 2 lookup cache, so already-fetched buckets are reused '
-              + 'on the next run.'
-            }
-            style={{ display: 'inline-flex', cursor: 'help', flexShrink: 0 }}
-          >
-            <QuestionMarkCircleIcon style={{ width: 14, height: 14, color: '#9ca3af' }} />
+          <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setShowBucketInfo(v => !v)}
+              aria-label="What is a bucket?"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer',
+              }}
+            >
+              <QuestionMarkCircleIcon style={{ width: 14, height: 14, color: showBucketInfo ? '#6b7280' : '#9ca3af' }} />
+            </button>
+            {showBucketInfo && (
+              <>
+                <div
+                  onClick={() => setShowBucketInfo(false)}
+                  style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'transparent' }}
+                />
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: '0.4rem', zIndex: 41,
+                  width: 280, padding: '0.7rem 0.8rem', borderRadius: 10,
+                  background: 'var(--adm-card-bg)', border: '1px solid var(--adm-card-border)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                  fontSize: '0.72rem', fontWeight: 400, lineHeight: 1.5, color: 'var(--adm-text-2)',
+                  whiteSpace: 'normal', textAlign: 'left', cursor: 'default',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <strong style={{ color: 'var(--adm-text-1)', fontSize: '0.74rem' }}>What&apos;s a bucket?</strong>
+                    <button
+                      type="button"
+                      onClick={() => setShowBucketInfo(false)}
+                      aria-label="Close"
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#9ca3af', fontSize: '0.9rem', lineHeight: 1 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  A &quot;bucket&quot; is a 5-year model-year window (e.g. 2010–2014) for one make/model —
+                  Phase 1 searches it once and reuses that result for every year inside it, to
+                  conserve API quota. This count is the web_model_cache.json pre-fetch cache.
+                  Clear Cache (below) does NOT clear it — that only clears final per-vehicle
+                  results and the Phase 2 lookup cache, so already-fetched buckets are reused
+                  on the next run.
+                </div>
+              </>
+            )}
           </span>
         </span>
 
