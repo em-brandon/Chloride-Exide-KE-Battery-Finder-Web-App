@@ -86,7 +86,7 @@ _pipeline_state: dict = {
     "not_found":        0,
     "current_provider": None,
     "current_combo":    None,
-    "provider_counts":  {"duckduckgo": 0, "google_cse": 0, "tavily": 0},
+    "provider_counts":  {"duckduckgo": 0, "searxng": 0, "brave": 0, "tavily": 0},
     "logs":             deque(maxlen=50),
     "started_at":        None,
     "phase1_total":      0,
@@ -1273,7 +1273,7 @@ def run_web_validate(
             "current_provider":   None,
             "current_combo":      None,
             "enabled_providers":  body.enabled_providers,
-            "provider_counts":    {"duckduckgo": 0, "google_cse": 0, "tavily": 0},
+            "provider_counts":    {"duckduckgo": 0, "searxng": 0, "brave": 0, "tavily": 0},
             "logs":               deque(maxlen=50),
             "started_at":         datetime.now(timezone.utc).isoformat(),
             "phase1_total":       0,
@@ -1398,6 +1398,24 @@ def _validate_staging_row(ah, technology, battery_code) -> tuple[bool, str | Non
     return True, None
 
 
+_LUXURY_MIN_AH = 40
+
+
+def _flag_staging_row(make_n: str, ah) -> tuple[bool, str | None]:
+    """
+    Return (flagged, flag_reason) — a soft review marker distinct from
+    is_valid. Luxury/premium makes (matcher._LUXURY_MAKES — the same set
+    used to force AGM technology) carry heavier electrical loads and rarely
+    ship with a battery under 40Ah; a web-sourced Ah below that for one of
+    these makes is more likely a mismatched search result (wrong trim,
+    aftermarket/motorcycle listing, etc.) than a genuine spec, so it's
+    surfaced for a human to check rather than silently auto-committed.
+    """
+    if ah is not None and ah < _LUXURY_MIN_AH and make_n.upper().strip() in matcher._LUXURY_MAKES:
+        return True, f"Luxury make with Ah={ah} (< {_LUXURY_MIN_AH}) — verify before committing"
+    return False, None
+
+
 def _populate_staging(run_id: str) -> tuple[int, int, int]:
     """
     Copy records from web_battery_validation (for this run_id) into
@@ -1428,6 +1446,7 @@ def _populate_staging(run_id: str) -> tuple[int, int, int]:
             ah, technology, battery_code = r.ah, r.technology, r.battery_code
 
             is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
+            flagged, flag_reason = _flag_staging_row(make_n, ah)
 
             # Check for conflict: master has a row for same key with a DIFFERENT run_id
             conflict = False
@@ -1460,17 +1479,20 @@ def _populate_staging(run_id: str) -> tuple[int, int, int]:
                 text(
                     "INSERT INTO web_battery_staging"
                     " (run_id, make_n, model_n, year, battery_code, ah, technology,"
-                    "  source, engine_cc, fuel_type, is_valid, invalid_reason, conflict, conflict_detail)"
+                    "  source, engine_cc, fuel_type, is_valid, invalid_reason, conflict, conflict_detail,"
+                    "  flagged, flag_reason)"
                     " VALUES"
                     " (:rid, :mn, :mo, :yr, :bc, :ah, :tech,"
-                    "  :src, :ecc, :ft, :iv, :ir, :cf, :cd)"
+                    "  :src, :ecc, :ft, :iv, :ir, :cf, :cd,"
+                    "  :fl, :fr)"
                     " ON CONFLICT (make_n, model_n, year) DO UPDATE SET"
                     "  run_id=EXCLUDED.run_id, battery_code=EXCLUDED.battery_code,"
                     "  ah=EXCLUDED.ah, technology=EXCLUDED.technology,"
                     "  source=EXCLUDED.source, engine_cc=EXCLUDED.engine_cc,"
                     "  fuel_type=EXCLUDED.fuel_type, is_valid=EXCLUDED.is_valid,"
                     "  invalid_reason=EXCLUDED.invalid_reason, conflict=EXCLUDED.conflict,"
-                    "  conflict_detail=EXCLUDED.conflict_detail, staged_at=now()"
+                    "  conflict_detail=EXCLUDED.conflict_detail, flagged=EXCLUDED.flagged,"
+                    "  flag_reason=EXCLUDED.flag_reason, staged_at=now()"
                 ),
                 {
                     "rid": run_id, "mn": make_n, "mo": model_n, "yr": year,
@@ -1478,6 +1500,7 @@ def _populate_staging(run_id: str) -> tuple[int, int, int]:
                     "src": r.source, "ecc": r.engine_cc, "ft": r.fuel_type,
                     "iv": is_valid, "ir": invalid_reason,
                     "cf": conflict, "cd": conflict_detail,
+                    "fl": flagged, "fr": flag_reason,
                 },
             )
             staged += 1
@@ -1487,7 +1510,7 @@ def _populate_staging(run_id: str) -> tuple[int, int, int]:
     return staged, invalid, conflicts
 
 
-@router.get("/pipeline/quotas", summary="Get API provider quota usage for active 30-day period")
+@router.get("/pipeline/quotas", summary="Get API provider quota usage (rolling monthly, or one-time prepaid balance for providers in _ONE_TIME_QUOTA_PROVIDERS)")
 def get_pipeline_quotas(
     admin: AdminUser = Depends(require_admin),
     db: Session = Depends(get_db),
@@ -1605,12 +1628,14 @@ def get_web_validate_coverage(admin: AdminUser = Depends(require_admin)):
 @router.get("/pipeline/web-validate/providers", summary="Provider configuration status")
 def get_web_validate_providers(admin: AdminUser = Depends(require_admin)):
     """Returns which providers are configured (have API keys) and which are always available."""
-    google_configured = bool(os.getenv("GOOGLE_SEARCH_API_KEY") and os.getenv("GOOGLE_SEARCH_CX"))
-    tavily_configured = bool(os.getenv("TAVILY_API_KEY"))
+    brave_configured   = bool(os.getenv("BRAVE_SEARCH_API_KEY"))
+    searxng_configured = bool(os.getenv("SEARXNG_URL"))
+    tavily_configured  = bool(os.getenv("TAVILY_API_KEY"))
     return [
-        {"provider": "duckduckgo", "configured": True,             "always_available": True},
-        {"provider": "google_cse", "configured": google_configured, "always_available": False},
-        {"provider": "tavily",     "configured": tavily_configured, "always_available": False},
+        {"provider": "duckduckgo", "configured": True,               "always_available": True},
+        {"provider": "brave",      "configured": brave_configured,   "always_available": False},
+        {"provider": "searxng",    "configured": searxng_configured, "always_available": False},
+        {"provider": "tavily",     "configured": tavily_configured,  "always_available": False},
     ]
 
 
@@ -1782,7 +1807,7 @@ def reset_web_validate_cache(admin: AdminUser = Depends(require_admin), db: Sess
 def get_staging_area(
     page: int = 1,
     page_size: int = 50,
-    filter: str = "all",   # all | valid | invalid | conflicts
+    filter: str = "all",   # all | valid | invalid | conflicts | flagged
     admin: AdminUser = Depends(require_admin),
 ):
     offset = (page - 1) * page_size
@@ -1793,6 +1818,8 @@ def get_staging_area(
         where_clause = "WHERE is_valid = FALSE"
     elif filter == "conflicts":
         where_clause = "WHERE conflict = TRUE"
+    elif filter == "flagged":
+        where_clause = "WHERE flagged = TRUE"
 
     with engine.connect() as conn:
         total_row = conn.execute(text("SELECT COUNT(*) FROM web_battery_staging")).scalar() or 0
@@ -1805,6 +1832,9 @@ def get_staging_area(
         conflict_count = conn.execute(
             text("SELECT COUNT(*) FROM web_battery_staging WHERE conflict = TRUE")
         ).scalar() or 0
+        flagged_count = conn.execute(
+            text("SELECT COUNT(*) FROM web_battery_staging WHERE flagged = TRUE")
+        ).scalar() or 0
         run_id_row = conn.execute(
             text("SELECT run_id FROM web_battery_staging LIMIT 1")
         ).scalar()
@@ -1813,7 +1843,8 @@ def get_staging_area(
             text(
                 f"SELECT id, make_n, model_n, year, battery_code, ah, technology,"
                 f" source, engine_cc, fuel_type, staged_at,"
-                f" is_valid, invalid_reason, conflict, conflict_detail"
+                f" is_valid, invalid_reason, conflict, conflict_detail,"
+                f" flagged, flag_reason"
                 f" FROM web_battery_staging {where_clause}"
                 f" ORDER BY make_n, model_n, year"
                 f" LIMIT :lim OFFSET :off"
@@ -1838,6 +1869,7 @@ def get_staging_area(
         "valid_count":    valid_count,
         "invalid_count":  invalid_count,
         "conflict_count": conflict_count,
+        "flagged_count":  flagged_count,
         "run_id":         run_id_row,
         "page":           page,
         "page_size":      page_size,
@@ -1871,6 +1903,7 @@ def patch_staging_row(
         battery_code = row_dict.get("battery_code")
 
         is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
+        flagged, flag_reason = _flag_staging_row(row_dict["make_n"], ah)
 
         # Determine which rows to update
         if body.scope == "bucket":
@@ -1895,11 +1928,13 @@ def patch_staging_row(
                 text(
                     "UPDATE web_battery_staging"
                     " SET ah = :ah, technology = :technology,"
-                    "     is_valid = :is_valid, invalid_reason = :invalid_reason"
+                    "     is_valid = :is_valid, invalid_reason = :invalid_reason,"
+                    "     flagged = :flagged, flag_reason = :flag_reason"
                     " WHERE id = :id"
                 ),
                 {"ah": ah, "technology": technology, "is_valid": is_valid,
-                 "invalid_reason": invalid_reason, "id": tid},
+                 "invalid_reason": invalid_reason, "flagged": flagged,
+                 "flag_reason": flag_reason, "id": tid},
             )
 
     updated = {
@@ -1918,6 +1953,8 @@ def patch_staging_row(
         "invalid_reason": invalid_reason,
         "conflict":       row_dict.get("conflict", False),
         "conflict_detail": json.loads(row_dict["conflict_detail"]) if row_dict.get("conflict_detail") else None,
+        "flagged":        flagged,
+        "flag_reason":    flag_reason,
     }
     return updated
 
@@ -2270,11 +2307,13 @@ def fix_staging_ah(admin: AdminUser = Depends(require_admin)):
 
         is_valid = (20 <= new_ah <= 250)
         invalid_reason = None if is_valid else f"Ah out of range: {new_ah}"
+        flagged, flag_reason = _flag_staging_row(r.make_n, new_ah)
         with engine.begin() as conn:
             conn.execute(_text(
                 "UPDATE web_battery_staging SET ah=:ah, technology=:tech,"
-                " is_valid=:iv, invalid_reason=:ir WHERE id=:id"
-            ), {"ah": new_ah, "tech": new_tech, "iv": is_valid, "ir": invalid_reason, "id": r.id})
+                " is_valid=:iv, invalid_reason=:ir, flagged=:fl, flag_reason=:fr WHERE id=:id"
+            ), {"ah": new_ah, "tech": new_tech, "iv": is_valid, "ir": invalid_reason,
+                "fl": flagged, "fr": flag_reason, "id": r.id})
         fixed += 1
         time.sleep(REQUEST_DELAY)
 

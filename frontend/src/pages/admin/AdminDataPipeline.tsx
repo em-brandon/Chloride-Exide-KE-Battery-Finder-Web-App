@@ -162,7 +162,8 @@ function SummaryBadge({ label, value, color }: { label: string; value: string | 
 
 const PROVIDER_LABELS: Record<string, string> = {
   duckduckgo: 'DuckDuckGo',
-  google_cse: 'Google CSE',
+  brave:      'Brave',
+  searxng:    'SearXNG',
   tavily:     'Tavily',
 }
 
@@ -184,6 +185,13 @@ function QuotaCard({ info }: { info: QuotaInfo }) {
   const pct = info.pct_used
   const color = pct >= 90 ? R : pct >= 70 ? '#f59e0b' : '#22c55e'
   const limitLabel = info.quota_limit === -1 ? '∞' : info.quota_limit.toLocaleString()
+  const resetLabel = info.quota_limit === -1
+    ? null
+    : info.period_end === null
+      ? 'one-time balance — does not reset'
+      : info.days_until_reset != null
+        ? `resets in ${info.days_until_reset}d`
+        : null
   return (
     <div style={{ ...CARD, padding: '0.85rem 1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
@@ -199,6 +207,9 @@ function QuotaCard({ info }: { info: QuotaInfo }) {
         </span>
       </div>
       <QuotaBar pct={pct} quota_limit={info.quota_limit} />
+      {resetLabel && (
+        <div style={{ fontSize: '0.62rem', color: '#9ca3af', marginTop: 4 }}>{resetLabel}</div>
+      )}
     </div>
   )
 }
@@ -365,7 +376,7 @@ function WebValidateTab() {
 
   // Staging area state
   const [stagingInfo, setStagingInfo]             = useState<StagingAreaResponse | null>(null)
-  const [stagingFilter, setStagingFilter]         = useState<'all' | 'valid' | 'invalid' | 'conflicts'>('all')
+  const [stagingFilter, setStagingFilter]         = useState<'all' | 'valid' | 'invalid' | 'conflicts' | 'flagged'>('all')
   const [stagingPage, setStagingPage]             = useState(1)
   const [stagingLoading, setStagingLoading]       = useState(false)
   const [stagingToast, setStagingToast]           = useState<string | null>(null)
@@ -424,7 +435,7 @@ function WebValidateTab() {
     proceed: () => { const fn = pendingNavRef.current; setShowNavWarning(false); pendingNavRef.current = null; fn?.() },
   }
 
-  const fetchStagingArea = useCallback(async (filter: 'all' | 'valid' | 'invalid' | 'conflicts' = 'all', page = 1) => {
+  const fetchStagingArea = useCallback(async (filter: 'all' | 'valid' | 'invalid' | 'conflicts' | 'flagged' = 'all', page = 1) => {
     setStagingLoading(true)
     try {
       const s = await getStagingArea(page, 50, filter)
@@ -682,7 +693,7 @@ function WebValidateTab() {
     }
   }
 
-  async function handleStagingFilterChange(filter: 'all' | 'valid' | 'invalid' | 'conflicts') {
+  async function handleStagingFilterChange(filter: 'all' | 'valid' | 'invalid' | 'conflicts' | 'flagged') {
     setStagingFilter(filter)
     setStagingPage(1)
     await fetchStagingArea(filter, 1)
@@ -883,7 +894,7 @@ function WebValidateTab() {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.75rem 1rem' }}>
         <InformationCircleIcon style={{ width: 16, height: 16, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
         <p style={{ margin: 0, fontSize: '0.75rem', color: '#1d4ed8', lineHeight: 1.6 }}>
-          Looks up internet-accepted battery specs for each vehicle in the database. Phase 1 searches per 5-year generation bucket; provider chain: <strong>DuckDuckGo</strong> → <strong>Google CSE</strong> → <strong>Tavily</strong>. Results are saved to <code>web_battery_validation</code>. DuckDuckGo is always available (unlimited); Google CSE and Tavily have monthly quotas.
+          Looks up internet-accepted battery specs for each vehicle in the database. Phase 1 searches per 5-year generation bucket; provider chain: <strong>Brave</strong> → <strong>SearXNG</strong> → <strong>Tavily</strong> → <strong>DuckDuckGo</strong>. Results are saved to <code>web_battery_validation</code>. DuckDuckGo is always available (unlimited); Brave draws from a one-time prepaid balance, Tavily has a monthly quota, SearXNG (if configured) is unlimited.
         </p>
       </div>
 
@@ -894,7 +905,7 @@ function WebValidateTab() {
             Providers for this run
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
-            {(['duckduckgo', 'google_cse', 'tavily'] as const).map(p => {
+            {(['duckduckgo', 'brave', 'searxng', 'tavily'] as const).map(p => {
               const info             = providerInfo.find(pi => pi.provider === p)
               const isAlways         = info?.always_available ?? (p === 'duckduckgo')
               const isConfigured     = info?.configured ?? false
@@ -1319,6 +1330,7 @@ function WebValidateTab() {
                 { label: 'Valid', val: stagingInfo.valid_count, color: '#22c55e' },
                 { label: 'Invalid', val: stagingInfo.invalid_count, color: R },
                 { label: 'Conflicts', val: stagingInfo.conflict_count, color: '#f59e0b' },
+                { label: 'Flagged', val: stagingInfo.flagged_count, color: '#7c3aed' },
               ].map(({ label, val, color }) => val > 0 && (
                 <span key={label} style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--adm-card-bg)', border: '1px solid var(--adm-sep)', borderRadius: 99, padding: '0.2rem 0.6rem', color }}>
                   {val} {label}
@@ -1329,7 +1341,7 @@ function WebValidateTab() {
 
           {/* Filter tabs */}
           <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.75rem' }}>
-            {(['all', 'valid', 'invalid', 'conflicts'] as const).map(f => (
+            {(['all', 'valid', 'invalid', 'conflicts', 'flagged'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => handleStagingFilterChange(f)}
@@ -1368,7 +1380,7 @@ function WebValidateTab() {
                     <>
                       <tr key={`${row.make_n}-${row.model_n}-${row.year}`}
                         style={{
-                          background: !row.is_valid ? '#fff5f5' : row.conflict ? '#fffbeb' : i % 2 === 0 ? '#fff' : '#fffdf5',
+                          background: !row.is_valid ? '#fff5f5' : row.conflict ? '#fffbeb' : row.flagged ? '#f5f3ff' : i % 2 === 0 ? '#fff' : '#fffdf5',
                           borderBottom: '1px solid #fcd34d',
                         }}
                       >
@@ -1381,19 +1393,26 @@ function WebValidateTab() {
                         <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{row.technology ?? '—'}</td>
                         <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{row.source ? (PROVIDER_LABELS[row.source] ?? row.source) : '—'}</td>
                         <td style={{ padding: '0.5rem 0.75rem' }}>
-                          {!row.is_valid ? (
-                            <span title={row.invalid_reason ?? ''} style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fee2e2', color: R, borderRadius: 99, padding: '0.15rem 0.5rem', cursor: 'help' }}>
-                              Invalid
-                            </span>
-                          ) : row.conflict ? (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', borderRadius: 99, padding: '0.15rem 0.5rem' }}>
-                              Conflict
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '0.15rem 0.5rem' }}>
-                              Valid
-                            </span>
-                          )}
+                          <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                            {!row.is_valid ? (
+                              <span title={row.invalid_reason ?? ''} style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fee2e2', color: R, borderRadius: 99, padding: '0.15rem 0.5rem', cursor: 'help' }}>
+                                Invalid
+                              </span>
+                            ) : row.conflict ? (
+                              <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', borderRadius: 99, padding: '0.15rem 0.5rem' }}>
+                                Conflict
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.65rem', fontWeight: 700, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '0.15rem 0.5rem' }}>
+                                Valid
+                              </span>
+                            )}
+                            {row.flagged && (
+                              <span title={row.flag_reason ?? ''} style={{ fontSize: '0.65rem', fontWeight: 700, background: '#ede9fe', color: '#7c3aed', borderRadius: 99, padding: '0.15rem 0.5rem', cursor: 'help' }}>
+                                Review
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '0.5rem 0.75rem' }}>
                           <button
@@ -1411,6 +1430,18 @@ function WebValidateTab() {
                           </button>
                         </td>
                       </tr>
+                      {/* Flagged-for-review detail row */}
+                      {row.flagged && row.flag_reason && (
+                        <tr key={`${row.make_n}-${row.model_n}-${row.year}-flag`}
+                          style={{ background: '#f5f3ff', borderBottom: '1px solid #fcd34d' }}>
+                          <td colSpan={8} style={{ padding: '0.35rem 0.75rem 0.5rem 1.5rem' }}>
+                            <span style={{ fontSize: '0.68rem', color: '#6d28d9' }}>
+                              <span style={{ fontWeight: 700 }}>Flagged: </span>
+                              {row.flag_reason}
+                            </span>
+                          </td>
+                        </tr>
+                      )}
                       {/* Conflict detail row */}
                       {row.conflict && row.conflict_detail && (
                         <tr key={`${row.make_n}-${row.model_n}-${row.year}-conflict`}
@@ -1872,7 +1903,7 @@ function WebValidateTab() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.4rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
-              API Quota — {new Date().toISOString().slice(0, 7)}
+              API Quota
             </h3>
             <button
               onClick={handleRefreshQuotas}
@@ -1888,7 +1919,7 @@ function WebValidateTab() {
             </button>
           </div>
           <span style={{ fontSize: '0.65rem', color: '#9ca3af' }}>
-            Resets {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            Reset schedule varies by provider — see each card
           </span>
         </div>
 
@@ -1903,14 +1934,14 @@ function WebValidateTab() {
         {anyAtWarning && !allLimitedOut && (
           <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '0.6rem 0.85rem' }}>
             <ExclamationCircleIcon style={{ width: 15, height: 15, color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: '0.73rem', color: '#92400e' }}>One or more paid search providers are approaching their monthly quota. DuckDuckGo remains available as an unlimited fallback.</span>
+            <span style={{ fontSize: '0.73rem', color: '#92400e' }}>One or more paid search providers (Brave, Tavily) are approaching their quota limit. DuckDuckGo remains available as an unlimited fallback.</span>
           </div>
         )}
 
         {allLimitedOut && (
           <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#fff5f5', border: `1px solid ${R}`, borderRadius: 8, padding: '0.6rem 0.85rem' }}>
             <ExclamationCircleIcon style={{ width: 15, height: 15, color: R, flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: '0.73rem', color: '#7f1d1d' }}>Google CSE and Tavily quotas are exhausted. The pipeline will continue using DuckDuckGo (unlimited).</span>
+            <span style={{ fontSize: '0.73rem', color: '#7f1d1d' }}>Brave and Tavily quotas are exhausted. The pipeline will continue using DuckDuckGo (unlimited).</span>
           </div>
         )}
       </div>

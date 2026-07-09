@@ -435,7 +435,7 @@ export interface WebValidateStatus {
   not_found:        number
   current_provider: string | null
   current_combo:    string | null
-  provider_counts:  { duckduckgo: number; google_cse: number; tavily: number }
+  provider_counts:  { duckduckgo: number; brave: number; searxng: number; tavily: number }
   logs:              string[]
   started_at:        string | null
   phase1_total:      number
@@ -446,10 +446,12 @@ export interface WebValidateStatus {
 }
 
 export interface QuotaInfo {
-  provider:    string
-  calls_made:  number
-  quota_limit: number   // -1 = unlimited
-  pct_used:    number
+  provider:          string
+  calls_made:        number
+  quota_limit:       number   // -1 = unlimited
+  pct_used:          number
+  period_end:        string | null   // null = one-time prepaid balance, never auto-resets
+  days_until_reset:  number | null
 }
 
 export interface CoverageInfo {
@@ -608,6 +610,8 @@ export interface StagingRow {
   invalid_reason:  string | null
   conflict:        boolean
   conflict_detail: ConflictDetail | null
+  flagged:         boolean
+  flag_reason:     string | null
 }
 
 export interface StagingAreaResponse {
@@ -616,6 +620,7 @@ export interface StagingAreaResponse {
   valid_count:    number
   invalid_count:  number
   conflict_count: number
+  flagged_count:  number
   run_id:         string | null
   page:           number
   page_size:      number
@@ -640,7 +645,7 @@ export interface CommitStagingResult {
 export async function getStagingArea(
   page = 1,
   pageSize = 50,
-  filter: 'all' | 'valid' | 'invalid' | 'conflicts' = 'all',
+  filter: 'all' | 'valid' | 'invalid' | 'conflicts' | 'flagged' = 'all',
 ): Promise<StagingAreaResponse> {
   const params = new URLSearchParams({
     page: String(page),
