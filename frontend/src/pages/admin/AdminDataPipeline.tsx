@@ -1075,7 +1075,7 @@ function WebValidateTab() {
                 </div>
 
                 <div style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem',
+                  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem',
                   maxHeight: 340, overflowY: 'auto', padding: '0.15rem',
                 }}>
                   {filtered.length === 0 ? (
@@ -1086,13 +1086,13 @@ function WebValidateTab() {
                       <label
                         key={m.make}
                         style={{
-                          display: 'flex', flexDirection: 'column', gap: '0.4rem',
-                          padding: '0.5rem 0.75rem', borderRadius: 10, cursor: 'pointer',
+                          display: 'flex', flexDirection: 'column', gap: '0.3rem',
+                          padding: '0.4rem 0.55rem', borderRadius: 10, cursor: 'pointer',
                           background: isOn ? '#f0fdf4' : 'var(--adm-subtle-bg)',
                           border: `1px solid ${isOn ? '#bbf7d0' : 'var(--adm-card-border)'}`,
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <input
                             type="checkbox"
                             checked={isOn}
@@ -1108,10 +1108,10 @@ function WebValidateTab() {
                             alt=""
                             loading="lazy"
                             onError={e => { e.currentTarget.style.visibility = 'hidden' }}
-                            style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }}
+                            style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }}
                           />
-                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1 }}>{m.make}</span>
-                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#16a34a' }}>{m.pct_matched.toFixed(0)}%</span>
+                          <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.make}</span>
+                          <span style={{ fontSize: '0.64rem', fontWeight: 700, color: '#16a34a', flexShrink: 0 }}>{m.pct_matched.toFixed(0)}%</span>
                         </div>
                         <div style={{ width: '100%', background: '#e2e4e9', borderRadius: 99, height: 6, overflow: 'hidden' }}>
                           <div style={{
