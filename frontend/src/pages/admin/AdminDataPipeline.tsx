@@ -25,6 +25,7 @@ import {
   WrenchScrewdriverIcon,
   CircleStackIcon,
   PlusIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/20/solid'
 import AdminLayout from '@/components/admin/AdminLayout'
 import {
@@ -1293,7 +1294,26 @@ function WebValidateTab() {
           <span style={{ fontSize: '0.75rem', color: R }}>{actionError}</span>
         )}
 
-        {/* Clear Cache — pushed to the right */}
+        {/* Bucket count + explanation — pushed to the right, ahead of Clear Cache */}
+        <span style={{
+          marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem',
+          fontSize: '0.72rem', color: '#6b7280', whiteSpace: 'nowrap',
+        }}>
+          {(coverage?.web_cache_size ?? 0).toLocaleString()} buckets in cache
+          <QuestionMarkCircleIcon
+            style={{ width: 14, height: 14, color: '#9ca3af', cursor: 'help', flexShrink: 0 }}
+            title={
+              'A "bucket" is a 5-year model-year window (e.g. 2010–2014) for one make/model — '
+              + 'Phase 1 searches it once and reuses that result for every year inside it, to '
+              + 'conserve API quota. This count is the web_model_cache.json pre-fetch cache. '
+              + 'Clear Cache (below) does NOT clear it — that only clears final per-vehicle '
+              + 'results and the Phase 2 lookup cache, so already-fetched buckets are reused '
+              + 'on the next run.'
+            }
+          />
+        </span>
+
+        {/* Clear Cache */}
         <button
           onClick={handleCacheReset}
           disabled={isRunning || isPaused || loadingCacheReset}
@@ -1305,7 +1325,7 @@ function WebValidateTab() {
             border: '1px solid #e2e4e9', cursor: (isRunning || isPaused || loadingCacheReset) ? 'not-allowed' : 'pointer',
             background: 'var(--adm-card-bg)', color: 'var(--adm-text-2)',
             opacity: (isRunning || isPaused || loadingCacheReset) ? 0.5 : 1,
-            marginLeft: 'auto', whiteSpace: 'nowrap', transition: 'all 0.15s',
+            whiteSpace: 'nowrap', transition: 'all 0.15s',
           }}
         >
           <ArrowPathIcon style={{ width: 13, height: 13 }} />
