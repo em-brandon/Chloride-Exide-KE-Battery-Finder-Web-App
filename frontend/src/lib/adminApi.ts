@@ -436,6 +436,8 @@ export interface WebValidateStatus {
   current_provider: string | null
   current_combo:    string | null
   provider_counts:  { duckduckgo: number; brave: number; searxng: number; tavily: number }
+  enabled_providers: string[] | null
+  enabled_makes:     string[] | null
   logs:              string[]
   started_at:        string | null
   phase1_total:      number
@@ -468,6 +470,12 @@ export interface CoverageInfo {
     engine_cc:  number | null
     fuel_type:  string | null
   }>
+  by_make: Array<{
+    make:        string
+    total:       number
+    matched:     number
+    pct_matched: number
+  }>
   total_buckets:     number
   resolved_buckets:  number
   remaining_buckets: number
@@ -483,10 +491,15 @@ export interface ProviderInfo {
 export async function runWebValidatePipeline(
   enabledProviders?: string[],
   phase: 'phase1' | 'phase2' | 'both' = 'phase1',
+  enabledMakes?: string[],
 ): Promise<{ run_id: string }> {
   return adminFetch('/api/admin/pipeline/web-validate/run', {
     method: 'POST',
-    body: JSON.stringify({ enabled_providers: enabledProviders ?? null, phase }),
+    body: JSON.stringify({
+      enabled_providers: enabledProviders ?? null,
+      enabled_makes:     enabledMakes ?? null,
+      phase,
+    }),
   })
 }
 

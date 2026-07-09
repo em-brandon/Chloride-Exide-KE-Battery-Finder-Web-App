@@ -64,6 +64,7 @@ Full pinned list: [`backend/requirements.txt`](backend/requirements.txt).
 | Routing | [React Router v7](https://reactrouter.com/) |
 | Icons | [Lucide React](https://lucide.dev/) + [Heroicons](https://heroicons.com/) |
 | Country flags | [react-country-flag](https://www.npmjs.com/package/react-country-flag) — SVG flag icons in result card |
+| Car brand logos | [car-logos-dataset](https://github.com/filippofilip95/car-logos-dataset) (MIT) via [jsDelivr](https://www.jsdelivr.com/) GitHub CDN — make picker in the admin Web Validate tab |
 | Component variants | [class-variance-authority](https://cva.style/) + [clsx](https://github.com/lukeed/clsx) + [tailwind-merge](https://github.com/dcastil/tailwind-merge) |
 | PDF export | [jsPDF](https://github.com/parallax/jsPDF) + [jspdf-autotable](https://github.com/simonbengtsson/jsPDF-AutoTable) — admin battery catalogue PDF generation |
 | Linting | [ESLint 10](https://eslint.org/) + [typescript-eslint](https://typescript-eslint.io/) |

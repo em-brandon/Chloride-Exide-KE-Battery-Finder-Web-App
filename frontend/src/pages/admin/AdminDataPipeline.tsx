@@ -25,6 +25,7 @@ import {
   WrenchScrewdriverIcon,
   CircleStackIcon,
   PlusIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/20/solid'
 import AdminLayout from '@/components/admin/AdminLayout'
 import {
@@ -165,6 +166,25 @@ const PROVIDER_LABELS: Record<string, string> = {
   brave:      'Brave',
   searxng:    'SearXNG',
   tavily:     'Tavily',
+}
+
+// Car brand logos — served from filippofilip95/car-logos-dataset (MIT) via jsDelivr's
+// GitHub CDN. Most makes slugify cleanly (lowercase, spaces → hyphens); the exceptions
+// below either use a different slug in the dataset or don't exist there at all, in
+// which case we fall back to the closest parent-brand logo rather than showing nothing.
+const MAKE_LOGO_SLUG_OVERRIDES: Record<string, string> = {
+  'LANDROVER':        'land-rover',
+  'MARUTI SUZUKI':     'suzuki',            // dataset has no Maruti-specific logo
+  'MERCEDES':          'mercedes-benz',
+  'MITSUBISHI FUSO':   'mitsubishi',         // dataset has no Fuso-specific logo
+  'NISSAN DIESEL/UD':  'nissan',             // dataset has no UD Trucks logo
+  'SAIC MOTORS':       'saic-motor',
+}
+
+function makeLogoUrl(make: string): string {
+  const slug = MAKE_LOGO_SLUG_OVERRIDES[make.toUpperCase()]
+    ?? make.toLowerCase().trim().replace(/\//g, '-').replace(/\s+/g, '-')
+  return `https://cdn.jsdelivr.net/gh/filippofilip95/car-logos-dataset@master/logos/thumb/${slug}.png`
 }
 
 function QuotaBar({ pct, quota_limit }: { pct: number; quota_limit: number }) {
@@ -355,6 +375,10 @@ function WebValidateTab() {
   const [enabledProviders, setEnabledProviders] = useState<Set<string>>(
     new Set(['duckduckgo'])
   )
+  const [limitToMakes, setLimitToMakes]   = useState(false)
+  const [enabledMakes, setEnabledMakes]   = useState<Set<string>>(new Set())
+  const [makeFilterText, setMakeFilterText] = useState('')
+  const [showBucketInfo, setShowBucketInfo] = useState(false)
   const [actionError, setActionError]     = useState<string | null>(null)
   const [loadingRun, setLoadingRun]       = useState(false)
   const [loadingRunP2, setLoadingRunP2]   = useState(false)
@@ -614,7 +638,7 @@ function WebValidateTab() {
     setActionError(null)
     setLoadingRun(true)
     try {
-      await runWebValidatePipeline([...enabledProviders], 'phase1')
+      await runWebValidatePipeline([...enabledProviders], 'phase1', limitToMakes ? [...enabledMakes] : undefined)
       const s = await getWebValidateStatus()
       setStatus(s)
     } catch (e: unknown) {
@@ -628,7 +652,7 @@ function WebValidateTab() {
     setActionError(null)
     setLoadingRunP2(true)
     try {
-      await runWebValidatePipeline([...enabledProviders], 'phase2')
+      await runWebValidatePipeline([...enabledProviders], 'phase2', limitToMakes ? [...enabledMakes] : undefined)
       const s = await getWebValidateStatus()
       setStatus(s)
     } catch (e: unknown) {
@@ -789,6 +813,7 @@ function WebValidateTab() {
 
   const isRunning = status?.status === 'running'
   const isPaused  = status?.status === 'paused'
+  const makesBlocked = limitToMakes && enabledMakes.size === 0
   const isPhase1 = (status?.processed ?? 0) === 0 && (status?.phase1_total ?? 0) > 0
   const progressPct = isPhase1
     ? Math.round(((status?.phase1_processed ?? 0) / status!.phase1_total) * 100)
@@ -985,6 +1010,133 @@ function WebValidateTab() {
         </div>
       )}
 
+      {/* Make Selection — only shown when idle */}
+      {!isRunning && !isPaused && (
+        <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: limitToMakes ? '1rem' : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FunnelIcon style={{ width: 14, height: 14, color: 'rgba(107,114,128,0.8)' }} />
+              <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
+                Makes for this run
+              </h3>
+              {!limitToMakes && (
+                <span style={{ fontSize: '0.68rem', color: '#9ca3af' }}>— all {coverage?.by_make?.length ?? 0} makes</span>
+              )}
+            </div>
+            <button
+              onClick={() => setLimitToMakes(v => !v)}
+              title={limitToMakes ? 'Click to run against all makes' : 'Click to limit this run to specific makes'}
+              style={{
+                position: 'relative', width: 36, height: 20,
+                borderRadius: 99, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
+                background: limitToMakes ? '#22c55e' : '#d1d5db', transition: 'background 0.18s',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2, left: limitToMakes ? 18 : 2,
+                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+          </div>
+
+          {limitToMakes && (() => {
+            const allMakes = coverage?.by_make ?? []
+            const filtered = makeFilterText
+              ? allMakes.filter(m => m.make.includes(makeFilterText.toUpperCase()))
+              : allMakes
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                  <input
+                    value={makeFilterText}
+                    onChange={e => setMakeFilterText(e.target.value)}
+                    placeholder="Filter makes…"
+                    style={{
+                      padding: '0.35rem 0.65rem', borderRadius: 8,
+                      border: '1px solid var(--adm-input-border)',
+                      background: 'var(--adm-input-bg)', color: 'var(--adm-text-1)',
+                      fontSize: '0.78rem', width: 200, outline: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => setEnabledMakes(new Set(allMakes.map(m => m.make)))}
+                    style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0.4rem' }}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    onClick={() => setEnabledMakes(new Set())}
+                    style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0.4rem' }}
+                  >
+                    Clear
+                  </button>
+                  <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginLeft: 'auto' }}>
+                    {enabledMakes.size} selected
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem',
+                  maxHeight: 340, overflowY: 'auto', padding: '0.15rem',
+                }}>
+                  {filtered.length === 0 ? (
+                    <p style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.72rem', color: '#9ca3af' }}>No makes match "{makeFilterText}"</p>
+                  ) : filtered.map(m => {
+                    const isOn = enabledMakes.has(m.make)
+                    return (
+                      <label
+                        key={m.make}
+                        style={{
+                          display: 'flex', flexDirection: 'column', gap: '0.3rem',
+                          padding: '0.4rem 0.55rem', borderRadius: 10, cursor: 'pointer',
+                          background: isOn ? '#f0fdf4' : 'var(--adm-subtle-bg)',
+                          border: `1px solid ${isOn ? '#bbf7d0' : 'var(--adm-card-border)'}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={isOn}
+                            onChange={() => setEnabledMakes(prev => {
+                              const next = new Set(prev)
+                              if (next.has(m.make)) next.delete(m.make); else next.add(m.make)
+                              return next
+                            })}
+                            style={{ flexShrink: 0 }}
+                          />
+                          <img
+                            src={makeLogoUrl(m.make)}
+                            alt=""
+                            loading="lazy"
+                            onError={e => { e.currentTarget.style.visibility = 'hidden' }}
+                            style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }}
+                          />
+                          <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.make}</span>
+                          <span style={{ fontSize: '0.64rem', fontWeight: 700, color: '#16a34a', flexShrink: 0 }}>{m.pct_matched.toFixed(0)}%</span>
+                        </div>
+                        <div style={{ width: '100%', background: '#e2e4e9', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${Math.min(m.pct_matched, 100)}%`, background: '#22c55e',
+                            height: '100%', borderRadius: 99, transition: 'width 0.3s',
+                          }} />
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+
+                {makesBlocked && (
+                  <p style={{ margin: '0.6rem 0 0', fontSize: '0.7rem', color: R }}>
+                    Select at least one make to run, or turn off the toggle above to run against all makes.
+                  </p>
+                )}
+              </>
+            )
+          })()}
+        </div>
+      )}
+
       {/* Patience banner — shown after Stop is clicked while pipeline is still running */}
       {isStopping && isRunning && (
         <div style={{
@@ -998,6 +1150,13 @@ function WebValidateTab() {
         </div>
       )}
 
+      {/* Active make-scope summary */}
+      {!isRunning && !isPaused && limitToMakes && enabledMakes.size > 0 && (
+        <p style={{ margin: 0, fontSize: '0.72rem', color: '#6b7280' }}>
+          Scoped to {enabledMakes.size} make{enabledMakes.size === 1 ? '' : 's'}: {[...enabledMakes].sort().join(', ')}
+        </p>
+      )}
+
       {/* Run / Pause / Resume / Stop controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
         {!isRunning && !isPaused ? (
@@ -1008,14 +1167,20 @@ function WebValidateTab() {
           <>
             <button
               onClick={handleRun}
+              disabled={makesBlocked}
+              title={makesBlocked ? 'Select at least one make, or turn off "Limit to specific makes"' : undefined}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.45rem',
                 fontSize: '0.82rem', fontWeight: 700,
                 padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-                cursor: 'pointer', background: R, color: '#fff', transition: 'background 0.15s',
+                cursor: makesBlocked ? 'not-allowed' : 'pointer',
+                background: makesBlocked ? '#e2e4e9' : R,
+                color: makesBlocked ? '#9ca3af' : '#fff',
+                opacity: makesBlocked ? 0.7 : 1,
+                transition: 'background 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = RD }}
-              onMouseLeave={e => { e.currentTarget.style.background = R }}
+              onMouseEnter={e => { if (!makesBlocked) e.currentTarget.style.background = RD }}
+              onMouseLeave={e => { if (!makesBlocked) e.currentTarget.style.background = R }}
             >
               <PlayIcon style={{ width: 14, height: 14 }} />
               Run Phase 1
@@ -1024,14 +1189,20 @@ function WebValidateTab() {
             {(status?.phase1_total ?? 0) > 0 && (status?.processed ?? 0) === 0 && (
               <button
                 onClick={handleRunPhase2}
+                disabled={makesBlocked}
+                title={makesBlocked ? 'Select at least one make, or turn off "Limit to specific makes"' : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.45rem',
                   fontSize: '0.82rem', fontWeight: 700,
                   padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-                  cursor: 'pointer', background: '#3b82f6', color: '#fff', transition: 'background 0.15s',
+                  cursor: makesBlocked ? 'not-allowed' : 'pointer',
+                  background: makesBlocked ? '#e2e4e9' : '#3b82f6',
+                  color: makesBlocked ? '#9ca3af' : '#fff',
+                  opacity: makesBlocked ? 0.7 : 1,
+                  transition: 'background 0.15s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#2563eb' }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#3b82f6' }}
+                onMouseEnter={e => { if (!makesBlocked) e.currentTarget.style.background = '#2563eb' }}
+                onMouseLeave={e => { if (!makesBlocked) e.currentTarget.style.background = '#3b82f6' }}
               >
                 <PlayIcon style={{ width: 14, height: 14 }} />
                 Run Phase 2
@@ -1124,7 +1295,62 @@ function WebValidateTab() {
           <span style={{ fontSize: '0.75rem', color: R }}>{actionError}</span>
         )}
 
-        {/* Clear Cache — pushed to the right */}
+        {/* Bucket count + explanation — pushed to the right, ahead of Clear Cache */}
+        <span style={{
+          marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem',
+          fontSize: '0.72rem', color: '#6b7280', whiteSpace: 'nowrap',
+        }}>
+          {(coverage?.web_cache_size ?? 0).toLocaleString()} buckets in cache
+          <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setShowBucketInfo(v => !v)}
+              aria-label="What is a bucket?"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer',
+              }}
+            >
+              <QuestionMarkCircleIcon style={{ width: 14, height: 14, color: showBucketInfo ? '#6b7280' : '#9ca3af' }} />
+            </button>
+            {showBucketInfo && (
+              <>
+                <div
+                  onClick={() => setShowBucketInfo(false)}
+                  style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'transparent' }}
+                />
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: '0.4rem', zIndex: 41,
+                  width: 280, padding: '0.7rem 0.8rem', borderRadius: 10,
+                  background: 'var(--adm-card-bg)', border: '1px solid var(--adm-card-border)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                  fontSize: '0.72rem', fontWeight: 400, lineHeight: 1.5, color: 'var(--adm-text-2)',
+                  whiteSpace: 'normal', textAlign: 'left', cursor: 'default',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <strong style={{ color: 'var(--adm-text-1)', fontSize: '0.74rem' }}>What&apos;s a bucket?</strong>
+                    <button
+                      type="button"
+                      onClick={() => setShowBucketInfo(false)}
+                      aria-label="Close"
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#9ca3af', fontSize: '0.9rem', lineHeight: 1 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  A &quot;bucket&quot; is a 5-year model-year window (e.g. 2010–2014) for one make/model —
+                  Phase 1 searches it once and reuses that result for every year inside it, to
+                  conserve API quota. This count is the web_model_cache.json pre-fetch cache.
+                  Clear Cache (below) does NOT clear it — that only clears final per-vehicle
+                  results and the Phase 2 lookup cache, so already-fetched buckets are reused
+                  on the next run.
+                </div>
+              </>
+            )}
+          </span>
+        </span>
+
+        {/* Clear Cache */}
         <button
           onClick={handleCacheReset}
           disabled={isRunning || isPaused || loadingCacheReset}
@@ -1136,7 +1362,7 @@ function WebValidateTab() {
             border: '1px solid #e2e4e9', cursor: (isRunning || isPaused || loadingCacheReset) ? 'not-allowed' : 'pointer',
             background: 'var(--adm-card-bg)', color: 'var(--adm-text-2)',
             opacity: (isRunning || isPaused || loadingCacheReset) ? 0.5 : 1,
-            marginLeft: 'auto', whiteSpace: 'nowrap', transition: 'all 0.15s',
+            whiteSpace: 'nowrap', transition: 'all 0.15s',
           }}
         >
           <ArrowPathIcon style={{ width: 13, height: 13 }} />
