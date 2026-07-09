@@ -1593,6 +1593,16 @@ def get_web_validate_coverage(admin: AdminUser = Depends(require_admin)):
         .sort_values(["make_n", "model_n", "year"])
     )
 
+    # Per-make coverage breakdown — reuses the `merged` frame already built above
+    by_make_df = (
+        merged.groupby("make_n")
+        .agg(total=("_matched", "size"), matched=("_matched", lambda s: int(s.notna().sum())))
+        .reset_index()
+        .sort_values("make_n")
+    )
+    by_make_df["pct_matched"] = (by_make_df["matched"] / by_make_df["total"] * 100).round(1)
+    by_make = by_make_df.rename(columns={"make_n": "make"}).to_dict(orient="records")
+
     # Bucket counts (5-year generation windows)
     import json as _json
     veh["bucket"]       = (veh["year"] // 5) * 5
@@ -1624,6 +1634,7 @@ def get_web_validate_coverage(admin: AdminUser = Depends(require_admin)):
         "master_count":       master_count,
         "staging_count":      staging_count,
         "unmatched_vehicles": unmatched_df.astype(object).where(pd.notna(unmatched_df), None).to_dict(orient="records"),
+        "by_make":            by_make,
         "total_buckets":      total_buckets,
         "resolved_buckets":   resolved_buckets,
         "remaining_buckets":  total_buckets - resolved_buckets,
