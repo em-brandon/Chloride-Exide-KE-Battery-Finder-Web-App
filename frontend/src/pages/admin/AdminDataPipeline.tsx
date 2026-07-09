@@ -355,6 +355,9 @@ function WebValidateTab() {
   const [enabledProviders, setEnabledProviders] = useState<Set<string>>(
     new Set(['duckduckgo'])
   )
+  const [limitToMakes, setLimitToMakes]   = useState(false)
+  const [enabledMakes, setEnabledMakes]   = useState<Set<string>>(new Set())
+  const [makeFilterText, setMakeFilterText] = useState('')
   const [actionError, setActionError]     = useState<string | null>(null)
   const [loadingRun, setLoadingRun]       = useState(false)
   const [loadingRunP2, setLoadingRunP2]   = useState(false)
@@ -789,6 +792,7 @@ function WebValidateTab() {
 
   const isRunning = status?.status === 'running'
   const isPaused  = status?.status === 'paused'
+  const makesBlocked = limitToMakes && enabledMakes.size === 0
   const isPhase1 = (status?.processed ?? 0) === 0 && (status?.phase1_total ?? 0) > 0
   const progressPct = isPhase1
     ? Math.round(((status?.phase1_processed ?? 0) / status!.phase1_total) * 100)
@@ -982,6 +986,118 @@ function WebValidateTab() {
               Contact IT if default providers do not activate or for disabled providers.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Make Selection — only shown when idle */}
+      {!isRunning && !isPaused && (
+        <div style={{ ...CARD, padding: '1.25rem 1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: limitToMakes ? '1rem' : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FunnelIcon style={{ width: 14, height: 14, color: 'rgba(107,114,128,0.8)' }} />
+              <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
+                Makes for this run
+              </h3>
+              {!limitToMakes && (
+                <span style={{ fontSize: '0.68rem', color: '#9ca3af' }}>— all {coverage?.by_make?.length ?? 0} makes</span>
+              )}
+            </div>
+            <button
+              onClick={() => setLimitToMakes(v => !v)}
+              title={limitToMakes ? 'Click to run against all makes' : 'Click to limit this run to specific makes'}
+              style={{
+                position: 'relative', width: 36, height: 20,
+                borderRadius: 99, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
+                background: limitToMakes ? '#22c55e' : '#d1d5db', transition: 'background 0.18s',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2, left: limitToMakes ? 18 : 2,
+                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+          </div>
+
+          {limitToMakes && (() => {
+            const allMakes = coverage?.by_make ?? []
+            const filtered = makeFilterText
+              ? allMakes.filter(m => m.make.includes(makeFilterText.toUpperCase()))
+              : allMakes
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                  <input
+                    value={makeFilterText}
+                    onChange={e => setMakeFilterText(e.target.value)}
+                    placeholder="Filter makes…"
+                    style={{
+                      padding: '0.35rem 0.65rem', borderRadius: 8,
+                      border: '1px solid var(--adm-input-border)',
+                      background: 'var(--adm-input-bg)', color: 'var(--adm-text-1)',
+                      fontSize: '0.78rem', width: 200, outline: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => setEnabledMakes(new Set(allMakes.map(m => m.make)))}
+                    style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0.4rem' }}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    onClick={() => setEnabledMakes(new Set())}
+                    style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0.4rem' }}
+                  >
+                    Clear
+                  </button>
+                  <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginLeft: 'auto' }}>
+                    {enabledMakes.size} selected
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem',
+                  maxHeight: 260, overflowY: 'auto', padding: '0.15rem',
+                }}>
+                  {filtered.length === 0 ? (
+                    <p style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.72rem', color: '#9ca3af' }}>No makes match "{makeFilterText}"</p>
+                  ) : filtered.map(m => {
+                    const isOn = enabledMakes.has(m.make)
+                    return (
+                      <label
+                        key={m.make}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.4rem',
+                          padding: '0.35rem 0.5rem', borderRadius: 8, cursor: 'pointer',
+                          background: isOn ? '#f0fdf4' : 'var(--adm-subtle-bg)',
+                          border: `1px solid ${isOn ? '#bbf7d0' : 'var(--adm-card-border)'}`,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isOn}
+                          onChange={() => setEnabledMakes(prev => {
+                            const next = new Set(prev)
+                            if (next.has(m.make)) next.delete(m.make); else next.add(m.make)
+                            return next
+                          })}
+                          style={{ flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1 }}>{m.make}</span>
+                        <span style={{ fontSize: '0.62rem', color: '#9ca3af' }}>{m.pct_matched.toFixed(0)}%</span>
+                      </label>
+                    )
+                  })}
+                </div>
+
+                {makesBlocked && (
+                  <p style={{ margin: '0.6rem 0 0', fontSize: '0.7rem', color: R }}>
+                    Select at least one make to run, or turn off the toggle above to run against all makes.
+                  </p>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 
