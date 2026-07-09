@@ -1075,8 +1075,8 @@ function WebValidateTab() {
                 </div>
 
                 <div style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem',
-                  maxHeight: 260, overflowY: 'auto', padding: '0.15rem',
+                  display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem',
+                  maxHeight: 340, overflowY: 'auto', padding: '0.15rem',
                 }}>
                   {filtered.length === 0 ? (
                     <p style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.72rem', color: '#9ca3af' }}>No makes match "{makeFilterText}"</p>
@@ -1086,8 +1086,8 @@ function WebValidateTab() {
                       <label
                         key={m.make}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: '0.4rem',
-                          padding: '0.35rem 0.5rem', borderRadius: 8, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '0.6rem',
+                          padding: '0.5rem 0.75rem', borderRadius: 10, cursor: 'pointer',
                           background: isOn ? '#f0fdf4' : 'var(--adm-subtle-bg)',
                           border: `1px solid ${isOn ? '#bbf7d0' : 'var(--adm-card-border)'}`,
                         }}
@@ -1107,10 +1107,10 @@ function WebValidateTab() {
                           alt=""
                           loading="lazy"
                           onError={e => { e.currentTarget.style.visibility = 'hidden' }}
-                          style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
+                          style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }}
                         />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1 }}>{m.make}</span>
-                        <span style={{ fontSize: '0.62rem', color: '#9ca3af' }}>{m.pct_matched.toFixed(0)}%</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1 }}>{m.make}</span>
+                        <span style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{m.pct_matched.toFixed(0)}%</span>
                       </label>
                     )
                   })}
