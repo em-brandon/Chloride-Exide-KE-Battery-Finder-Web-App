@@ -121,6 +121,30 @@ export default function AdminCoverage() {
   const pct      = coverage ? coverage.pct_matched : 0
   const pctColor = pct > 80 ? '#15803d' : pct > 50 ? '#d97706' : '#CC0000'
 
+  // Coverage-by-make table state
+  const [makeSearch, setMakeSearch] = useState('')
+  const [makeSortBy, setMakeSortBy] = useState<'make' | 'total' | 'pct'>('pct')
+  const [makeSortAsc, setMakeSortAsc] = useState(true)
+
+  function toggleMakeSort(col: 'make' | 'total' | 'pct') {
+    if (makeSortBy === col) {
+      setMakeSortAsc(a => !a)
+    } else {
+      setMakeSortBy(col)
+      setMakeSortAsc(col === 'make')
+    }
+  }
+
+  const byMakeRows = (coverage?.by_make ?? [])
+    .filter(m => m.make.toLowerCase().includes(makeSearch.trim().toLowerCase()))
+    .slice()
+    .sort((a, b) => {
+      const dir = makeSortAsc ? 1 : -1
+      if (makeSortBy === 'make')  return a.make.localeCompare(b.make) * dir
+      if (makeSortBy === 'total') return (a.total - b.total) * dir
+      return (a.pct_matched - b.pct_matched) * dir
+    })
+
   return (
     <AdminLayout>
       {loading && (
@@ -208,6 +232,82 @@ export default function AdminCoverage() {
                   <div style={{ fontSize: '0.7rem', color: 'var(--adm-text-2)', marginTop: 4 }}>{s.label}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Coverage by Make */}
+        {coverage && (
+          <div style={{
+            background: 'var(--adm-card-bg)', border: '1px solid var(--adm-card-border)',
+            borderRadius: 14, boxShadow: 'var(--adm-card-shadow)', overflow: 'hidden',
+          }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--adm-sep)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--adm-text-1)' }}>Coverage by Make</span>
+              <input
+                value={makeSearch}
+                onChange={e => setMakeSearch(e.target.value)}
+                placeholder="Search make…"
+                style={{
+                  padding: '0.4rem 0.75rem', borderRadius: 8,
+                  border: '1px solid var(--adm-input-border)',
+                  background: 'var(--adm-input-bg)',
+                  color: 'var(--adm-text-1)',
+                  fontSize: '0.8rem', width: 200, outline: 'none',
+                }}
+              />
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--adm-thead-bg)' }}>
+                    {([
+                      ['make', 'Make'], ['total', 'Total Combos'], ['pct', 'Coverage'],
+                    ] as const).map(([col, label]) => (
+                      <th
+                        key={col}
+                        onClick={() => toggleMakeSort(col)}
+                        style={{
+                          padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700,
+                          color: 'var(--adm-text-2)', borderBottom: '1px solid var(--adm-sep)',
+                          whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none',
+                        }}
+                      >
+                        {label}{makeSortBy === col ? (makeSortAsc ? ' ▲' : ' ▼') : ''}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {byMakeRows.length === 0 && (
+                    <tr><td colSpan={3} style={{ padding: '2rem', textAlign: 'center', color: 'var(--adm-text-2)' }}>
+                      {makeSearch ? 'No matches found.' : 'No coverage data yet.'}
+                    </td></tr>
+                  )}
+                  {byMakeRows.map((m, i) => {
+                    const color = m.pct_matched > 80 ? '#15803d' : m.pct_matched > 50 ? '#d97706' : '#CC0000'
+                    return (
+                      <tr key={m.make} style={{
+                        background: i % 2 === 0 ? 'transparent' : 'var(--adm-faint-bg)',
+                        borderBottom: '1px solid var(--adm-row-border)',
+                      }}>
+                        <td style={{ padding: '0.45rem 0.75rem', color: 'var(--adm-text-1)', fontWeight: 600 }}>{m.make}</td>
+                        <td style={{ padding: '0.45rem 0.75rem', color: 'var(--adm-text-2)' }}>
+                          {m.matched.toLocaleString()} / {m.total.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '0.45rem 0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ width: 80, background: 'var(--adm-subtle-bg)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.min(m.pct_matched, 100)}%`, background: color, height: '100%', borderRadius: 99 }} />
+                            </div>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color, minWidth: 40 }}>{m.pct_matched.toFixed(1)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
