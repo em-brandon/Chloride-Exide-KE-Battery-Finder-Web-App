@@ -617,7 +617,7 @@ function WebValidateTab() {
     setActionError(null)
     setLoadingRun(true)
     try {
-      await runWebValidatePipeline([...enabledProviders], 'phase1')
+      await runWebValidatePipeline([...enabledProviders], 'phase1', limitToMakes ? [...enabledMakes] : undefined)
       const s = await getWebValidateStatus()
       setStatus(s)
     } catch (e: unknown) {
@@ -631,7 +631,7 @@ function WebValidateTab() {
     setActionError(null)
     setLoadingRunP2(true)
     try {
-      await runWebValidatePipeline([...enabledProviders], 'phase2')
+      await runWebValidatePipeline([...enabledProviders], 'phase2', limitToMakes ? [...enabledMakes] : undefined)
       const s = await getWebValidateStatus()
       setStatus(s)
     } catch (e: unknown) {
@@ -1114,6 +1114,13 @@ function WebValidateTab() {
         </div>
       )}
 
+      {/* Active make-scope summary */}
+      {!isRunning && !isPaused && limitToMakes && enabledMakes.size > 0 && (
+        <p style={{ margin: 0, fontSize: '0.72rem', color: '#6b7280' }}>
+          Scoped to {enabledMakes.size} make{enabledMakes.size === 1 ? '' : 's'}: {[...enabledMakes].sort().join(', ')}
+        </p>
+      )}
+
       {/* Run / Pause / Resume / Stop controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
         {!isRunning && !isPaused ? (
@@ -1124,14 +1131,20 @@ function WebValidateTab() {
           <>
             <button
               onClick={handleRun}
+              disabled={makesBlocked}
+              title={makesBlocked ? 'Select at least one make, or turn off "Limit to specific makes"' : undefined}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.45rem',
                 fontSize: '0.82rem', fontWeight: 700,
                 padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-                cursor: 'pointer', background: R, color: '#fff', transition: 'background 0.15s',
+                cursor: makesBlocked ? 'not-allowed' : 'pointer',
+                background: makesBlocked ? '#e2e4e9' : R,
+                color: makesBlocked ? '#9ca3af' : '#fff',
+                opacity: makesBlocked ? 0.7 : 1,
+                transition: 'background 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = RD }}
-              onMouseLeave={e => { e.currentTarget.style.background = R }}
+              onMouseEnter={e => { if (!makesBlocked) e.currentTarget.style.background = RD }}
+              onMouseLeave={e => { if (!makesBlocked) e.currentTarget.style.background = R }}
             >
               <PlayIcon style={{ width: 14, height: 14 }} />
               Run Phase 1
@@ -1140,14 +1153,20 @@ function WebValidateTab() {
             {(status?.phase1_total ?? 0) > 0 && (status?.processed ?? 0) === 0 && (
               <button
                 onClick={handleRunPhase2}
+                disabled={makesBlocked}
+                title={makesBlocked ? 'Select at least one make, or turn off "Limit to specific makes"' : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.45rem',
                   fontSize: '0.82rem', fontWeight: 700,
                   padding: '0.65rem 1.35rem', borderRadius: 10, border: 'none',
-                  cursor: 'pointer', background: '#3b82f6', color: '#fff', transition: 'background 0.15s',
+                  cursor: makesBlocked ? 'not-allowed' : 'pointer',
+                  background: makesBlocked ? '#e2e4e9' : '#3b82f6',
+                  color: makesBlocked ? '#9ca3af' : '#fff',
+                  opacity: makesBlocked ? 0.7 : 1,
+                  transition: 'background 0.15s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#2563eb' }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#3b82f6' }}
+                onMouseEnter={e => { if (!makesBlocked) e.currentTarget.style.background = '#2563eb' }}
+                onMouseLeave={e => { if (!makesBlocked) e.currentTarget.style.background = '#3b82f6' }}
               >
                 <PlayIcon style={{ width: 14, height: 14 }} />
                 Run Phase 2
