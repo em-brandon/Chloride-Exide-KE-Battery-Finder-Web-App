@@ -177,32 +177,51 @@ def _build_search_query(make: str, model: str, year: int) -> str:
 # Ah / technology parsers
 # ---------------------------------------------------------------------------
 
-_AH_RE  = re.compile(r"\b(\d{2,3})\s*(?:[Aa][Hh]|[Aa]mpere[- ]?[Hh]ours?)\b")
-_AGM_RE = re.compile(r"\bAGM\b", re.IGNORECASE)
-_EFB_RE = re.compile(r"\bEFB\b", re.IGNORECASE)
-_NS_RE  = re.compile(r"\bNS\b",  re.IGNORECASE)
-_DIN_RE = re.compile(r"\bDIN\b", re.IGNORECASE)
+_AH_RE      = re.compile(r"\b(\d{2,3})\s*(?:[Aa][Hh]|[Aa]mpere[- ]?[Hh]ours?)\b")
+_AGM_RE     = re.compile(r"\bAGM\b", re.IGNORECASE)
+_EFB_RE     = re.compile(r"\bEFB\b", re.IGNORECASE)
+_NS_RE      = re.compile(r"\bNS\b",  re.IGNORECASE)
+_DIN_RE     = re.compile(r"\bDIN\b", re.IGNORECASE)
+_LITHIUM_RE = re.compile(r"\b(lithium|lifepo4|li-?ion)\b", re.IGNORECASE)
 
 
-def _parse_text(raw: str) -> dict | None:
-    """Extract battery specs from free text. Returns dict or None."""
-    ah_hits = _AH_RE.findall(raw)
-    if not ah_hits:
+def _parse_snippets(snippets: list[str]) -> dict | None:
+    """
+    Extract battery specs from an ordered list of search-result snippets
+    (title + description/body per result, in the relevance order the
+    provider returned them).
+
+    An Ah figure is scored by how many *distinct* results mention it, not
+    by raw regex-hit count in one combined blob — otherwise a single wordy
+    result repeating a number outweighs two independent results that
+    agree. Snippets describing lithium/LiFePO4 batteries are skipped
+    entirely: their Ah ratings use a different capacity convention than
+    the lead-acid MF/AGM/EFB catalog this app matches against, so mixing
+    them in would silently corrupt the vote. Ties are broken by preferring
+    the value seen in the highest-ranked (earliest) result, which is
+    deterministic — unlike relying on Python's set-iteration order.
+    """
+    votes: dict[int, int] = {}
+    first_rank: dict[int, int] = {}
+    has_agm = has_efb = has_ns = has_din = False
+
+    for rank, snippet in enumerate(snippets):
+        if not snippet or not snippet.strip() or _LITHIUM_RE.search(snippet):
+            continue
+        for ah in set(int(m) for m in _AH_RE.findall(snippet)):
+            votes[ah] = votes.get(ah, 0) + 1
+            first_rank.setdefault(ah, rank)
+        has_agm = has_agm or bool(_AGM_RE.search(snippet))
+        has_efb = has_efb or bool(_EFB_RE.search(snippet))
+        has_ns  = has_ns  or bool(_NS_RE.search(snippet))
+        has_din = has_din or bool(_DIN_RE.search(snippet))
+
+    if not votes:
         return None
 
-    ah = int(max(set(ah_hits), key=ah_hits.count))
-
-    tech = "MF"
-    if _AGM_RE.search(raw):
-        tech = "AGM"
-    elif _EFB_RE.search(raw):
-        tech = "EFB"
-
-    region = None
-    if _NS_RE.search(raw):
-        region = "NS"
-    elif _DIN_RE.search(raw):
-        region = "DIN"
+    ah = max(votes, key=lambda a: (votes[a], -first_rank[a]))
+    tech = "AGM" if has_agm else "EFB" if has_efb else "MF"
+    region = "NS" if has_ns else "DIN" if has_din else None
 
     return {"ah": ah, "technology": tech, "region": region}
 
@@ -278,10 +297,8 @@ def _duckduckgo_lookup(make: str, model: str, year: int, cancel_event: threading
                     # Empty results = silent throttle — back off before next query
                     _interruptible_sleep(DDG_REQUEST_DELAY, cancel_event)
                     continue
-                combined = " ".join(
-                    (r.get("title", "") + " " + r.get("body", "")) for r in results
-                )
-                parsed = _parse_text(combined)
+                snippets = [r.get("title", "") + " " + r.get("body", "") for r in results]
+                parsed = _parse_snippets(snippets)
                 if parsed:
                     return parsed
                 _interruptible_sleep(DDG_REQUEST_DELAY, cancel_event)
@@ -316,11 +333,9 @@ def _searxng_lookup(make: str, model: str, year: int, cancel_event: threading.Ev
         )
         if not resp.ok:
             return None
-        results = resp.json().get("results", [])
-        combined = " ".join(
-            (r.get("title", "") + " " + r.get("content", "")) for r in results[:5]
-        )
-        return _parse_text(combined) if combined.strip() else None
+        results = resp.json().get("results", [])[:5]
+        snippets = [r.get("title", "") + " " + r.get("content", "") for r in results]
+        return _parse_snippets(snippets)
     except Exception as exc:
         err = str(exc).lower()
         if any(k in err for k in (
@@ -358,10 +373,8 @@ def _brave_lookup(make: str, model: str, year: int, cancel_event: threading.Even
             if not resp.ok:
                 return None
             results = resp.json().get("web", {}).get("results", [])
-            combined = " ".join(
-                (r.get("title", "") + " " + r.get("description", "")) for r in results
-            )
-            return _parse_text(combined) if combined.strip() else None
+            snippets = [r.get("title", "") + " " + r.get("description", "") for r in results]
+            return _parse_snippets(snippets)
         except Exception as exc:
             err = str(exc).lower()
             if any(k in err for k in (
@@ -382,8 +395,8 @@ def _tavily_lookup(make: str, model: str, year: int, cancel_event: threading.Eve
     try:
         from tavily import TavilyClient
         results = TavilyClient(api_key=TAVILY_API_KEY).search(query, max_results=5)
-        combined = " ".join(r.get("content", "") for r in results.get("results", []))
-        return _parse_text(combined) if combined.strip() else None
+        snippets = [r.get("content", "") for r in results.get("results", [])]
+        return _parse_snippets(snippets)
     except Exception as exc:
         err = str(exc).lower()
         if any(k in err for k in (
@@ -403,12 +416,24 @@ def _current_month() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
+_ONE_TIME_QUOTA_PROVIDERS = {"brave"}  # prepaid credit balance — never auto-resets
+
+
 def _ensure_quota_row(eng, provider: str) -> None:
-    """Create an active 30-day quota row for *provider* if none exists."""
+    """
+    Create an active quota row for *provider* if none exists.
+
+    Most providers (tavily, etc.) get a rolling 30-day window matching their
+    recurring monthly free-tier allowance. Providers in _ONE_TIME_QUOTA_PROVIDERS
+    (brave) instead get period_end=NULL — a single quota row that accumulates
+    calls_made forever and never resets, since brave is billed against a
+    prepaid credit balance rather than a monthly free quota; once quota_limit
+    is hit it stays hit until someone raises it after topping up credit.
+    """
     quota_limit = _PROVIDER_DEFAULT_QUOTA.get(provider, -1)
     now = datetime.now(timezone.utc)
     month = now.strftime("%Y-%m")
-    period_end = now + timedelta(days=30)
+    period_end = None if provider in _ONE_TIME_QUOTA_PROVIDERS else now + timedelta(days=30)
     with eng.begin() as conn:
         conn.execute(text("""
             INSERT INTO api_usage_quota
