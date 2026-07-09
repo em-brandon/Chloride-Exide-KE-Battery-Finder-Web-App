@@ -27743,5 +27743,880 @@
     "ah": 72,
     "technology": "AGM",
     "region": null
+  },
+  "HONDA|ACCORD E:HEV|2020": {
+    "ah": 38,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|1975": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|1980": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|1985": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|1990": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|1995": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER|1975": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER|1980": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|1975": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|1980": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|1985": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK LIFTER V|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK SDX|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ACTY TRUCK SDX|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC|2015": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CIVIC E:HEV EX|2025": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CLARITY PHEV EX|2015": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|CR V E\"HEV EX MASTERPIECE|1995": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CR V E\"HEV EX MASTERPIECE|2000": {
+    "ah": 42,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CR V E\"HEV EX MASTERPIECE|2005": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CR V E\"HEV EX MASTERPIECE|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CR V E\"HEV EX MASTERPIECE|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CR V HYBRID EX|1995": {
+    "ah": 52,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CIVIC SEDAN|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|CR V HYBRID EX|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|FIT 13 G.F|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT HYBRID MODULE|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT HYBRID S|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FIT HYBRID S|2020": {
+    "ah": 35,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FREED E:HEV AIR EX|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FREED E:HEV CROSSTAR SLOPE|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FREED HYBRID G|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|FREED+ HYBRID G|2015": {
+    "ah": 45,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|JADE HYBRID X|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID EX|1995": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|LEGEND HYBRID EX|2020": {
+    "ah": 25,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX CUSTOM SLOPE|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX CUSTOM SLOPE|2015": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX EX|1975": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX EX|1980": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX EX|1985": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX G|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX G EX TURBO|1975": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX G EX TURBO|1980": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX G EX TURBO|1985": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX G SLOPE L|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX G.L|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX G.L|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX JOY TURBO|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX JOY TURBO|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N BOX SLASH G|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX SLASH X|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N BOX SLASH X|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N ONE MODULO X|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N ONE PREMIUM TOURER|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N WGN C|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N WGN CUSTOM G.L|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|N WGN E:HEV HOME|1995": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|N WGN L HONDA SENSING|1970": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY ABSOLUTE X|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY ABSOLUTE X|2005": {
+    "ah": 44,
+    "technology": "AGM",
+    "region": "NS"
+  },
+  "HONDA|ODSSEY ABSOLUTE X|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY ABSOLUTE X|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY ABSOLUTE X|2025": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY ABSOLUTE X|2020": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY G|1995": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY G|2005": {
+    "ah": 44,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY HYBRID ABSOLUTE SENSING EX|1995": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY HYBRID ABSOLUTE SENSING EX|2010": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY HYBRID ABSOLUTE SENSING EX|2015": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY HYBRID ABSOLUTE SENSING EX|2020": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODSSEY HYBRID ABSOLUTE SENSING EX|2025": {
+    "ah": 72,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID|2020": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID ABSOLUTE|1990": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID ABSOLUTE|1995": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID ABSOLUTE|2000": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID ABSOLUTE EX|1990": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID ABSOLUTE EX|1995": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ODYSSEY HYBRID ABSOLUTE EX|2000": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|SHUTTLEG SENSING (FF)|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|STEP WGN E:HEV SPADA|1995": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|STEP WGN G EX|1995": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|STEP WGN G. HONDA SENSING|1970": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|STEP WGN SPADA|1995": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL E:HEV Z|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID MODULO X SENSING|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID RS|2000": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID RS|2005": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID RS|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID RS|2015": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID RS HONDA SENSING|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID RS HONDA SENSING|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID SENSING|2000": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID SENSING|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID SENSING|2005": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID X SENSING|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID SENSING|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID X SENSING|2005": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID X SENSING|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID X SENSING|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID Z SENSING|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID Z SENSING|2005": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID Z SENSING|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL HYBRID Z SENSING|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL SPECIAL EDITION HYBRID X SENSING BRILLIANT STYLE EDITION|2000": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL SPECIAL EDITION HYBRID X SENSING BRILLIANT STYLE EDITION|2005": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL SPECIAL EDITION HYBRID X SENSING BRILLIANT STYLE EDITION|2010": {
+    "ah": 200,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|VEZEL TOURING SENSING|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|VEZEL TOURING SENSING|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|VEZEL TOURING SENSING|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "HONDA|WR V Z+|2005": {
+    "ah": 45,
+    "technology": "AGM",
+    "region": null
+  },
+  "HONDA|ZR V E:HEV|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "DODGE|CHARENGER|1955": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|CHARENGER|1965": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|CHARENGER|1975": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|CHARENGER|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|DURANGO R/T|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|DURANGO R/T 20 TH ANNIVERSARY PLUS|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DODGE|DURANGO R/T 20 TH ANNIVERSARY PREMIUM|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DODGE|DURANGO R/T PLUS|2000": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|DURANGO R/T PLUS|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "DODGE|DURANGO R/T PLUS|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "DODGE|DURANGO SRT 392 PREMIUM|2015": {
+    "ah": 48,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|CARNIVAL|2010": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|CARNIVAL|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|OPTIMA|2000": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|OPTIMA|2010": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|OPTIMA|2020": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|RIO|2005": {
+    "ah": 55,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "KIA|SOUL|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|SOUL|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|SPORTAGE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "KIA|SPORTAGE|2020": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "KIA|STINGER|2015": {
+    "ah": 90,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX EX (4 WD)|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX BLADE|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX BLADE|2000": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX EX (4 WD)|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX LS M (4 WD)|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX LS M HI RIDE (4 WD)|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX LS T (4 WD)|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX LS T HIGH RIDE (2 WD)|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX LS U (2 WD)|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX LS U (2 WD)|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX LS U (2 WD) HIGH RIDE|2000": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX LS U (4 WD)|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX LS U HI RIDE (2 WD)|2000": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX LS U HI RIDE (2 WD)|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX LS U+ (4 WD)|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX SX (2 WD)|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX SX (2 WD)|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX SX (2 WD) HIGH RIDE|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX SX (2 WD) HIGH RIDE|2005": {
+    "ah": 95,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|D MAX SX (4 WD)|2000": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX SX (4 WD)|2005": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX SX LOW RIDE (2 WD)|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX SX LOW RIDE (2 WD)|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX X RUNNER LTD ED (4 WD)|1995": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX X RUNNER LTD ED (4 WD)|2000": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX X RUNNER LTD ED (4 WD)|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|D MAX X RUNNER LTD ED (4 WD)|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ISUZU|FSD 140/120 260 (LWB)|2005": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
+  },
+  "ISUZU|FSD 140/120 260 (LWB) AW|2005": {
+    "ah": 55,
+    "technology": "MF",
+    "region": null
   }
 }
