@@ -167,10 +167,26 @@ def _base_model_for_search(model: str) -> str:
     return result if result else model
 
 
+def _build_query(make: str, model: str, tail: str) -> str:
+    """
+    Build a search query, truncating only the trim-name portion when the
+    full string would exceed _SEARCH_QUERY_MAX_LEN — never the trailing
+    `tail` (year + keyword suffix). A few real trim names (option-list-laden
+    Toyota/Jeep model strings) are long enough that naively truncating the
+    assembled string cuts into "car battery AH specifications" itself,
+    chopping the very keywords that signal battery-spec intent to the
+    search engine.
+    """
+    make = _sanitize_search_term(make)
+    base_model = _sanitize_search_term(_base_model_for_search(model))
+    budget = _SEARCH_QUERY_MAX_LEN - len(make) - len(tail) - 2  # 2 separating spaces
+    if budget < len(base_model):
+        base_model = base_model[:max(budget, 0)].strip()
+    return f"{make} {base_model} {tail}".strip()
+
+
 def _build_search_query(make: str, model: str, year: int) -> str:
-    base_model = _base_model_for_search(model)
-    raw = f"{make} {base_model} {year} car battery AH specifications"
-    return _sanitize_search_term(raw)
+    return _build_query(make, model, f"{year} car battery AH specifications")
 
 
 # ---------------------------------------------------------------------------
@@ -285,8 +301,8 @@ def _duckduckgo_lookup(make: str, model: str, year: int, cancel_event: threading
     from ddgs import DDGS
     queries = [
         _build_search_query(make, model, year),
-        _sanitize_search_term(f"{make} {_base_model_for_search(model)} battery capacity ampere hours"),
-        _sanitize_search_term(f"{make} {_base_model_for_search(model)} 12V battery technical specifications"),
+        _build_query(make, model, "battery capacity ampere hours"),
+        _build_query(make, model, "12V battery technical specifications"),
     ]
     for attempt in range(3):
         try:
