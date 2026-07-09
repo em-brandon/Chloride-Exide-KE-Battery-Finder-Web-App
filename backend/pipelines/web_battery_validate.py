@@ -713,6 +713,8 @@ def main(
         _em = {m.upper().strip() for m in enabled_makes}
         combos = combos[combos["make_n"].isin(_em)]
         _log(f"  [CONFIG] scoped to {len(_em)} make(s): {', '.join(sorted(_em))} — {len(combos)} combos remain")
+    else:
+        _log(f"  [CONFIG] all makes selected — {combos['make_n'].nunique()} make(s), {len(combos)} combos")
 
     try:
         existing = pd.read_sql(
