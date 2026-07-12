@@ -28618,5 +28618,2950 @@
     "ah": 55,
     "technology": "MF",
     "region": null
+  },
+  "PEUGEOT|2008|1995": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008|1985": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008|1990": {
+    "ah": 59,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008|2000": {
+    "ah": 59,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 ALLURE|2005": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008 ALLURE|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008 ALLURE|2015": {
+    "ah": 59,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008 GT|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008 GT|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008 GT|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 ALLURE|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI DEBUT EDITION|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI DEBUT EDITION|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI DEBUT EDITION|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT BLUE HDI DEBUT EDITION|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT DEBUT EDITION|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT DEBUT EDITION|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT DEBUT EDITION|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT DRIVE EDITION|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT DRIVE EDITION|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT DRIVE EDITION|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|2008 GT LINE|2005": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT LINE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT LINE|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT LINE BLACK PACK|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT LINE BLACK PACK|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT LINE BLACK PACK|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT PACK BLUE HDI|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT PACK BLUE HDI|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT PACK BLUE HDI|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT PACK BLUE HDI|2020": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|2008 GT LINE|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE CIELO PACKAGE|2005": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE CIELO PACKAGE|2010": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE CIELO PACKAGE|2015": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE CIELO PACKAGE|2020": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE FUN EDITION|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE FUN EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 ALLURE FUN EDITION|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 GT|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT|1990": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT|1995": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT|2000": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT|2015": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT LINE|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT LINE|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT LINE|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT LINE|2000": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT LINE|2005": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT LINE|2010": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 GT LINE|2015": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 STYLE|1985": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 STYLE|1990": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 STYLE|1995": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 STYLE|2000": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 STYLE|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 STYLE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 STYLE|2015": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PEUGEOT|208 TECH PACK EDITION|2005": {
+    "ah": 62,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 TECH PACK EDITION|2010": {
+    "ah": 47,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|208 TECH PACK EDITION|2015": {
+    "ah": 62,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|208 TECH PACK EDITION|2020": {
+    "ah": 62,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|3008|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE 1.6 THP|2005": {
+    "ah": 59,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE 1.6 THP|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE 1.6 THP|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE 1.6 THP|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE LED PACKAGE|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE LED PACKAGE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE LED PACKAGE|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 ALLURE LED PACKAGE|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI CLEAN EDITION|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI CLEAN EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI CLEAN EDITION|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI CLEAN EDITION|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI SPECIAL EDITION|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI SPECIAL EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI SPECIAL EDITION|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 BLUE HDI SPECIAL EDITION|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI|1985": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI|2000": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI BLACK PACK|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI BLACK PACK|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI BLACK PACK|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI BLACK PACK|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI BLACK PACK|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI BLACK PACK|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI BLACK PACK|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI RED NAPPA|1985": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI RED NAPPA|1990": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI RED NAPPA|1995": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI RED NAPPA|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI RED NAPPA|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI RED NAPPA|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT BLUE HDI RED NAPPA|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT EXECUTIVE EDITION|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT EXECUTIVE EDITION|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT EXECUTIVE EDITION|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT EXECUTIVE EDITION|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT EXECUTIVE EDITION|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT EXECUTIVE EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT EXECUTIVE EDITION|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT HYBRID 4|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT HYBRID 4|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT HYBRID 4|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT HYBRID 4|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT HYBRID 4|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT HYBRID 4|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT LINE|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT HYBRID 4|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT LINE|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT LINE|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT LINE|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT LINE|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT LINE|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT LINE|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT SPORT 1.6 THP|1985": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|3008 GT SPORT 1.6 THP|1995": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|3008 GT SPORT 1.6 THP|1990": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|3008 GT SPORT 1.6 THP|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|3008 GT SPORT 1.6 THP|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT SPORT 1.6 THP|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|3008 GT SPORT 1.6 THP|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PEUGEOT|308|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI|2010": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI SPECIAL EDITION|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI SPECIAL EDITION|2010": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI SPECIAL EDITION|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 ALLURE BLUE HDI SPECIAL EDITION|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT BLUE HDI|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT BLUE HDI|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT BLUE HDI|2015": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT BLUE HDI|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID|2005": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID|2015": {
+    "ah": 60,
+    "technology": "EFB",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID|2020": {
+    "ah": 60,
+    "technology": "EFB",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID SPECIAL EDITION|2005": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID SPECIAL EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID SPECIAL EDITION|2015": {
+    "ah": 50,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|308 GT HYBRID SPECIAL EDITION|2020": {
+    "ah": 60,
+    "technology": "EFB",
+    "region": null
+  },
+  "PEUGEOT|308 GT PREMIUM|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT PREMIUM|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT PREMIUM|2015": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT PREMIUM|2020": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT PURETECH EDITION|2005": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT PURETECH EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT PURETECH EDITION|2015": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GT PURETECH EDITION|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GTI BY SPORT|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GTI BY SPORT|2005": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GTI BY SPORT|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 GTI BY SPORT|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE BLUE HDI|2005": {
+    "ah": 71,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE BLUE HDI|2010": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE BLUE HDI|2015": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE BLUE HDI|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE SPECIAL EDITION|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE SPECIAL EDITION|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE SPECIAL EDITION|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ALLURE SPECIAL EDITION|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT BLUE HDI|2010": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT BLUE HDI|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT BLUE HDI|2015": {
+    "ah": 71,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT HYBRID|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT BLUE HDI|2020": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT HYBRID|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT HYBRID|2015": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI|2010": {
+    "ah": 71,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI|2015": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI|2020": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI BLACK PACK|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI BLACK PACK|2010": {
+    "ah": 71,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI BLACK PACK|2015": {
+    "ah": 74,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|308 SW GT LINE BLUE HDI BLACK PACK|2020": {
+    "ah": 74,
+    "technology": "EFB",
+    "region": null
+  },
+  "PEUGEOT|308 SW ROADTRIP|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ROADTRIP|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ROADTRIP|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 SW ROADTRIP|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION BLUE HDI|2005": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION BLUE HDI|2010": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION BLUE HDI|2015": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|308 TECH PACK EDITION BLUE HDI|2020": {
+    "ah": 74,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|1995": {
+    "ah": 62,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|2005": {
+    "ah": 47,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|2010": {
+    "ah": 52,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|2015": {
+    "ah": 54,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408|2020": {
+    "ah": 62,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408 ALLURE|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|408 ALLURE|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|408 ALLURE|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|408 ALLURE|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|408 GT|2020": {
+    "ah": 62,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|5008 ALLURE|2005": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 ALLURE|2010": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 ALLURE|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|5008 GT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|5008 GT|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|5008 GT BLUE HDI|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT BLUE HDI|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|5008 GT BLUE HDI|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT BLUE HDI RED NAPPA|2005": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT BLUE HDI RED NAPPA|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|5008 GT BLUE HDI RED NAPPA|2015": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT EXECUTIVE EDITION|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT EXECUTIVE EDITION|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT EXECUTIVE EDITION|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT LINE BLUE HDI|2005": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT LINE BLUE HDI|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|5008 GT LINE BLUE HDI|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 GT|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 GT BLUE HDI|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 GT BLUE HDI PREMIUM LEATHER EDITION|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 GT HYBRID|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 GT LINE|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 SW ALLURE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 SW GT BLUE HDI|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 SW GT HYBRID|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|508 SW GT LINE|2010": {
+    "ah": 72,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|1985": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|1990": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|1995": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|2000": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|2005": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|2010": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|BOXER PRO LWB|2020": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM LONG|1985": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM LONG|1990": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM LONG|1995": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM LONG|2000": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM LONG|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM LONG|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM LONG|2015": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM SHORT|1985": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM SHORT|1990": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM SHORT|1995": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM SHORT|2000": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM SHORT|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM SHORT|2010": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PREMIUM SHORT|2015": {
+    "ah": 77,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO LONG|1990": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO LONG|1985": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO LONG|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO LONG|2010": {
+    "ah": 50,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO LONG|2015": {
+    "ah": 41,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO LONG|2000": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO SHORT|1985": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO SHORT|1995": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO SHORT|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO SHORT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO SHORT|1990": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO SHORT|2000": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|EXPERT PRO SHORT|2015": {
+    "ah": 41,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER CITY SHORT|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER CITY SHORT|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|PARTNER CITY SHORT|2005": {
+    "ah": 58,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER CITY SHORT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER CITY SHORT|2015": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER CITY SHORT|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PREMIUM LONG|2005": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PREMIUM LONG|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PREMIUM SHORT|2005": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PREMIUM SHORT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO LONG|1995": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO LONG|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO LONG|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO LONG|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO LONG|2015": {
+    "ah": 64,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO LONG|2020": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO SHORT|1995": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO SHORT|2000": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO SHORT|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO SHORT|2010": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO SHORT|2015": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|PARTNER PRO SHORT|2020": {
+    "ah": 64,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER|1995": {
+    "ah": 20,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER|2000": {
+    "ah": 20,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER ALLURE|2005": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER ALLURE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER|2020": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER ALLURE|2020": {
+    "ah": 65,
+    "technology": "MF",
+    "region": null
+  },
+  "PEUGEOT|RIFTER DEBUT EDITION|1985": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER ALLURE|2015": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER DEBUT EDITION|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER DEBUT EDITION|1990": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER DEBUT EDITION|2000": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER DEBUT EDITION|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER DEBUT EDITION|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER DEBUT EDITION|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT|1990": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT|2005": {
+    "ah": 20,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT LINE FIRST LIMITED|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT LINE FIRST LIMITED|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT LINE FIRST LIMITED|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT LINE FIRST LIMITED|2010": {
+    "ah": 65,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER LONG GT|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER GT LINE FIRST LIMITED|2015": {
+    "ah": 70,
+    "technology": "EFB",
+    "region": null
+  },
+  "PEUGEOT|RIFTER LONG GT|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER LONG GT|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER LONG GT|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER LONG GT|2005": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER LONG GT|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PEUGEOT|RIFTER LONG GT|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER 718 BOXSTER|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|718 BOXSTER 718 BOXSTER GTS|2020": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER 718 BOXSTER GTS 4.0|2020": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER 718 BOXSTER STYLE EDITION|2020": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER 718 BOXSTER S|2020": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER 718 BOXSTER T|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER GTS 4.0|2020": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER S|2020": {
+    "ah": 80,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|718 BOXSTER STYLE EDITION|2020": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN|2005": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|718 CAYMAN|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|718 CAYMAN|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN|2005": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN|2015": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN GT 4|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN GTS|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN GT 4 RS|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN GTS 4.0|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN S|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN STYLE EDITION|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN 718 CAYMAN T|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN GT 4 RS|2020": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN GTS 4.0|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 CAYMAN S|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|718 CAYMAN STYLE EDITION|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 SPYDER|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|718 SPYDER 718 SPYDER|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 SPYDER 718 SPYDER RS|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|718 SPYDER RS|2020": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911|1990": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA 4|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA 4|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA 4 S|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA 4 S|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA CABRIOLET|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA CABRIOLET|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA GTS|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA GTS|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA S|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA T|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA S|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 CARRERA T|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 2 RS|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 2 RS|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 3|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 3|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 3 RS|1990": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 3 RS|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 3 TOURING PACKAGE|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 GT 3 TOURING PACKAGE|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 SPORT CLASSIC|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 SPORT CLASSIC|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TARGA 4|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TARGA 4|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TARGA 4 GTS|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TARGA 4 GTS|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TURBO|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TURBO|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TURBO CABRIOLET|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TURBO CABRIOLET|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TURBO S CABRIOLET|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 911 TURBO S CABRIOLET|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA 4|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA 4|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA 4 GTS|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA 4 GTS|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA 4 S|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA 4 S|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA GTS|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA GTS|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA S|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA S|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA T|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 CARRERA T|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 DAKAR|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 DAKAR|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 EDITION 50 YRS PORSCHE DESIGN|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 EDITION 50 YRS PORSCHE DESIGN|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 GT 3|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 GT 3|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 GT 3 RS|1990": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 GT 3 RS|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 GT 3 TOURING PACKAGE|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 GT 3 TOURING PACKAGE|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 S/T|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 S/T|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TARGA 4|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TARGA 4|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TARGA 4 GTS|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TARGA 4 GTS|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TARGA 4 S|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TARGA 4 S|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TURBO|1990": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TURBO|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TURBO S|1990": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|911 TURBO S|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|912 BASE GRADE|1980": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|912 BASE GRADE|1985": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE|1995": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE|2000": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE BASE GRADE|1995": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE BASE GRADE|2000": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE BASE GRADE|2005": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE BASE GRADE|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE COUPE PLATINUM EDITION|1995": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE BASE GRADE|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE COUPE PLATINUM EDITION|2000": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE COUPE PLATINUM EDITION|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE COUPE PLATINUM EDITION|2005": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE COUPE PLATINUM EDITION|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE E HYBRID COUPE|2005": {
+    "ah": 110,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE E HYBRID COUPE|2010": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE E HYBRID COUPE|2015": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE GTS COUPE|1995": {
+    "ah": 106,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE GTS COUPE|2000": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE GTS COUPE|2005": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE GTS COUPE|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE GTS COUPE|2015": {
+    "ah": 106,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE S COUPE|1995": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE S COUPE|2000": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE S COUPE|2005": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE S COUPE|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE E HYBRID COUPE|2000": {
+    "ah": 105,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE S COUPE|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO COUPE|1995": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO COUPE|2000": {
+    "ah": 106,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO COUPE|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO COUPE|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO E HYBRID COUPE|1995": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO COUPE|2015": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO E HYBRID COUPE|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO E HYBRID COUPE|2000": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO E HYBRID COUPE|2010": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO GT COUPE|1995": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO GT COUPE|2000": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO GT COUPE|2005": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO GT COUPE|2010": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE COUPE CAYENNE TURBO GT COUPE|2015": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID|1995": {
+    "ah": 60,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID|2000": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID|2010": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID|2015": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID PLATINUM EDITION|1995": {
+    "ah": 28,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID PLATINUM EDITION|2000": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID PLATINUM EDITION|2005": {
+    "ah": 110,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID PLATINUM EDITION|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE E HYBRID PLATINUM EDITION|2015": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "PORSCHE|CAYENNE GTS|1990": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE GTS|1995": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE PLATINUM EDITION|2000": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE PLATINUM EDITION|1995": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE PLATINUM EDITION|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE PLATINUM EDITION|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE PLATINUM EDITION|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE S|1995": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE S|2000": {
+    "ah": 96,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE S|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE S|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE S|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE TURBO|1995": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE TURBO|2000": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE TURBO|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE TURBO|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|CAYENNE TURBO|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|MACAN (BASE)|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN (BASE)|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN (BASE)|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN GTS|1990": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN GTS|1995": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|MACAN MACAN GTS|2005": {
+    "ah": 105,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN GTS|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN GTS|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN S|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN S|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN S|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN T|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|MACAN MACAN T|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|MACAN MACAN T|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN TURBO|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN TURBO|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN MACAN TURBO|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN S|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN S|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN S|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN T|2005": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN T|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "PORSCHE|MACAN T|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|OTHER|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA (BASE)|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA (BASE)|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA (BASE)|2015": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA (BASE)|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA 4|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA 4|2010": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA 4|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA 4|2020": {
+    "ah": 75,
+    "technology": "AGM",
+    "region": null
+  },
+  "PORSCHE|PANAMERA 4 E HYBRID|2005": {
+    "ah": 106,
+    "technology": "AGM",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|1965": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|1980": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|1975": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|1985": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|2020": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|2010": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|DELICA D:2 GS|2015": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|DELICA D:5|1985": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|DELICA D:5|1990": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
   }
 }

@@ -24,3 +24,7 @@ pipeline_app/pipeline.env
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local DB backups/restores
+backups/
+db-restore/
