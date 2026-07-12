@@ -1984,6 +1984,7 @@ def staging_pre_commit(admin: AdminUser = Depends(require_admin)):
             text(
                 "SELECT run_id, make_n, model_n, year, ah, technology, source"
                 " FROM web_battery_staging"
+                " ORDER BY make_n, model_n, year"
             )
         ).fetchall()
 

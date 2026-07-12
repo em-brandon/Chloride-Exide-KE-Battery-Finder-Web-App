@@ -412,6 +412,7 @@ function WebValidateTab() {
   const [editError, setEditError]                 = useState<string | null>(null)
   const [commitModalOpen, setCommitModalOpen]     = useState(false)
   const [commitLoading, setCommitLoading]         = useState(false)
+  const [preCommitLoading, setPreCommitLoading]   = useState(false)
   const [commitResult, setCommitResult]           = useState<CommitStagingResult | null>(null)
   const [discardLoading, setDiscardLoading]       = useState(false)
   const [conflictResolutions, setConflictResolutions] = useState<Record<string, 'staging' | 'current'>>({})
@@ -729,11 +730,17 @@ function WebValidateTab() {
   }
 
   async function handleOpenCommitModal() {
+    if (preCommitLoading) return
+    setPreCommitLoading(true)
     setCommitResult(null)
     setConflictResolutions({})
-    const preCommit = await getStagingPreCommit().catch(() => ({ conflict_count: 0, conflicts: [] }))
-    setPreCommitConflicts(preCommit.conflicts)
-    setCommitModalOpen(true)
+    try {
+      const preCommit = await getStagingPreCommit().catch(() => ({ conflict_count: 0, conflicts: [] }))
+      setPreCommitConflicts(preCommit.conflicts)
+      setCommitModalOpen(true)
+    } finally {
+      setPreCommitLoading(false)
+    }
   }
 
   async function handleCommit() {
@@ -1773,15 +1780,16 @@ function WebValidateTab() {
             </button>
             <button
               onClick={handleOpenCommitModal}
+              disabled={preCommitLoading}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.4rem',
                 fontSize: '0.78rem', fontWeight: 700,
-                padding: '0.55rem 1.1rem', borderRadius: 9, cursor: 'pointer',
-                border: 'none', background: '#3b82f6', color: '#fff',
+                padding: '0.55rem 1.1rem', borderRadius: 9, cursor: preCommitLoading ? 'not-allowed' : 'pointer',
+                border: 'none', background: '#3b82f6', color: '#fff', opacity: preCommitLoading ? 0.6 : 1,
               }}
             >
               <ServerStackIcon style={{ width: 13, height: 13 }} />
-              Review &amp; Commit
+              {preCommitLoading ? 'Checking…' : 'Review & Commit'}
             </button>
           </div>
           <p style={{ fontSize: '0.68rem', color: '#92400e', margin: '0.5rem 0 0', fontStyle: 'italic' }}>
