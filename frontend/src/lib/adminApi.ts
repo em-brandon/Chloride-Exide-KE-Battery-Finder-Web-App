@@ -35,6 +35,11 @@ export interface HealthStatus {
   status: 'ok' | 'degraded' | 'down'
   connected: boolean
   latency_ms: number | null
+  // Cluster-wide (all ECS tasks) — from pg_stat_activity, the ground truth.
+  cluster_connections: number | null
+  max_connections: number | null
+  cluster_usage_pct: number | null
+  // This task's own share only — engine.pool is per-process.
   pool_size: number
   pool_checked_out: number
   pool_usage_pct: number
