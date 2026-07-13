@@ -353,10 +353,14 @@ def add_battery(
     admin: AdminUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    # battery_code is unique at the DB level regardless of soft-delete state,
+    # so a soft-deleted row must block re-creation too, not just active rows
+    # — otherwise this 409 check passes but the INSERT below still 500s on
+    # the UNIQUE constraint.
     existing = db.query(BatterySpec).filter(
         BatterySpec.battery_code == body.battery_code.upper()
     ).first()
-    if existing and existing.deleted_at is None:
+    if existing:
         raise HTTPException(status_code=409, detail=f"battery_code {body.battery_code!r} already exists")
 
     new_b = BatterySpec(
