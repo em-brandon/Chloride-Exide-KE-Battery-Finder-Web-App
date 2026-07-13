@@ -526,7 +526,7 @@ Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issue
 | `POST` | `/api/admin/logout` | Clear session |
 | `GET` | `/api/admin/me` | Current admin user |
 | `GET` | `/api/admin/stats` | Usage stats, table counts, today's match breakdown (3 queries) |
-| `GET` | `/api/admin/health` | Database connectivity + latency check |
+| `GET` | `/api/admin/health` | Database connectivity + latency check, cluster-wide connection count (`pg_stat_activity`, ground truth across all ECS tasks) alongside this task's own pool usage |
 | `GET/POST` | `/api/admin/batteries` | List (paginated) or create battery specs |
 | `PATCH` | `/api/admin/batteries/{id}` | Update a battery spec |
 | `DELETE` | `/api/admin/batteries/{id}` | Soft-delete a battery spec |
@@ -1078,6 +1078,10 @@ ALTER TABLE search_events SET (autovacuum_analyze_scale_factor = 0.05);
 ```
 
 The default threshold is 20% — autovacuum only fires after 20% of the table's rows are new or updated. For an append-only log that grows steadily, this means planner statistics can lag far behind reality. Setting it to 5% means autovacuum re-analyzes `search_events` after every 5% growth, keeping query plans accurate as the table scales.
+
+#### 7. Cluster-wide connection-pool visibility (`GET /api/admin/health`)
+
+`engine.pool.checkedout()`/`.size()` are Python in-process numbers — with 2+ ECS Fargate tasks behind the ALB, each task has its own separate SQLAlchemy engine and pool, so whichever task happens to answer a given health-check request only knew about its own connections, not the real total open against RDS (e.g. 3 tasks each individually showing "6/25 (24%)" hid an actual 18/25 combined). The health endpoint now also queries Postgres directly — `SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()` against `SELECT setting FROM pg_settings WHERE name = 'max_connections'` — for the ground-truth cluster-wide count, independent of which task serves the request. The admin dashboard's Database Health card shows this as the primary bar, with the existing per-task pool numbers underneath as a secondary "this instance" stat.
 
 ### Frontend Bundle Splitting
 
