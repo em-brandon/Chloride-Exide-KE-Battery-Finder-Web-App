@@ -657,6 +657,7 @@ def audit_log(
 @router.post("/cache/refresh")
 def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._vehicles.cache_clear()
+    matcher._make_index.cache_clear()
     matcher._batteries.cache_clear()
     matcher._model_aliases.cache_clear()
     matcher._inference.cache_clear()
