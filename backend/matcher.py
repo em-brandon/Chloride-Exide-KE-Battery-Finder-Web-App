@@ -77,17 +77,27 @@ def _fuzzy_model_score_for_year(
     query: str,
     make_df: pd.DataFrame,
     year: int,
+    years_by_model: dict[str, tuple[int, ...]] | None = None,
 ) -> tuple[str, float] | None:
     """Like `_fuzzy_model_score`, but prefers candidates that exist near `year`.
 
     This avoids token-set tie pitfalls where many trims score 100 against a short
     base model name (e.g. "FIT" matches many "FIT ..." trims), by selecting a
     candidate model that has an exact (or ±3-year) row in `vehicle_years.csv`.
+
+    `years_by_model` (from `_make_index()`) lets the per-candidate year check
+    below use a dict/tuple lookup instead of re-filtering `make_df` with a
+    pandas boolean mask for every one of the ~60-80 candidates a scorer call
+    can return. Falls back to filtering `make_df` directly when not supplied.
     """
     if make_df is None or make_df.empty:
         return None
 
-    model_choices = make_df["model_n"].dropna().unique().tolist()
+    model_choices = (
+        list(years_by_model.keys())
+        if years_by_model is not None
+        else make_df["model_n"].dropna().unique().tolist()
+    )
     if not model_choices:
         return None
 
@@ -107,28 +117,30 @@ def _fuzzy_model_score_for_year(
             return True
         return False
 
+    def _cand_years(cand_model_n: str) -> tuple[int, ...]:
+        if years_by_model is not None:
+            return years_by_model.get(cand_model_n, ())
+        cand_df = make_df[make_df["model_n"] == cand_model_n]
+        return tuple(sorted(cand_df["year"].dropna().unique().astype(int).tolist()))
+
     def _pick_best(results: list[tuple[str, float, int]]):
         # Prefer semantic prefix matches (candidate starts with user query / first token),
         # then year proximity, then score.
         best_pick: tuple[int, int, int, float, str] | None = None  # (starts_with, is_exact, -year_delta, score, model_n)
         for cand_model_n, score, _ in results:
-            cand_df = make_df[make_df["model_n"] == cand_model_n]
-            if cand_df.empty:
+            cand_years = _cand_years(cand_model_n)
+            if not cand_years:
                 continue
 
             starts_with = 1 if _starts_with_query(cand_model_n) else 0
 
-            exact_df = cand_df[cand_df["year"] == year]
-            if not exact_df.empty:
+            if year in cand_years:
                 pick = (starts_with, 1, 0, float(score), cand_model_n)
             else:
-                nearby_df = cand_df[
-                    (cand_df["year"] >= year - 3) &
-                    (cand_df["year"] <= year + 3)
-                ]
-                if nearby_df.empty:
+                nearby_years = [y for y in cand_years if year - 3 <= y <= year + 3]
+                if not nearby_years:
                     continue
-                year_delta = int((nearby_df["year"] - year).abs().min())
+                year_delta = min(abs(y - year) for y in nearby_years)
                 pick = (starts_with, 0, -year_delta, float(score), cand_model_n)
 
             if best_pick is None or pick > best_pick:
@@ -849,14 +861,14 @@ def recommend(
         region = _make_region(make_n)
 
         # Resolve engine specs from vehicle_years for response reporting.
-        web_make_df = df[df["make_n"] == make_n]
+        web_make_df, web_years_by_model = _make_index(make_n)
         web_matched_year: int | None = None
 
         if not web_make_df.empty:
-            if model_n in web_make_df["model_n"].unique().tolist():
+            if model_n in web_years_by_model:
                 web_veh_model_n: str | None = model_n
             else:
-                web_veh_best = _fuzzy_model_score_for_year(model_n, web_make_df, int(year))
+                web_veh_best = _fuzzy_model_score_for_year(model_n, web_make_df, int(year), web_years_by_model)
                 web_veh_model_n = web_veh_best[0] if web_veh_best else None
 
             if web_veh_model_n is not None:
@@ -931,14 +943,14 @@ def recommend(
         region = _make_region(make_n)
 
         # Resolve engine specs from vehicle_years for response reporting.
-        inf_make_df = df[df["make_n"] == make_n]
+        inf_make_df, inf_years_by_model = _make_index(make_n)
         inf_matched_year: int | None = None
 
         if not inf_make_df.empty:
-            if model_n in inf_make_df["model_n"].unique().tolist():
+            if model_n in inf_years_by_model:
                 veh_model_n: str | None = model_n
             else:
-                veh_best = _fuzzy_model_score_for_year(model_n, inf_make_df, int(year))
+                veh_best = _fuzzy_model_score_for_year(model_n, inf_make_df, int(year), inf_years_by_model)
                 veh_model_n = veh_best[0] if veh_best else None
 
             if veh_model_n is not None:
@@ -1009,7 +1021,7 @@ def recommend(
         }
 
     # ── Step 1: filter to the requested make ───────────────────────────
-    make_df = df[df["make_n"] == make_n]
+    make_df, years_by_model = _make_index(make_n)
 
     if make_df.empty:
         # Fuzzy fallback for make
@@ -1017,18 +1029,18 @@ def recommend(
         best_make_match = process.extractOne(make_n, all_makes, scorer=fuzz.WRatio)
         if best_make_match and best_make_match[1] >= 75:
             make_n  = best_make_match[0]
-            make_df = df[df["make_n"] == make_n]
+            make_df, years_by_model = _make_index(make_n)
 
     # ── Step 2: fuzzy-match the model ──────────────────────────────────
     if not make_df.empty:
-        model_choices = make_df["model_n"].dropna().unique().tolist()
+        model_choices = list(years_by_model.keys())
 
         # Prefer exact model-key hits over fuzzy selection. This prevents
         # trim-variant drift where a longer candidate can tie at score=100.
         if model_n in model_choices:
             best_model = (model_n, 100.0)
         else:
-            best_model = _fuzzy_model_score_for_year(model_n, make_df, int(year))
+            best_model = _fuzzy_model_score_for_year(model_n, make_df, int(year), years_by_model)
 
         if best_model is not None:
             matched_model_n, model_score = best_model
@@ -1101,21 +1113,17 @@ def recommend(
                 # then smallest delta, then highest JDM-model similarity.
                 best_pick: tuple[int, int, int, int, str] | None = None  # (is_exact, -year_delta, -alias_priority, jdm_score, model_n)
                 for cand_model_n, jdm_score, alias_priority in sorted(set(resolved_candidates)):
-                    cand_df = make_df[make_df["model_n"] == cand_model_n]
-                    exact_df = cand_df[cand_df["year"] == year]
-                    if not exact_df.empty:
+                    cand_years = years_by_model.get(cand_model_n, ())
+                    if year in cand_years:
                         pick = (1, 0, -int(alias_priority), jdm_score, cand_model_n)
                         if best_pick is None or pick > best_pick:
                             best_pick = pick
                         continue
 
-                    nearby_df = cand_df[
-                        (cand_df["year"] >= year - 3) &
-                        (cand_df["year"] <= year + 3)
-                    ]
-                    if nearby_df.empty:
+                    nearby_years = [y for y in cand_years if year - 3 <= y <= year + 3]
+                    if not nearby_years:
                         continue
-                    year_delta = int((nearby_df["year"] - year).abs().min())
+                    year_delta = min(abs(y - year) for y in nearby_years)
                     pick = (0, -year_delta, -int(alias_priority), jdm_score, cand_model_n)
                     if best_pick is None or pick > best_pick:
                         best_pick = pick
