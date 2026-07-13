@@ -38,7 +38,11 @@ def db_session():
         yield session
     finally:
         session.close()
-        transaction.rollback()
+        # A test that hits a route causing an unhandled DB error (e.g. an
+        # IntegrityError) can leave the connection's transaction already
+        # rolled back internally by SQLAlchemy before teardown gets here.
+        if transaction.is_active:
+            transaction.rollback()
         connection.close()
 
 
