@@ -403,6 +403,23 @@ def _vehicles() -> pd.DataFrame:
     return df
 
 
+@lru_cache(maxsize=128)
+def _make_index(make_n: str) -> tuple[pd.DataFrame, dict[str, tuple[int, ...]]]:
+    """
+    Precompute, once per make, what `recommend()` and `_fuzzy_model_score_for_year()`
+    otherwise re-derive via a fresh pandas scan/filter on every cache-miss call:
+    the make-scoped row slice and a `model_n -> sorted years sold` lookup.
+
+    Cleared alongside `_vehicles()` (same trigger — `vehicle_years` changed).
+    """
+    make_df = _vehicles()[_vehicles()["make_n"] == make_n]
+    years_by_model = {
+        model_n: tuple(sorted(sub["year"].dropna().unique().astype(int).tolist()))
+        for model_n, sub in make_df.groupby("model_n")
+    }
+    return make_df, years_by_model
+
+
 @lru_cache(maxsize=1)
 def _batteries() -> pd.DataFrame:
     from db import engine
