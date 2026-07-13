@@ -267,16 +267,30 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
 def health(admin: AdminUser = Depends(require_admin)):
     # Connectivity + latency
     start = time.perf_counter()
+    cluster_connections: int | None = None
+    max_connections:     int | None = None
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+            # engine.pool only knows about connections opened by *this*
+            # process — with 2+ ECS Fargate tasks behind the ALB, each has
+            # its own separate pool, so pool_checked_out below only ever
+            # shows "this task's share." pg_stat_activity is Postgres's own
+            # ground truth: every connection from every task, migrations,
+            # psql, anything — independent of which task answers this request.
+            cluster_connections = conn.execute(
+                text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()")
+            ).scalar()
+            max_connections = int(conn.execute(
+                text("SELECT setting FROM pg_settings WHERE name = 'max_connections'")
+            ).scalar())
         latency_ms = round((time.perf_counter() - start) * 1000, 1)
         connected = True
     except Exception:
         latency_ms = None
         connected = False
 
-    # Pool usage
+    # Pool usage — this instance's own share only, see note above.
     pool = engine.pool
     pool_size   = pool.size()
     checked_out = pool.checkedout()
@@ -284,11 +298,19 @@ def health(admin: AdminUser = Depends(require_admin)):
     total_conns = pool_size + max(overflow, 0)
     pool_pct    = round((checked_out / max(total_conns, 1)) * 100, 1)
 
+    cluster_pct = (
+        round((cluster_connections / max(max_connections, 1)) * 100, 1)
+        if cluster_connections is not None and max_connections is not None
+        else None
+    )
+
     if not connected:
         status = "down"
     elif latency_ms is not None and latency_ms > 500:
         status = "degraded"
-    elif pool_pct > 85:
+    elif cluster_pct is not None and cluster_pct > 85:
+        status = "degraded"
+    elif cluster_pct is None and pool_pct > 85:
         status = "degraded"
     else:
         status = "ok"
@@ -297,6 +319,9 @@ def health(admin: AdminUser = Depends(require_admin)):
         "status":        status,
         "connected":     connected,
         "latency_ms":    latency_ms,
+        "cluster_connections": cluster_connections,
+        "max_connections":     max_connections,
+        "cluster_usage_pct":   cluster_pct,
         "pool_size":     pool_size,
         "pool_checked_out": checked_out,
         "pool_usage_pct":   pool_pct,
