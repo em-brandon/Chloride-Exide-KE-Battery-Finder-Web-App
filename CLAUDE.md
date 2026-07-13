@@ -132,20 +132,9 @@ The revert-endpoint FK-violation fix, rate-limiter proxy-trust-boundary fix, adm
 
 **Not urgent to decide now:** whether to also add a CI gate that fails the build if test count is 0 (to prevent this silent-no-op-stage problem from recurring) — worth doing once real tests exist.
 
-## PENDING PLAN (added 2026-07-05) — Public, unauthenticated health/readiness endpoint
+## DONE (2026-07-13) — Public, unauthenticated health/readiness endpoint
 
-**Problem:** the only health-check route in the app is `GET /api/admin/health` (`admin_router.py:246-247`), gated behind `Depends(require_admin)`. There is no public `/health` (or similar) route in `backend/app.py` at all (confirmed by grep). If ECS/ALB's target-group health check is configured to hit any API path expecting a 200, hitting an admin-gated route would always return 401 — the load balancer would conclude the task is unhealthy and pull it out of rotation (or keep recycling tasks) even when the app is running fine. **This needs to be verified against the actual ALB target-group health-check path configuration (not in this repo — ask the user or check the AWS console/IaC) before assuming it's actually broken in production; today it might simply be pointed at `/` (which the static-file mount would serve as a 200) rather than at anything under `/api/`.**
-
-**Fix (once confirmed necessary):** add a lightweight `GET /health` (or `/healthz`) route in `backend/app.py`, no auth required, that returns 200 with a minimal payload — optionally checking DB connectivity (reusing the same pattern as `admin_router.py:246-283`'s `engine.connect()` + `SELECT 1` check) so a genuinely broken DB connection still fails the check, but without requiring admin credentials. Point the ALB target group at this new path once it exists.
-
-**Safety constraints for this route (since it's the one unauthenticated door touching the DB):**
-
-- **Minimal response body only** — return just `{"status": "ok"}` / `{"status": "down"}`, never the rich diagnostics (`latency_ms`, `pool_size`, `pool_checked_out`, `pool_usage_pct`) that `/api/admin/health` returns. Anonymous callers shouldn't get a free window into live DB load/timing; keep the detailed numbers exclusively behind the admin-gated route as today.
-- **Rate-limit it like every other route in this app** — this app rate-limits everything (10/min recommend, 5/min feedback, etc., per this file's Architecture section), so the one public route that touches the database shouldn't be the sole exception. Add a generous `slowapi` limit (e.g. 60/min — comfortably above what a legitimate load balancer check needs) rather than leaving it unlimited.
-
-**Don't forget:** once implemented, update the README `## Performance` section (README.md:970 onward, the "LRU In-memory matcher cache" subsection at README.md:976-978) to document this new per-make cache layer alongside the existing ones — that section is where this class of optimization is expected to be documented.
-
-**Simple version of the problem (for context/copy reuse):** today, every search re-reads the *entire* vehicle-years phone book to find "all the Toyotas," even though the Toyota section hasn't moved since last time; the fix is to write that section down once (as an in-memory dict) and only redo it when the underlying data actually changes.
+`GET /health` now exists in `backend/app.py`, unauthenticated, rate-limited at 60/min, returning only `{"status": "ok"/"down"}` after a real `SELECT 1` — the rich diagnostics stay behind the admin-gated `GET /api/admin/health`. Also exempted from the maintenance-mode middleware's 503 override. **Still needs verification against the actual ALB target-group health-check path** (AWS console/IaC, outside this repo) — point it at `/health` if it isn't already.
 
 ## PENDING PLAN (added 2026-07-05) — Aggregate connection-pool usage across all ECS tasks
 

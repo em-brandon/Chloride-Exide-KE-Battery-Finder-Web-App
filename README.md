@@ -347,6 +347,8 @@ All public endpoints are rate-limited and served under `/api/`.
 | `POST` | `/api/feedback` | 5/min | Submit feedback on a recommendation |
 | `POST` | `/api/battery-search` | 10/min | Search batteries by Ah and/or CCA spec |
 
+`GET /health` (outside `/api/`, 60/min) is a separate unauthenticated liveness/readiness check meant for the ALB target group — the only other health route, `GET /api/admin/health`, is gated behind admin auth, so an ALB pointed at anything under `/api/` would always get 401 and deregister healthy tasks. Returns only `{"status": "ok"/"down"}` after a real `SELECT 1`; the latency/pool-usage diagnostics stay behind the admin-gated route. **Confirm the ALB target group's health-check path is actually pointed at `/health`** (not `/` or something under `/api/admin`) — that's an AWS console/IaC change outside this repo.
+
 ### Auth Endpoints (Test Users)
 
 | Method | Endpoint | Rate Limit | Description |
