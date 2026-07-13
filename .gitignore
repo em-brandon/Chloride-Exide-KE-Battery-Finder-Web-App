@@ -9,6 +9,10 @@ __pycache__/
 *.py[cod]
 *.pyo
 
+# pytest
+.pytest_cache/
+test-results.xml
+
 # Jupyter
 .ipynb_checkpoints/
 
