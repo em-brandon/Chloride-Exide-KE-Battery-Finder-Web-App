@@ -997,6 +997,8 @@ The app avoids N+1 query patterns through three mechanisms:
 
 `matcher.py` loads all batteries, vehicle years, model aliases, web validations, and Dial-A-Battery inference rows into memory at startup via `@lru_cache`. Every `/api/recommend` call runs entirely in memory. The cache can be flushed and reloaded from the admin dashboard without restarting the server.
 
+A second, per-make layer (`matcher._make_index()`) sits on top of the full in-memory `vehicle_years` table: on a `recommend()` cache miss, `matcher.py` used to re-scan the entire table with a pandas boolean mask to find "all the Toyotas" (up to 3 times per call), and the fuzzy year-scorer re-filtered that slice again for every one of the ~60–80 candidate trims a scorer pass can return. `_make_index()` precomputes, once per make, the make-scoped row slice and a `model → sorted years sold` map, so both the outer make filter and the per-candidate year checks become dict/tuple lookups instead of repeated pandas scans. It's cleared alongside `_vehicles()` on the same manual cache-refresh action, since it derives from the same snapshot.
+
 #### 2. Consolidated stats query (`GET /api/admin/stats`)
 
 The dashboard stats endpoint previously issued 10–11 separate `COUNT` queries per call (one per table, one per match type bucket). It now runs 3 queries total:
