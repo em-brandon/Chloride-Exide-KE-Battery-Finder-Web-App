@@ -198,6 +198,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
     )
 
 
+@app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(_request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
