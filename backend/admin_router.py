@@ -3326,9 +3326,9 @@ def get_crsp_staging(
 ):
     q = db.query(VehicleYearStaging)
     if filter == "conflicts":
-        q = q.filter(VehicleYearStaging.conflict == 1)
+        q = q.filter(VehicleYearStaging.conflict.is_(True))
     elif filter == "new":
-        q = q.filter(VehicleYearStaging.conflict == 0, VehicleYearStaging.is_valid == 1)
+        q = q.filter(VehicleYearStaging.conflict.is_(False), VehicleYearStaging.is_valid.is_(True))
     total = q.count()
     rows  = q.order_by(VehicleYearStaging.make, VehicleYearStaging.model, VehicleYearStaging.year) \
              .offset((page - 1) * page_size).limit(page_size).all()
@@ -3398,7 +3398,7 @@ def crsp_pre_commit(
         current = existing.get(key)
         if current is None:
             if row.conflict:
-                row.conflict        = 0
+                row.conflict        = False
                 row.conflict_detail = None
                 updated += 1
         else:
@@ -3406,7 +3406,7 @@ def crsp_pre_commit(
             fuel_same = (current["fuel"] or "").lower() == (row.fuel or "").lower()
             now_conflict = not (ec_same and fuel_same)
             if now_conflict != bool(row.conflict):
-                row.conflict = 1 if now_conflict else 0
+                row.conflict = now_conflict
                 row.conflict_detail = json.dumps({
                     "current": current,
                     "staged": {"engine_capacity": row.engine_capacity, "fuel": row.fuel},
@@ -3414,7 +3414,7 @@ def crsp_pre_commit(
                 updated += 1
 
     db.commit()
-    total_conflicts = db.query(VehicleYearStaging).filter(VehicleYearStaging.conflict == 1).count()
+    total_conflicts = db.query(VehicleYearStaging).filter(VehicleYearStaging.conflict.is_(True)).count()
     return {"rows_rescanned": len(staging_rows), "rows_updated": updated, "total_conflicts": total_conflicts}
 
 
