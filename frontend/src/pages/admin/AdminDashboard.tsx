@@ -20,11 +20,13 @@ import {
   refreshCache,
   exportBatteriesUrl,
   getWebValidateCoverage,
+  fetchBatteries,
   type AdminStats,
   type MatchBreakdown,
   type HealthStatus,
   type CoverageInfo,
 } from '@/lib/adminApi'
+import { BRAND_LOGO, groupByBrand } from '@/lib/brandBranding'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { OrbitLoader } from '@/components/ui/OrbitLoader'
 
@@ -88,7 +90,13 @@ function InfoTooltip({ text }: { text: string }) {
 // Local/Imported origin split as label-right rows, and a technology-mix
 // footer line — the two axes admins actually care about when scanning the
 // catalogue (where a battery is sourced from, what chemistry it uses).
-function BatteryRecordsCard({ stats, icon }: { stats: AdminStats | null; icon: React.ReactNode }) {
+const FEATURED_BRANDS = ['Powerlast', 'Sebang', 'Exide Maxx']
+
+function BatteryRecordsCard({ stats, brandGroups, icon }: {
+  stats: AdminStats | null
+  brandGroups: Array<{ brand: string; count: number }>
+  icon: React.ReactNode
+}) {
   const accentColor = '#CC0000'
   const c = stats?.counts
   return (
@@ -122,6 +130,25 @@ function BatteryRecordsCard({ stats, icon }: { stats: AdminStats | null; icon: R
           <span style={{ fontSize: '0.63rem', color: 'rgba(107,114,128,0.65)', display: 'block', textAlign: 'center' }}>
             {c.battery_tech_mf} MF · {c.battery_tech_efb} EFB · {c.battery_tech_agm} AGM · {c.battery_tech_flooded} Flooded
           </span>
+        </div>
+      )}
+
+      {brandGroups.length > 0 && (
+        <div style={{ marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: `1px solid ${accentColor}22`, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem' }}>
+          {FEATURED_BRANDS.map(brand => {
+            const logo = BRAND_LOGO[brand]
+            const count = brandGroups.find(g => g.brand === brand)?.count ?? 0
+            if (!logo || count === 0) return null
+            return (
+              <img
+                key={brand}
+                src={logo}
+                alt={`${brand} (${count})`}
+                title={`${brand}: ${count}`}
+                style={{ height: 18, width: 'auto', maxWidth: 44, objectFit: 'contain' }}
+              />
+            )
+          })}
         </div>
       )}
     </div>
@@ -438,6 +465,7 @@ export default function AdminDashboard() {
   const [stats,    setStats]    = useState<AdminStats | null>(null)
   const [health,   setHealth]   = useState<HealthStatus | null>(null)
   const [coverage, setCoverage] = useState<CoverageInfo | null>(null)
+  const [brandGroups, setBrandGroups] = useState<Array<{ brand: string; count: number }>>([])
   const [loadErr,  setLoadErr]  = useState<string | null>(null)
   const [cacheMsg, setCacheMsg]           = useState<{ text: string; ok: boolean } | null>(null)
   const [cacheRefreshing, setCacheRefreshing] = useState(false)
@@ -445,8 +473,11 @@ export default function AdminDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [s, h, cov] = await Promise.all([fetchAdminStats(), fetchHealthStatus(), getWebValidateCoverage()])
+      const [s, h, cov, batt] = await Promise.all([
+        fetchAdminStats(), fetchHealthStatus(), getWebValidateCoverage(), fetchBatteries(1, 200),
+      ])
       setStats(s); setHealth(h); setCoverage(cov)
+      setBrandGroups(groupByBrand(batt.items))
     } catch (err) {
       setLoadErr(err instanceof Error ? err.message : 'Failed to load dashboard')
     } finally {
@@ -532,7 +563,7 @@ export default function AdminDashboard() {
           {/* ── Stat cards — all five in one row ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
             <div style={cardAnim(80, true)}><MakesModelsCard stats={stats} icon={<CircleStackIcon style={{ width: 18, height: 18 }} />} /></div>
-            <div style={cardAnim(160, true)}><BatteryRecordsCard stats={stats} icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
+            <div style={cardAnim(160, true)}><BatteryRecordsCard stats={stats} brandGroups={brandGroups} icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
             <div style={cardAnim(240, true)}><RecommendCallsCard dbReads={stats?.db_reads ?? '—'} breakdown={stats?.match_breakdown} /></div>
             <div style={cardAnim(320, true)}><DataCoverageTile stats={stats} coverage={coverage} /></div>
             {health && <div style={cardAnim(400, true)}><HealthCard {...health} /></div>}
