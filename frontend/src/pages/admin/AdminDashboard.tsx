@@ -83,33 +83,45 @@ function InfoTooltip({ text }: { text: string }) {
   )
 }
 
-// ── StatCard ──────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
-  label: string; value: string | number; sub?: string; accentColor?: string
-  icon: React.ReactNode; tooltip?: string
-}) {
-  const color = accentColor ?? 'rgba(17,24,39,0.88)'
-  const borderColor = accentColor ?? '#e2e4e9'
+// ── BatteryRecordsCard ────────────────────────────────────────────────────────
+// Big total up top (unchanged from the plain StatCard this replaces), then a
+// Local/Imported origin split as label-right rows, and a technology-mix
+// footer line — the two axes admins actually care about when scanning the
+// catalogue (where a battery is sourced from, what chemistry it uses).
+function BatteryRecordsCard({ stats, icon }: { stats: AdminStats | null; icon: React.ReactNode }) {
+  const accentColor = '#CC0000'
+  const c = stats?.counts
   return (
-    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderTop: `3px solid ${borderColor}`, height: '100%', boxSizing: 'border-box' }}>
-      {/* Label + icon pinned to top */}
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accentColor}`, height: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
-            {label}
-          </span>
-          {tooltip && <InfoTooltip text={tooltip} />}
-        </div>
-        <span style={{ color }}>{icon}</span>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
+          Battery Records
+        </span>
+        <span style={{ color: accentColor }}>{icon}</span>
       </div>
-      {/* Big number — grows to fill available space */}
-      <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3.5rem', fontWeight: 900, color, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.5rem 0' }}>
-        {typeof value === 'number' ? value.toLocaleString() : value}
+      <span style={{ textAlign: 'center', fontSize: '2.6rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.3rem 0' }}>
+        {c?.battery_specs != null ? c.battery_specs.toLocaleString() : '—'}
       </span>
-      {/* Sub text pinned to footer */}
-      {sub && (
-        <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${borderColor}22`, paddingTop: '0.6rem', width: '100%' }}>
-          <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block' }}>{sub}</span>
+      <span style={{ textAlign: 'center', fontSize: '0.63rem', color: 'var(--adm-text-2)', marginBottom: '0.6rem' }}>active in database</span>
+
+      {c != null && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Local</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: accentColor }}>{c.battery_origin_local.toLocaleString()}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Imported</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: accentColor }}>{c.battery_origin_imported.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
+      {c != null && (
+        <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accentColor}22`, paddingTop: '0.6rem', width: '100%' }}>
+          <span style={{ fontSize: '0.63rem', color: 'rgba(107,114,128,0.65)', display: 'block', textAlign: 'center' }}>
+            {c.battery_tech_mf} MF · {c.battery_tech_efb} EFB · {c.battery_tech_agm} AGM · {c.battery_tech_flooded} Flooded
+          </span>
         </div>
       )}
     </div>
@@ -520,7 +532,7 @@ export default function AdminDashboard() {
           {/* ── Stat cards — all five in one row ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
             <div style={cardAnim(80, true)}><MakesModelsCard stats={stats} icon={<CircleStackIcon style={{ width: 18, height: 18 }} />} /></div>
-            <div style={cardAnim(160, true)}><StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
+            <div style={cardAnim(160, true)}><BatteryRecordsCard stats={stats} icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
             <div style={cardAnim(240, true)}><RecommendCallsCard dbReads={stats?.db_reads ?? '—'} breakdown={stats?.match_breakdown} /></div>
             <div style={cardAnim(320, true)}><DataCoverageTile stats={stats} coverage={coverage} /></div>
             {health && <div style={cardAnim(400, true)}><HealthCard {...health} /></div>}
