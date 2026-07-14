@@ -267,16 +267,30 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
 def health(admin: AdminUser = Depends(require_admin)):
     # Connectivity + latency
     start = time.perf_counter()
+    cluster_connections: int | None = None
+    max_connections:     int | None = None
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+            # engine.pool only knows about connections opened by *this*
+            # process — with 2+ ECS Fargate tasks behind the ALB, each has
+            # its own separate pool, so pool_checked_out below only ever
+            # shows "this task's share." pg_stat_activity is Postgres's own
+            # ground truth: every connection from every task, migrations,
+            # psql, anything — independent of which task answers this request.
+            cluster_connections = conn.execute(
+                text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()")
+            ).scalar()
+            max_connections = int(conn.execute(
+                text("SELECT setting FROM pg_settings WHERE name = 'max_connections'")
+            ).scalar())
         latency_ms = round((time.perf_counter() - start) * 1000, 1)
         connected = True
     except Exception:
         latency_ms = None
         connected = False
 
-    # Pool usage
+    # Pool usage — this instance's own share only, see note above.
     pool = engine.pool
     pool_size   = pool.size()
     checked_out = pool.checkedout()
@@ -284,11 +298,19 @@ def health(admin: AdminUser = Depends(require_admin)):
     total_conns = pool_size + max(overflow, 0)
     pool_pct    = round((checked_out / max(total_conns, 1)) * 100, 1)
 
+    cluster_pct = (
+        round((cluster_connections / max(max_connections, 1)) * 100, 1)
+        if cluster_connections is not None and max_connections is not None
+        else None
+    )
+
     if not connected:
         status = "down"
     elif latency_ms is not None and latency_ms > 500:
         status = "degraded"
-    elif pool_pct > 85:
+    elif cluster_pct is not None and cluster_pct > 85:
+        status = "degraded"
+    elif cluster_pct is None and pool_pct > 85:
         status = "degraded"
     else:
         status = "ok"
@@ -297,6 +319,9 @@ def health(admin: AdminUser = Depends(require_admin)):
         "status":        status,
         "connected":     connected,
         "latency_ms":    latency_ms,
+        "cluster_connections": cluster_connections,
+        "max_connections":     max_connections,
+        "cluster_usage_pct":   cluster_pct,
         "pool_size":     pool_size,
         "pool_checked_out": checked_out,
         "pool_usage_pct":   pool_pct,
@@ -353,10 +378,14 @@ def add_battery(
     admin: AdminUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    # battery_code is unique at the DB level regardless of soft-delete state,
+    # so a soft-deleted row must block re-creation too, not just active rows
+    # — otherwise this 409 check passes but the INSERT below still 500s on
+    # the UNIQUE constraint.
     existing = db.query(BatterySpec).filter(
         BatterySpec.battery_code == body.battery_code.upper()
     ).first()
-    if existing and existing.deleted_at is None:
+    if existing:
         raise HTTPException(status_code=409, detail=f"battery_code {body.battery_code!r} already exists")
 
     new_b = BatterySpec(
@@ -657,6 +686,7 @@ def audit_log(
 @router.post("/cache/refresh")
 def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._vehicles.cache_clear()
+    matcher._make_index.cache_clear()
     matcher._batteries.cache_clear()
     matcher._model_aliases.cache_clear()
     matcher._inference.cache_clear()
@@ -3321,9 +3351,9 @@ def get_crsp_staging(
 ):
     q = db.query(VehicleYearStaging)
     if filter == "conflicts":
-        q = q.filter(VehicleYearStaging.conflict == 1)
+        q = q.filter(VehicleYearStaging.conflict.is_(True))
     elif filter == "new":
-        q = q.filter(VehicleYearStaging.conflict == 0, VehicleYearStaging.is_valid == 1)
+        q = q.filter(VehicleYearStaging.conflict.is_(False), VehicleYearStaging.is_valid.is_(True))
     total = q.count()
     rows  = q.order_by(VehicleYearStaging.make, VehicleYearStaging.model, VehicleYearStaging.year) \
              .offset((page - 1) * page_size).limit(page_size).all()
@@ -3393,7 +3423,7 @@ def crsp_pre_commit(
         current = existing.get(key)
         if current is None:
             if row.conflict:
-                row.conflict        = 0
+                row.conflict        = False
                 row.conflict_detail = None
                 updated += 1
         else:
@@ -3401,7 +3431,7 @@ def crsp_pre_commit(
             fuel_same = (current["fuel"] or "").lower() == (row.fuel or "").lower()
             now_conflict = not (ec_same and fuel_same)
             if now_conflict != bool(row.conflict):
-                row.conflict = 1 if now_conflict else 0
+                row.conflict = now_conflict
                 row.conflict_detail = json.dumps({
                     "current": current,
                     "staged": {"engine_capacity": row.engine_capacity, "fuel": row.fuel},
@@ -3409,7 +3439,7 @@ def crsp_pre_commit(
                 updated += 1
 
     db.commit()
-    total_conflicts = db.query(VehicleYearStaging).filter(VehicleYearStaging.conflict == 1).count()
+    total_conflicts = db.query(VehicleYearStaging).filter(VehicleYearStaging.conflict.is_(True)).count()
     return {"rows_rescanned": len(staging_rows), "rows_updated": updated, "total_conflicts": total_conflicts}
 
 

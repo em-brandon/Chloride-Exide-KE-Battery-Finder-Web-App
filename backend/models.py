@@ -470,9 +470,9 @@ class VehicleYearStaging(Base):
     fuel             = Column(String(50),  nullable=True)
     source           = Column(String(50),  nullable=True)  # fueleconomy|carapi|wikipedia|wikidata|nhtsa
     staged_at        = Column(DateTime(timezone=True), nullable=True)
-    is_valid         = Column(Integer,     nullable=False, default=1)   # 1=valid, 0=invalid
+    is_valid         = Column(Boolean,     nullable=False, default=True)
     invalid_reason   = Column(Text,        nullable=True)
-    conflict         = Column(Integer,     nullable=False, default=0)   # 1=conflict with existing row
+    conflict         = Column(Boolean,     nullable=False, default=False)  # True=conflict with existing row
     conflict_detail  = Column(Text,        nullable=True)               # JSON {current:{...}, staged:{...}}
 
     __table_args__ = (

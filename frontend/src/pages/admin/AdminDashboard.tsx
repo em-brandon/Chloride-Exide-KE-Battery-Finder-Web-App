@@ -263,9 +263,12 @@ function SpeedometerGauge({ status }: { status: 'ok' | 'degraded' | 'down' }) {
 }
 
 // ── HealthCard ────────────────────────────────────────────────────────────────
-function HealthCard({ status, latency_ms, pool_size, pool_checked_out, pool_usage_pct }: HealthStatus) {
+function HealthCard({ status, latency_ms, cluster_connections, max_connections, cluster_usage_pct, pool_size, pool_checked_out, pool_usage_pct }: HealthStatus) {
   const borderColor = status === 'ok' ? '#22c55e' : status === 'degraded' ? '#f59e0b' : R
-  const usagePct = pool_usage_pct ?? (pool_size ? Math.round((pool_checked_out / pool_size) * 100) : 0)
+  const hasClusterStats = cluster_connections !== null && max_connections !== null && cluster_usage_pct !== null
+  const usagePct = hasClusterStats
+    ? cluster_usage_pct!
+    : (pool_usage_pct ?? (pool_size ? Math.round((pool_checked_out / pool_size) * 100) : 0))
 
   return (
     <div style={{ ...CARD, padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: `3px solid ${borderColor}`, height: '100%', boxSizing: 'border-box' }}>
@@ -286,13 +289,20 @@ function HealthCard({ status, latency_ms, pool_size, pool_checked_out, pool_usag
       </div>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--adm-text-2)', marginBottom: '0.3rem' }}>
-          <span>Connection pool</span>
-          <span>{pool_checked_out} / {pool_size} ({usagePct}%)</span>
+          <span>Connections (cluster-wide)</span>
+          <span>
+            {hasClusterStats ? `${cluster_connections} / ${max_connections} (${usagePct}%)` : `${pool_checked_out} / ${pool_size} (${usagePct}%)`}
+          </span>
         </div>
         <div style={{ height: 6, borderRadius: 99, background: 'var(--adm-sep)', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${Math.min(usagePct, 100)}%`, background: usagePct > 80 ? R : usagePct > 50 ? '#f59e0b' : '#22c55e', borderRadius: 99, transition: 'width 0.6s ease' }} />
         </div>
       </div>
+      {hasClusterStats && (
+        <div style={{ fontSize: '0.65rem', color: 'var(--adm-text-3)' }}>
+          this instance: {pool_checked_out} / {pool_size} ({pool_usage_pct}%)
+        </div>
+      )}
     </div>
   )
 }

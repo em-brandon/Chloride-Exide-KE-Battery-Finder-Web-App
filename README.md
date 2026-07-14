@@ -347,6 +347,8 @@ All public endpoints are rate-limited and served under `/api/`.
 | `POST` | `/api/feedback` | 5/min | Submit feedback on a recommendation |
 | `POST` | `/api/battery-search` | 10/min | Search batteries by Ah and/or CCA spec |
 
+`GET /health` (outside `/api/`, 60/min) is a separate unauthenticated liveness/readiness check meant for the ALB target group — the only other health route, `GET /api/admin/health`, is gated behind admin auth, so an ALB pointed at anything under `/api/` would always get 401 and deregister healthy tasks. Returns only `{"status": "ok"/"down"}` after a real `SELECT 1`; the latency/pool-usage diagnostics stay behind the admin-gated route. **Confirm the ALB target group's health-check path is actually pointed at `/health`** (not `/` or something under `/api/admin`) — that's an AWS console/IaC change outside this repo.
+
 ### Auth Endpoints (Test Users)
 
 | Method | Endpoint | Rate Limit | Description |
@@ -524,7 +526,7 @@ Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issue
 | `POST` | `/api/admin/logout` | Clear session |
 | `GET` | `/api/admin/me` | Current admin user |
 | `GET` | `/api/admin/stats` | Usage stats, table counts, today's match breakdown (3 queries) |
-| `GET` | `/api/admin/health` | Database connectivity + latency check |
+| `GET` | `/api/admin/health` | Database connectivity + latency check, cluster-wide connection count (`pg_stat_activity`, ground truth across all ECS tasks) alongside this task's own pool usage |
 | `GET/POST` | `/api/admin/batteries` | List (paginated) or create battery specs |
 | `PATCH` | `/api/admin/batteries/{id}` | Update a battery spec |
 | `DELETE` | `/api/admin/batteries/{id}` | Soft-delete a battery spec |
@@ -997,6 +999,8 @@ The app avoids N+1 query patterns through three mechanisms:
 
 `matcher.py` loads all batteries, vehicle years, model aliases, web validations, and Dial-A-Battery inference rows into memory at startup via `@lru_cache`. Every `/api/recommend` call runs entirely in memory. The cache can be flushed and reloaded from the admin dashboard without restarting the server.
 
+A second, per-make layer (`matcher._make_index()`) sits on top of the full in-memory `vehicle_years` table: on a `recommend()` cache miss, `matcher.py` used to re-scan the entire table with a pandas boolean mask to find "all the Toyotas" (up to 3 times per call), and the fuzzy year-scorer re-filtered that slice again for every one of the ~60–80 candidate trims a scorer pass can return. `_make_index()` precomputes, once per make, the make-scoped row slice and a `model → sorted years sold` map, so both the outer make filter and the per-candidate year checks become dict/tuple lookups instead of repeated pandas scans. It's cleared alongside `_vehicles()` on the same manual cache-refresh action, since it derives from the same snapshot.
+
 #### 2. Consolidated stats query (`GET /api/admin/stats`)
 
 The dashboard stats endpoint previously issued 10–11 separate `COUNT` queries per call (one per table, one per match type bucket). It now runs 3 queries total:
@@ -1074,6 +1078,10 @@ ALTER TABLE search_events SET (autovacuum_analyze_scale_factor = 0.05);
 ```
 
 The default threshold is 20% — autovacuum only fires after 20% of the table's rows are new or updated. For an append-only log that grows steadily, this means planner statistics can lag far behind reality. Setting it to 5% means autovacuum re-analyzes `search_events` after every 5% growth, keeping query plans accurate as the table scales.
+
+#### 7. Cluster-wide connection-pool visibility (`GET /api/admin/health`)
+
+`engine.pool.checkedout()`/`.size()` are Python in-process numbers — with 2+ ECS Fargate tasks behind the ALB, each task has its own separate SQLAlchemy engine and pool, so whichever task happens to answer a given health-check request only knew about its own connections, not the real total open against RDS (e.g. 3 tasks each individually showing "6/25 (24%)" hid an actual 18/25 combined). The health endpoint now also queries Postgres directly — `SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()` against `SELECT setting FROM pg_settings WHERE name = 'max_connections'` — for the ground-truth cluster-wide count, independent of which task serves the request. The admin dashboard's Database Health card shows this as the primary bar, with the existing per-task pool numbers underneath as a secondary "this instance" stat.
 
 ### Frontend Bundle Splitting
 

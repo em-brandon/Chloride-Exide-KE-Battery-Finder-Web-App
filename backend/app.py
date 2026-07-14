@@ -218,7 +218,7 @@ async def maintenance_mode_middleware(request: Request, call_next):
     if is_maintenance_mode():
         path = request.url.path
         # Admin API and admin frontend paths always pass through
-        if not (path.startswith("/api/admin") or path.startswith("/admin") or path.startswith("/static/")):
+        if not (path.startswith("/api/admin") or path.startswith("/admin") or path.startswith("/static/") or path == "/health"):
             _base = os.path.dirname(__file__)
             return FileResponse(
                 os.path.join(_base, "static", "maintenance.html"),
@@ -323,6 +323,25 @@ def _get_test_user_from_token(token: str | None, db) -> Optional[TestUser]:
 # ------------------------------------------------------------------
 # API routes
 # ------------------------------------------------------------------
+@app.get("/health", summary="Unauthenticated liveness/readiness check for load balancer health checks")
+@limiter.limit("60/minute")
+def health_check(request: Request):
+    """
+    Minimal, unauthenticated DB-connectivity check for the ALB target group.
+
+    Deliberately returns only {"status": ...} — the rich diagnostics
+    (latency, pool usage) stay behind GET /api/admin/health so an anonymous
+    caller can't get a free window into live DB load/timing.
+    """
+    assert request  # consumed by slowapi rate limiter
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ok"}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "down"})
+
+
 @app.get("/api/makes", summary="List all car makes")
 @limiter.limit("20/minute")
 def list_makes(request: Request):
