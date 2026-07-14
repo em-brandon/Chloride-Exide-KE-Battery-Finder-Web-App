@@ -425,6 +425,8 @@ Aliases (`model_aliases`) are applied between layers 1/2 and 3 to map internatio
 
 `oem_fitment` (Exide's own official global fitment guide — see [Pipeline 6](#pipeline-6--exide-fitment-guide)) is **not** a sixth matching layer and never affects which layer resolves the vehicle or its confidence score. Instead, once *any* of the layers above has resolved a `(make, model, year)`, `matcher._fitment_override()` checks `oem_fitment` for a row covering that same vehicle (exact or fuzzy model match, year within the row's `[year_from, year_to]` range). If found, its Ah and technology **replace** whatever that layer would otherwise have used — including overriding a Layer 0a/0b confirmed-battery-code Ah — since Exide's own spec sheet is treated as the most trustworthy source whenever it's available. The response's `ah_source` field records which path actually supplied the number: `"oem_fitment"`, `"battery_code"` (0a/0b's normal path), or `"cc_bracket_estimate"` (1/2/3's normal path).
 
+**Alternatives still come from the main catalogue either way.** The override only changes the `target_ah`/`preferred_tech` *input* to `_select_batteries()` — every code path (all three `_select_batteries()` call sites in `matcher.py`) calls that same function afterward, which always queries `battery_specs` for the primary battery and up to 6 alternatives (same Ah, same CCA, same technology as primary). Falling into the OEM fitment route doesn't swap in a different alternatives source or skip alternatives — it just makes the Ah/technology target that `_select_batteries()` searches around more precise.
+
 ### Flowchart
 
 ```mermaid
@@ -457,8 +459,12 @@ flowchart TD
     AH[_target_ah\nCC + fuel bracket\n+ year modifier -5 to +10] --> PT
     SEL --> PT[_preferred_tech\nLuxury = AGM\nHybrid = EFB\nStop-start + diesel/large = AGM\nStop-start standard = EFB\nNo stop-start = MF]
     PT --> RG[_make_region\nNS/JIS: Japanese / Korean / Chinese\nDIN: European / American / other]
-    RG --> SB[_select_batteries\nFilter by region\nMatch Ah + preferred tech\nSort: imported before local\nFallback to nearest Ah if none]
-    SB --> R([Return: primary + up to 6 alternatives\nconfidence / match_type\nmatched_make / matched_model / matched_year])
+    RG --> FIT{_fitment_override\noem_fitment: make + fuzzy model\n+ year in year_from..year_to range}
+    FIT -->|Hit| FITY[Replace target_ah + preferred_tech\nwith Exide's own spec\nah_source = oem_fitment\nwins even over 0a/0b battery-code Ah]
+    FIT -->|Miss| FITN[Keep whatever this layer computed\nah_source = battery_code 0a/0b\nor cc_bracket_estimate 1/2/3]
+    FITY --> SB
+    FITN --> SB[_select_batteries\nSAME function either way\nFilter by region\nMatch Ah + preferred tech\nSort: imported before local\nFallback to nearest Ah if none]
+    SB --> R([Return: primary + up to 6 alternatives\nfrom battery_specs regardless of ah_source\nconfidence / match_type / ah_source\nmatched_make / matched_model / matched_year])
 ```
 
 ### Fuzzy Model Scoring
