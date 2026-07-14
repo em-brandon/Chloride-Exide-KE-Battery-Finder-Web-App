@@ -21,6 +21,7 @@ export interface AdminStats {
   counts: {
     battery_specs: number
     vehicle_years: number
+    vehicle_years_total: number
     vehicles_raw: number
     model_aliases: number
     inference_makes: number
@@ -30,6 +31,7 @@ export interface AdminStats {
     fitment_models: number
     fitment_records: number
     vehicle_years_exide_pairs: number
+    vehicle_years_exide_total: number
   }
   db_reads: number
   match_breakdown: MatchBreakdown | null

@@ -116,6 +116,52 @@ function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
   )
 }
 
+// ── MakesModelsCard ───────────────────────────────────────────────────────────
+// Two entry-count sources side by side (Core Dataset / OEM Fitment), each an
+// independent total row count — not a single blended number, since the two
+// sources have very different scales and provenance. Footer breaks down the
+// distinct make+model pairs for each, the metric the headline used to show.
+function MakesModelsCard({ stats, icon }: { stats: AdminStats | null; icon: React.ReactNode }) {
+  const accentColor = '#1d4ed8'
+  return (
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accentColor}`, height: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
+          Makes & Models
+        </span>
+        <span style={{ color: accentColor }}>{icon}</span>
+      </div>
+      {stats?.counts.vehicle_years_total != null && stats?.counts.vehicle_years_exide_total != null && (
+        <div style={{ textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: 'rgba(107,114,128,0.7)' }}>
+          {(stats.counts.vehicle_years_total + stats.counts.vehicle_years_exide_total).toLocaleString()} total
+        </div>
+      )}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            {stats?.counts.vehicle_years_total != null ? stats.counts.vehicle_years_total.toLocaleString() : '—'}
+          </div>
+          <div style={{ fontSize: '0.62rem', color: 'rgba(107,114,128,0.6)', marginTop: '0.3rem' }}>Core</div>
+        </div>
+        <div style={{ width: 1, alignSelf: 'stretch', background: `${accentColor}22` }} />
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            {stats?.counts.vehicle_years_exide_total != null ? stats.counts.vehicle_years_exide_total.toLocaleString() : '—'}
+          </div>
+          <div style={{ fontSize: '0.62rem', color: 'rgba(107,114,128,0.6)', marginTop: '0.3rem' }}>OEM Fitment</div>
+        </div>
+      </div>
+      {stats?.counts.vehicle_years != null && (
+        <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accentColor}22`, paddingTop: '0.6rem', width: '100%' }}>
+          <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block', textAlign: 'center' }}>
+            {stats.counts.vehicle_years.toLocaleString()} core pairs · {stats.counts.vehicle_years_exide_pairs.toLocaleString()} OEM fitment pairs · {stats.counts.vehicles_raw.toLocaleString()} raw records
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── RecommendCallsCard ────────────────────────────────────────────────────────
 function BreakdownRow({ color, label, count, total }: { color: string; label: string; count: number; total: number }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
@@ -468,17 +514,7 @@ export default function AdminDashboard() {
           {/* ── Stat cards — all five in one row ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
             <div style={cardAnim(80, true)}><StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
-            <div style={cardAnim(160, true)}><StatCard
-              accentColor="#1d4ed8"
-              label="Makes & Models"
-              value={stats?.counts.vehicle_years != null
-                ? stats.counts.vehicle_years + stats.counts.vehicle_years_exide_pairs
-                : '—'}
-              sub={stats?.counts.vehicle_years != null
-                ? `${stats.counts.vehicle_years.toLocaleString()} core · +${stats.counts.vehicle_years_exide_pairs.toLocaleString()} OEM fitment · ${stats.counts.vehicles_raw.toLocaleString()} raw records`
-                : undefined}
-              icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
-            /></div>
+            <div style={cardAnim(160, true)}><MakesModelsCard stats={stats} icon={<CircleStackIcon style={{ width: 18, height: 18 }} />} /></div>
             <div style={cardAnim(240, true)}><RecommendCallsCard dbReads={stats?.db_reads ?? '—'} breakdown={stats?.match_breakdown} /></div>
             <div style={cardAnim(320, true)}><DataCoverageTile stats={stats} coverage={coverage} /></div>
             {health && <div style={cardAnim(400, true)}><HealthCard {...health} /></div>}

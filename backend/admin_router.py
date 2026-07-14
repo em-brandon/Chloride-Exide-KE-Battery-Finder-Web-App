@@ -211,6 +211,7 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
         SELECT
             (SELECT COUNT(*)                                     FROM battery_specs      WHERE deleted_at IS NULL)  AS battery_specs,
             (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years)                                AS vehicle_years,
+            (SELECT COUNT(*)                                     FROM vehicle_years)                                AS vehicle_years_total,
             (SELECT COUNT(*)                                     FROM vehicles_raw)                                 AS vehicles_raw,
             (SELECT COUNT(*)                                     FROM model_aliases)                                AS model_aliases,
             (SELECT COUNT(DISTINCT vehicle_type)                 FROM dial_battery_inference)                       AS inf_makes,
@@ -219,12 +220,14 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
             (SELECT COUNT(DISTINCT make)                         FROM oem_fitment)                                  AS fitment_makes,
             (SELECT COUNT(DISTINCT model)                        FROM oem_fitment)                                  AS fitment_models,
             (SELECT COUNT(*)                                     FROM oem_fitment)                                  AS fitment_records,
-            (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years_exide)                          AS vehicle_years_exide_pairs
+            (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years_exide)                          AS vehicle_years_exide_pairs,
+            (SELECT COUNT(*)                                     FROM vehicle_years_exide)                          AS vehicle_years_exide_total
     """)).fetchone()
 
     counts = {
         "battery_specs":    row.battery_specs    or 0,
         "vehicle_years":    row.vehicle_years    or 0,
+        "vehicle_years_total": row.vehicle_years_total or 0,
         "vehicles_raw":     row.vehicles_raw     or 0,
         "model_aliases":    row.model_aliases    or 0,
         "inference_makes":  row.inf_makes        or 0,
@@ -234,6 +237,7 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
         "fitment_models":             row.fitment_models             or 0,
         "fitment_records":            row.fitment_records            or 0,
         "vehicle_years_exide_pairs":  row.vehicle_years_exide_pairs  or 0,
+        "vehicle_years_exide_total":  row.vehicle_years_exide_total  or 0,
     }
 
     # ── 1 query: db_reads ────────────────────────────────────────────────────
