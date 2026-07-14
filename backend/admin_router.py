@@ -221,7 +221,13 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
             (SELECT COUNT(DISTINCT model)                        FROM oem_fitment)                                  AS fitment_models,
             (SELECT COUNT(*)                                     FROM oem_fitment)                                  AS fitment_records,
             (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years_exide)                          AS vehicle_years_exide_pairs,
-            (SELECT COUNT(*)                                     FROM vehicle_years_exide)                          AS vehicle_years_exide_total
+            (SELECT COUNT(*)                                     FROM vehicle_years_exide)                          AS vehicle_years_exide_total,
+            (SELECT COUNT(*) FILTER (WHERE origin = 'local')     FROM battery_specs WHERE deleted_at IS NULL)       AS battery_origin_local,
+            (SELECT COUNT(*) FILTER (WHERE origin = 'imported')  FROM battery_specs WHERE deleted_at IS NULL)       AS battery_origin_imported,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'MF')            FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_mf,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'EFB')           FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_efb,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'AGM')           FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_agm,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'SB (Flooded)')  FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_flooded
     """)).fetchone()
 
     counts = {
@@ -238,6 +244,12 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
         "fitment_records":            row.fitment_records            or 0,
         "vehicle_years_exide_pairs":  row.vehicle_years_exide_pairs  or 0,
         "vehicle_years_exide_total":  row.vehicle_years_exide_total  or 0,
+        "battery_origin_local":       row.battery_origin_local       or 0,
+        "battery_origin_imported":    row.battery_origin_imported    or 0,
+        "battery_tech_mf":            row.battery_tech_mf            or 0,
+        "battery_tech_efb":           row.battery_tech_efb           or 0,
+        "battery_tech_agm":           row.battery_tech_agm           or 0,
+        "battery_tech_flooded":       row.battery_tech_flooded       or 0,
     }
 
     # ── 1 query: db_reads ────────────────────────────────────────────────────
