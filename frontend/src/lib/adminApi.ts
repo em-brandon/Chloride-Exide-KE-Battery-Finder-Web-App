@@ -32,6 +32,12 @@ export interface AdminStats {
     fitment_records: number
     vehicle_years_exide_pairs: number
     vehicle_years_exide_total: number
+    battery_origin_local: number
+    battery_origin_imported: number
+    battery_tech_mf: number
+    battery_tech_efb: number
+    battery_tech_agm: number
+    battery_tech_flooded: number
   }
   db_reads: number
   match_breakdown: MatchBreakdown | null
