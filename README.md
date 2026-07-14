@@ -1,8 +1,8 @@
 # Chloride Exide KE — Battery Finder
 
-Chloride Exide KE Battery Finder is a production web application that helps Eastern African Drivers (Kenya Uganda & Tanzania ) drivers and service centres identify the correct battery for any vehicle in the local market. It is built on a cleaned and enriched CRSP/NTS dataset covering tens of thousands of make-model-year combinations, extended with engine capacity and fuel type data sourced from fueleconomy.gov, NHTSA VPIC, CarAPI, Wikipedia, and Wikidata.
+Chloride Exide KE Battery Finder is a production web application that helps Eastern African Drivers (Kenya Uganda & Tanzania ) drivers and service centres identify the correct battery for any vehicle in the local market. It is built on a cleaned and enriched CRSP/NTS dataset covering tens of thousands of make-model-year combinations, extended with engine capacity and fuel type data sourced from fueleconomy.gov, NHTSA VPIC, CarAPI, Wikipedia, and Wikidata, and further widened by Exide's own official global fitment guide (a separate table, curated down to Kenya/UG/TZ-relevant makes) which also supplies precise Ah/technology specs that override the engine-CC rule-of-thumb wherever available.
 
-The system is organized into three layers. The data pipeline layer normalises raw CRSP vehicle records, resolves production year gaps through multi-source API enrichment, ingests real-world Dial-A-Battery call-centre order history, and stages all changes for admin review before they are committed to the live dataset. The backend is a FastAPI server running a five-layer matching engine that resolves a vehicle query against web-validated fitment data, real-world sales history, exact dataset matches, fuzzy close matches, and engine-CC rule-based fallback — returning a primary battery recommendation with confidence score, match type, and a list of alternatives. The frontend is a React 19 + TypeScript application built with Vite and Tailwind CSS v4, with a full admin dashboard for managing the battery catalogue, reviewing pipeline output, monitoring search logs and user feedback, and inspecting audit history.
+The system is organized into three layers. The data pipeline layer normalises raw CRSP vehicle records, resolves production year gaps through multi-source API enrichment, ingests real-world Dial-A-Battery call-centre order history, cleans and filters Exide's own fitment guide down to market-relevant makes, and stages all changes for admin review before they are committed to the live dataset. The backend is a FastAPI server running a five-layer matching engine that resolves a vehicle query against web-validated fitment data, real-world sales history, exact dataset matches, fuzzy close matches, and engine-CC rule-based fallback — with Exide's own fitment spec substituted in as the Ah/technology source whenever available, regardless of which layer resolved the vehicle — returning a primary battery recommendation with confidence score, match type, `ah_source`, and a list of alternatives. The frontend is a React 19 + TypeScript application built with Vite and Tailwind CSS v4, with a full admin dashboard for managing the battery catalogue, reviewing pipeline output, browsing vehicle-data coverage, monitoring search logs and user feedback, and inspecting audit history.
 
 The application is geo-restricted to Kenya, Uganda and Tanzania served entirely from a single FastAPI process in production — the built frontend is served as static files alongside the API.
 
@@ -140,7 +140,7 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 │   │   │   │   ├── AdminAuditLog.tsx
 │   │   │   │   ├── AdminSessions.tsx
 │   │   │   │   ├── AdminTestSessions.tsx
-│   │   │   │   ├── AdminCoverage.tsx
+│   │   │   │   ├── AdminVehicleData.tsx    # merged Core Dataset Coverage + OEM Fitment tabs
 │   │   │   │   ├── AdminDataPipeline.tsx
 │   │   │   │   ├── AdminSearchLog.tsx
 │   │   │   │   └── AdminLogin.tsx
@@ -149,6 +149,7 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 │   │   │   ├── api.ts              # Typed fetch wrappers for public API
 │   │   │   ├── adminApi.ts         # Typed fetch wrappers for admin API
 │   │   │   ├── testUserApi.ts      # Test-user auth API helpers
+│   │   │   ├── brandBranding.ts    # Shared brand logo/color resolution (AdminBatteries + AdminDashboard)
 │   │   │   ├── utils.ts            # cn() + useIsMobile() hook
 │   │   │   └── TestUserContext.tsx # React context for test-user session state
 │   │   └── types/
@@ -162,7 +163,7 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 └── .env                         # Environment variables (not committed)
 ```
 
-Backend `pipelines/` contains: `dataprep.py` (Pipeline 1: CRSP Excel → `vehicles_raw`), `enrich_years.py` (Pipeline 2: production-year enrichment), `dial_battery_clean.py` (Pipeline 3: Dial-A-Battery inference), `web_battery_validate.py` (internet fitment validation, run from the admin UI's Web Validate tab), and `vehicle_coverage_expansion.py` (supplementary make/model/year coverage beyond the CRSP catalogue, run from the admin UI's Expansion tab). See [Data Pipelines](#data-pipelines) for details.
+Backend `pipelines/` contains: `dataprep.py` (Pipeline 1: CRSP Excel → `vehicles_raw`), `enrich_years.py` (Pipeline 2: production-year enrichment), `dial_battery_clean.py` (Pipeline 3: Dial-A-Battery inference), `web_battery_validate.py` (internet fitment validation, run from the admin UI's Web Validate tab), `vehicle_coverage_expansion.py` (supplementary make/model/year coverage beyond the CRSP catalogue, run from the admin UI's Expansion tab), and `exide_fitment_clean.py` (Pipeline 6: Exide's own global fitment guide, cleaned and filtered to Kenya/UG/TZ-relevant makes). See [Data Pipelines](#data-pipelines) for details.
 
 ---
 
@@ -387,6 +388,7 @@ All public endpoints are rate-limited and served under `/api/`.
   "battery_region": "NS",
   "recommended_ah": 45,
   "preferred_tech": "MF",
+  "ah_source": "oem_fitment",
   "primary": {
     "battery_code": "NS60",
     "model_key": "NS60",
@@ -415,7 +417,13 @@ Defined in `matcher.py`. All data sources are loaded from the database at startu
 | 2 | **Soft Match** | `vehicle_years` — fuzzy model ≥ 60 + year within ±3 | 60–89% |
 | 3 | **Rule-Based Fallback** | Engine CC + fuel → Ah bracket table | 40% |
 
+Layers 1/2/3 query `matcher._vehicles()`, which is a `UNION ALL` of `vehicle_years` and `vehicle_years_exide` (make/model/year rows exploded from Exide's fitment guide — see [OEM Fitment Override](#oem-fitment-override) below) — so vehicles that only exist in Exide's global catalog are just as matchable as ones sourced from fueleconomy.gov/NHTSA/etc., without either table needing to know about the other.
+
 Aliases (`model_aliases`) are applied between layers 1/2 and 3 to map international model names (e.g. "Civic") to their JDM dataset equivalents (e.g. "CIVIC FERIO").
+
+### OEM Fitment Override
+
+`oem_fitment` (Exide's own official global fitment guide — see [Pipeline 6](#pipeline-6--exide-fitment-guide)) is **not** a sixth matching layer and never affects which layer resolves the vehicle or its confidence score. Instead, once *any* of the layers above has resolved a `(make, model, year)`, `matcher._fitment_override()` checks `oem_fitment` for a row covering that same vehicle (exact or fuzzy model match, year within the row's `[year_from, year_to]` range). If found, its Ah and technology **replace** whatever that layer would otherwise have used — including overriding a Layer 0a/0b confirmed-battery-code Ah — since Exide's own spec sheet is treated as the most trustworthy source whenever it's available. The response's `ah_source` field records which path actually supplied the number: `"oem_fitment"`, `"battery_code"` (0a/0b's normal path), or `"cc_bracket_estimate"` (1/2/3's normal path).
 
 ### Flowchart
 
@@ -509,14 +517,14 @@ Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issue
 
 | Page | Route | Description |
 |---|---|---|
-| Dashboard | `/admin` | Live stats, match breakdown card, data coverage tile, health indicator. Cards animate in with staggered slide-in on load. Auto-refreshes every 15 minutes. |
+| Dashboard | `/admin` | Live stats, match breakdown card, health indicator. Cards animate in with staggered slide-in on load. Auto-refreshes every 15 minutes. **Makes & Models** card shows Core Dataset / OEM Fitment entry counts side by side with a combined total, plus core/fitment pairs in the footer. **Battery Records** card shows the active total, a Local/Imported origin split, an MF/EFB/AGM/Flooded technology-mix line, and small logo thumbnails for featured brands (Powerlast, Sebang, Chloride Exide AGM). |
 | Battery Specs | `/admin/batteries` | Brand tile overview (with orbital loader), brand detail table, full search/filter/paginate table. CRUD and bulk Excel upload available in manage mode. |
 | Search Log | `/admin/search-log` | Paginated table of every `/api/recommend` call: vehicle, input, battery returned, match type, confidence, IP. Download PDF exports a full branded A4 report (jsPDF, lazy-loaded). |
 | Feedback | `/admin/feedback` | All user-submitted feedback with rating, accuracy, match metadata. Rows animate in staggered on load. |
 | Audit Log | `/admin/audit` | Immutable history of every battery spec create/update/delete. |
 | Sessions | `/admin/sessions` | Active admin sessions with revoke. |
-| Data Pipeline | `/admin/data-pipeline` | Three tabs: **CRSP Pipeline** (run `dataprep.py`, stream stage progress, review output summary, then Staging Review to commit to `vehicle_years`), **Web Validate** (run `web_battery_validate.py` — toggle providers, choose phase, monitor live progress with pause/resume/cancel, fix suspicious Ah values, resolve conflicts, commit to master), **Expansion** (run `vehicle_coverage_expansion.py` to widen make/model/year coverage beyond the CRSP catalogue). |
-| Coverage | `/admin/coverage` | Vehicle/battery data coverage stats by make. |
+| Data Pipeline | `/admin/data-pipeline` | Three tabs: **CRSP Pipeline** (run `dataprep.py`, stream stage progress, review output summary, then Staging Review to commit to `vehicle_years`), **Web Validate** (run `web_battery_validate.py` — toggle providers, choose phase, monitor live progress with pause/resume/cancel, fix suspicious Ah values, resolve conflicts, commit to master), **Expansion** (run `vehicle_coverage_expansion.py` to widen make/model/year coverage beyond the CRSP catalogue). Exide fitment ingestion (`exide_fitment_clean.py`) is CLI-only and has no tab here — see [Pipeline 6](#pipeline-6--exide-fitment-guide). |
+| Vehicle Data | `/admin/vehicle-data` | Two tabs, replacing the old separate Coverage page: **Core Dataset Coverage** (web-validation match %, coverage-by-make, paginated matched/unmatched vehicle tables — the full former Coverage page content, unchanged) and **OEM Fitment** (searchable paginated browse of `oem_fitment`: make, model, year range, Ah, technology, dimensions, cylinder CC). |
 
 ### API Endpoints
 
@@ -525,7 +533,7 @@ Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issue
 | `POST` | `/api/admin/login` | Admin login (5/min) |
 | `POST` | `/api/admin/logout` | Clear session |
 | `GET` | `/api/admin/me` | Current admin user |
-| `GET` | `/api/admin/stats` | Usage stats, table counts, today's match breakdown (3 queries) |
+| `GET` | `/api/admin/stats` | Usage stats, table counts (including `oem_fitment`/`vehicle_years_exide` totals and pairs, and battery origin/technology breakdown), today's match breakdown (3 queries) |
 | `GET` | `/api/admin/health` | Database connectivity + latency check, cluster-wide connection count (`pg_stat_activity`, ground truth across all ECS tasks) alongside this task's own pool usage |
 | `GET/POST` | `/api/admin/batteries` | List (paginated) or create battery specs |
 | `PATCH` | `/api/admin/batteries/{id}` | Update a battery spec |
@@ -534,8 +542,10 @@ Protected under `/api/admin/*`. Access requires an HttpOnly session cookie issue
 | `GET` | `/api/admin/batteries/export` | Export battery specs as Excel |
 | `GET` | `/api/admin/audit` | Full change history (paginated, filterable) |
 | `GET` | `/api/admin/search-events` | Paginated search event log |
-| `POST` | `/api/admin/cache/refresh` | Reload matcher caches from DB |
+| `POST` | `/api/admin/cache/refresh` | Reload matcher caches from DB, including `_fitment()` (OEM fitment override data) |
 | `GET/DELETE` | `/api/admin/sessions` | View or revoke admin sessions |
+| `GET` | `/api/admin/vehicle-data/core` | Paginated, searchable browse of `vehicle_years` (Vehicle Data → Core Dataset Coverage tab underpinnings) |
+| `GET` | `/api/admin/vehicle-data/oem-fitment` | Paginated, searchable browse of `oem_fitment` (Vehicle Data → OEM Fitment tab) |
 
 ### Search Event Logging
 
@@ -607,6 +617,25 @@ cd backend && python pipelines/vehicle_coverage_expansion.py [--makes toyota,nis
 `engine_capacity` and `fuel` are left `NULL` for these rows — the matcher's exact/soft-match layers only need make/model/year.
 Output: `vehicle_years_staging` (same staging → commit workflow as the CRSP pipeline)
 
+### Pipeline 6 — Exide Fitment Guide
+
+CLI-only, no admin UI trigger (mirrors Pipeline 3's precedent) — run whenever Exide sends an updated global fitment catalog:
+
+```bash
+cd backend && python pipelines/exide_fitment_clean.py
+```
+
+Input: `EXIDE BATTERY FINDER - <date>.xlsx` at the repo root (two sheets: `PASSENGER CARS`, `COMMERCIAL VEHICLES`) — **not committed to git**; place a copy at the repo root before running.
+
+Cleans a genuinely messy global source file: fixes a ~40% Ah/Type column swap on the passenger sheet (detected per-row — whichever cell is numeric is Ah), parses inconsistent year-range strings (`"2016- PRESENT"`, `"1989-2007"`, etc.) with sanity bounds to reject data-entry garbage, strips redundant make-prefixes and trailing chassis-code suffixes from model names, canonicalizes make spelling (aliases regional divisions like `FORD USA`/`FORD AUSTRALIA` into `FORD`, `KG MOBILITY` into `SSANGYONG`, etc.), and — the biggest cut — **filters out makes with no realistic Kenya/Uganda/Tanzania presence** (farm equipment, foreign buses/coaches, foreign heavy-haulage trucks, defunct/vintage brands, hypercars, microcars, and obscure Chinese/EV brands with no local import channel), taking the global catalog from 365 distinct makes down to a curated ~76.
+
+Writes two tables, both fully `TRUNCATE`+reloaded on every run (idempotent, matches Pipeline 3's pattern) — **`vehicle_years` itself is never written to**:
+
+- `oem_fitment` — Ah/technology fitment specs, kept as year-ranges (not exploded). Read by `matcher._fitment_override()` (see [OEM Fitment Override](#oem-fitment-override)).
+- `vehicle_years_exide` — make/model/year existence rows, exploded from those ranges so they're searchable. Unioned into `matcher._vehicles()` alongside `vehicle_years`, never merged into it directly — see [Layer Overview](#layer-overview).
+
+After running, restart the app or hit `POST /api/admin/cache/refresh` to pick up the new data — there's no automatic reload.
+
 ---
 
 ## Database Schema
@@ -623,6 +652,8 @@ Managed by Alembic (`backend/alembic/versions/`). Apply all migrations with `ale
 | `vehicle_years_versions` | admin UI | admin UI | One record per approved merge commit |
 | `vehicle_years_changelog` | admin UI | admin UI | Row-level diffs for rollback |
 | `vehicle_years_unmatched` | `enrich_years.py` | admin UI | Models that failed year enrichment |
+| `vehicle_years_exide` | `exide_fitment_clean.py` | `matcher.py` (unioned with `vehicle_years`) | Make/model/year existence rows exploded from Exide's fitment guide — `vehicle_years` itself is never written to |
+| `oem_fitment` | `exide_fitment_clean.py` | `matcher.py` | Exide's Ah/technology fitment specs, kept as year-ranges — see [OEM Fitment Override](#oem-fitment-override) |
 | `battery_specs` | admin upload | `matcher.py` | Battery catalogue (soft-delete via `deleted_at`) |
 | `battery_audit_log` | `admin_router.py` | admin UI | Immutable change history |
 | `model_aliases` | one-time import | `matcher.py` | International → JDM model name mappings |
@@ -715,6 +746,28 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+    vehicle_years_exide {
+        int id PK
+        string make
+        string model
+        int year
+        int engine_capacity
+        string fuel
+    }
+    oem_fitment {
+        int id PK
+        string vehicle_category
+        string make
+        string model
+        int year_from
+        int year_to
+        float ah
+        string technology
+        string raw_technology
+        string dimensions
+        int cylinder_capacity_cc
+        int source_row
+    }
     dial_battery_inference {
         int id PK
         text vehicle_type
@@ -796,6 +849,8 @@ erDiagram
     vehicle_years    }o..o{ web_battery_validation  : "make / model / year (logical ref)"
     vehicle_years    }o..o{ dial_battery_inference  : "vehicle_type / vehicle_model (logical ref)"
     vehicle_years    }o..o{ search_events           : "make / model / year (logical ref)"
+    vehicle_years    }o..o{ vehicle_years_exide     : "UNION ALL in matcher._vehicles() — no shared row identity"
+    vehicle_years_exide }o..o{ oem_fitment           : "make / model / year-in-range (logical ref, matcher._fitment_override)"
 ```
 
 ### Pipeline & Staging Tables
@@ -969,6 +1024,24 @@ All indexes are created and dropped via Alembic migrations — never applied by 
 | `ix_vehicle_years_make` | `make` | B-tree | Filter by make (matcher, dropdowns) |
 | `ix_vehicle_years_make_model` | `(make, model)` | B-tree | Composite filter used by matcher and model dropdown |
 
+#### `vehicle_years_exide`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `vehicle_years_exide_pkey` | `id` | Primary key | Row lookup |
+| `uq_vehicle_years_exide` | `(make, model, year)` | Unique | Prevents duplicate rows on pipeline re-run |
+| `ix_vehicle_years_exide_make` | `make` | B-tree | Filter by make (matcher, dropdowns) |
+| `ix_vehicle_years_exide_make_model` | `(make, model)` | B-tree | Composite filter used by matcher and model dropdown |
+
+#### `oem_fitment`
+
+| Index | Columns | Type | Purpose |
+| --- | --- | --- | --- |
+| `oem_fitment_pkey` | `id` | Primary key | Row lookup |
+| `uq_oem_fitment` | `(make, model, vehicle_category, year_from, year_to, ah, technology)` | Unique | Allows multiple battery tiers per trim/year-range while preventing true duplicates on pipeline re-run |
+| `ix_oem_fitment_make` | `make` | B-tree | Filter by make in `_fitment_override()` |
+| `ix_oem_fitment_make_model` | `(make, model)` | B-tree | Composite filter used by `_fitment_override()` |
+
 #### `search_events`
 
 | Index | Columns | Type | Purpose |
@@ -997,7 +1070,7 @@ The app avoids N+1 query patterns through three mechanisms:
 
 #### 1. Least Recent Used (LRU) In-memory matcher cache (hot path — zero DB queries per request)
 
-`matcher.py` loads all batteries, vehicle years, model aliases, web validations, and Dial-A-Battery inference rows into memory at startup via `@lru_cache`. Every `/api/recommend` call runs entirely in memory. The cache can be flushed and reloaded from the admin dashboard without restarting the server.
+`matcher.py` loads all batteries, vehicle years (a `UNION ALL` of `vehicle_years` and `vehicle_years_exide`), model aliases, web validations, Dial-A-Battery inference rows, and Exide's OEM fitment specs into memory at startup via `@lru_cache`. Every `/api/recommend` call runs entirely in memory. The cache can be flushed and reloaded from the admin dashboard without restarting the server.
 
 A second, per-make layer (`matcher._make_index()`) sits on top of the full in-memory `vehicle_years` table: on a `recommend()` cache miss, `matcher.py` used to re-scan the entire table with a pandas boolean mask to find "all the Toyotas" (up to 3 times per call), and the fuzzy year-scorer re-filtered that slice again for every one of the ~60–80 candidate trims a scorer pass can return. `_make_index()` precomputes, once per make, the make-scoped row slice and a `model → sorted years sold` map, so both the outer make filter and the per-candidate year checks become dict/tuple lookups instead of repeated pandas scans. It's cleared alongside `_vehicles()` on the same manual cache-refresh action, since it derives from the same snapshot.
 
@@ -1007,13 +1080,13 @@ The dashboard stats endpoint previously issued 10–11 separate `COUNT` queries 
 
 | Before | After |
 |---|---|
-| 3 × `COUNT` on `dial_battery_inference` | 1 SQL with 7 scalar subqueries (all table counts in one round trip) |
+| 3 × `COUNT` on `dial_battery_inference` | 1 SQL with scalar subqueries (all table counts in one round trip — 19 as of the Exide fitment guide addition, up from the original 7; see `admin_router.py`'s `/stats` route for the full list) |
 | 4 × ORM `COUNT` on separate tables | ↑ same query |
 | 3 × `COUNT` on `search_events` (one per match type) | 1 `GROUP BY match_type` — Python buckets Matched / Close / Estimated |
 | 1 × `AdminStats` lookup | 1 × `AdminStats` lookup (unchanged) |
 
 ```sql
--- All 7 table counts in one query
+-- All table counts in one query (abbreviated — 19 scalar subqueries total)
 SELECT
     (SELECT COUNT(*) FROM battery_specs WHERE deleted_at IS NULL) AS battery_specs,
     (SELECT COUNT(DISTINCT make || '|' || model) FROM vehicle_years) AS vehicle_years,
@@ -1021,7 +1094,9 @@ SELECT
     (SELECT COUNT(*) FROM model_aliases)       AS model_aliases,
     (SELECT COUNT(DISTINCT vehicle_type)  FROM dial_battery_inference) AS inf_makes,
     (SELECT COUNT(DISTINCT vehicle_model) FROM dial_battery_inference) AS inf_models,
-    (SELECT COUNT(*) FROM dial_battery_inference)                      AS inf_records
+    (SELECT COUNT(*) FROM dial_battery_inference)                      AS inf_records,
+    -- ...and 12 more: oem_fitment/vehicle_years_exide totals + pairs,
+    -- battery_specs origin (local/imported) and technology (MF/EFB/AGM/Flooded) breakdowns
 ```
 
 ```python
