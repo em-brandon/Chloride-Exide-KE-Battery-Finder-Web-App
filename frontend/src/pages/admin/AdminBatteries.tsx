@@ -344,6 +344,7 @@ export default function AdminBatteries() {
   const [overviewItems, setOverviewItems] = useState<BatteryRow[]>([])
   const [overviewLoading, setOverviewLoading] = useState(true)
   const [total, setTotal] = useState(0)
+  const [pageError, setPageError] = useState<string | null>(null)
 
   // ── Search/table state ────────────────────────────────────────────────────
   const [items, setItems]           = useState<BatteryRow[]>([])
@@ -371,6 +372,7 @@ export default function AdminBatteries() {
         setOverviewItems(r.items)
         setTotal(r.total)
       })
+      .catch(e => setPageError(e instanceof Error ? e.message : 'Failed to load battery records.'))
       .finally(() => setOverviewLoading(false))
   }, [])
 
@@ -383,10 +385,13 @@ export default function AdminBatteries() {
   // Load paginated search results when in search mode
   const load = useCallback(async () => {
     setLoading(true)
+    setPageError(null)
     try {
       const r = await fetchBatteries(page, PAGE_SIZE, search || undefined, techFilter || undefined)
       setItems(r.items)
       setSearchTotal(r.total)
+    } catch (e) {
+      setPageError(e instanceof Error ? e.message : 'Failed to load battery records.')
     } finally {
       setLoading(false)
     }
@@ -496,6 +501,15 @@ export default function AdminBatteries() {
       </header>
 
       <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+        {pageError && (
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+            padding: '0.65rem 0.9rem', fontSize: '0.8rem', color: '#b91c1c',
+          }}>
+            {pageError}
+          </div>
+        )}
 
         {/* ── Brands overview ── */}
         {view === 'brands' && (

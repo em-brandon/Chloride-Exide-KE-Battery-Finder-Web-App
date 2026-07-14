@@ -200,6 +200,7 @@ export default function AdminAuditLog() {
   const [adminUsers, setAdminUsers] = useState<string[]>([])
   const [pending, setPending]   = useState<FilterState>(EMPTY_FILTERS)
   const [applied, setApplied]   = useState<FilterState>(EMPTY_FILTERS)
+  const [error, setError]       = useState<string | null>(null)
 
   const PAGE_SIZE = 50
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -217,9 +218,15 @@ export default function AdminAuditLog() {
     if (applied.dateTo)      filters.date_to      = applied.dateTo
     let cancelled = false
     startLoad(async () => {
-      const r = await fetchAuditLog(page, PAGE_SIZE, filters)
-      if (cancelled) return
-      setItems(r.items); setTotal(r.total)
+      try {
+        const r = await fetchAuditLog(page, PAGE_SIZE, filters)
+        if (cancelled) return
+        setItems(r.items); setTotal(r.total); setError(null)
+      } catch (e) {
+        if (cancelled) return
+        setItems([]); setTotal(0)
+        setError(e instanceof Error ? e.message : 'Failed to load audit log.')
+      }
     })
     return () => { cancelled = true }
   }, [page, applied])
@@ -265,6 +272,15 @@ export default function AdminAuditLog() {
       </header>
 
       <main style={{ maxWidth: '1080px', margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+        {error && (
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+            padding: '0.65rem 0.9rem', fontSize: '0.8rem', color: '#b91c1c',
+          }}>
+            {error}
+          </div>
+        )}
 
         {/* ── Filter bar ── */}
         <div style={{ ...CARD, padding: '1.1rem 1.4rem' }}>

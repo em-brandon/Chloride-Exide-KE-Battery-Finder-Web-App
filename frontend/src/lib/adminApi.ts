@@ -123,24 +123,61 @@ class AdminAuthError extends Error {
   constructor() { super('Not authenticated') }
 }
 
+// Thrown when the backend can't be reached at all, or is returning 5xx —
+// distinct from AdminAuthError so callers (ProtectedRoute in particular)
+// don't mistake "server is down" for "session expired" and bounce an
+// already-logged-in admin to the login screen.
+class AdminNetworkError extends Error {}
+
+// Turn a raw HTTP status / backend detail string into copy an admin can act
+// on. Never surface a bare "HTTP 502" or a browser fetch exception message.
+function friendlyErrorMessage(status: number, detail?: string): string {
+  if (status === 502 || status === 503 || status === 504) {
+    return 'The server is temporarily unavailable. Please try again in a moment.'
+  }
+  if (status === 500) {
+    return 'Something went wrong on our end. Please try again.'
+  }
+  if (status === 403) {
+    return "You don't have permission to do that."
+  }
+  if (status === 404) {
+    return 'That could not be found. It may have been removed.'
+  }
+  if (status === 429) {
+    return 'Too many requests — please wait a moment and try again.'
+  }
+  // Other 4xx errors usually carry a meaningful backend-provided detail
+  // (validation messages etc.) — prefer that when present.
+  return detail || `Something went wrong (error ${status}). Please try again.`
+}
+
 async function adminFetch<T>(
   input: string,
   init: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(input, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(input, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers ?? {}),
+      },
+    })
+  } catch {
+    // fetch() itself threw — backend unreachable, offline, DNS failure, etc.
+    throw new AdminNetworkError("Can't reach the server. Check your connection and try again.")
+  }
 
   if (res.status === 401) throw new AdminAuthError()
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`)
+    const detail = (body as { detail?: string }).detail
+    const message = friendlyErrorMessage(res.status, detail)
+    throw res.status >= 500 ? new AdminNetworkError(message) : new Error(message)
   }
 
   // 204 No Content
@@ -148,8 +185,9 @@ async function adminFetch<T>(
   return res.json() as Promise<T>
 }
 
-// Re-export so callers can check `err instanceof AdminAuthError`
-export { AdminAuthError }
+// Re-export so callers can check `err instanceof AdminAuthError` /
+// `err instanceof AdminNetworkError`
+export { AdminAuthError, AdminNetworkError, friendlyErrorMessage }
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -256,16 +294,22 @@ export async function deleteBattery(id: number): Promise<void> {
 export async function uploadBatteriesExcel(file: File): Promise<UploadResult> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch('/api/admin/batteries/upload', {
-    method: 'POST',
-    credentials: 'include',
-    body: form,
-    // Do NOT set Content-Type — browser sets it with the correct boundary
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/admin/batteries/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+      // Do NOT set Content-Type — browser sets it with the correct boundary
+    })
+  } catch {
+    throw new AdminNetworkError("Can't reach the server. Check your connection and try again.")
+  }
   if (res.status === 401) throw new AdminAuthError()
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`)
+    const message = friendlyErrorMessage(res.status, (body as { detail?: string }).detail)
+    throw res.status >= 500 ? new AdminNetworkError(message) : new Error(message)
   }
   return res.json() as Promise<UploadResult>
 }
@@ -372,9 +416,16 @@ export async function downloadFeedbackPdf(accuracy?: string): Promise<void> {
   const params = new URLSearchParams()
   if (accuracy) params.set('accuracy', accuracy)
   const url = `/api/admin/feedback/export-pdf${params.toString() ? `?${params}` : ''}`
-  const res = await fetch(url, { credentials: 'include' })
+  let res: Response
+  try {
+    res = await fetch(url, { credentials: 'include' })
+  } catch {
+    throw new AdminNetworkError("Can't reach the server. Check your connection and try again.")
+  }
   if (res.status === 401) throw new AdminAuthError()
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) throw res.status >= 500
+    ? new AdminNetworkError(friendlyErrorMessage(res.status))
+    : new Error(friendlyErrorMessage(res.status))
   const blob = await res.blob()
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
@@ -389,9 +440,16 @@ export async function downloadFeedbackCsv(accuracy?: string): Promise<void> {
   const params = new URLSearchParams()
   if (accuracy) params.set('accuracy', accuracy)
   const url = `/api/admin/feedback/export-csv${params.toString() ? `?${params}` : ''}`
-  const res = await fetch(url, { credentials: 'include' })
+  let res: Response
+  try {
+    res = await fetch(url, { credentials: 'include' })
+  } catch {
+    throw new AdminNetworkError("Can't reach the server. Check your connection and try again.")
+  }
   if (res.status === 401) throw new AdminAuthError()
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) throw res.status >= 500
+    ? new AdminNetworkError(friendlyErrorMessage(res.status))
+    : new Error(friendlyErrorMessage(res.status))
   const blob = await res.blob()
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
@@ -985,14 +1043,21 @@ export interface CrspStatus {
 export async function crspUpload(file: File): Promise<{ file_path: string }> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch('/api/admin/pipeline/crsp/upload', {
-    method: 'POST',
-    credentials: 'include',
-    body: form,
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/admin/pipeline/crsp/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    })
+  } catch {
+    throw new AdminNetworkError("Can't reach the server. Check your connection and try again.")
+  }
+  if (res.status === 401) throw new AdminAuthError()
   if (!res.ok) {
-    const d = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(d?.detail || res.statusText)
+    const body = await res.json().catch(() => ({}))
+    const message = friendlyErrorMessage(res.status, (body as { detail?: string }).detail)
+    throw res.status >= 500 ? new AdminNetworkError(message) : new Error(message)
   }
   return res.json() as Promise<{ file_path: string }>
 }
