@@ -33,11 +33,20 @@ table, so most searches still fall through to layers 1–3.
 oem_fitment is not a competing layer — it doesn't affect which layer above
 matches the vehicle or the resulting confidence. Instead, once any layer
 resolves a matched (make, model, year), oem_fitment is checked for that same
-vehicle and, if found, its Ah/technology REPLACES whatever that layer would
-otherwise have used — even a 0a/0b confirmed-battery-code Ah — since it's
-Exide's own official spec sheet. The response's `ah_source` field records
-which path actually supplied the Ah: "oem_fitment", "battery_code" (0a/0b's
-normal path), or "cc_bracket_estimate" (1/2/3's normal path).
+vehicle and, if found, its Ah REPLACES whatever that layer would otherwise
+have used — even a 0a/0b confirmed-battery-code Ah — since it's Exide's own
+official spec sheet. The response's `ah_source` field records which path
+actually supplied the Ah: "oem_fitment", "battery_code" (0a/0b's normal
+path), or "cc_bracket_estimate" (1/2/3's normal path).
+
+oem_fitment's technology column is NOT applied to preferred_tech — many of
+its values are Exide product-tier names (PREMIUM, CLASSIC, START PRO, ...)
+rather than actual chemistry, and even where it is a real chemistry value,
+technology preference must keep following this app's own luxury-make/
+stop-start rules (luxury makes always prefer AGM, falling back to EFB if
+AGM isn't stocked at the target Ah; stop-start vehicles prefer EFB/AGM per
+_preferred_tech()) rather than deferring to Exide's per-vehicle tech, which
+doesn't know about local stock or this app's brand-tier policy.
 """
 
 from __future__ import annotations
@@ -735,9 +744,14 @@ def _fitment_override(make_n: str, model_n: str, year: int) -> tuple[float, str 
     Return (ah, technology) from oem_fitment for this vehicle, or None if no
     row covers it. Not a vehicle-match layer — this is only ever consulted
     for a (make, model, year) some other layer already resolved, and when it
-    hits, its Ah/technology REPLACES that layer's own value (see module
-    docstring). No confidence value: this doesn't affect how sure we are
-    about the vehicle match, only the precision of the Ah/technology used.
+    hits, its Ah REPLACES that layer's own value (see module docstring). No
+    confidence value: this doesn't affect how sure we are about the vehicle
+    match, only the precision of the Ah used.
+
+    The technology in the returned tuple is informational only — callers
+    apply the Ah but deliberately do NOT apply this technology to
+    preferred_tech (see module docstring: luxury-make/stop-start rules take
+    precedence over Exide's per-vehicle tech value).
 
     Exact model match within [year_from, year_to] (open-ended if year_to is
     null) → used directly. Otherwise fuzzy model match (token_set_ratio ≥ 85)
@@ -1041,10 +1055,8 @@ def recommend(
         ah_source = "battery_code"
         fit = _fitment_override(make_n, web_veh_model_n or model_n, effective_web_year)
         if fit is not None:
-            fit_ah, fit_tech = fit
+            fit_ah, _fit_tech = fit
             target_ah = int(round(fit_ah))
-            if fit_tech in _TECH_PRIORITY:
-                pref_tech = fit_tech
             ah_source = "oem_fitment"
 
         primary, alternatives = _select_batteries(target_ah, pref_tech, region)
@@ -1141,10 +1153,8 @@ def recommend(
         ah_source = "battery_code"
         fit = _fitment_override(make_n, veh_model_n or model_n, effective_inf_year)
         if fit is not None:
-            fit_ah, fit_tech = fit
+            fit_ah, _fit_tech = fit
             target_ah = int(round(fit_ah))
-            if fit_tech in _TECH_PRIORITY:
-                pref_tech = fit_tech
             ah_source = "oem_fitment"
 
         primary, alternatives = _select_batteries(target_ah, pref_tech, region)
@@ -1329,10 +1339,8 @@ def recommend(
     fit_model_n = _norm_model_key(matched_model) if matched_model else model_n
     fit = _fitment_override(make_n, fit_model_n, effective_year)
     if fit is not None:
-        fit_ah, fit_tech = fit
+        fit_ah, _fit_tech = fit
         target_ah = int(round(fit_ah))
-        if fit_tech in _TECH_PRIORITY:
-            pref_tech = fit_tech
         ah_source = "oem_fitment"
 
     primary, alternatives = _select_batteries(target_ah, pref_tech, region)

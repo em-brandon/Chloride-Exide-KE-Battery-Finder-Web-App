@@ -180,8 +180,9 @@ class OemFitment(Base):
                 TRUNCATE + reload on each run).
     Read by:    matcher.py's _fitment() / _fitment_override() — checked for
                 EVERY matched vehicle regardless of which layer (0a-3) found
-                it, and its ah/technology wins over that layer's own value
-                when present.
+                it, and its ah wins over that layer's own value when present.
+                technology is NOT applied — preferred_tech always follows
+                this app's own luxury-make/stop-start rules instead.
     """
 
     __tablename__ = "oem_fitment"
