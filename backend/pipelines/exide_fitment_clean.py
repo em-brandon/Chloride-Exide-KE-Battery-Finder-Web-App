@@ -113,6 +113,18 @@ _EXCLUDED_MAKES: frozenset[str] = frozenset({
     "FENGON", "GENESIS", "LANDWIND", "LEAPMOTOR", "LIFAN", "LIVAN",
     "LYNK & CO", "MAXUS", "OMODA", "POLESTAR", "SERES", "SHINERAY", "SMART",
     "TOFAS", "VOYAH", "WEITUO", "WEY", "YUEJIN", "YULON",
+    # Second-pass review — caught after the first exclusion pass shipped:
+    # more of the same categories above (defunct/obscure, foreign farm/bus/
+    # truck equipment, microcars/kit-cars, coachbuilders/tuners) that were
+    # missed when the set above was first written.
+    "AEBI", "AL-GHAZI", "ALVIS", "AMW", "ARO", "ASIA MOTORS", "ASTRA",
+    "AYATS", "BAM", "BEDFORD", "BERTONE", "BMC", "BOND", "BORGWARD",
+    "BRANSON", "CARBODIES", "CARON", "CMC", "DONKERVOORT", "DR", "FISKER",
+    "FPV", "GRUAU", "GULERYUZ", "HICOM", "HSV", "INTERNATIONAL HARV",
+    "IRMSCHER", "KA", "LEVC", "LIGIER", "MEGA", "MINELLI", "MITSUOKA",
+    "MPM MOTORS", "MWM", "OSCA", "PADANE", "PEGASO", "POLARIS", "PUCH",
+    "RANGER", "SIPANI", "SML", "SPORTEQUIPE", "SWM MOTORS", "UMM",
+    "VISEON", "VOLVO BM", "YAGMUR", "ZENOS CARS",
 })
 
 # ── Technology cleaning ──────────────────────────────────────────────────────
