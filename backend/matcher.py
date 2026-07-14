@@ -5,11 +5,17 @@ Data sources (all Postgres tables, loaded once at startup into an in-memory
 pandas cache — see the @lru_cache loaders below)
 ------------------------------------------------------------------------
 vehicle_years           : make, model, year, engine_capacity, fuel
+vehicle_years_exide     : make, model, year, engine_capacity, fuel — Exide
+                          fitment-guide vehicles (unioned with vehicle_years
+                          by _vehicles(), never written to vehicle_years itself)
 battery_specs           : Battery Code, Model Key, Ah, CCA (A EN), Technology
 dial_battery_inference  : real-world call-centre sales data (highest-frequency
                           battery code sold per make/model)
 web_battery_validation  : internet-sourced fitment data, populated offline by
                           pipelines/web_battery_validate.py
+oem_fitment             : Exide's official global fitment guide — Ah/technology
+                          per make/model/year-range, populated offline by
+                          pipelines/exide_fitment_clean.py
 
 Matching layers (checked in order in `recommend()`; first hit wins)
 ---------------------------------------------------------------------
@@ -23,6 +29,15 @@ Layers 0a/0b take priority over 1–3 because they reflect actual fitment
 outcomes (real sales, internet-verified) rather than a rule-of-thumb Ah
 estimate — but they only fire when a matching row exists in their source
 table, so most searches still fall through to layers 1–3.
+
+oem_fitment is not a competing layer — it doesn't affect which layer above
+matches the vehicle or the resulting confidence. Instead, once any layer
+resolves a matched (make, model, year), oem_fitment is checked for that same
+vehicle and, if found, its Ah/technology REPLACES whatever that layer would
+otherwise have used — even a 0a/0b confirmed-battery-code Ah — since it's
+Exide's own official spec sheet. The response's `ah_source` field records
+which path actually supplied the Ah: "oem_fitment", "battery_code" (0a/0b's
+normal path), or "cc_bracket_estimate" (1/2/3's normal path).
 """
 
 from __future__ import annotations
@@ -401,9 +416,18 @@ def _preferred_tech(
 
 @lru_cache(maxsize=1)
 def _vehicles() -> pd.DataFrame:
+    """
+    vehicle_years is never written to by the Exide fitment pipeline — its
+    coverage additions live in vehicle_years_exide, unioned in here so every
+    downstream consumer (get_makes/get_models/get_years, _make_index, and
+    Layers 1/2/3's fuzzy matching) sees the combined vehicle universe without
+    needing any changes of its own.
+    """
     from db import engine
     df = pd.read_sql(
-        "SELECT make, model, year, engine_capacity, fuel FROM vehicle_years",
+        "SELECT make, model, year, engine_capacity, fuel FROM vehicle_years "
+        "UNION ALL "
+        "SELECT make, model, year, engine_capacity, fuel FROM vehicle_years_exide",
         engine,
     )
     df["engine_capacity"] = pd.to_numeric(df["engine_capacity"], errors="coerce")
@@ -518,6 +542,51 @@ def _inference() -> pd.DataFrame:
     df["vtype_n"]  = df["vehicle_type"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
     df["vmodel_n"] = df["vehicle_model"].astype(str).apply(_norm_model_key)
     df["bcode_n"]  = df["battery_code"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    return df
+
+
+_TRAILING_CHASSIS_CODE_RE = re.compile(r"\s*\([^)]*\)?\s*$")
+
+
+def _strip_trailing_chassis_code(model: str) -> str:
+    """
+    Strip a trailing '(...)' chassis-code block, e.g. '124 Spider 1.4( 348)'
+    -> '124 Spider 1.4'. Mirrors pipelines/exide_fitment_clean.py's
+    _strip_chassis_code_suffix() — kept as a separate small copy here rather
+    than importing the pipeline script into the runtime module. Applied when
+    building oem_fitment's model_n so it matches vehicle_years_exide's
+    already-stripped display model (which is what a matched vehicle's model
+    actually looks like by the time _fitment_override() is called) — without
+    this, a vehicle exploded from a given oem_fitment row could fail to
+    fuzzy-match back to that same row's fitment spec.
+    """
+    stripped = _TRAILING_CHASSIS_CODE_RE.sub("", model).strip()
+    return stripped if stripped else model
+
+
+@lru_cache(maxsize=1)
+def _fitment() -> pd.DataFrame:
+    """
+    Load oem_fitment (Exide's official global fitment guide) into memory.
+    Returns an empty DataFrame if the table is missing or empty.
+    """
+    from db import engine
+    try:
+        df = pd.read_sql(
+            "SELECT make, model, year_from, year_to, ah, technology FROM oem_fitment",
+            engine,
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=["make", "model", "year_from", "year_to", "ah", "technology", "make_n", "model_n"]
+        )
+    if df.empty:
+        return df
+    df["make_n"]    = df["make"].astype(str).str.upper().str.strip().str.replace(r"\s+", " ", regex=True)
+    df["model_n"]   = df["model"].astype(str).apply(_strip_trailing_chassis_code).apply(_norm_model_key)
+    df["year_from"] = pd.to_numeric(df["year_from"], errors="coerce").astype("Int64")
+    df["year_to"]   = pd.to_numeric(df["year_to"], errors="coerce").astype("Int64")  # NaN = open-ended
+    df["ah"]        = pd.to_numeric(df["ah"], errors="coerce")
     return df
 
 
@@ -659,6 +728,63 @@ def _web_validation_lookup(
         return None
     row = year_rows[year_rows["model_n"] == result[0]].iloc[0]
     return str(row["battery_code"]), result[0], 75
+
+
+def _fitment_override(make_n: str, model_n: str, year: int) -> tuple[float, str | None] | None:
+    """
+    Return (ah, technology) from oem_fitment for this vehicle, or None if no
+    row covers it. Not a vehicle-match layer — this is only ever consulted
+    for a (make, model, year) some other layer already resolved, and when it
+    hits, its Ah/technology REPLACES that layer's own value (see module
+    docstring). No confidence value: this doesn't affect how sure we are
+    about the vehicle match, only the precision of the Ah/technology used.
+
+    Exact model match within [year_from, year_to] (open-ended if year_to is
+    null) → used directly. Otherwise fuzzy model match (token_set_ratio ≥ 85)
+    within the same year range — pooling every model tied at the best score,
+    not just extractOne's arbitrary pick among ties. A bare query like
+    "OUTLANDER" is a subset-match (score 100) against many different Exide
+    trims at once ("OUTLANDER III 2.0 4WD", "OUTLANDER III 2.2 DI-D", the
+    hybrid variant, ...); committing to whichever one extractOne happens to
+    return first could land on an unrepresentative trim (e.g. the hybrid's
+    45Ah) instead of a sensible one. Rows with a null Ah are skipped — a
+    technology-only hint isn't enough to drive battery selection.
+    """
+    fit = _fitment()
+    if fit.empty:
+        return None
+
+    make_rows = fit[fit["make_n"] == make_n]
+    if make_rows.empty:
+        return None
+
+    year_mask = (make_rows["year_from"] <= year) & (
+        make_rows["year_to"].isna() | (make_rows["year_to"] >= year)
+    )
+    year_rows = make_rows[year_mask]
+    if year_rows.empty:
+        return None
+
+    model_choices = year_rows["model_n"].unique().tolist()
+
+    if model_n in model_choices:
+        matched_model_ns = [model_n]
+    else:
+        scored = process.extract(model_n, model_choices, scorer=fuzz.token_set_ratio, limit=None)
+        if not scored:
+            return None
+        best_score = scored[0][1]
+        if best_score < 85:
+            return None
+        matched_model_ns = [m for m, score, _ in scored if score == best_score]
+
+    candidates = year_rows[year_rows["model_n"].isin(matched_model_ns) & year_rows["ah"].notna()]
+    if candidates.empty:
+        return None
+
+    best = candidates.sort_values("ah", ascending=False).iloc[0]
+    tech = str(best["technology"]) if pd.notna(best["technology"]) else None
+    return float(best["ah"]), tech
 
 
 def _parse_inference_code(code: str) -> tuple[int, str] | None:
@@ -863,6 +989,7 @@ def recommend(
         # Resolve engine specs from vehicle_years for response reporting.
         web_make_df, web_years_by_model = _make_index(make_n)
         web_matched_year: int | None = None
+        web_veh_model_n: str | None = None
 
         if not web_make_df.empty:
             if model_n in web_years_by_model:
@@ -911,6 +1038,15 @@ def recommend(
             target_ah = _target_ah(resolved_cc, resolved_fuel, effective_web_year)
             pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_web_year, make_n, stop_start)
 
+        ah_source = "battery_code"
+        fit = _fitment_override(make_n, web_veh_model_n or model_n, effective_web_year)
+        if fit is not None:
+            fit_ah, fit_tech = fit
+            target_ah = int(round(fit_ah))
+            if fit_tech in _TECH_PRIORITY:
+                pref_tech = fit_tech
+            ah_source = "oem_fitment"
+
         primary, alternatives = _select_batteries(target_ah, pref_tech, region)
 
         return {
@@ -927,6 +1063,7 @@ def recommend(
             "matched_make":   make_n,
             "matched_model":  web_matched_model_n,
             "matched_year":   web_matched_year,
+            "ah_source":      ah_source,
             "primary":        primary,
             "alternatives":   alternatives,
         }
@@ -945,6 +1082,7 @@ def recommend(
         # Resolve engine specs from vehicle_years for response reporting.
         inf_make_df, inf_years_by_model = _make_index(make_n)
         inf_matched_year: int | None = None
+        veh_model_n: str | None = None
 
         if not inf_make_df.empty:
             if model_n in inf_years_by_model:
@@ -1000,6 +1138,15 @@ def recommend(
             target_ah = _target_ah(resolved_cc, resolved_fuel, effective_inf_year)
             pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, stop_start)
 
+        ah_source = "battery_code"
+        fit = _fitment_override(make_n, veh_model_n or model_n, effective_inf_year)
+        if fit is not None:
+            fit_ah, fit_tech = fit
+            target_ah = int(round(fit_ah))
+            if fit_tech in _TECH_PRIORITY:
+                pref_tech = fit_tech
+            ah_source = "oem_fitment"
+
         primary, alternatives = _select_batteries(target_ah, pref_tech, region)
 
         return {
@@ -1016,6 +1163,7 @@ def recommend(
             "matched_make":   make_n,
             "matched_model":  inf_matched_model_n,
             "matched_year":   inf_matched_year,
+            "ah_source":      ah_source,
             "primary":        primary,
             "alternatives":   alternatives,
         }
@@ -1176,6 +1324,17 @@ def recommend(
     region = _make_region(make_n)
     target_ah = _target_ah(resolved_cc, resolved_fuel, effective_year if rule_based else None)
     pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_year, make_n, stop_start)
+
+    ah_source = "cc_bracket_estimate"
+    fit_model_n = _norm_model_key(matched_model) if matched_model else model_n
+    fit = _fitment_override(make_n, fit_model_n, effective_year)
+    if fit is not None:
+        fit_ah, fit_tech = fit
+        target_ah = int(round(fit_ah))
+        if fit_tech in _TECH_PRIORITY:
+            pref_tech = fit_tech
+        ah_source = "oem_fitment"
+
     primary, alternatives = _select_batteries(target_ah, pref_tech, region)
 
     return {
@@ -1192,6 +1351,7 @@ def recommend(
         "matched_make":   matched_make,
         "matched_model":  matched_model,
         "matched_year":   matched_year,
+        "ah_source":      ah_source,
         "primary":        primary,
         "alternatives":   alternatives,
     }

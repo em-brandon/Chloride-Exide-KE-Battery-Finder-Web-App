@@ -218,7 +218,7 @@ export default function AdminCoverage() {
             {/* 4-column stat grid */}
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginLeft: 'auto' }}>
               {[
-                { label: 'Committed to Master', value: coverage.master_count,       color: '#6366f1' },
+                { label: 'Published to Master', value: coverage.master_count,       color: '#6366f1' },
                 { label: 'In Staging',           value: coverage.staging_count,      color: '#f59e0b', hide: coverage.staging_count === 0 },
                 { label: 'Buckets Remaining',    value: `${coverage.remaining_buckets} / ${coverage.total_buckets}`, color: '#0ea5e9' },
                 { label: 'Web Cache Entries',    value: coverage.web_cache_size,     color: '#22c55e' },

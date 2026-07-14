@@ -885,7 +885,7 @@ function WebValidateTab() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '0.75rem 1rem' }}>
           <ArchiveBoxIcon style={{ width: 16, height: 16, color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
           <p style={{ margin: 0, fontSize: '0.75rem', color: '#92400e', lineHeight: 1.6, flex: 1 }}>
-            <strong>Staging area updated.</strong> {stagingToast} Review below before committing to master.
+            <strong>Staging area updated.</strong> {stagingToast} Review below before publishing to master.
           </p>
           <button onClick={() => setStagingToast(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#92400e' }}>
             <XMarkIcon style={{ width: 14, height: 14 }} />
@@ -912,8 +912,8 @@ function WebValidateTab() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '0.75rem 1rem' }}>
           <CheckCircleIcon style={{ width: 16, height: 16, color: '#22c55e', flexShrink: 0, marginTop: 1 }} />
           <p style={{ margin: 0, fontSize: '0.75rem', color: '#14532d', lineHeight: 1.6, flex: 1 }}>
-            <strong>Committed as version #{commitResult.version_number}.</strong>{' '}
-            {commitResult.committed} records committed, {commitResult.removed_invalid} invalid records removed
+            <strong>Published as version #{commitResult.version_number}.</strong>{' '}
+            {commitResult.committed} records published, {commitResult.removed_invalid} invalid records removed
             {commitResult.conflicts_resolved > 0 ? `, ${commitResult.conflicts_resolved} conflicts resolved` : ''}.
           </p>
           <button onClick={() => setCommitResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#14532d' }}>
@@ -1504,7 +1504,7 @@ function WebValidateTab() {
               { label: 'Total Combos',        value: totalCount.toLocaleString(),                                  color: '#9ca3af' },
               { label: 'Matched',             value: matchedCount.toLocaleString(),                               color: '#22c55e' },
               { label: 'Unmatched',           value: unmatchedCount.toLocaleString(),                             color: unmatchedCount > 0 ? R : '#22c55e' },
-              { label: 'Committed to Master', value: (coverage?.master_count ?? 0).toLocaleString(),              color: '#16a34a' },
+              { label: 'Published to Master', value: (coverage?.master_count ?? 0).toLocaleString(),              color: '#16a34a' },
               ...((coverage?.staging_count ?? 0) > 0 ? [{ label: 'In Staging', value: (coverage!.staging_count).toLocaleString(), color: '#f59e0b' }] : []),
               { label: 'Buckets Remaining',   value: (coverage?.remaining_buckets ?? 0).toLocaleString(),         color: '#6366f1' },
               { label: 'In Web Cache',        value: (coverage?.web_cache_size ?? 0).toLocaleString(),            color: '#0ea5e9' },
@@ -1572,7 +1572,7 @@ function WebValidateTab() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <ArchiveBoxIcon style={{ width: 15, height: 15, color: '#f59e0b' }} />
               <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#92400e' }}>
-                Staging Area — Review &amp; Resolve Before Committing
+                Staging Area — Review &amp; Resolve Before Publishing
               </h3>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -1789,7 +1789,7 @@ function WebValidateTab() {
               }}
             >
               <ServerStackIcon style={{ width: 13, height: 13 }} />
-              {preCommitLoading ? 'Checking…' : 'Review & Commit'}
+              {preCommitLoading ? 'Checking…' : 'Review & Publish'}
             </button>
           </div>
           <p style={{ fontSize: '0.68rem', color: '#92400e', margin: '0.5rem 0 0', fontStyle: 'italic' }}>
@@ -1816,14 +1816,14 @@ function WebValidateTab() {
             {versionsLoading ? (
               <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>Loading…</p>
             ) : versions.length === 0 ? (
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>No committed versions yet.</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>No published versions yet.</p>
             ) : (
               <>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
                     <thead>
                       <tr style={{ background: 'var(--adm-thead-bg)' }}>
-                        {['Version', 'Committed At', 'Committed By', 'Pipeline Run By', 'Committed', 'Removed', 'Conflicts', ''].map(col => (
+                        {['Version', 'Published At', 'Published By', 'Pipeline Run By', 'Published', 'Removed', 'Conflicts', ''].map(col => (
                           <th key={col} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, color: 'rgba(107,114,128,0.9)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                             {col}
                           </th>
@@ -2347,7 +2347,7 @@ function WebValidateTab() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div style={{ ...CARD, padding: '1.5rem', maxWidth: 560, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}>
             <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#111827' }}>
-              Commit Staged Data to Master Table
+              Publish Staged Data to Master Table
             </h2>
 
             {commitResult ? (
@@ -2356,7 +2356,7 @@ function WebValidateTab() {
                   <CheckCircleIcon style={{ width: 16, height: 16, color: '#22c55e', flexShrink: 0, marginTop: 1 }} />
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#14532d' }}>
                     <strong>Version #{commitResult.version_number} created.</strong><br />
-                    {commitResult.committed} records committed · {commitResult.removed_invalid} invalid removed · {commitResult.conflicts_resolved} conflicts resolved.
+                    {commitResult.committed} records published · {commitResult.removed_invalid} invalid removed · {commitResult.conflicts_resolved} conflicts resolved.
                   </p>
                 </div>
                 <button
@@ -2371,7 +2371,7 @@ function WebValidateTab() {
                 {stagingInfo && (
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                     <span style={{ fontSize: '0.72rem', fontWeight: 600, background: '#dcfce7', color: '#16a34a', borderRadius: 99, padding: '0.2rem 0.6rem' }}>
-                      {stagingInfo.valid_count} valid → will commit
+                      {stagingInfo.valid_count} valid → will publish
                     </span>
                     {stagingInfo.invalid_count > 0 && (
                       <span style={{ fontSize: '0.72rem', fontWeight: 600, background: '#fee2e2', color: R, borderRadius: 99, padding: '0.2rem 0.6rem' }}>
@@ -2430,7 +2430,7 @@ function WebValidateTab() {
                     onClick={handleCommit}
                     disabled={commitLoading}
                     style={{ padding: '0.6rem 1.25rem', borderRadius: 9, border: 'none', background: commitLoading ? '#9ca3af' : '#3b82f6', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: commitLoading ? 'not-allowed' : 'pointer' }}>
-                    {commitLoading ? 'Committing…' : 'Confirm & Commit'}
+                    {commitLoading ? 'Publishing…' : 'Confirm & Publish'}
                   </button>
                 </div>
               </>
@@ -3293,7 +3293,7 @@ function CrspStagingPanel({
       const result = await commitCrspStaging([])
       onCommit(result)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Commit failed — check server logs'
+      const msg = err instanceof Error ? err.message : 'Publish failed — check server logs'
       setToast(msg)
     } finally { setCommitLoading(false) }
   }
@@ -3383,7 +3383,7 @@ function CrspStagingPanel({
                       <td style={{ padding: '0.3rem 0.5rem', color: '#6b7280' }}>{row.source ? (SOURCE_LABELS[row.source] ?? row.source) : '—'}</td>
                       <td style={{ padding: '0.3rem 0.5rem' }}>
                         {row.conflict
-                          ? <span title="Already in master — will be skipped on commit" style={{ color: '#b45309', fontWeight: 700, fontSize: '0.65rem' }}>⚠ Exists</span>
+                          ? <span title="Already in master — will be skipped on publish" style={{ color: '#b45309', fontWeight: 700, fontSize: '0.65rem' }}>⚠ Exists</span>
                           : !row.is_valid
                           ? <span style={{ color: R, fontSize: '0.65rem' }}>{row.invalid_reason ?? 'Invalid'}</span>
                           : <span style={{ color: '#15803d', fontSize: '0.65rem' }}>✓ New</span>}
@@ -3437,7 +3437,7 @@ function CrspStagingPanel({
           {discardLoading ? 'Discarding…' : 'Discard All'}
         </button>
         <button onClick={handleCommit} disabled={commitLoading} style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.45rem 0.9rem', borderRadius: 8, border: 'none', background: R, cursor: 'pointer', color: '#fff' }}>
-          {commitLoading ? 'Committing…' : 'Commit to vehicle_years'}
+          {commitLoading ? 'Publishing…' : 'Publish to vehicle_years'}
         </button>
       </div>
     </div>
@@ -3758,7 +3758,7 @@ function CrspTab() {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.65rem 1rem' }}>
         <InformationCircleIcon style={{ width: 15, height: 15, color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
         <p style={{ margin: 0, fontSize: '0.72rem', color: '#1d4ed8', lineHeight: 1.6 }}>
-          Stage 1 (dataprep) cleans the CRSP Excel into <code>battery_lookup_dataset.csv</code>. Stage 2 queries 5 external sources for production years and writes to staging for review before committing to <code>vehicle_years</code>.
+          Stage 1 (dataprep) cleans the CRSP Excel into <code>battery_lookup_dataset.csv</code>. Stage 2 queries 5 external sources for production years and writes to staging for review before publishing to <code>vehicle_years</code>.
         </p>
       </div>
 
@@ -3934,7 +3934,7 @@ function CrspTab() {
       {/* Commit result */}
       {commitResult && (
         <div style={{ fontSize: '0.75rem', color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.6rem 0.9rem' }}>
-          ✓ Committed to vehicle_years — v{commitResult.version_number}: {commitResult.committed} new records added, {commitResult.conflict_kept} already-existing records skipped.
+          ✓ Published to vehicle_years — v{commitResult.version_number}: {commitResult.committed} new records added, {commitResult.conflict_kept} already-existing records skipped.
         </div>
       )}
 
@@ -4323,7 +4323,7 @@ function ExpansionTab() {
       {(isDone || status?.status === 'cancelled') && status && status.rows_staged > 0 && (
         <div style={{ fontSize: '0.73rem', color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <InformationCircleIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
-          {status.rows_staged.toLocaleString()} rows are staged. Switch to the <strong style={{ marginLeft: 3, marginRight: 3 }}>CRSP Pipeline</strong> tab → Staging Review to commit them to vehicle_years.
+          {status.rows_staged.toLocaleString()} rows are staged. Switch to the <strong style={{ marginLeft: 3, marginRight: 3 }}>CRSP Pipeline</strong> tab → Staging Review to publish them to vehicle_years.
         </div>
       )}
 
@@ -4361,7 +4361,7 @@ export default function AdminDataPipeline() {
           <div>
             <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'rgba(17,24,39,0.88)' }}>Vehicle Dataset Pipeline</div>
             <div style={{ fontSize: '0.78rem', color: 'rgba(107,114,128,0.85)', marginTop: '0.2rem' }}>
-              Run the CRSP pipeline to clean, enrich, and commit vehicle year data — or run web validation to find battery matches online.
+              Run the CRSP pipeline to clean, enrich, and publish vehicle year data — or run web validation to find battery matches online.
             </div>
           </div>
         </div>

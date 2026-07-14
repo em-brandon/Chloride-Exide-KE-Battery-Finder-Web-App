@@ -182,7 +182,7 @@ function DataCoverageTile({ stats, coverage }: { stats: AdminStats | null; cover
       </div>
 
       {/* Inference section */}
-      <div style={{ flex: 1, paddingBottom: '0.75rem', borderBottom: '1px solid #e2e4e922' }}>
+      <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid #e2e4e922' }}>
         <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.55)', marginBottom: '0.3rem' }}>
           Inference
         </div>
@@ -290,19 +290,20 @@ function HealthCard({ status, latency_ms, cluster_connections, max_connections, 
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--adm-text-2)', marginBottom: '0.3rem' }}>
           <span>Connections (cluster-wide)</span>
-          <span>
+          <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'rgba(17,24,39,0.7)' }}>
             {hasClusterStats ? `${cluster_connections} / ${max_connections} (${usagePct}%)` : `${pool_checked_out} / ${pool_size} (${usagePct}%)`}
           </span>
         </div>
         <div style={{ height: 6, borderRadius: 99, background: 'var(--adm-sep)', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${Math.min(usagePct, 100)}%`, background: usagePct > 80 ? R : usagePct > 50 ? '#f59e0b' : '#22c55e', borderRadius: 99, transition: 'width 0.6s ease' }} />
         </div>
+        {hasClusterStats && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--adm-text-3)', marginTop: '0.3rem' }}>
+            <span>this instance</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{pool_checked_out} / {pool_size} ({pool_usage_pct}%)</span>
+          </div>
+        )}
       </div>
-      {hasClusterStats && (
-        <div style={{ fontSize: '0.65rem', color: 'var(--adm-text-3)' }}>
-          this instance: {pool_checked_out} / {pool_size} ({pool_usage_pct}%)
-        </div>
-      )}
     </div>
   )
 }
@@ -470,9 +471,11 @@ export default function AdminDashboard() {
             <div style={cardAnim(160, true)}><StatCard
               accentColor="#1d4ed8"
               label="Makes & Models"
-              value={stats?.counts.vehicle_years ?? '—'}
+              value={stats?.counts.vehicle_years != null
+                ? stats.counts.vehicle_years + stats.counts.vehicle_years_exide_pairs
+                : '—'}
               sub={stats?.counts.vehicle_years != null
-                ? `${stats.counts.vehicle_years.toLocaleString()} pairs · ${stats.counts.vehicles_raw.toLocaleString()} raw · ${(stats.counts.vehicle_years + stats.counts.vehicles_raw).toLocaleString()} total`
+                ? `${stats.counts.vehicle_years.toLocaleString()} core · +${stats.counts.vehicle_years_exide_pairs.toLocaleString()} OEM fitment · ${stats.counts.vehicles_raw.toLocaleString()} raw records`
                 : undefined}
               icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
             /></div>
