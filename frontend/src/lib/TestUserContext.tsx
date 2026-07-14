@@ -5,7 +5,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
-import { getCachedUser, fetchMe, logoutUser, clearToken, getToken } from '@/lib/testUserApi'
+import { getCachedUser, fetchMe, logoutUser, getToken } from '@/lib/testUserApi'
 import type { TestUserInfo } from '@/lib/testUserApi'
 
 interface TestUserContextValue {
@@ -38,8 +38,12 @@ export function TestUserProvider({ children }: { children: ReactNode }) {
       const info = await fetchMe()
       setUser(info)
     } catch {
+      // fetchMe() itself clears the stored token when the failure is a
+      // genuine 401 (session expired/revoked) — for anything else (a
+      // transient network blip, maintenance mode) the token stays put so a
+      // real retry can still succeed, rather than silently logging the
+      // user out of a still-valid session.
       setUser(null)
-      clearToken()
     } finally {
       setLoading(false)
     }

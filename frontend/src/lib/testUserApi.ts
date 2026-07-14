@@ -7,6 +7,8 @@
  *   - Cleared on logout or 401 response
  */
 
+import { isMaintenanceResponse, redirectToMaintenance } from './maintenance'
+
 const TOKEN_KEY  = 'test_user_token'
 const USER_KEY   = 'test_user_info'
 
@@ -55,6 +57,7 @@ function cacheUser(info: TestUserInfo): void {
 // ---------------------------------------------------------------------------
 
 async function handleAuth<T>(res: Response): Promise<T> {
+  if (isMaintenanceResponse(res)) redirectToMaintenance()
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`)
@@ -109,6 +112,7 @@ export async function fetchMe(): Promise<TestUserInfo> {
   const res = await fetch('/api/auth/me', {
     headers: { Authorization: `Bearer ${token}` },
   })
+  if (isMaintenanceResponse(res)) redirectToMaintenance()
   if (res.status === 401) {
     clearToken()
     throw new Error('Session expired')

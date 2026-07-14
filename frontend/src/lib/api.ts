@@ -1,6 +1,8 @@
 import type { RecommendRequest, RecommendationResult } from '@/types/battery'
+import { isMaintenanceResponse, redirectToMaintenance } from '@/lib/maintenance'
 
 async function handleResponse<T>(res: Response): Promise<T> {
+  if (isMaintenanceResponse(res)) redirectToMaintenance()
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`)
@@ -115,6 +117,7 @@ export async function submitFeedback(payload: FeedbackPayload): Promise<void> {
     headers,
     body: JSON.stringify(payload),
   })
+  if (isMaintenanceResponse(res)) redirectToMaintenance()
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error((body as { detail?: string }).detail ?? `HTTP ${res.status}`)
