@@ -7,7 +7,6 @@ import {
   BoltIcon,
   ClipboardDocumentListIcon,
   ShieldCheckIcon,
-  ChartBarIcon,
   ChatBubbleLeftRightIcon,
   UserGroupIcon,
   CogIcon,
@@ -18,6 +17,7 @@ import {
   MoonIcon,
   ServerStackIcon,
   MagnifyingGlassIcon,
+  TruckIcon,
 } from '@heroicons/react/20/solid'
 import { adminLogout } from '@/lib/adminApi'
 
@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   { to: '/admin/batteries',     label: 'Batteries',  Icon: BoltIcon },
   { to: '/admin/audit',         label: 'Audit Log',  Icon: ClipboardDocumentListIcon },
   { to: '/admin/sessions',      label: 'Sessions',   Icon: ShieldCheckIcon },
-  { to: '/admin/coverage',      label: 'Coverage',   Icon: ChartBarIcon },
+  { to: '/admin/vehicle-data',  label: 'Vehicle Data', Icon: TruckIcon },
   { to: '/admin/data-pipeline', label: 'Data Pipeline', Icon: ServerStackIcon },
   { to: '/admin/feedback',      label: 'Feedback',   Icon: ChatBubbleLeftRightIcon },
   { to: '/admin/search-log',    label: 'Search Log', Icon: MagnifyingGlassIcon },

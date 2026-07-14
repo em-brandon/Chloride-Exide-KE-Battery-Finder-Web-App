@@ -21,11 +21,23 @@ export interface AdminStats {
   counts: {
     battery_specs: number
     vehicle_years: number
+    vehicle_years_total: number
     vehicles_raw: number
     model_aliases: number
     inference_makes: number
     inference_models: number
     inference_records: number
+    fitment_makes: number
+    fitment_models: number
+    fitment_records: number
+    vehicle_years_exide_pairs: number
+    vehicle_years_exide_total: number
+    battery_origin_local: number
+    battery_origin_imported: number
+    battery_tech_mf: number
+    battery_tech_efb: number
+    battery_tech_agm: number
+    battery_tech_flooded: number
   }
   db_reads: number
   match_breakdown: MatchBreakdown | null
@@ -574,6 +586,68 @@ export async function getWebValidateMatched(
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (search) params.set('search', search)
   return adminFetch(`/api/admin/pipeline/web-validate/matched?${params}`)
+}
+
+// ---------------------------------------------------------------------------
+// Vehicle data browser (Core Dataset / OEM Fitment)
+// ---------------------------------------------------------------------------
+
+export interface CoreVehicleRow {
+  id:              number
+  make:            string
+  model:           string
+  year:            number
+  engine_capacity: number | null
+  fuel:            string | null
+  source:          string | null
+}
+
+export interface CoreVehicleResponse {
+  total:     number
+  page:      number
+  page_size: number
+  items:     CoreVehicleRow[]
+}
+
+export async function getVehicleDataCore(
+  page = 1,
+  pageSize = 50,
+  search = '',
+): Promise<CoreVehicleResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (search) params.set('search', search)
+  return adminFetch(`/api/admin/vehicle-data/core?${params}`)
+}
+
+export interface OemFitmentRow {
+  id:                    number
+  vehicle_category:      string
+  make:                  string
+  model:                 string
+  year_from:             number
+  year_to:               number | null
+  ah:                    number | null
+  technology:            string | null
+  raw_technology:        string | null
+  dimensions:            string | null
+  cylinder_capacity_cc:  number | null
+}
+
+export interface OemFitmentResponse {
+  total:     number
+  page:      number
+  page_size: number
+  items:     OemFitmentRow[]
+}
+
+export async function getVehicleDataOemFitment(
+  page = 1,
+  pageSize = 50,
+  search = '',
+): Promise<OemFitmentResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (search) params.set('search', search)
+  return adminFetch(`/api/admin/vehicle-data/oem-fitment?${params}`)
 }
 
 // ---------------------------------------------------------------------------

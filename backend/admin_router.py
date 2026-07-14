@@ -22,6 +22,8 @@ GET    /api/admin/audit
 POST   /api/admin/cache/refresh
 GET    /api/admin/sessions
 DELETE /api/admin/sessions/{id}
+GET    /api/admin/vehicle-data/core
+GET    /api/admin/vehicle-data/oem-fitment
 """
 
 from __future__ import annotations
@@ -209,21 +211,45 @@ def stats(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_d
         SELECT
             (SELECT COUNT(*)                                     FROM battery_specs      WHERE deleted_at IS NULL)  AS battery_specs,
             (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years)                                AS vehicle_years,
+            (SELECT COUNT(*)                                     FROM vehicle_years)                                AS vehicle_years_total,
             (SELECT COUNT(*)                                     FROM vehicles_raw)                                 AS vehicles_raw,
             (SELECT COUNT(*)                                     FROM model_aliases)                                AS model_aliases,
             (SELECT COUNT(DISTINCT vehicle_type)                 FROM dial_battery_inference)                       AS inf_makes,
             (SELECT COUNT(DISTINCT vehicle_model)                FROM dial_battery_inference)                       AS inf_models,
-            (SELECT COUNT(*)                                     FROM dial_battery_inference)                       AS inf_records
+            (SELECT COUNT(*)                                     FROM dial_battery_inference)                       AS inf_records,
+            (SELECT COUNT(DISTINCT make)                         FROM oem_fitment)                                  AS fitment_makes,
+            (SELECT COUNT(DISTINCT model)                        FROM oem_fitment)                                  AS fitment_models,
+            (SELECT COUNT(*)                                     FROM oem_fitment)                                  AS fitment_records,
+            (SELECT COUNT(DISTINCT make || '|' || model)         FROM vehicle_years_exide)                          AS vehicle_years_exide_pairs,
+            (SELECT COUNT(*)                                     FROM vehicle_years_exide)                          AS vehicle_years_exide_total,
+            (SELECT COUNT(*) FILTER (WHERE origin = 'local')     FROM battery_specs WHERE deleted_at IS NULL)       AS battery_origin_local,
+            (SELECT COUNT(*) FILTER (WHERE origin = 'imported')  FROM battery_specs WHERE deleted_at IS NULL)       AS battery_origin_imported,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'MF')            FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_mf,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'EFB')           FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_efb,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'AGM')           FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_agm,
+            (SELECT COUNT(*) FILTER (WHERE technology = 'SB (Flooded)')  FROM battery_specs WHERE deleted_at IS NULL) AS battery_tech_flooded
     """)).fetchone()
 
     counts = {
         "battery_specs":    row.battery_specs    or 0,
         "vehicle_years":    row.vehicle_years    or 0,
+        "vehicle_years_total": row.vehicle_years_total or 0,
         "vehicles_raw":     row.vehicles_raw     or 0,
         "model_aliases":    row.model_aliases    or 0,
         "inference_makes":  row.inf_makes        or 0,
         "inference_models": row.inf_models       or 0,
         "inference_records":row.inf_records      or 0,
+        "fitment_makes":              row.fitment_makes              or 0,
+        "fitment_models":             row.fitment_models             or 0,
+        "fitment_records":            row.fitment_records            or 0,
+        "vehicle_years_exide_pairs":  row.vehicle_years_exide_pairs  or 0,
+        "vehicle_years_exide_total":  row.vehicle_years_exide_total  or 0,
+        "battery_origin_local":       row.battery_origin_local       or 0,
+        "battery_origin_imported":    row.battery_origin_imported    or 0,
+        "battery_tech_mf":            row.battery_tech_mf            or 0,
+        "battery_tech_efb":           row.battery_tech_efb           or 0,
+        "battery_tech_agm":           row.battery_tech_agm           or 0,
+        "battery_tech_flooded":       row.battery_tech_flooded       or 0,
     }
 
     # ── 1 query: db_reads ────────────────────────────────────────────────────
@@ -690,12 +716,14 @@ def refresh_cache(admin: AdminUser = Depends(require_admin)):
     matcher._batteries.cache_clear()
     matcher._model_aliases.cache_clear()
     matcher._inference.cache_clear()
+    matcher._fitment.cache_clear()
     matcher.recommend.cache_clear()
     # Re-warm immediately
     matcher._vehicles()
     matcher._batteries()
     matcher._model_aliases()
     matcher._inference()
+    matcher._fitment()
     logger.info("Matcher cache refreshed by %s", admin.username)
     return {"detail": "Cache refreshed"}
 
@@ -1708,6 +1736,73 @@ def get_web_validate_matched(
             FROM web_battery_validation
             WHERE (UPPER(make_n) LIKE :q OR UPPER(model_n) LIKE :q)
             ORDER BY make_n, model_n, year
+            LIMIT :lim OFFSET :off
+        """), {"q": like, "lim": page_size, "off": offset}).fetchall()
+
+    return {
+        "total":     total,
+        "page":      page,
+        "page_size": page_size,
+        "items":     [dict(r._mapping) for r in rows],
+    }
+
+
+@router.get("/vehicle-data/core", summary="Paginated browse of vehicle_years (core dataset)")
+def get_vehicle_data_core(
+    page: int = 1,
+    page_size: int = 50,
+    search: str = "",
+    admin: AdminUser = Depends(require_admin),
+):
+    from sqlalchemy import text as _text
+    offset = (page - 1) * page_size
+    like = f"%{search.upper()}%" if search else "%"
+
+    with engine.connect() as conn:
+        total = conn.execute(_text("""
+            SELECT COUNT(*) FROM vehicle_years
+            WHERE (UPPER(make) LIKE :q OR UPPER(model) LIKE :q)
+        """), {"q": like}).scalar() or 0
+
+        rows = conn.execute(_text("""
+            SELECT id, make, model, year, engine_capacity, fuel, source
+            FROM vehicle_years
+            WHERE (UPPER(make) LIKE :q OR UPPER(model) LIKE :q)
+            ORDER BY make, model, year
+            LIMIT :lim OFFSET :off
+        """), {"q": like, "lim": page_size, "off": offset}).fetchall()
+
+    return {
+        "total":     total,
+        "page":      page,
+        "page_size": page_size,
+        "items":     [dict(r._mapping) for r in rows],
+    }
+
+
+@router.get("/vehicle-data/oem-fitment", summary="Paginated browse of oem_fitment (Exide fitment guide)")
+def get_vehicle_data_oem_fitment(
+    page: int = 1,
+    page_size: int = 50,
+    search: str = "",
+    admin: AdminUser = Depends(require_admin),
+):
+    from sqlalchemy import text as _text
+    offset = (page - 1) * page_size
+    like = f"%{search.upper()}%" if search else "%"
+
+    with engine.connect() as conn:
+        total = conn.execute(_text("""
+            SELECT COUNT(*) FROM oem_fitment
+            WHERE (UPPER(make) LIKE :q OR UPPER(model) LIKE :q)
+        """), {"q": like}).scalar() or 0
+
+        rows = conn.execute(_text("""
+            SELECT id, vehicle_category, make, model, year_from, year_to,
+                   ah, technology, raw_technology, dimensions, cylinder_capacity_cc
+            FROM oem_fitment
+            WHERE (UPPER(make) LIKE :q OR UPPER(model) LIKE :q)
+            ORDER BY make, model, year_from
             LIMIT :lim OFFSET :off
         """), {"q": like, "lim": page_size, "off": offset}).fetchall()
 

@@ -20,11 +20,13 @@ import {
   refreshCache,
   exportBatteriesUrl,
   getWebValidateCoverage,
+  fetchBatteries,
   type AdminStats,
   type MatchBreakdown,
   type HealthStatus,
   type CoverageInfo,
 } from '@/lib/adminApi'
+import { BRAND_LOGO, groupByBrand } from '@/lib/brandBranding'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { OrbitLoader } from '@/components/ui/OrbitLoader'
 
@@ -83,33 +85,122 @@ function InfoTooltip({ text }: { text: string }) {
   )
 }
 
-// ── StatCard ──────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, accentColor, icon, tooltip }: {
-  label: string; value: string | number; sub?: string; accentColor?: string
-  icon: React.ReactNode; tooltip?: string
+// ── BatteryRecordsCard ────────────────────────────────────────────────────────
+// Big total up top (unchanged from the plain StatCard this replaces), then a
+// Local/Imported origin split as label-right rows, and a technology-mix
+// footer line — the two axes admins actually care about when scanning the
+// catalogue (where a battery is sourced from, what chemistry it uses).
+const FEATURED_BRANDS = ['Powerlast', 'Sebang', 'Chloride Exide AGM']
+
+function BatteryRecordsCard({ stats, brandGroups, icon }: {
+  stats: AdminStats | null
+  brandGroups: Array<{ brand: string; count: number }>
+  icon: React.ReactNode
 }) {
-  const color = accentColor ?? 'rgba(17,24,39,0.88)'
-  const borderColor = accentColor ?? '#e2e4e9'
+  const accentColor = '#CC0000'
+  const c = stats?.counts
   return (
-    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderTop: `3px solid ${borderColor}`, height: '100%', boxSizing: 'border-box' }}>
-      {/* Label + icon pinned to top */}
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accentColor}`, height: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
-            {label}
-          </span>
-          {tooltip && <InfoTooltip text={tooltip} />}
-        </div>
-        <span style={{ color }}>{icon}</span>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
+          Battery Records
+        </span>
+        <span style={{ color: accentColor }}>{icon}</span>
       </div>
-      {/* Big number — grows to fill available space */}
-      <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3.5rem', fontWeight: 900, color, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.5rem 0' }}>
-        {typeof value === 'number' ? value.toLocaleString() : value}
+      <span style={{ textAlign: 'center', fontSize: '3.5rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.3rem 0' }}>
+        {c?.battery_specs != null ? c.battery_specs.toLocaleString() : '—'}
       </span>
-      {/* Sub text pinned to footer */}
-      {sub && (
-        <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${borderColor}22`, paddingTop: '0.6rem', width: '100%' }}>
-          <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block' }}>{sub}</span>
+      <span style={{ textAlign: 'center', fontSize: '0.63rem', color: 'var(--adm-text-2)', marginBottom: '0.6rem' }}>active in database</span>
+
+      {c != null && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Local</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: accentColor }}>{c.battery_origin_local.toLocaleString()}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Imported</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: accentColor }}>{c.battery_origin_imported.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
+      {c != null && (
+        <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accentColor}22`, paddingTop: '0.6rem', width: '100%' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--adm-text-2)', display: 'block', textAlign: 'center' }}>
+            {c.battery_tech_mf} MF · {c.battery_tech_efb} EFB · {c.battery_tech_agm} AGM · {c.battery_tech_flooded} Flooded
+          </span>
+        </div>
+      )}
+
+      {brandGroups.length > 0 && (
+        <div style={{ marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: `1px solid ${accentColor}22`, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem' }}>
+          {FEATURED_BRANDS.map(brand => {
+            const logo = BRAND_LOGO[brand]
+            const count = brandGroups.find(g => g.brand === brand)?.count ?? 0
+            if (!logo || count === 0) return null
+            return (
+              <img
+                key={brand}
+                src={logo}
+                alt={`${brand} (${count})`}
+                title={`${brand}: ${count}`}
+                style={{ height: 18, width: 'auto', maxWidth: 44, objectFit: 'contain' }}
+              />
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── MakesModelsCard ───────────────────────────────────────────────────────────
+// Two entry-count sources side by side (Core Dataset / OEM Fitment), each an
+// independent total row count — not a single blended number, since the two
+// sources have very different scales and provenance. Footer breaks down the
+// distinct make+model pairs for each, the metric the headline used to show.
+function MakesModelsCard({ stats, icon }: { stats: AdminStats | null; icon: React.ReactNode }) {
+  const accentColor = '#1d4ed8'
+  return (
+    <div style={{ ...CARD, padding: '1.25rem 1.4rem 1.25rem', display: 'flex', flexDirection: 'column', borderTop: `3px solid ${accentColor}`, height: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--adm-text-3)' }}>
+          Makes & Models
+        </span>
+        <span style={{ color: accentColor }}>{icon}</span>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.55rem', padding: '0.5rem 0' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Core</span>
+          <span style={{ fontSize: '1.6rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            {stats?.counts.vehicle_years_total != null ? stats.counts.vehicle_years_total.toLocaleString() : '—'}
+          </span>
+        </div>
+        <div style={{ height: 1, background: `${accentColor}22` }} />
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>OEM Fitment</span>
+          <span style={{ fontSize: '1.6rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            {stats?.counts.vehicle_years_exide_total != null ? stats.counts.vehicle_years_exide_total.toLocaleString() : '—'}
+          </span>
+        </div>
+        {stats?.counts.vehicle_years_total != null && stats?.counts.vehicle_years_exide_total != null && (
+          <>
+            <div style={{ height: 1, background: `${accentColor}22` }} />
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Total</span>
+              <span style={{ fontSize: '1.6rem', fontWeight: 900, color: '#059669', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                {(stats.counts.vehicle_years_total + stats.counts.vehicle_years_exide_total).toLocaleString()}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+      {stats?.counts.vehicle_years != null && (
+        <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accentColor}22`, paddingTop: '0.6rem', width: '100%' }}>
+          <span style={{ fontSize: '0.65rem', color: 'rgba(107,114,128,0.65)', display: 'block', textAlign: 'center' }}>
+            {stats.counts.vehicle_years.toLocaleString()} core pairs · {stats.counts.vehicle_years_exide_pairs.toLocaleString()} OEM fitment pairs · {stats.counts.vehicles_raw.toLocaleString()} raw records
+          </span>
         </div>
       )}
     </div>
@@ -182,7 +273,7 @@ function DataCoverageTile({ stats, coverage }: { stats: AdminStats | null; cover
       </div>
 
       {/* Inference section */}
-      <div style={{ flex: 1, paddingBottom: '0.75rem', borderBottom: '1px solid #e2e4e922' }}>
+      <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid #e2e4e922' }}>
         <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.55)', marginBottom: '0.3rem' }}>
           Inference
         </div>
@@ -290,19 +381,20 @@ function HealthCard({ status, latency_ms, cluster_connections, max_connections, 
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--adm-text-2)', marginBottom: '0.3rem' }}>
           <span>Connections (cluster-wide)</span>
-          <span>
+          <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'rgba(17,24,39,0.7)' }}>
             {hasClusterStats ? `${cluster_connections} / ${max_connections} (${usagePct}%)` : `${pool_checked_out} / ${pool_size} (${usagePct}%)`}
           </span>
         </div>
         <div style={{ height: 6, borderRadius: 99, background: 'var(--adm-sep)', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${Math.min(usagePct, 100)}%`, background: usagePct > 80 ? R : usagePct > 50 ? '#f59e0b' : '#22c55e', borderRadius: 99, transition: 'width 0.6s ease' }} />
         </div>
+        {hasClusterStats && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--adm-text-3)', marginTop: '0.3rem' }}>
+            <span>this instance</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{pool_checked_out} / {pool_size} ({pool_usage_pct}%)</span>
+          </div>
+        )}
       </div>
-      {hasClusterStats && (
-        <div style={{ fontSize: '0.65rem', color: 'var(--adm-text-3)' }}>
-          this instance: {pool_checked_out} / {pool_size} ({pool_usage_pct}%)
-        </div>
-      )}
     </div>
   )
 }
@@ -373,6 +465,7 @@ export default function AdminDashboard() {
   const [stats,    setStats]    = useState<AdminStats | null>(null)
   const [health,   setHealth]   = useState<HealthStatus | null>(null)
   const [coverage, setCoverage] = useState<CoverageInfo | null>(null)
+  const [brandGroups, setBrandGroups] = useState<Array<{ brand: string; count: number }>>([])
   const [loadErr,  setLoadErr]  = useState<string | null>(null)
   const [cacheMsg, setCacheMsg]           = useState<{ text: string; ok: boolean } | null>(null)
   const [cacheRefreshing, setCacheRefreshing] = useState(false)
@@ -380,8 +473,11 @@ export default function AdminDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [s, h, cov] = await Promise.all([fetchAdminStats(), fetchHealthStatus(), getWebValidateCoverage()])
+      const [s, h, cov, batt] = await Promise.all([
+        fetchAdminStats(), fetchHealthStatus(), getWebValidateCoverage(), fetchBatteries(1, 200),
+      ])
       setStats(s); setHealth(h); setCoverage(cov)
+      setBrandGroups(groupByBrand(batt.items))
     } catch (err) {
       setLoadErr(err instanceof Error ? err.message : 'Failed to load dashboard')
     } finally {
@@ -466,16 +562,8 @@ export default function AdminDashboard() {
 
           {/* ── Stat cards — all five in one row ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
-            <div style={cardAnim(80, true)}><StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
-            <div style={cardAnim(160, true)}><StatCard
-              accentColor="#1d4ed8"
-              label="Makes & Models"
-              value={stats?.counts.vehicle_years ?? '—'}
-              sub={stats?.counts.vehicle_years != null
-                ? `${stats.counts.vehicle_years.toLocaleString()} pairs · ${stats.counts.vehicles_raw.toLocaleString()} raw · ${(stats.counts.vehicle_years + stats.counts.vehicles_raw).toLocaleString()} total`
-                : undefined}
-              icon={<CircleStackIcon style={{ width: 18, height: 18 }} />}
-            /></div>
+            <div style={cardAnim(80, true)}><MakesModelsCard stats={stats} icon={<CircleStackIcon style={{ width: 18, height: 18 }} />} /></div>
+            <div style={cardAnim(160, true)}><BatteryRecordsCard stats={stats} brandGroups={brandGroups} icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
             <div style={cardAnim(240, true)}><RecommendCallsCard dbReads={stats?.db_reads ?? '—'} breakdown={stats?.match_breakdown} /></div>
             <div style={cardAnim(320, true)}><DataCoverageTile stats={stats} coverage={coverage} /></div>
             {health && <div style={cardAnim(400, true)}><HealthCard {...health} /></div>}

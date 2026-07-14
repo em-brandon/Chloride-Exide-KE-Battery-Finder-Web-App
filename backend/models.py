@@ -10,6 +10,11 @@ battery_specs     — battery catalogue (seeded from battery_specs_output.xlsx)
                     READ at runtime by matcher.py
 model_aliases     — international → JDM model name mappings (seeded from model_aliases.csv)
                     READ at runtime by matcher.py
+oem_fitment       — Exide's official global fitment guide, Ah/technology per make/model/year-range
+                    (output of pipelines/exide_fitment_clean.py) READ at runtime by matcher.py
+vehicle_years_exide — make/model/year existence rows exploded from oem_fitment's year-ranges
+                    (output of pipelines/exide_fitment_clean.py) READ at runtime by matcher.py,
+                    unioned with vehicle_years
 
 Admin tables (written by admin dashboard)
 -----------------------------------------
@@ -154,6 +159,92 @@ class ModelAlias(Base):
 
     def __repr__(self) -> str:
         return f"<ModelAlias {self.make} {self.international_model} → {self.jdm_model}>"
+
+
+class OemFitment(Base):
+    """
+    Exide's official global fitment guide (source: 'EXIDE BATTERY FINDER' Excel).
+    One row per make/model-trim/year-range/spec combination. NOT exploded into
+    individual years (unlike vehicle_years_exide) — range containment is
+    checked at matcher lookup time.
+
+    vehicle_category: 'passenger' | 'commercial' — source-sheet discriminator.
+    year_to = NULL means open-ended ("PRESENT" in the source file).
+    technology = cleaned value; raw_technology = untouched original — kept
+    because tier-name values (PREMIUM/CLASSIC/START PRO/POWER PRO/STANDARD)
+    look like Exide product lines rather than battery chemistry and were not
+    collapsed into the chemistry set (EFB/MF/AGM/GEL) without real product
+    knowledge to confirm the mapping.
+
+    Written by: pipelines/exide_fitment_clean.py (CLI-only, full
+                TRUNCATE + reload on each run).
+    Read by:    matcher.py's _fitment() / _fitment_override() — checked for
+                EVERY matched vehicle regardless of which layer (0a-3) found
+                it, and its ah wins over that layer's own value when present.
+                technology is NOT applied — preferred_tech always follows
+                this app's own luxury-make/stop-start rules instead.
+    """
+
+    __tablename__ = "oem_fitment"
+
+    id                   = Column(Integer, primary_key=True, autoincrement=True)
+    vehicle_category     = Column(String(20), nullable=False)   # 'passenger' | 'commercial'
+    make                 = Column(String(100), nullable=False)
+    model                = Column(String(300), nullable=False)  # raw trim string
+    year_from            = Column(Integer, nullable=False)
+    year_to              = Column(Integer, nullable=True)       # NULL = open-ended
+    ah                   = Column(Float, nullable=True)
+    technology           = Column(String(50), nullable=True)    # cleaned value
+    raw_technology       = Column(String(50), nullable=True)    # original, uncleaned
+    dimensions           = Column(String(50), nullable=True)    # raw "242*175*190"
+    cylinder_capacity_cc = Column(Integer, nullable=True)       # parsed from "1368cm"
+    source_row           = Column(Integer, nullable=True)       # original Excel row, for debugging
+
+    __table_args__ = (
+        UniqueConstraint(
+            "make", "model", "vehicle_category", "year_from", "year_to", "ah", "technology",
+            name="uq_oem_fitment",
+        ),
+        Index("ix_oem_fitment_make", "make"),
+        Index("ix_oem_fitment_make_model", "make", "model"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<OemFitment {self.make} {self.model} {self.year_from}-{self.year_to or 'PRESENT'} {self.ah}Ah {self.technology}>"
+
+
+class VehicleYearExide(Base):
+    """
+    Make/model/year existence rows exploded from the Exide fitment guide's
+    year-ranges. Separate from vehicle_years (never written to directly) so
+    this table can be freely truncated+reloaded without any risk to the
+    externally-enriched data. Unioned with vehicle_years at matcher load time
+    (matcher._vehicles()) so both are searchable/matchable identically.
+
+    fuel is always NULL — Exide's file has no fuel-type column.
+
+    Written by: pipelines/exide_fitment_clean.py (CLI-only, full
+                TRUNCATE + reload on each run).
+    Read by:    matcher.py's _vehicles() (UNION ALL with vehicle_years).
+    """
+
+    __tablename__ = "vehicle_years_exide"
+
+    id               = Column(Integer, primary_key=True, autoincrement=True)
+    make             = Column(String(100), nullable=False)
+    model            = Column(String(300), nullable=False)  # trimmed display string
+    year             = Column(Integer, nullable=False)
+    engine_capacity  = Column(Integer, nullable=True)       # from oem_fitment.cylinder_capacity_cc
+    fuel             = Column(String(50), nullable=True)    # always NULL today
+
+    __table_args__ = (
+        UniqueConstraint("make", "model", "year", name="uq_vehicle_years_exide"),
+        Index("ix_vehicle_years_exide_make", "make"),
+        Index("ix_vehicle_years_exide_make_model", "make", "model"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<VehicleYearExide {self.make} {self.model} {self.year}>"
 
 
 # ---------------------------------------------------------------------------

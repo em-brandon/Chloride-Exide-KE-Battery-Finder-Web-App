@@ -786,7 +786,12 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
     ? !!makeText.trim() && !!modelText.trim() && !!yearText.trim()
     : !!make && !!model && !!year
 
-  const sideBySize = (searchTab === 'vehicle' && !!result) || (searchTab === 'battery' && batteryResults !== null)
+  // Expand to the two-column layout as soon as a result-side-card is about to
+  // render (loading OR result), not only once the result itself arrives —
+  // otherwise the loader card mounts as a second flex child while the
+  // container is still capped at the single-column max-width, squeezing the
+  // form column before the layout has room for it.
+  const sideBySize = (searchTab === 'vehicle' && (!!result || submitting)) || (searchTab === 'battery' && (batteryResults !== null || batterySubmitting))
 
   return (
     <div className="finder-wrapper">
