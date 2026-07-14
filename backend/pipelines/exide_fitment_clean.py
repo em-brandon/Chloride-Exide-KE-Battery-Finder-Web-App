@@ -42,7 +42,78 @@ _MAKE_ALIASES = {
     "UD NISSAN DIESEL": "NISSAN DIESEL/UD",
     "UD TRUCKS": "NISSAN DIESEL/UD",
     "VW": "VOLKSWAGEN",
+    # Regional divisions of a make we already carry — fold into the parent
+    # rather than let them fragment into separate dropdown entries.
+    "FORD ASIA & OCEANIA": "FORD",
+    "FORD AUSTRALIA": "FORD",
+    "FORD OTOSAN": "FORD",
+    "FORD USA": "FORD",
+    "ISUZU( JIANGXI)": "ISUZU",
+    "PEUGEOT (DF-PSA)": "PEUGEOT",
+    "MAHINDRA GUJARAT": "MAHINDRA",
+    "MERCEDEZ-BENZ": "MERCEDES-BENZ",  # typo variant in the source file
+    "KG MOBILITY": "SSANGYONG",        # SsangYong's post-2023 corporate rename
 }
+
+# ── Kenya-market relevance filter ───────────────────────────────────────────
+# Exide's file is a GLOBAL catalog (365 distinct makes after cleaning) —
+# most were never sold in Kenya/Uganda/Tanzania. Rather than keep every
+# defunct/vintage/hypercar/farm-equipment/foreign-haulage brand searchable
+# in the app, makes with essentially zero plausibility in this market are
+# dropped here. This is a deliberate, reviewed exclusion (not silent) —
+# see the make-by-category breakdown in the PR/commit this shipped with.
+# Not applied to _MAKE_ALIASES targets above (those fold into a kept make).
+_EXCLUDED_MAKES: frozenset[str] = frozenset({
+    # Farm/agricultural equipment & tractors — not road vehicles at all.
+    "AGCO", "ALLGAIER", "ARMATRAC", "BASAK", "BAUTZ", "BCS", "BELARUS",
+    "BM TRACTORS", "BUCHER", "CARRARO", "CASE IH", "CHALLENGER", "CLAAS",
+    "DEUTZ-FAHR", "FAHR", "FENDT", "FERRARI AGRI", "GINAF", "GOLDONI",
+    "GUELDNER", "HATTAT", "JCB FASTTRAC", "JOHN DEERE", "KIOTI", "KRAMER",
+    "LANDINI", "MASSEY FERGUSON", "MCCORMICK", "NEW HOLLAND", "PASQUALI",
+    "PFANZELT", "SAME", "STEYR", "VALTRA", "ZETOR",
+    # Foreign buses/coaches — Kenya's PSV fleet runs on Isuzu/Hino/Scania/
+    # MAN/Mitsubishi Fuso chassis, all already covered as existing makes.
+    "ALEXANDER DENNIS", "BERKHOF", "BOVA", "BREDAMENARINIBUS", "DROGMOLLER",
+    "HEULIEZ", "HIGER", "INBUS", "IRISBUS", "IRIZAR", "KAROSA", "KAVZ",
+    "KING LONG", "LAZ", "MARBUS", "NEOPLAN", "OPTARE", "OTOKAR", "PLAXTON",
+    "SETRA", "SOLARIS", "TEMSA", "TERBERG-BENSCHOP", "TROLIGA BUS",
+    "VAN HOOL", "VDL", "WRIGHT", "YUTONG", "BYD ADL",
+    # Foreign heavy-haulage trucks — same logic as buses.
+    "ASHOK LEYLAND", "AVIA", "BHARATBENZ", "DAF", "DENNIS", "ERF", "FAP",
+    "FODEN TRUCKS", "FREIGHTLINER", "GAZ", "IVECO", "JIEFANG", "KAMAZ",
+    "KARSAN", "KENWORTH", "LEYLAND", "MACK", "MAGIRUS-DEUTZ", "MAZ",
+    "MAZ-MAN", "MIULTICAR", "MULTICAR", "OAF", "RENAULT TRUCKS",
+    "ROSENBAUER", "SHAANXI", "SHACMAN", "SINOTRUK (CNHTC)", "SISU", "STAR",
+    "TATRA", "UAZ", "URAL", "WESTERN STAR",
+    # Defunct/vintage/classic — discontinued, mostly pre-1990s.
+    "AC", "AMC", "ASKAM", "AUSTIN", "AUSTIN-HEALEY", "AUTO UNION",
+    "AUTOBIANCHI", "AUTOZAM", "BARKAS", "BRISTOL", "CHECKER", "DAIMLER",
+    "DALLAS", "DE LOREAN", "DE TOMASO", "EMW", "EUNOS", "FSO", "GALLOPER",
+    "GEO", "GIOTTI VICTORIA", "GLAS", "HILLMAN", "HINDUSTAN", "HOBBYCAR",
+    "ICKX", "INDIGO", "INNOCENTI", "ISDERA", "IZH", "JENSEN", "LADA",
+    "LANCIA", "METROCAB", "MIDDLEBRIDGE", "MORRIS", "MOSKVICH", "NSU",
+    "OLDSMOBILE", "OLTCIT", "PANTHER", "PLYMOUTH", "PONTIAC", "PREMIER",
+    "RAYTON FISSORE", "RELIANT", "RILEY", "SAAB", "SANTANA", "SAO",
+    "STANDARD AUTOMOBILE", "SUNBEAM", "TALBOT", "TRABANT", "TRIUMPH",
+    "WARTBURG", "WOLSELEY", "YUGO", "ZATAVA", "ZAZ",
+    # Ultra-luxury/hypercar/exotic — not a realistic retail battery search.
+    "ALPINA", "ARIEL", "ARTEGA", "ASTON MARTIN", "BAC", "BITTER",
+    "BIZZARRINI", "BUGATTI", "CALLAWAY", "CATERHAM", "FERRARI", "GINETTA",
+    "KOENIGSEGG", "LAMBORGHINI", "LOTUS", "LTI", "MARCOS", "MASERATI",
+    "MAYBACH", "MCLAREN", "MCW", "MORGAN", "NOBLE", "PAGANI", "PANOZ",
+    "PININFARINA", "RUF", "SHELBY", "SPECTRE", "SPYKER", "TVR", "VECTOR",
+    "VUHL", "WESTFIELD", "WIESMANN",
+    # Niche microcars / low-speed EVs — no Kenya presence.
+    "AIXAM", "CHATENET", "DS( CAPSA)", "DSK", "DURSO", "EBRO", "EMC",
+    "EVO", "MICRO", "MICROCAR", "STREETSCOOTER", "THINK",
+    # Chinese/new-energy brands with no real Kenya import channel today.
+    # Kept: BYD, MG, GEELY, FOTON, JAC (Chery/Great Wall/Haval already
+    # existed before this pipeline ran).
+    "BAIC", "BEIJING", "BESTUNE", "BRILLIANCE", "DFSK", "DONGFENG XIAOKANG",
+    "FENGON", "GENESIS", "LANDWIND", "LEAPMOTOR", "LIFAN", "LIVAN",
+    "LYNK & CO", "MAXUS", "OMODA", "POLESTAR", "SERES", "SHINERAY", "SMART",
+    "TOFAS", "VOYAH", "WEITUO", "WEY", "YUEJIN", "YULON",
+})
 
 # ── Technology cleaning ──────────────────────────────────────────────────────
 # Only confidently-identifiable typos/synonyms are fixed. Tier-name values
@@ -204,8 +275,11 @@ def _clean_sheet(vehicle_category: str, raw: pd.DataFrame, ah_col: int, type_col
         if not make:
             reject(idx, make_raw, model_raw, "empty_make")
             continue
+        if make in _EXCLUDED_MAKES:
+            reject(idx, make, model_raw, "excluded_make_not_kenya_relevant")
+            continue
 
-        model_raw_str = "" if pd.isna(model_raw) else str(model_raw).strip()
+        model_raw_str = "" if pd.isna(model_raw) else str(model_raw).strip().upper()
         model = strip_redundant_make_prefix(make, model_raw_str)
 
         year_range = _parse_year_range(year_raw)

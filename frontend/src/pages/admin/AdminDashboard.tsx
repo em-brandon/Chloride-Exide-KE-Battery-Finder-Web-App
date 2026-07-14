@@ -131,25 +131,31 @@ function MakesModelsCard({ stats, icon }: { stats: AdminStats | null; icon: Reac
         </span>
         <span style={{ color: accentColor }}>{icon}</span>
       </div>
-      {stats?.counts.vehicle_years_total != null && stats?.counts.vehicle_years_exide_total != null && (
-        <div style={{ textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: 'rgba(107,114,128,0.7)' }}>
-          {(stats.counts.vehicle_years_total + stats.counts.vehicle_years_exide_total).toLocaleString()} total
-        </div>
-      )}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.55rem', padding: '0.5rem 0' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Core</span>
+          <span style={{ fontSize: '1.6rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
             {stats?.counts.vehicle_years_total != null ? stats.counts.vehicle_years_total.toLocaleString() : '—'}
-          </div>
-          <div style={{ fontSize: '0.62rem', color: 'rgba(107,114,128,0.6)', marginTop: '0.3rem' }}>Core</div>
+          </span>
         </div>
-        <div style={{ width: 1, alignSelf: 'stretch', background: `${accentColor}22` }} />
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
+        <div style={{ height: 1, background: `${accentColor}22` }} />
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>OEM Fitment</span>
+          <span style={{ fontSize: '1.6rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em' }}>
             {stats?.counts.vehicle_years_exide_total != null ? stats.counts.vehicle_years_exide_total.toLocaleString() : '—'}
-          </div>
-          <div style={{ fontSize: '0.62rem', color: 'rgba(107,114,128,0.6)', marginTop: '0.3rem' }}>OEM Fitment</div>
+          </span>
         </div>
+        {stats?.counts.vehicle_years_total != null && stats?.counts.vehicle_years_exide_total != null && (
+          <>
+            <div style={{ height: 1, background: `${accentColor}22` }} />
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--adm-text-2)' }}>Total</span>
+              <span style={{ fontSize: '1.6rem', fontWeight: 900, color: '#059669', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                {(stats.counts.vehicle_years_total + stats.counts.vehicle_years_exide_total).toLocaleString()}
+              </span>
+            </div>
+          </>
+        )}
       </div>
       {stats?.counts.vehicle_years != null && (
         <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accentColor}22`, paddingTop: '0.6rem', width: '100%' }}>
@@ -513,8 +519,8 @@ export default function AdminDashboard() {
 
           {/* ── Stat cards — all five in one row ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
-            <div style={cardAnim(80, true)}><StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
-            <div style={cardAnim(160, true)}><MakesModelsCard stats={stats} icon={<CircleStackIcon style={{ width: 18, height: 18 }} />} /></div>
+            <div style={cardAnim(80, true)}><MakesModelsCard stats={stats} icon={<CircleStackIcon style={{ width: 18, height: 18 }} />} /></div>
+            <div style={cardAnim(160, true)}><StatCard accentColor="#CC0000" label="Battery Records" value={stats?.counts.battery_specs ?? '—'} sub="active in database" icon={<BoltIcon style={{ width: 18, height: 18 }} />} /></div>
             <div style={cardAnim(240, true)}><RecommendCallsCard dbReads={stats?.db_reads ?? '—'} breakdown={stats?.match_breakdown} /></div>
             <div style={cardAnim(320, true)}><DataCoverageTile stats={stats} coverage={coverage} /></div>
             {health && <div style={cardAnim(400, true)}><HealthCard {...health} /></div>}

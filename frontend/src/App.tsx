@@ -15,7 +15,6 @@ const AdminDashboard    = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminBatteries    = lazy(() => import('@/pages/admin/AdminBatteries'))
 const AdminAuditLog     = lazy(() => import('@/pages/admin/AdminAuditLog'))
 const AdminSessions     = lazy(() => import('@/pages/admin/AdminSessions'))
-const AdminCoverage     = lazy(() => import('@/pages/admin/AdminCoverage'))
 const AdminVehicleData  = lazy(() => import('@/pages/admin/AdminVehicleData'))
 const AdminFeedback     = lazy(() => import('@/pages/admin/AdminFeedback'))
 const AdminTestSessions = lazy(() => import('@/pages/admin/AdminTestSessions'))
@@ -298,7 +297,6 @@ function App() {
       <Route path="/admin/batteries" element={<ProtectedRoute><AdminBatteries /></ProtectedRoute>} />
       <Route path="/admin/audit"     element={<ProtectedRoute><AdminAuditLog  /></ProtectedRoute>} />
       <Route path="/admin/sessions"      element={<ProtectedRoute><AdminSessions     /></ProtectedRoute>} />
-      <Route path="/admin/coverage"      element={<ProtectedRoute><AdminCoverage     /></ProtectedRoute>} />
       <Route path="/admin/vehicle-data"  element={<ProtectedRoute><AdminVehicleData  /></ProtectedRoute>} />
       <Route path="/admin/data-pipeline" element={<ProtectedRoute><AdminDataPipeline /></ProtectedRoute>} />
       <Route path="/admin/feedback"      element={<ProtectedRoute><AdminFeedback      /></ProtectedRoute>} />
