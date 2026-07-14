@@ -47,6 +47,15 @@ stop-start rules (luxury makes always prefer AGM, falling back to EFB if
 AGM isn't stocked at the target Ah; stop-start vehicles prefer EFB/AGM per
 _preferred_tech()) rather than deferring to Exide's per-vehicle tech, which
 doesn't know about local stock or this app's brand-tier policy.
+
+A single make/model/year-range commonly has several oem_fitment rows —
+Exide lists multiple battery tiers for the same trim (e.g. a base 50Ah/MF
+option alongside 55Ah/EFB and 60Ah/EFB upgrades), which is not duplicate
+data (see OemFitment's unique constraint). _fitment_override() picks among
+tied tiers by preferring whichever one's technology matches the
+already-decided preferred_tech, falling back to the highest Ah overall
+when none match — see [OEM Fitment Override](#oem-fitment-override) in
+README.md.
 """
 
 from __future__ import annotations
@@ -739,7 +748,7 @@ def _web_validation_lookup(
     return str(row["battery_code"]), result[0], 75
 
 
-def _fitment_override(make_n: str, model_n: str, year: int) -> tuple[float, str | None] | None:
+def _fitment_override(make_n: str, model_n: str, year: int, preferred_tech: str | None = None) -> tuple[float, str | None] | None:
     """
     Return (ah, technology) from oem_fitment for this vehicle, or None if no
     row covers it. Not a vehicle-match layer — this is only ever consulted
@@ -763,6 +772,16 @@ def _fitment_override(make_n: str, model_n: str, year: int) -> tuple[float, str 
     return first could land on an unrepresentative trim (e.g. the hybrid's
     45Ah) instead of a sensible one. Rows with a null Ah are skipped — a
     technology-only hint isn't enough to drive battery selection.
+
+    A single model/year-range legitimately has multiple oem_fitment rows —
+    Exide lists several battery tiers for the same trim (e.g. a base 50Ah/MF
+    option alongside 55Ah/EFB and 60Ah/EFB upgrades). Among tied model
+    candidates, prefer whichever tier's technology matches the caller's
+    already-decided preferred_tech (from luxury-make/stop-start rules, see
+    module docstring) before falling back to highest Ah — this keeps the Ah
+    figure paired with a technology Exide actually offered it at, instead of
+    borrowing an Ah number from a tier tagged with a different chemistry
+    than the one we're about to sell.
     """
     fit = _fitment()
     if fit.empty:
@@ -796,7 +815,17 @@ def _fitment_override(make_n: str, model_n: str, year: int) -> tuple[float, str 
     if candidates.empty:
         return None
 
-    best = candidates.sort_values("ah", ascending=False).iloc[0]
+    # Prefer the tier whose technology matches what the caller already
+    # decided preferred_tech should be — only fall back to "highest Ah
+    # overall" when none of the tiers match (or the caller didn't have a
+    # preference to match against).
+    tech_matched = candidates
+    if preferred_tech:
+        tech_matched = candidates[candidates["technology"] == preferred_tech]
+        if tech_matched.empty:
+            tech_matched = candidates
+
+    best = tech_matched.sort_values("ah", ascending=False).iloc[0]
     tech = str(best["technology"]) if pd.notna(best["technology"]) else None
     return float(best["ah"]), tech
 
@@ -1053,7 +1082,7 @@ def recommend(
             pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_web_year, make_n, stop_start)
 
         ah_source = "battery_code"
-        fit = _fitment_override(make_n, web_veh_model_n or model_n, effective_web_year)
+        fit = _fitment_override(make_n, web_veh_model_n or model_n, effective_web_year, pref_tech)
         if fit is not None:
             fit_ah, _fit_tech = fit
             target_ah = int(round(fit_ah))
@@ -1151,7 +1180,7 @@ def recommend(
             pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, stop_start)
 
         ah_source = "battery_code"
-        fit = _fitment_override(make_n, veh_model_n or model_n, effective_inf_year)
+        fit = _fitment_override(make_n, veh_model_n or model_n, effective_inf_year, pref_tech)
         if fit is not None:
             fit_ah, _fit_tech = fit
             target_ah = int(round(fit_ah))
@@ -1337,7 +1366,7 @@ def recommend(
 
     ah_source = "cc_bracket_estimate"
     fit_model_n = _norm_model_key(matched_model) if matched_model else model_n
-    fit = _fitment_override(make_n, fit_model_n, effective_year)
+    fit = _fitment_override(make_n, fit_model_n, effective_year, pref_tech)
     if fit is not None:
         fit_ah, _fit_tech = fit
         target_ah = int(round(fit_ah))

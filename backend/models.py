@@ -176,13 +176,21 @@ class OemFitment(Base):
     collapsed into the chemistry set (EFB/MF/AGM/GEL) without real product
     knowledge to confirm the mapping.
 
+    A single make/model/year-range legitimately has several rows here —
+    Exide lists multiple battery tiers for the same trim (e.g. 50Ah/MF
+    alongside 55Ah/EFB and 60Ah/EFB upgrades). That is why the unique
+    constraint below includes ah/technology rather than collapsing to one
+    row per trim/year-range.
+
     Written by: pipelines/exide_fitment_clean.py (CLI-only, full
                 TRUNCATE + reload on each run).
     Read by:    matcher.py's _fitment() / _fitment_override() — checked for
                 EVERY matched vehicle regardless of which layer (0a-3) found
                 it, and its ah wins over that layer's own value when present.
                 technology is NOT applied — preferred_tech always follows
-                this app's own luxury-make/stop-start rules instead.
+                this app's own luxury-make/stop-start rules instead; that
+                already-decided preferred_tech is instead used to pick which
+                tier's ah to trust when a vehicle has more than one.
     """
 
     __tablename__ = "oem_fitment"
