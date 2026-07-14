@@ -90,7 +90,7 @@ function InfoTooltip({ text }: { text: string }) {
 // Local/Imported origin split as label-right rows, and a technology-mix
 // footer line — the two axes admins actually care about when scanning the
 // catalogue (where a battery is sourced from, what chemistry it uses).
-const FEATURED_BRANDS = ['Powerlast', 'Sebang', 'Exide Maxx']
+const FEATURED_BRANDS = ['Powerlast', 'Sebang', 'Chloride Exide AGM']
 
 function BatteryRecordsCard({ stats, brandGroups, icon }: {
   stats: AdminStats | null
@@ -107,7 +107,7 @@ function BatteryRecordsCard({ stats, brandGroups, icon }: {
         </span>
         <span style={{ color: accentColor }}>{icon}</span>
       </div>
-      <span style={{ textAlign: 'center', fontSize: '2.6rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.3rem 0' }}>
+      <span style={{ textAlign: 'center', fontSize: '3.5rem', fontWeight: 900, color: accentColor, lineHeight: 1, letterSpacing: '-0.02em', padding: '0.3rem 0' }}>
         {c?.battery_specs != null ? c.battery_specs.toLocaleString() : '—'}
       </span>
       <span style={{ textAlign: 'center', fontSize: '0.63rem', color: 'var(--adm-text-2)', marginBottom: '0.6rem' }}>active in database</span>
@@ -127,7 +127,7 @@ function BatteryRecordsCard({ stats, brandGroups, icon }: {
 
       {c != null && (
         <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${accentColor}22`, paddingTop: '0.6rem', width: '100%' }}>
-          <span style={{ fontSize: '0.63rem', color: 'rgba(107,114,128,0.65)', display: 'block', textAlign: 'center' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--adm-text-2)', display: 'block', textAlign: 'center' }}>
             {c.battery_tech_mf} MF · {c.battery_tech_efb} EFB · {c.battery_tech_agm} AGM · {c.battery_tech_flooded} Flooded
           </span>
         </div>
