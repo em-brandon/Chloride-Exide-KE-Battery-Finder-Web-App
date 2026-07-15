@@ -1302,7 +1302,7 @@ Create a `.env` file at the repo root and fill in your values before running the
 Example `.env`:
 
 ```env
-DATABASE_URL=postgresql://batteryfinder:batteryfinder@127.0.0.1:5434/batteryfinderdev
+DATABASE_URL=postgresql://******
 ADMIN_COOKIE_SECURE=false
 ```
 
