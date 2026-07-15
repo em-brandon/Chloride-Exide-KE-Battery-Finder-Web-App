@@ -337,6 +337,34 @@ Detection is done client-side via `useIsMobile()` in `frontend/src/lib/utils.ts`
 
 All public endpoints are rate-limited and served under `/api/`.
 
+### Request Lifecycle
+
+How a single `POST /api/recommend` call travels from a user's browser or mobile device, through the API middleware chain and matching engine, and back as a response body. Static asset requests (the built SPA) short-circuit at CloudFront to S3 and never reach this path — see [Production Architecture](#production-architecture).
+
+```mermaid
+sequenceDiagram
+    participant Client as Browser / Mobile
+    participant CF as CloudFront
+    participant ALB as ALB + AWS WAF
+    participant API as FastAPI middleware chain
+    participant Matcher as matcher.py (in-memory cache)
+    participant DB as PostgreSQL (async log)
+
+    Client->>CF: HTTPS POST /api/recommend<br/>{make, model, year, engine_cc, fuel_type, stop_start}
+    CF->>CF: Geo-restrict to KE / UG / TZ
+    CF->>ALB: Forward request
+    ALB->>ALB: WAF rate-based & bot rules, TLS terminated
+    ALB->>API: Proxied request (X-Forwarded-For, real client IP)
+    API->>API: GZip, security headers, CORS,<br/>maintenance-mode check, per-IP rate limit
+    API->>API: Pydantic validates RecommendRequest body
+    API->>Matcher: recommend(make, model, year, engine_cc, fuel_type, stop_start)
+    Matcher-->>API: match_type, confidence, primary battery, alternatives
+    API--)DB: fire-and-forget: log SearchEvent (background thread)
+    API-->>ALB: 200 JSON response body
+    ALB-->>CF: response
+    CF-->>Client: response
+```
+
 ### Public Endpoints
 
 | Method | Endpoint | Rate Limit | Description |
@@ -1207,6 +1235,16 @@ These depend on the production topology — CloudFront → ALB + WAF → ECS Far
 - **ALB TLS termination** — HTTPS is terminated once, at the load balancer, rather than in every Fargate task; traffic from the ALB to the tasks stays inside the VPC. Only one place needs the TLS certificate, and app code never has to manage raw TLS sockets.
 - **ALB health checks across multiple tasks** — with 2+ Fargate tasks registered as targets, the ALB continuously health-checks each one and stops routing to any task that fails, without interrupting traffic to the healthy ones. A single-process deployment has no peer to fail over to; a crash there is user-visible downtime, while here it's an invisible target-group deregistration.
 - **SSM Parameter Store / Secrets Manager, injected via the ECS task definition** — secrets exist as real environment variables inside the running task, injected by the AWS control plane at container start, and are never written to disk in the image or checked into `.env`. This delivery mechanism is specific to running as ECS tasks — it's what the "Secrets & configuration" bullet above and `load_dotenv(override=False)` in `db.py` are built to defer to.
+
+### Planned — Anti-Scraping Hardening (Not Yet Implemented)
+
+Nothing app-level today stops someone from scripting `/api/makes` → `/api/models/{make}` → `/api/years` → `/api/recommend` to enumerate and rebuild the CRSP-derived vehicle→battery matching dataset — the only defenses are AWS WAF and the per-IP `slowapi` rate limits described above, both of which a patient, IP-rotating scraper can route around. The realistic threat isn't a random internet-wide attacker; it's a local competitor in the Kenya/Uganda/Tanzania battery retail market with an ordinary business incentive to shortcut the data-cleaning work this project represents. Three measures are planned to close that gap:
+
+1. **Redis-backed daily/cumulative per-IP caps** — wire both `Limiter` instances to the already-provisioned-but-unused ElastiCache Redis (`storage_uri=REDIS_URL`) and add a daily counter (24h TTL) on top of the existing per-minute limits. This stops a scraper who paces requests just under the per-minute limit but keeps querying for days — and, being Redis-backed rather than in-process, the cap is shared correctly across all Fargate tasks instead of being multiplied or reset on every deploy.
+2. **Invisible reCAPTCHA v3 on `POST /api/recommend`** — scored quietly in the background with no user-facing challenge, so the frictionless no-login search flow is unaffected. Scoped to the recommend endpoint only (the one that returns the valuable data), not the lightweight dropdown-population endpoints. This changes the economics of scraping from "rotate IPs" to "pay a CAPTCHA-solving service or run full human-mimicking browser automation." Requires rewriting the Privacy Policy's current claim that no third-party analytics or tracking is used (`frontend/src/components/PrivacyModal.tsx`), since reCAPTCHA sends visitor behavioral/IP data to Google — that copy change ships alongside this, not separately.
+3. **Enumeration-pattern detection** — a per-minute or daily rate limit only catches *speed*; a scraper pacing itself under any cap can still walk the entire make→model→year tree over weeks. Track distinct make/model combinations queried per IP in a rolling window (Redis-backed, per #1) and flag/throttle IPs whose query pattern looks like systematic dataset enumeration rather than a real shopper looking up one vehicle.
+
+None of the three are implemented yet — WAF and per-IP rate limiting remain the only defenses in the current codebase.
 
 ---
 
