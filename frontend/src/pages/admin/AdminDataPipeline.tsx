@@ -830,7 +830,7 @@ function WebValidateTab() {
 
   const etaSeconds = (() => {
     // Use phase2_started_at so Phase 1 web-prefetch time doesn't skew the rate
-    const ref = (status as any)?.phase2_started_at ?? status?.started_at
+    const ref = status?.phase2_started_at ?? status?.started_at
     if (!ref || !status?.processed || !status.total) return NaN
     const elapsedSec = (Date.now() - new Date(ref).getTime()) / 1000
     if (elapsedSec < 1) return NaN

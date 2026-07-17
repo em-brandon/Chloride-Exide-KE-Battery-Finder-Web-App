@@ -338,7 +338,6 @@ function ResultPanel({ data, inputType, typedLabel, darkMode = false, onOpenFaq 
 }
 
 // ── Shared: Dial-A-Battery banner ────────────────────────────────
-// TODO: replace href="#" with the actual Dial-A-Battery shop URL
 function DialABatteryBanner() {
   return (
     <div style={{ display: 'flex', borderRadius: '0.5rem', overflow: 'hidden', marginTop: '0.75rem', minHeight: 70 }}>
