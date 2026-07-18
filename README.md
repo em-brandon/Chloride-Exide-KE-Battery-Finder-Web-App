@@ -604,6 +604,29 @@ The confidence ranges in the table above are ranges only for Layers 1 and 2 — 
 - When a make/model has multiple historical battery codes on record (different customers, different actual fitments over time), the tie-break is **highest sale frequency first, most recent `last_sale_date` second** — `matched_rows.sort_values(["frequency", "_sort_date"], ascending=[False, False]).iloc[0]`. This means Layer 0b reports whatever was sold *most often*, not necessarily the *most recent* fitment, unless frequencies tie.
 - Technology handling is more nuanced here than in any other layer: the parsed technology from the winning battery code is honoured directly when it's `AGM` or `EFB` (treated as a deliberate call-centre upgrade worth preserving) — but when the code parses to `MF`, the engine does **not** trust it blindly for stop-start vehicles, instead recomputing `preferred_tech` via `_preferred_tech()` as if no code-derived hint existed. The reasoning recorded in the code: MF codes in this table often reflect either non-stop-start sales or historically wrong recommendations, so blindly copying `MF` onto a stop-start vehicle being matched today would perpetuate that mistake. Layers 0a and 1/2/3 don't have this special case — it exists only for inference-sourced `MF` codes.
 
+### Known Failure Mode — Dial-A-Battery Inference Blends Every Trim/Year Together
+
+A real example, pulled from a full historical extract of every `MAZDA` row in `dial_battery_inference` (committed at the repo root as `Dial a Battery Failure Points.txt`). `MAZDA DEMIO` alone has 39 distinct historical battery codes on record, spanning 1,290 total sales:
+
+| Battery code | Frequency | Technology |
+|---|---|---|
+| `045MF NSL POWERLAST` | 599 | Plain MF |
+| `NS70MFL POWERLAST` | 408 | Plain MF |
+| `Q85MF EFB EXIDE -70 AMPS` | 41 | EFB |
+| `N50MFL CHLORIDE EXIDE MAXX` | 41 | Plain MF |
+| `DIN55 MF POWERLAST` | 33 | Plain MF |
+| `Q85MF L EFB EXIDE -70 AMPS` | 22 | EFB |
+| `N50 L MF POWERLAST (SHORT BOX)` | 19 | Plain MF |
+| ...31 more codes, 1–16 sales each | | mostly EFB |
+
+Per Layer 0b's tie-break (highest frequency, then most recent sale), `045MF NSL POWERLAST` wins outright — at 599 sales it isn't close. That single code then gets applied to *every* future DEMIO query, at confidence **95** (an exact model-name match), regardless of which DEMIO year or trim the customer actually has.
+
+**Why that's a real failure, not just noise in the data:** the DEMIO nameplate spans well over a decade of trims, and Mazda introduced i-stop (stop-start) on later generations. `_preferred_tech()` elsewhere in this engine treats stop-start as a hard requirement for EFB/AGM — a plain MF battery can't handle the starter-cycling duty a stop-start engine puts on it. Summing every EFB/AGM-technology code in this same DEMIO data (`Q85MF EFB...`, `070 L MF ULTRAPOWER EFB TECHNOLOGY BATTERY`, `065MF (Q85) SEBANG EFB`, and their variants) comes to **146 of the 1,290 total sales — about 11%**, against `045MF NSL POWERLAST` alone at 46%. Those 146 EFB sales aren't noise; they're almost certainly the stop-start-equipped trims within "DEMIO," correctly sold on EFB by the humans handling those calls. But because Layer 0b's tie-break only counts total frequency with no year or stop-start awareness, that 11% is invisible to it — a customer with a newer, stop-start DEMIO gets the 46%-majority plain-MF code recommended at 95% confidence, the same number a same-generation non-stop-start DEMIO customer would get.
+
+**This is a direct, real-world instance of the "no year dimension" limitation already noted above** — worth calling out on its own because the failure here isn't abstract: it's a majority-vote number silently overriding what a same-nameplate stop-start trim actually needs, at high confidence, with no signal anywhere in the response that a real technology split existed underneath that one code.
+
+**Not yet mitigated.** Nothing in `_inference_lookup()` currently detects or corrects for this — its tie-break has no year or stop-start signal at all, unlike `_preferred_tech()` (see [Preferred Technology Selection](#preferred-technology-selection)), which gets this exact case right everywhere else in the engine. A fix would need to weight or filter `dial_battery_inference` candidates by the `stop_start` flag the caller already provides, not just raw sale frequency — not yet implemented.
+
 ### Resolving a Battery Code to Ah and Technology
 
 Both Layer 0a's `web_battery_validation.battery_code` and Layer 0b's `dial_battery_inference.battery_code` are free-text strings (whatever the source data recorded), not foreign keys into `battery_specs`. `_lookup_battery_by_code()` resolves either one to a concrete `(target_ah, technology)` pair using the same three-step priority regardless of which layer called it:
