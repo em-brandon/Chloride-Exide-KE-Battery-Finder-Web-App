@@ -1386,6 +1386,19 @@ Nothing app-level today stops someone from scripting `/api/makes` → `/api/mode
 
 None of the three are implemented yet — WAF and per-IP rate limiting remain the only defenses in the current codebase.
 
+### Audit — Frontend / Database Exposure (2026-07-18)
+
+A targeted audit of whether the frontend could be exposing anything about the database — credentials, connection strings, schema/table names, raw SQL, stack traces, or admin-only data reachable without auth. Findings verified independently (a script checked auth coverage across all 81 `admin_router.py` routes; `console.*` usage was grepped directly) rather than taken on faith. Result: **clean** — no exposure found.
+
+- **No secrets in frontend source or the built bundle** — `frontend/src` and every file in `frontend/dist/assets/*.js` grepped for `postgresql://`, `DATABASE_URL`, the DB username/dbname, port `5434`, etc. Zero hits.
+- **No Vite env var leakage** — the frontend uses zero `VITE_*` env vars and has no `import.meta.env` usage anywhere in `src`, no `frontend/.env` file, and no source maps are built or served (`build.sourcemap` unset, no `.map` files in `dist`). This matters because Vite bakes any `import.meta.env.VITE_*` value directly into the shipped client bundle at build time — a DB-related variable accidentally given that prefix would otherwise be permanently embedded in public JS.
+- **No console logging of errors** — `lib/api.ts`, `lib/adminApi.ts`, and `lib/testUserApi.ts` contain zero `console.*` calls; failures are propagated as thrown exceptions, not logged, so a leaked backend error body could never end up sitting in browser devtools.
+- **Public API endpoints don't leak internals** — every public route in `app.py` (`/api/makes`, `/api/models/{make}`, `/api/years`, `/api/recommend`, `/api/batteries/search`, `/api/feedback`, `/api/auth/*`) was checked for a bare `except Exception as e: return {"error": str(e)}` pattern, which would leak a raw SQLAlchemy/psycopg error (these often contain table/column names) to an unauthenticated caller. None exists — every `except Exception` either logs server-side or falls through to a generic, fixed response. `GET /health` returns only `{"status": "ok"/"down"}`, confirming the "Health/readiness endpoint" design note above holds in practice.
+- **Every admin route is gated** — all 81 routes in `admin_router.py` require `Depends(require_admin)` except `POST /login` (has to be) and `POST /logout` (correctly needs none — it just clears whatever session cookie is present and returns nothing).
+- **No secret was ever committed to git** — `.env` is gitignored and was never tracked; `git log --all --full-history` for `.env`/`*.sql`/`*.dump` is empty, so there's no leftover exposure in history even if this repo were later made public.
+
+One non-issue noted in passing, not a leak: `db-backup-script/backup-db.ps1` (a local ops script, not part of the frontend or API surface) hardcodes the non-secret DB username/dbname (`batteryfinder`/`batteryfinderdev`) as default script parameters — no password.
+
 ---
 
 ## Production Architecture
