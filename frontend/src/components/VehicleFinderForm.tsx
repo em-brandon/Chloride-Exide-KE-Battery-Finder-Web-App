@@ -744,6 +744,7 @@ export function VehicleFinderForm({ onMakesLoaded, onFormReady, typeMode, onType
         fuel_type:  fuelType || null,
         engine_cc:  engineCc ? parseInt(engineCc, 10) : null,
         stop_start: istop,
+        input_type: typeMode ? 'type' : 'select',
       })
       setResult(data)
       setSubmitted(true)

@@ -32,4 +32,5 @@ export interface RecommendRequest {
   engine_cc: number | null
   fuel_type: string | null
   stop_start?: boolean
+  input_type?: 'select' | 'type'
 }
