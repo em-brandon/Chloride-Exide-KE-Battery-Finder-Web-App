@@ -185,7 +185,7 @@ flowchart TB
 
 Checked top-to-bottom in that priority order — 0a, then 0b, then 1/2 (+ JDM alias resolution), then 3 — and the first one that resolves a match is the only branch whose result actually feeds into OEM Override; the diagram shows all four converging there because *any* of them can be the one that fires, not because all four run and merge every time.
 
-**4. P3 decomposed — Data Pipelines.** Each of the six pipeline scripts is its own lane, mostly independent of the others except where Year Enrichment and Coverage Expansion both ultimately write `vehicle_years`:
+**4. P3 decomposed — Data Pipelines.** Each of the six pipeline scripts is its own lane, mostly independent of the others except where all three of Year Enrichment, Coverage Expansion, and Exide Fitment ultimately land in the same unioned vehicle table:
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
@@ -195,12 +195,13 @@ flowchart LR
 
     EXT2["fueleconomy · NHTSA<br/>CarAPI · Wikidata / Wikipedia"] --> P3b(("2<br/>Year Enrichment"))
     VR --> P3b
-    P3b -. "stage, review, commit" .-> DS1[("vehicle_years")]
+    P3b -. "stage, review, commit" .-> DS1
 
     EXT3["Dial-A-Battery Excel"] --> P3c(("3<br/>DAB Inference"))
     P3c --> DS5[("dial_battery_inference")]
 
     EXT4["Search providers<br/>SearXNG · DuckDuckGo<br/>Brave · Tavily"] --> P3d(("4<br/>Web Validation"))
+    DS1 -- "source make/model/year<br/>combos to validate" --> P3d
     P3d -. "stage, review, commit" .-> DS6[("web_battery_validation")]
 
     EXT5["NHTSA VPIC · CarQuery<br/>cars-data.com · car.info"] --> P3e(("5<br/>Coverage Expansion"))
@@ -208,10 +209,12 @@ flowchart LR
 
     EXT6["Exide Fitment Excel"] --> P3f(("6<br/>Exide Fitment"))
     P3f -- "truncate + reload" --> DS4[("oem_fitment")]
-    P3f -- "truncate + reload" --> DS1b[("vehicle_years_exide")]
+    P3f -- "truncate + reload,<br/>exploded from year-ranges" --> DS1[("vehicle_years<br/>vehicle_years_exide")]
 ```
 
-`vehicles_raw`, `web_battery_staging`, and `vehicle_years_staging` (shared by pipelines 2 and 5) are the actual intermediate targets before an admin reviews and commits — collapsed into a single "stage, review, commit" edge here for the same reason staging tables are omitted from the Level-1 diagrams. Pipelines 3 and 6 skip staging entirely (Pipeline 3 writes `dial_battery_inference` directly; Pipeline 6 does a full `TRUNCATE`+reload of `oem_fitment`/`vehicle_years_exide` on every run) — see [Data Pipelines](#data-pipelines) for why each one does or doesn't go through review.
+`vehicles_raw`, `web_battery_staging`, and `vehicle_years_staging` (shared by pipelines 2 and 5) are the actual intermediate targets before an admin reviews and commits — collapsed into a single "stage, review, commit" edge here for the same reason staging tables are omitted from the Level-1 diagrams. Pipelines 3 and 6 skip staging entirely (Pipeline 3 writes `dial_battery_inference` directly; Pipeline 6 does a full `TRUNCATE`+reload on every run). `vehicle_years` and `vehicle_years_exide` are shown as one combined store, same as in the Level-1 diagrams, since `matcher._vehicles()` unions them at read time — but they're two physically separate tables written by different pipelines: pipelines 2 and 5 write real per-year rows straight into `vehicle_years`, while pipeline 6 never touches `vehicle_years` at all — it *explodes* Exide's `[year_from, year_to]` ranges into individual make/model/year existence rows and writes those into `vehicle_years_exide` instead, which is why that edge is labeled "exploded from year-ranges." See [Data Pipelines](#data-pipelines) for why each one does or doesn't go through review.
+
+Pipeline 4 (Web Validation) also **reads** from the combined store, not just writes to it — `web_battery_validate.py` loads every unique `(make, model, year)` combination straight from `vehicle_years` (`SELECT ... FROM vehicle_years`, not the exploded `vehicle_years_exide` rows) to know what to go validate against the web in the first place, skipping whatever's already in `web_battery_validation`. That's the one genuinely bidirectional edge in this diagram — everywhere else, a given pipeline only ever reads its external source and writes its own table.
 
 A few flows worth calling out explicitly, since they're easy to miss:
 
