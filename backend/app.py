@@ -219,7 +219,7 @@ async def maintenance_mode_middleware(request: Request, call_next):
     if is_maintenance_mode():
         path = request.url.path
         # Admin API and admin frontend paths always pass through
-        if not (path.startswith("/api/admin") or path.startswith("/admin") or path.startswith("/static/") or path == "/health"):
+        if not (path.startswith("/api/admin") or path.startswith("/admin") or path.startswith("/static/") or path.startswith("/assets/") or path == "/health"):
             _base = os.path.dirname(__file__)
             return FileResponse(
                 os.path.join(_base, "static", "maintenance.html"),
