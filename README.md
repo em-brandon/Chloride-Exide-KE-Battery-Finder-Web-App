@@ -1670,33 +1670,56 @@ Scraping and bot abuse are the opposite story, and this is a live gap today, not
 
 ## Production Architecture
 
-```
-Users (Kenya, Uganda & Tanzania — geo-restricted)
-  │
-  ▼
-Route 53 ─► CloudFront (KE/UG/TZ geo-restriction)
-               │                  │
-        static assets        API requests
-               │                  │
-               ▼                  ▼
-         S3 Frontend         ALB + AWS WAF
-         Bucket              (rate limits, bot filtering)
-                                  │
-                                  ▼
-                            ECS Fargate
-                            FastAPI backend
-                            (min 2 tasks / hard max cap)
-                                  │
-                     ┌────────────┴────────────┐
-                     ▼                         ▼
-               ElastiCache Redis          RDS PostgreSQL
-               (cache / rate state)       (auth, feedback,
-                                          sessions, audit)
+This reflects the target end state with every currently-planned security item shipped (both Threat Model roadmaps above) — not what's running today. WAF's Bot Control / Anonymous IP list rules, the reCAPTCHA + session-token check, ElastiCache Redis actually being used for rate caps (it's provisioned but idle today), and the connection-pool circuit breaker are all still items on those roadmaps, not live yet.
 
-Pipelines
-  EventBridge Scheduler ─► ECS Fargate Tasks
-  (dataprep · enrich · upload · publish jobs)
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '18px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 70, 'curve': 'basis'}}}%%
+flowchart TB
+    subgraph REQ["Request path"]
+        direction LR
+        USERS(["Users<br/>web / mobile visitors<br/>Kenya / Uganda / Tanzania"])
+        CF["Amazon CloudFront<br/>global CDN<br/>geo-block: KE/UG/TZ only"]
+        S3F[("S3 Frontend Bucket<br/>React/Vite static build")]
+        ALB["ALB + AWS WAF<br/>HTTPS termination<br/>Bot Control managed rules<br/>Anonymous IP list<br/>rate-based rules"]
+        RECAP{{"reCAPTCHA v3<br/>on /api/recommend + /api/feedback<br/>session token check<br/>on every public endpoint"}}
+        ECS["ECS Fargate<br/>FastAPI backend<br/>min 2 tasks, autoscaling<br/>DB connection-pool circuit breaker"]
+        LRU[("In-memory LRU cache<br/>per task, matcher.py<br/>vehicle / battery / alias data")]
+
+        USERS --> CF
+        CF -. static assets .-> S3F
+        CF -- API requests --> ALB --> RECAP --> ECS
+        ECS <--> LRU
+    end
+
+    subgraph DATA["Shared data layer"]
+        direction LR
+        REDIS[("ElastiCache Redis<br/>sessions<br/>daily / cumulative rate caps<br/>enumeration-pattern tracking")]
+        RDS[("RDS PostgreSQL<br/>private subnets<br/>auth, feedback, audit, search_events")]
+        S3D[("S3 Data Artifacts Bucket<br/>CSVs, exports, backups")]
+    end
+
+    ECS <--> REDIS
+    ECS <--> RDS
+    ECS <--> S3D
+
+    subgraph PIPE["Admin / scheduled jobs and data pipeline"]
+        direction LR
+        SCHED["EventBridge Scheduler<br/>time-based triggers"]
+        ADMINREQ["Admin-triggered<br/>job request"]
+        TASKS["ECS Fargate pipeline tasks<br/>Data Prep -> Enrich -> Upload -> Publish"]
+        EXT["External APIs<br/>NHTSA / CarAPI / fueleconomy / etc"]
+        S3OUT[("S3 Data Artifacts<br/>cleaned and enriched")]
+        RDSMETA[("RDS metadata / status tables")]
+
+        SCHED --> TASKS
+        ADMINREQ --> TASKS
+        TASKS --> EXT --> S3OUT --> RDSMETA
+    end
+
+    RDSMETA -. commits into .-> RDS
 ```
+
+The **In-memory LRU cache** inside each ECS Fargate task is distinct from **ElastiCache Redis** — the LRU cache is a per-process Python object (`@lru_cache` in `matcher.py`, see [Performance](#performance) and [In-memory cache isolation](#security)) holding vehicle/battery/alias data with zero network hops, while Redis is a shared service every task talks to over the network for state that genuinely needs to be consistent *across* tasks (sessions, rate-limit counters, enumeration tracking) — the LRU cache can't do that job since each task's copy is independent.
 
 Secrets are stored in AWS SSM Parameter Store or Secrets Manager and injected as environment variables at task runtime.
 
