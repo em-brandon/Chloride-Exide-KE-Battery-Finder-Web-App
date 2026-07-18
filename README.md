@@ -501,22 +501,76 @@ flowchart TD
 
 ### Fuzzy Model Scoring
 
-The same base model (e.g. "COROLLA") can exist in the dataset as dozens of distinct trims ("COROLLA AXIO G", "COROLLA FIELDER X", ...), and users rarely type the full trim name. `_fuzzy_model_score_for_year()` decides which stored trim a typed model name actually refers to.
+The same base model (e.g. "COROLLA") can exist in the dataset as dozens of distinct trims ("COROLLA AXIO G", "COROLLA FIELDER X", ...), and users rarely type the full trim name. `_fuzzy_model_score_for_year()` (in `matcher.py`) decides which stored trim a typed model name actually refers to, and is what Layers 1 and 2 call to resolve the model. This section documents its full algorithm — normalization, the three-scorer cascade, candidate tie-breaking, the un-windowed fallback, and exactly how the resulting score becomes the confidence percentage shown to the user.
 
-It tries three RapidFuzz scoring methods in order, from most to least strict, and stops at the first one that produces a usable match:
+#### 0. Normalization first
 
-1. **`partial_ratio`** (score ≥ 80, only for queries of 4+ characters) — checks whether the typed text appears as a prefix/substring of the candidate name. This is what lets "COROLLA" match "COROLLA AXIO G". Short queries are excluded here because a 2-3 letter substring would match almost anything.
-2. **`token_set_ratio`** (score ≥ 72) — compares the *set* of words in each name, ignoring order and duplicates, so it still scores well when the query and candidate share some words but not all — e.g. "MARCH ACTIVE" matching "MARCH G" (both share "MARCH", even though the trim word differs).
-3. **`WRatio`** (score ≥ 60) — a general-purpose blended score RapidFuzz derives from several comparison methods at once. Used only as a last-resort fallback when the two more targeted methods above find nothing.
+Both the typed input and every stored model name are run through `_norm_model_key()` before any comparison happens, so spacing/punctuation differences never cost match quality:
 
-Whichever method finds candidates, the single highest fuzzy score isn't the deciding factor — several real trims often land at nearly the same score, and the top-scoring one isn't always the one actually sold in the year the user asked about. Instead, among candidates that clear the threshold, the matcher picks in this priority order:
+1. Uppercase + strip surrounding whitespace.
+2. Hyphens become spaces (`"CX-5"` → `"CX 5"`).
+3. A space is inserted at every letter↔digit boundary in both directions (`"CX5"` → `"CX 5"`, `"5CX"` → `"5 CX"`).
+4. Repeated whitespace collapses to a single space.
 
-1. **Prefix match** — does the candidate genuinely start with the words the user typed?
-2. **Exact year** — does that candidate exist in the dataset for the exact year requested?
-3. **Closest year** — if not exact, which candidate's nearest recorded year (within ±3 years) is closest?
-4. **Fuzzy score** — only used as the final tiebreaker once the above are equal.
+So `"CX5"`, `"CX-5"`, and `"CX 5"` all normalize to the identical key `"CX 5"` and are therefore treated as exactly the same string by every scorer below — none of the fuzziness described in this section is needed just to bridge that gap; it's handled deterministically before scoring starts.
 
-This ordering is why the matcher reliably lands on the correct year's trim instead of a different-year trim that happened to score marginally higher on text similarity alone.
+#### 1. Three-scorer cascade
+
+`_fuzzy_model_score_for_year()` tries three RapidFuzz scoring methods against the make's known model names, in order from most to least strict, and stops at the first one that produces at least one candidate clearing its threshold:
+
+| Order | Scorer | Threshold | What it catches |
+|---|---|---|---|
+| 1 | `partial_ratio` | ≥ 80, only for queries **4+ characters** | The typed text appears as a prefix/substring of the candidate — lets `"COROLLA"` match `"COROLLA AXIO G"`. Short queries are excluded here because a 2–3 letter substring would match almost anything (e.g. `"C"` inside `"C CLASS"`), so they skip straight to `token_set_ratio`. |
+| 2 | `token_set_ratio` | ≥ 72 | Compares the *set* of words in each name, ignoring order and duplicates. Still scores well when query and candidate share some words but not all — e.g. `"MARCH ACTIVE"` vs `"MARCH G"` share the token `"MARCH"` even though the trim word differs, which a plain edit-distance ratio would score much lower. |
+| 3 | `WRatio` | ≥ 60 | RapidFuzz's general-purpose blended score, combining several comparison strategies internally. Loosest and least targeted of the three — used only when neither `partial_ratio` nor `token_set_ratio` found anything, as a last-resort catch-all. |
+
+Each stage calls `process.extract(query, model_choices, scorer=..., limit=N)` (limits of 60/80/60 respectively) to pull the top N raw candidates for that scorer, filters out anything below its threshold, and hands the survivors to the tie-breaking step below (§2). Only if that step finds nothing usable among a stage's survivors does the cascade move on to the next scorer — a stage "producing candidates" and a stage "producing a usable *pick*" are different conditions, because §2 can still reject every one of a stage's candidates for having no row anywhere near the requested year.
+
+#### 2. Picking among candidates that clear the threshold (`_pick_best`)
+
+The single highest fuzzy score is deliberately **not** the deciding factor once a stage has candidates — several real trims routinely land within a point or two of each other on text similarity alone, and the top scorer isn't always the trim actually sold in the year the user asked about (a short base name like `"FIT"` fuzzy-matches dozens of `"FIT ..."` trims at or near 100). Instead, every surviving candidate is scored into a tuple and the tuples are compared lexicographically (Python tuple comparison — leftmost element wins first, later elements only break ties):
+
+```text
+(starts_with, is_exact_year, -year_delta, score, model_n)
+```
+
+1. **`starts_with`** (1 or 0) — does the candidate genuinely start with what the user typed? Checked by `_starts_with_query()`: true if the candidate (hyphens normalized to spaces) starts with the *full* query, **or** starts with just the query's *first word* (also checked with hyphens normalized). This lets a partial query like `"MARCH"` still count as a prefix match against `"MARCH G"` without requiring the whole query to literally prefix the candidate.
+2. **`is_exact_year`** (1 or 0) — does this candidate have a row for the *exact* year requested? Looked up via `years_by_model` (see §3) — an O(1) dict/tuple lookup, not a fresh dataframe scan.
+3. **`-year_delta`** — if not an exact-year hit, is there at least one row within **±3 years**? Candidates with nothing in that window are dropped entirely (`continue`, not scored) — this field is the negated distance to the closest in-window year, so *smaller* deltas naturally sort *higher* once negated.
+4. **`score`** — the raw fuzzy score from whichever scorer stage produced this candidate. Only reached as a tiebreaker once the three fields above are equal.
+5. **`model_n`** — final deterministic tiebreaker (alphabetical) if everything else ties exactly.
+
+In plain terms: a candidate that's a genuine prefix match *and* has the exact year on record always wins over one that merely scores a few points higher on text similarity. This is why the matcher reliably lands on the correct year's trim instead of a different-year trim that happened to score marginally higher.
+
+#### 3. Where the candidate list and year data come from
+
+`model_choices` — the list of model names actually scored against — comes from `years_by_model.keys()`, a `{model_n: sorted_years_tuple}` dict precomputed once per make by `matcher._make_index()` (see [Performance](#performance) → LRU in-memory matcher cache). The same dict supplies `_cand_years()`'s O(1) lookups in §2 above. Without this cache, both the candidate list and every one of `_pick_best`'s per-candidate year checks would require re-filtering the full in-memory `vehicle_years` dataframe with a pandas boolean mask — once for the make, and again for every one of the ~60–80 candidates a single scorer stage can return. If `years_by_model` isn't supplied (some callers omit it), the function falls back to deriving `model_choices` from `make_df["model_n"].unique()` and re-filtering `make_df` per candidate directly — functionally identical, just slower.
+
+#### 4. Fallback when nothing exists near the requested year
+
+If all three scorer stages run and every one of their candidates gets dropped in §2 for having no row within ±3 years of the requested year (`_pick_best` returns `None` each time), the function falls through to:
+
+```python
+return _fuzzy_model_score(q, model_choices)
+```
+
+`_fuzzy_model_score()` is the same three-scorer cascade with the exact same per-stage thresholds, but with **no year awareness at all** — it just returns whichever candidate scores highest, regardless of what years that model has on record. This exists purely to preserve a sane return value for callers that don't care about year proximity; inside `recommend()` itself, a model resolved this way almost always ends up unused for the model match, because immediately after resolution `recommend()` independently re-checks that same model's rows for an exact-year hit and then a ±3-year window — and since the model was only reachable via this branch *because* nothing existed in that window, both checks come back empty, `matched_year` stays `None`, and the vehicle falls through to the JDM-alias lookup and ultimately Layer 3's engine-CC rule-based fallback. In other words: recognizing a model name by text alone is not sufficient to produce a dataset match — a usable year is always required too, and this fallback exists to fail that requirement cleanly rather than to quietly succeed with the wrong year.
+
+#### 5. From fuzzy score to confidence
+
+Once `_fuzzy_model_score_for_year()` returns `(matched_model_n, model_score)`, `recommend()` turns that pair — plus how close the matched year is — directly into the user-facing `confidence` and `match_type`:
+
+| Case | `confidence` | `match_type` |
+|---|---|---|
+| Exact year row exists **and** `model_score ≥ 90` | `100` | `"Exact Match"` |
+| Exact year row exists but `model_score < 90` | `int(model_score)` | `"Close Match"` |
+| No exact year, but a row exists within ±3 years | `max(60, int(model_score) − year_delta × 3)` | `"Close Match"` |
+
+So a model resolved at score 85 with an exact year match reports 85% confidence as a "Close Match" (not 100%, since 85 < 90) — but the *same* score 85 with the nearest row 2 years off reports `max(60, 85 − 2×3) = 73%`. The `× 3`-per-year penalty and the `60` floor together mean year distance dominates the final number once you're outside an exact hit, while the underlying text-similarity score still sets the ceiling.
+
+#### 6. This is separate from the simpler fuzzy checks in Layers 0a/0b
+
+Layers 0a (`_web_validation_lookup()`) and 0b (Dial-A-Battery inference) do their own, much simpler fuzzy model resolution against their own tables (`web_battery_validation`, `dial_battery_inference`) — a single `process.extractOne(..., scorer=fuzz.token_set_ratio)` call at a flat `≥ 85` threshold, with no partial_ratio/WRatio cascade, no year-window candidate filtering, and no `_pick_best` tie-breaking. `_fitment_override()`'s own model resolution against `oem_fitment` is similar but pools *every* model tied at the best `token_set_ratio` score (not just RapidFuzz's arbitrary first pick among ties) before choosing among them by technology match. None of these three call `_fuzzy_model_score_for_year()` — they're independent, deliberately simpler implementations against smaller, higher-trust tables, described in their own docstrings and in [OEM Fitment Override](#oem-fitment-override) above.
 
 ### Ah Bracket Rules
 
