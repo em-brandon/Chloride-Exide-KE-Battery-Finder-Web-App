@@ -97,79 +97,66 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 
 ## Data Flow Diagram
 
-A Level-1 DFD of the whole system — every external entity, backend process, and PostgreSQL data store that data actually passes through, plus the direction it moves in. Rectangles are **external entities** (people/systems outside the app), circles are **backend processes** (FastAPI route handlers / pipeline scripts), and cylinders are **data stores** (PostgreSQL tables, or the in-memory matcher cache). The font size is intentionally enlarged (`themeVariables.fontSize`) so it stays readable at the diagram's full width — zoom in if your Markdown viewer still renders it small.
+A Level-1 DFD of the system, split into two diagrams so neither one turns into a tangle of crossing lines: the public-facing request path first, then the admin/pipeline side that feeds it. Rectangles are **external entities**, circles are **processes**, and cylinders are **data stores** — PostgreSQL tables, or the in-memory matcher cache. Both diagrams force Mermaid's `dark` theme (rather than leaving it to auto-detect) so they render with real contrast regardless of which Markdown viewer or color scheme you're in, and edges into a group of tables are drawn once to the group's box instead of once per table to keep the line count down.
+
+**1. Public request path** — what happens on every `/api/recommend` call, plus feedback:
 
 ```mermaid
-%%{init: {'theme': 'default', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 70}}}%%
-flowchart TB
-    subgraph EXTERNAL["External Entities"]
-        EU["End User<br/>Browser — Kenya / Uganda / Tanzania"]
-        AD["Admin User<br/>Browser"]
-        EXT["External Data Sources<br/>fueleconomy.gov · NHTSA VPIC · CarAPI<br/>Wikipedia · Wikidata<br/>Exide fitment guide · Dial-A-Battery Excel"]
-    end
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
+flowchart LR
+    EU["End User"] -- "query" --> EDGE["CloudFront + WAF"] --> P1(("P1<br/>Recommend"))
+    P1 -- "result" --> EU
+    P1 -- "read" --> CACHE[("Matcher Cache<br/>in-memory")]
+    P1 -. "log write" .-> P5(("P5<br/>Log + Feedback"))
+    EU -- "feedback" --> P5
+    P5 --> DS7[("search_events")]
+    P5 --> DS8[("user_feedback")]
 
-    EDGE["CloudFront + WAF<br/>Geo-restriction: KE / UG / TZ"]
-
-    subgraph PROC["FastAPI Backend — Processes"]
-        P1(("P1<br/>Battery Recommendation<br/>matcher.recommend()"))
-        P2(("P2<br/>Admin Battery Management<br/>CRUD + Audit"))
-        P3(("P3<br/>Data Pipelines<br/>CRSP · Enrichment · Inference<br/>Web Validation · Expansion"))
-        P4(("P4<br/>Auth and Sessions"))
-        P5(("P5<br/>Search and Feedback Logging"))
-    end
-
-    CACHE[("In-Memory Matcher Cache<br/>pandas, @lru_cache")]
-
-    subgraph STORES["PostgreSQL Data Stores"]
-        DS1[("vehicle_years<br/>vehicle_years_exide")]
+    subgraph SRC["Cache source tables"]
+        direction TB
+        DS1[("vehicle_years(_exide)")]
         DS2[("battery_specs")]
         DS3[("model_aliases")]
         DS4[("oem_fitment")]
         DS5[("dial_battery_inference")]
         DS6[("web_battery_validation")]
-        DS7[("search_events")]
-        DS8[("user_feedback")]
-        DS9[("admin_users · admin_sessions<br/>battery_audit_log")]
-        DS10[("app_settings")]
     end
-
-    EU -- "vehicle query: make, model, year, cc, fuel" --> EDGE
-    EDGE -- "allowed traffic only" --> P1
-    P1 -- "recommendation + confidence" --> EU
-    P1 -- "read cached data" --> CACHE
-    CACHE -- "loaded at startup / manual refresh" --> DS1
-    CACHE --> DS2
-    CACHE --> DS3
-    CACHE --> DS4
-    CACHE --> DS5
-    CACHE --> DS6
-    P1 -. "fire-and-forget log write" .-> P5
-    EU -- "feedback submission" --> P5
-    P5 --> DS7
-    P5 --> DS8
-
-    AD -- "login credentials" --> P4
-    P4 -- "validate / create session" --> DS9
-    P4 -- "HttpOnly session cookie" --> AD
-    AD -- "create / update / delete battery" --> P2
-    P2 --> DS2
-    P2 -- "audit entry" --> DS9
-    AD -- "trigger + review + commit" --> P3
-    P3 -- "fetch / scrape / read Excel" --> EXT
-    P3 --> DS1
-    P3 --> DS4
-    P3 --> DS5
-    P3 --> DS6
-    P3 -- "cache refresh signal" --> CACHE
-    AD -- "toggle maintenance mode" --> DS10
+    CACHE --> SRC
 ```
 
-A few flows worth calling out explicitly, since they're easy to miss in the diagram:
+**2. Admin & data pipelines** — how those same source tables get written, and how the cache gets refreshed:
 
-- **P1 never talks to PostgreSQL directly on the request path** — every `/api/recommend` call is served entirely from the in-memory `CACHE`, which is only refilled from the data stores at process startup or when an admin manually triggers a cache refresh. This is *why* the matching engine has no per-request database latency (see [Performance](#performance) → LRU in-memory matcher cache).
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
+flowchart LR
+    AD["Admin"] -- "login" --> P4(("P4<br/>Auth")) -- "session" --> AD
+    P4 --> DS9[("admin_users / sessions<br/>battery_audit_log")]
+
+    AD -- "CRUD" --> P2(("P2<br/>Manage Batteries"))
+    P2 --> DS2[("battery_specs")]
+    P2 -- "audit entry" --> DS9
+
+    AD -- "run / review / commit" --> P3(("P3<br/>Data Pipelines"))
+    P3 -- "fetch / scrape / read" --> EXT["External Sources<br/>fueleconomy · NHTSA · CarAPI<br/>Wikipedia · Wikidata<br/>Exide guide · Dial-A-Battery"]
+    P3 --> WRITES
+    P3 -. "refresh" .-> CACHE[("Matcher Cache<br/>in-memory")]
+    AD -- "toggle" --> DS10[("app_settings")]
+
+    subgraph WRITES["Committed by pipelines"]
+        direction TB
+        DS1[("vehicle_years(_exide)")]
+        DS4[("oem_fitment")]
+        DS5[("dial_battery_inference")]
+        DS6[("web_battery_validation")]
+    end
+```
+
+A few flows worth calling out explicitly, since they're easy to miss:
+
+- **P1 never talks to PostgreSQL directly on the request path** — every `/api/recommend` call is served entirely from the in-memory matcher cache, which is only refilled from the source tables at process startup or when an admin manually triggers a cache refresh. This is *why* the matching engine has no per-request database latency (see [Performance](#performance) → LRU in-memory matcher cache).
 - **The log write from P1 to P5 is fire-and-forget** — `app.py` spawns a background thread for `search_events` writes so logging a search never adds latency to the recommendation response the user is waiting on.
-- **P3 (pipelines) writes to staging tables first**, not directly to `DS1`/`DS4`/`DS5`/`DS6` — the arrows into those stores represent the *final* commit step, which only happens after an admin reviews the staged rows (see [Data Pipelines](#data-pipelines)). The staging tables themselves (`vehicle_years_staging`, `web_battery_staging`, etc.) are omitted from this diagram to keep it at system level — see the [Database Schema](#database-schema) Table Overview for the complete list.
-- **`oem_fitment` (`DS4`) feeds `CACHE` like every other store**, but it isn't a matching layer on its own — it's consulted after P1 resolves a vehicle to override the Ah figure (see [OEM Fitment Override](#oem-fitment-override)).
+- **P3 (pipelines) writes to staging tables first**, not directly to the tables shown in diagram 2's "Committed by pipelines" box — those arrows represent the *final* commit step, which only happens after an admin reviews the staged rows (see [Data Pipelines](#data-pipelines)). The staging tables themselves (`vehicle_years_staging`, `web_battery_staging`, etc.) are omitted from both diagrams to keep them at system level — see the [Database Schema](#database-schema) Table Overview for the complete list.
+- **`oem_fitment` feeds the cache like every other source table**, but it isn't a matching layer on its own — it's consulted after P1 resolves a vehicle to override the Ah figure (see [OEM Fitment Override](#oem-fitment-override)).
 
 ---
 
