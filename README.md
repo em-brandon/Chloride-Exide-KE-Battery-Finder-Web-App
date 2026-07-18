@@ -1512,11 +1512,11 @@ These depend on the production topology — CloudFront → ALB + WAF → ECS Far
 
 ### Threat Model 1 — Dataset Scraping (Not Yet Implemented)
 
-**In simple terms:** nothing today stops a script from asking our app about every car we know about, one at a time (`/api/makes` → `/api/models/{make}` → `/api/years` → `/api/recommend`), and quietly copying our entire "which battery fits which car" dataset — the actual product of all the data-cleaning work behind this project. The realistic attacker here isn't a random internet hacker; it's a local competitor in the Kenya/Uganda/Tanzania battery market who'd rather copy our data than clean their own.
+Nothing today stops a script from asking our app about every car we know about, one at a time (`/api/makes` → `/api/models/{make}` → `/api/years` → `/api/recommend`), and quietly copying our entire "which battery fits which car" dataset — the actual product of all the data-cleaning work behind this project. The realistic attacker here isn't a random internet hacker; it's a local competitor in the Kenya/Uganda/Tanzania battery market who'd rather copy our data than clean their own.
 
 Today's only defenses are **AWS WAF** (a traffic filter AWS runs in front of our servers, before requests even reach our code) and **`slowapi`** (our own rate limiter — it counts how many requests each visitor's IP address makes and blocks them once they go over a limit). Both are easy for a patient scraper to get around by spacing requests out or switching IP addresses.
 
-| # | Planned solution | In simple terms | Status |
+| # | Planned solution | Description | Status |
 |---|---|---|---|
 | 1 | Daily limits per visitor, backed by Redis | Add a per-day limit on top of the existing per-minute one. **Redis** is a shared, very fast in-memory database all our servers can read/write together — without it, each of our 2+ servers would count separately and a scraper could just get lucky about which one answers. Catches someone who paces requests just under the per-minute limit but keeps going for days. | Planned |
 | 2 | Invisible "are you a robot?" check (Google reCAPTCHA v3) on `/api/recommend` | Scores each request quietly in the background — no puzzle, no click — based on how human the visitor's behavior looks, and blocks or challenges the low scores. Turns scraping from "just send more requests" into "pay a CAPTCHA-solving service or run a full browser that fakes being human," which is much more expensive. | Planned |
@@ -1526,7 +1526,7 @@ None of the three are implemented yet — WAF and per-IP rate limiting remain th
 
 ### Threat Model 2 — Distributed Abuse (reviewed 2026-07-18, Not Yet Implemented)
 
-**In simple terms:** Threat Model 1 assumes one attacker, scripting from one place, that we can eventually recognize and slow down. This one is harder: the same attack, but spread across **thousands of different IP addresses at once** — a "botnet," meaning many separate computers or devices under one attacker's control — including some genuinely located inside Kenya/Uganda/Tanzania, so our geo-block (which only rejects traffic from *outside* those countries) doesn't filter them out. Almost every defense above counts requests *per IP address* — so a large enough botnet just gets a fresh, un-throttled counter for every IP it uses.
+Threat Model 1 assumes one attacker, scripting from one place, that we can eventually recognize and slow down. This one is harder: the same attack, but spread across **thousands of different IP addresses at once** — a "botnet," meaning many separate computers or devices under one attacker's control — including some genuinely located inside Kenya/Uganda/Tanzania, so our geo-block (which only rejects traffic from *outside* those countries) doesn't filter them out. Almost every defense above counts requests *per IP address* — so a large enough botnet just gets a fresh, un-throttled counter for every IP it uses.
 
 | Attack | Today's defense | The gap | Planned fix |
 |---|---|---|---|
@@ -1537,7 +1537,7 @@ None of the three are implemented yet — WAF and per-IP rate limiting remain th
 | Feedback spam (`/api/feedback`) | 5 requests/minute per IP | A botnet spread thin enough (many IPs, each under 5/min) can still flood us with junk feedback rows | Item 1 below |
 | Unverified AWS WAF rules | WAF is attached to our load balancer | This README can only say WAF is attached — the actual rule configuration lives in AWS, outside this repo, so it can't be verified from the code | Item 3 below (a documentation task, not code) |
 
-| # | Planned solution | In simple terms | Status |
+| # | Planned solution | Description | Status |
 |---|---|---|---|
 | 1 | Extend the reCAPTCHA check to `POST /api/feedback` too | The same invisible robot-check from Threat Model 1, item 2, just applied to the feedback form as well. Cheap to add since the integration already exists; closes the botnet gap on both endpoints in one change. | Planned |
 | 2 | Database connection-pool **circuit breaker** | A circuit breaker is a safety switch: instead of letting every incoming request pile up and wait when the database connection pool is full, reject new ones quickly with a "try again shortly" response, so the app stays responsive instead of every waiting request timing out together. | Planned |
