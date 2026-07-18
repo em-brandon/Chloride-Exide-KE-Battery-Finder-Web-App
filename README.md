@@ -1542,7 +1542,15 @@ None of the three are implemented yet — WAF and per-IP rate limiting remain th
 | 1 | Extend the reCAPTCHA check to `POST /api/feedback` too | The same invisible robot-check from Threat Model 1, item 2, just applied to the feedback form as well. Cheap to add since the integration already exists; closes the botnet gap on both endpoints in one change. | Planned |
 | 2 | Database connection-pool **circuit breaker** | A circuit breaker is a safety switch: instead of letting every incoming request pile up and wait when the database connection pool is full, reject new ones quickly with a "try again shortly" response, so the app stays responsive instead of every waiting request timing out together. | Planned |
 | 3 | Document the actual AWS WAF rules | Not app code — writing down (or linking to) exactly which WAF rules are configured, so "WAF is attached" is something that can be verified, not just asserted. | Planned (documentation) |
-| 4 | Full botnet-grade defense (IP-reputation lists, browser-fingerprint/JS challenges, etc.) | Tools that can tell a real browser from a script even across thousands of different IPs. A much bigger undertaking than items 1–3 above. | **Not planned** — an explicit decision to make on purpose, not something quietly assumed to already be covered |
+| 4 | Full botnet-grade defense (IP-reputation lists, browser-fingerprint/JS challenges, etc.) | Tools that can tell a real browser from a script even across thousands of different IPs. | **Planned, phased** — see below |
+
+**Item 4, phased.** Rather than one big undertaking, this is staged from cheapest/least-invasive to most:
+
+1. **Enable AWS WAF's Bot Control managed rule group** — AWS's own bot-classification service (TLS/HTTP fingerprinting, known bot signatures, behavioral heuristics), sitting on infrastructure already in place. Not keyed by IP at all, so it doesn't matter how many addresses the botnet spreads across. A WAF rule toggle, not app code.
+2. **Enable AWS WAF's Anonymous IP list managed rule group** — flags traffic from known VPNs/proxies/Tor/datacenter hosting ranges. Real customers here are individual shoppers on residential/mobile ISPs in Kenya/Uganda/Tanzania, so traffic from a hosting provider's IP range is already a strong bot signal. Also just a WAF rule toggle.
+3. **Escalate reCAPTCHA v3's low scores to an interactive challenge** — items 1–2 in this table's solution list only *score* requests invisibly today; a low score could trigger an actual challenge (checkbox/image puzzle) instead of silently passing through, closing the gap for requests that come back suspicious rather than only blocking the clearly-bad ones.
+4. **A lightweight home-grown signal** — a short-lived signed token issued when the page loads, required on `/api/recommend`/`/api/feedback`, plus a basic timing check (no real person fills a form 100ms after the page loads). Cheap, no vendor, but lower-signal than 1–3.
+5. **A dedicated bot-management vendor (Cloudflare Bot Management, HUMAN/PerimeterX, Akamai) — deferred, not committed.** The most thorough option, purpose-built for this exact problem at scale, but it's a new vendor and likely a bigger infra change (routing traffic through their edge). Disproportionate as a first move — same reasoning the README already uses to reject a general CAPTCHA system for the admin dashboard. Revisit only if phases 1–4 prove insufficient in practice.
 
 ### Overall Security Posture After Planned Work
 
@@ -1550,7 +1558,7 @@ None of the three are implemented yet — WAF and per-IP rate limiting remain th
 |---|---|---|
 | One scraper copying our dataset | Weak — rate limits are easy to pace around | Strong — daily caps + robot-check + scanning detection |
 | Botnet across thousands of IPs, on `/api/recommend` or `/api/feedback` | Weak | Better — the robot-check isn't per-IP, so it still catches this |
-| Botnet across thousands of IPs, everywhere else | Weak | Still weak — explicitly out of scope, not accidentally covered |
+| Botnet across thousands of IPs, everywhere else | Weak | Better, in phases — WAF Bot Control + Anonymous IP list (item 4, phases 1–2) aren't per-IP or endpoint-specific, so they help broadly; a dedicated bot-management vendor (phase 5) remains deferred, not committed |
 | Admin account brute-force login | Strong (already shipped — lockout after 8 failed attempts) | Strong |
 | Full battery catalogue export | Strong (requires admin login) | Strong |
 | Database overload from a `/api/recommend` traffic spike | Fine already — matching runs from memory, not live database queries | Fine, plus a graceful "try again shortly" instead of requests hanging, once the circuit breaker ships |
