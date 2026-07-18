@@ -1015,6 +1015,7 @@ Managed by Alembic (`backend/alembic/versions/`). Apply all migrations with `ale
 Solid lines (`--`) are enforced foreign keys. Dashed lines (`..`) are logical references by value (no DB-level FK).
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '18px'}}}%%
 erDiagram
     admin_users {
         int id PK
@@ -1172,6 +1173,7 @@ erDiagram
         int confidence
         bool matched
         string ip_address
+        string input_type
     }
 
     admin_users      ||--o{ admin_sessions     : "admin_id → admin_users.id (CASCADE)"
@@ -1193,6 +1195,7 @@ erDiagram
 Solid lines (`--`) are enforced foreign keys. Dashed lines (`..`) show pipeline data flow (no DB-level FK).
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '18px'}}}%%
 erDiagram
     vehicles_raw {
         int id PK
