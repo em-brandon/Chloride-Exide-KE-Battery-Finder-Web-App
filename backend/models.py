@@ -393,6 +393,7 @@ class SearchEvent(Base):
     confidence       = Column(Integer,               nullable=True)
     matched          = Column(Boolean,               nullable=False, default=False)
     ip_address       = Column(String(45),            nullable=True)
+    input_type       = Column(String(20),            nullable=True)           # select|type
 
     __table_args__ = (
         Index("ix_search_events_timestamp", "timestamp"),

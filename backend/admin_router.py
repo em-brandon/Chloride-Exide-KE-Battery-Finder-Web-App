@@ -848,6 +848,7 @@ def list_search_events(
             "confidence":       r.confidence,
             "matched":          r.matched,
             "ip_address":       r.ip_address,
+            "input_type":       r.input_type,
         }
         for r in rows
     ]
