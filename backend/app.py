@@ -267,6 +267,7 @@ class RecommendRequest(BaseModel):
     engine_cc: Optional[int] = Field(None, ge=500, le=8000, json_schema_extra={"example": 1500})
     fuel_type: Optional[str] = Field(None, json_schema_extra={"example": "Petrol"})
     stop_start: bool = Field(True, json_schema_extra={"example": True})
+    input_type: Optional[str] = Field(None, pattern=r"^(select|type)$")
 
 
 class FeedbackRequest(BaseModel):
@@ -382,6 +383,7 @@ def _log_search_event(
     confidence: Optional[int],
     matched: bool,
     ip_address: Optional[str] = None,
+    input_type: Optional[str] = None,
 ) -> None:
     try:
         db = SessionLocal()
@@ -398,6 +400,7 @@ def _log_search_event(
             confidence       = confidence,
             matched          = matched,
             ip_address       = ip_address,
+            input_type       = input_type,
         ))
         db.commit()
     except Exception as exc:
@@ -436,6 +439,7 @@ def recommend(request: Request, req: RecommendRequest):
             result.get("confidence"),
             result.get("matched_make") is not None,
             ip,
+            req.input_type,
         ),
         daemon=True,
     ).start()
