@@ -269,11 +269,11 @@ function App() {
   }, [])
 
   return (
-    <TestUserProvider>
     <Suspense fallback={<PageLoader visible />}>
     <Routes>
       {/* ── Public finder ── */}
       <Route path="/" element={
+        <TestUserProvider>
         <TestUserRoute>
           <PublicApp
             loaderVisible={loaderVisible}
@@ -289,9 +289,15 @@ function App() {
             onSetConfPopover={setConfPopover}
           />
         </TestUserRoute>
+        </TestUserProvider>
       } />
 
       {/* ── Admin ── */}
+      {/* Deliberately NOT wrapped in TestUserProvider: that context's fetchMe()
+          hard-reloads the page on any maintenance-mode response, which would
+          take down the whole admin panel when maintenance mode is on and a
+          test-user token happens to be present in the browser. Admin auth is
+          fully independent of the public test-user login system. */}
       <Route path="/admin/login"     element={<AdminLogin />} />
       <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/batteries" element={<ProtectedRoute><AdminBatteries /></ProtectedRoute>} />
@@ -304,10 +310,9 @@ function App() {
       <Route path="/admin/settings"      element={<ProtectedRoute><AdminSettings     /></ProtectedRoute>} />
       <Route path="/admin/search-log"    element={<ProtectedRoute><AdminSearchLog    /></ProtectedRoute>} />
       {/* ── Test user login ── */}
-      <Route path="/login" element={<TestUserLogin />} />
+      <Route path="/login" element={<TestUserProvider><TestUserLogin /></TestUserProvider>} />
     </Routes>
     </Suspense>
-    </TestUserProvider>
   )
 }
 
