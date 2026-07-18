@@ -238,6 +238,7 @@ export interface SearchEventEntry {
   confidence:       number | null
   matched:          boolean
   ip_address:       string | null
+  input_type:       string | null
 }
 
 export interface SearchEventsResponse {

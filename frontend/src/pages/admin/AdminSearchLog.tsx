@@ -25,6 +25,12 @@ const MATCH_TYPE_COLORS: Record<string, { bg: string; text: string; border: stri
   'Estimated (Rule-Based)':{ bg: '#fff5f5', text: '#CC0000', border: '#fca5a5' },
 }
 
+const INPUT_TYPE_LABELS: Record<string, string> = { type: 'Typed', select: 'Selected' }
+const INPUT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  type:   { bg: '#eff6ff', text: '#1d4ed8', border: '#93c5fd' },
+  select: { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
+}
+
 const PAGE_SIZE = 50
 
 function Dash() {
@@ -42,6 +48,21 @@ function MatchTypeBadge({ value }: { value: string | null }) {
       whiteSpace: 'nowrap',
     }}>
       {value}
+    </span>
+  )
+}
+
+function InputTypeBadge({ value }: { value: string | null }) {
+  if (!value) return <Dash />
+  const c = INPUT_TYPE_COLORS[value] ?? { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' }
+  return (
+    <span style={{
+      display: 'inline-block', padding: '0.15rem 0.55rem', borderRadius: '999px',
+      fontSize: '0.7rem', fontWeight: 700,
+      background: c.bg, color: c.text, border: `1px solid ${c.border}`,
+      whiteSpace: 'nowrap',
+    }}>
+      {INPUT_TYPE_LABELS[value] ?? value}
     </span>
   )
 }
@@ -113,18 +134,22 @@ export default function AdminSearchLog() {
 
       autoTable(doc, {
         startY: 28,
-        head: [['#', 'Timestamp', 'Vehicle', 'Input', 'Battery Returned', 'Match Type', 'Conf %', 'Matched', 'IP Address']],
-        body: res.items.map(r => [
-          r.id,
-          r.timestamp ? new Date(r.timestamp).toLocaleString('en-GB') : '—',
-          [r.make, r.model, r.year].filter(Boolean).join(' ') || '—',
-          [r.engine_cc ? `${r.engine_cc} cc` : null, r.fuel_type].filter(Boolean).join(' · ') || '—',
-          r.battery_returned ? `${r.battery_returned}${r.battery_ah ? ` · ${r.battery_ah} Ah` : ''}` : '—',
-          r.match_type ?? '—',
-          r.confidence !== null ? `${r.confidence}%` : '—',
-          r.matched ? 'Yes' : 'No',
-          r.ip_address ?? '—',
-        ]),
+        head: [['#', 'Timestamp', 'Vehicle', 'Input Type', 'Battery Returned', 'Match Type', 'Conf %', 'Matched', 'IP Address']],
+        body: res.items.map(r => {
+          const vehicle = [r.make, r.model, r.year].filter(Boolean).join(' ')
+          const specs = [r.engine_cc ? `${r.engine_cc} cc` : null, r.fuel_type].filter(Boolean).join(' · ')
+          return [
+            r.id,
+            r.timestamp ? new Date(r.timestamp).toLocaleString('en-GB') : '—',
+            [vehicle, specs].filter(Boolean).join(' — ') || '—',
+            r.input_type ? (INPUT_TYPE_LABELS[r.input_type] ?? r.input_type) : '—',
+            r.battery_returned ? `${r.battery_returned}${r.battery_ah ? ` · ${r.battery_ah} Ah` : ''}` : '—',
+            r.match_type ?? '—',
+            r.confidence !== null ? `${r.confidence}%` : '—',
+            r.matched ? 'Yes' : 'No',
+            r.ip_address ?? '—',
+          ]
+        }),
         styles: { fontSize: 7.5, cellPadding: 2 },
         headStyles: { fillColor: [0, 87, 148], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
         alternateRowStyles: { fillColor: [245, 248, 252] },
@@ -232,7 +257,7 @@ export default function AdminSearchLog() {
                     <th style={TH}>#</th>
                     <th style={TH}>Timestamp</th>
                     <th style={TH}>Vehicle</th>
-                    <th style={TH}>Input</th>
+                    <th style={TH}>Input Type</th>
                     <th style={TH}>Battery Returned</th>
                     <th style={TH}>Match Type</th>
                     <th style={TH}>Confidence</th>
@@ -252,27 +277,26 @@ export default function AdminSearchLog() {
                       {/* Timestamp */}
                       <td style={{ ...TD, whiteSpace: 'nowrap', fontSize: '0.74rem' }}>{fmt(row.timestamp)}</td>
 
-                      {/* Vehicle: make · model · year */}
+                      {/* Vehicle: make · model · year, plus cc/fuel if supplied */}
                       <td style={TD}>
                         {row.make || row.model || row.year ? (
-                          <span>
+                          <div>
                             <span style={{ fontWeight: 600, color: 'var(--adm-text-1)' }}>{row.make ?? '—'}</span>
                             {row.model && <span style={{ color: 'var(--adm-text-2)' }}> {row.model}</span>}
                             {row.year  && <span style={{ color: 'var(--adm-text-3)', fontSize: '0.72rem' }}> {row.year}</span>}
-                          </span>
+                            {(row.engine_cc || row.fuel_type) && (
+                              <div style={{ color: 'var(--adm-text-3)', fontSize: '0.7rem', marginTop: '0.1rem', whiteSpace: 'nowrap' }}>
+                                {row.engine_cc && <span>{row.engine_cc.toLocaleString()} cc</span>}
+                                {row.engine_cc && row.fuel_type && <span> · </span>}
+                                {row.fuel_type && <span style={{ textTransform: 'capitalize' }}>{row.fuel_type}</span>}
+                              </div>
+                            )}
+                          </div>
                         ) : <Dash />}
                       </td>
 
-                      {/* Input: engine_cc · fuel_type */}
-                      <td style={{ ...TD, fontSize: '0.74rem', whiteSpace: 'nowrap' }}>
-                        {row.engine_cc || row.fuel_type ? (
-                          <span>
-                            {row.engine_cc && <span>{row.engine_cc.toLocaleString()} cc</span>}
-                            {row.engine_cc && row.fuel_type && <span style={{ color: 'var(--adm-text-3)' }}> · </span>}
-                            {row.fuel_type && <span style={{ textTransform: 'capitalize' }}>{row.fuel_type}</span>}
-                          </span>
-                        ) : <Dash />}
-                      </td>
+                      {/* Input Type: typed vs selected */}
+                      <td style={TD}><InputTypeBadge value={row.input_type} /></td>
 
                       {/* Battery Returned */}
                       <td style={{ ...TD, whiteSpace: 'nowrap' }}>
