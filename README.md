@@ -185,7 +185,7 @@ flowchart TB
 
 Checked top-to-bottom in that priority order — 0a, then 0b, then 1/2 (+ JDM alias resolution), then 3 — and the first one that resolves a match is the only branch whose result actually feeds into OEM Override; the diagram shows all four converging there because *any* of them can be the one that fires, not because all four run and merge every time.
 
-**4. P3 decomposed — Data Pipelines.** Each of the six pipeline scripts is its own lane, mostly independent of the others except where all three of Year Enrichment, Coverage Expansion, and Exide Fitment ultimately land in the same unioned vehicle table:
+**4. P3 decomposed — Data Pipelines.** Each of the six pipeline scripts is its own lane. `vehicle_years` and `vehicle_years_exide` are kept as the two physically separate tables they actually are — pipelines 2 and 5 write real rows into one, pipeline 6 writes exploded rows into the other, and neither pipeline touches the other's table directly. A third node, **Exploded Vehicle Coverage**, represents the `UNION ALL` `matcher._vehicles()` builds by joining them at read time — it only ever exists as an in-memory join product, never as its own table, and nothing in this diagram writes to it:
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
@@ -195,7 +195,7 @@ flowchart LR
 
     EXT2["fueleconomy · NHTSA<br/>CarAPI · Wikidata / Wikipedia"] --> P3b(("2<br/>Year Enrichment"))
     VR --> P3b
-    P3b -. "stage, review, commit" .-> DS1
+    P3b -. "stage, review, commit" .-> DS1[("vehicle_years")]
 
     EXT3["Dial-A-Battery Excel"] --> P3c(("3<br/>DAB Inference"))
     P3c --> DS5[("dial_battery_inference")]
@@ -209,12 +209,15 @@ flowchart LR
 
     EXT6["Exide Fitment Excel"] --> P3f(("6<br/>Exide Fitment"))
     P3f -- "truncate + reload" --> DS4[("oem_fitment")]
-    P3f -- "truncate + reload,<br/>exploded from year-ranges" --> DS1[("vehicle_years<br/>vehicle_years_exide")]
+    P3f -- "truncate + reload,<br/>exploded from year-ranges" --> DS1B[("vehicle_years_exide")]
+
+    DS1 -- "UNION ALL" --> JOIN[("Exploded Vehicle Coverage<br/>make / model / year")]
+    DS1B -- "UNION ALL" --> JOIN
 ```
 
-`vehicles_raw`, `web_battery_staging`, and `vehicle_years_staging` (shared by pipelines 2 and 5) are the actual intermediate targets before an admin reviews and commits — collapsed into a single "stage, review, commit" edge here for the same reason staging tables are omitted from the Level-1 diagrams. Pipelines 3 and 6 skip staging entirely (Pipeline 3 writes `dial_battery_inference` directly; Pipeline 6 does a full `TRUNCATE`+reload on every run). `vehicle_years` and `vehicle_years_exide` are shown as one combined store, same as in the Level-1 diagrams, since `matcher._vehicles()` unions them at read time — but they're two physically separate tables written by different pipelines: pipelines 2 and 5 write real per-year rows straight into `vehicle_years`, while pipeline 6 never touches `vehicle_years` at all — it *explodes* Exide's `[year_from, year_to]` ranges into individual make/model/year existence rows and writes those into `vehicle_years_exide` instead, which is why that edge is labeled "exploded from year-ranges." See [Data Pipelines](#data-pipelines) for why each one does or doesn't go through review.
+`vehicles_raw`, `web_battery_staging`, and `vehicle_years_staging` (shared by pipelines 2 and 5) are the actual intermediate targets before an admin reviews and commits — collapsed into a single "stage, review, commit" edge here for the same reason staging tables are omitted from the Level-1 diagrams. Pipelines 3 and 6 skip staging entirely (Pipeline 3 writes `dial_battery_inference` directly; Pipeline 6 does a full `TRUNCATE`+reload on every run). Pipeline 6 never writes `vehicle_years` at all — it *explodes* Exide's `[year_from, year_to]` ranges into individual make/model/year existence rows and writes those into `vehicle_years_exide` instead, which is why that edge is labeled "exploded from year-ranges." See [Data Pipelines](#data-pipelines) for why each one does or doesn't go through review.
 
-Pipeline 4 (Web Validation) also **reads** from the combined store, not just writes to it — `web_battery_validate.py` loads every unique `(make, model, year)` combination straight from `vehicle_years` (`SELECT ... FROM vehicle_years`, not the exploded `vehicle_years_exide` rows) to know what to go validate against the web in the first place, skipping whatever's already in `web_battery_validation`. That's the one genuinely bidirectional edge in this diagram — everywhere else, a given pipeline only ever reads its external source and writes its own table.
+**Pipeline 4 (Web Validation) reads straight from `vehicle_years` only** — confirmed against `web_battery_validate.py`, which loads its full `(make, model, year)` universe via `SELECT ... FROM vehicle_years` before querying external sources, skipping whatever's already in `web_battery_validation`. It does **not** go through `Exploded Vehicle Coverage` and never touches `vehicle_years_exide` — that join only happens inside `matcher.py`'s in-memory cache (see the Level-1 "Public request path" diagram above), which this pipeline bypasses entirely by querying the database directly.
 
 A few flows worth calling out explicitly, since they're easy to miss:
 
