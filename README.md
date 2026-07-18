@@ -1673,34 +1673,37 @@ Scraping and bot abuse are the opposite story, and this is a live gap today, not
 This reflects the target end state with every currently-planned security item shipped (both Threat Model roadmaps above) — not what's running today. WAF's Bot Control / Anonymous IP list rules, the reCAPTCHA + session-token check, ElastiCache Redis actually being used for rate caps (it's provisioned but idle today), and the connection-pool circuit breaker are all still items on those roadmaps, not live yet.
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '18px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 70, 'curve': 'basis'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '18px'}, 'flowchart': {'nodeSpacing': 55, 'rankSpacing': 90, 'curve': 'basis'}}}%%
 flowchart TB
-    subgraph REQ["Request path"]
-        direction LR
-        USERS(["Users<br/>web / mobile visitors<br/>Kenya / Uganda / Tanzania"])
-        CF["Amazon CloudFront<br/>global CDN<br/>geo-block: KE/UG/TZ only"]
-        S3F[("S3 Frontend Bucket<br/>React/Vite static build")]
-        ALB["ALB + AWS WAF<br/>HTTPS termination<br/>Bot Control managed rules<br/>Anonymous IP list<br/>rate-based rules"]
-        RECAP{{"reCAPTCHA v3<br/>on /api/recommend + /api/feedback<br/>session token check<br/>on every public endpoint"}}
-        ECS["ECS Fargate<br/>FastAPI backend<br/>min 2 tasks, autoscaling<br/>DB connection-pool circuit breaker"]
-        LRU[("In-memory LRU cache<br/>per task, matcher.py<br/>vehicle / battery / alias data")]
+    USERS(["Users<br/>web / mobile visitors<br/>Kenya / Uganda / Tanzania"])
+    CF["Amazon CloudFront<br/>global CDN<br/>geo-block: KE/UG/TZ only"]
+    S3F[("S3 Frontend Bucket<br/>React/Vite static build")]
+    ALB["ALB + AWS WAF<br/>HTTPS termination<br/>Bot Control managed rules<br/>Anonymous IP list, rate-based rules"]
+    RECAP{{"reCAPTCHA v3 +<br/>session token check<br/>recommend, feedback,<br/>and every public endpoint"}}
 
-        USERS --> CF
-        CF -. static assets .-> S3F
-        CF -- API requests --> ALB --> RECAP --> ECS
-        ECS <--> LRU
+    subgraph ECSBOX["ECS Fargate — FastAPI backend"]
+        direction TB
+        APP["FastAPI process<br/>min 2 tasks, autoscaling<br/>DB connection-pool circuit breaker"]
+        LRU[("In-memory LRU cache<br/>matcher.py, per task<br/>vehicle / battery / alias data")]
+        APP -- "reads, refreshes on demand" --> LRU
     end
+
+    USERS -- "vehicle query" --> CF
+    CF -. "static assets" .-> S3F
+    CF -- "API requests" --> ALB
+    ALB -- "traffic that clears WAF rules" --> RECAP
+    RECAP -- "verified requests only" --> ECSBOX
 
     subgraph DATA["Shared data layer"]
         direction LR
         REDIS[("ElastiCache Redis<br/>sessions<br/>daily / cumulative rate caps<br/>enumeration-pattern tracking")]
-        RDS[("RDS PostgreSQL<br/>private subnets<br/>auth, feedback, audit, search_events")]
-        S3D[("S3 Data Artifacts Bucket<br/>CSVs, exports, backups")]
+        RDS[("RDS PostgreSQL<br/>private subnets<br/>auth, feedback, audit,<br/>search_events, pipeline status")]
+        S3D[("S3 Data Artifacts Bucket<br/>CSVs, exports, uploads,<br/>pipeline outputs, backups")]
     end
 
-    ECS <--> REDIS
-    ECS <--> RDS
-    ECS <--> S3D
+    ECSBOX -- "session state, rate-limit counters" --> REDIS
+    ECSBOX -- "reads and writes app data" --> RDS
+    ECSBOX -- "reads and writes files" --> S3D
 
     subgraph PIPE["Admin / scheduled jobs and data pipeline"]
         direction LR
@@ -1708,16 +1711,17 @@ flowchart TB
         ADMINREQ["Admin-triggered<br/>job request"]
         TASKS["ECS Fargate pipeline tasks<br/>Data Prep -> Enrich -> Upload -> Publish"]
         EXT["External APIs<br/>NHTSA / CarAPI / fueleconomy / etc"]
-        S3OUT[("S3 Data Artifacts<br/>cleaned and enriched")]
-        RDSMETA[("RDS metadata / status tables")]
 
-        SCHED --> TASKS
-        ADMINREQ --> TASKS
-        TASKS --> EXT --> S3OUT --> RDSMETA
+        SCHED -- "triggers" --> TASKS
+        ADMINREQ -- "triggers" --> TASKS
+        TASKS -- "fetch reference data" --> EXT
     end
 
-    RDSMETA -. commits into .-> RDS
+    TASKS -- "writes cleaned datasets" --> S3D
+    TASKS -- "writes staged rows, run status" --> RDS
 ```
+
+Every AWS resource is now drawn exactly once, even where both the request path and the pipeline touch it — `RDS` and `S3D` are the same nodes referenced from both `ECSBOX` and `PIPE`, not separate look-alike boxes for "the app's copy" and "the pipeline's copy." Every edge is single-direction and labeled with what actually flows and why, rather than a `<-->` standing in for "these two things talk to each other somehow." `LRU` is nested inside the `ECSBOX` subgraph rather than floating next to it, since it lives inside the FastAPI process, not beside it as a peer service — every edge leaving `ECSBOX` starts from the subgraph boundary itself, not from a specific node inside it.
 
 The **In-memory LRU cache** inside each ECS Fargate task is distinct from **ElastiCache Redis** — the LRU cache is a per-process Python object (`@lru_cache` in `matcher.py`, see [Performance](#performance) and [In-memory cache isolation](#security)) holding vehicle/battery/alias data with zero network hops, while Redis is a shared service every task talks to over the network for state that genuinely needs to be consistent *across* tasks (sessions, rate-limit counters, enumeration tracking) — the LRU cache can't do that job since each task's copy is independent.
 
