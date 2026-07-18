@@ -1516,6 +1516,31 @@ Nothing today stops a script from asking our app about every car we know about, 
 
 Today's only defenses are **AWS WAF** (a traffic filter AWS runs in front of our servers, before requests even reach our code) and **`slowapi`** (our own rate limiter — it counts how many requests each visitor's IP address makes and blocks them once they go over a limit). Both are easy for a patient scraper to get around by spacing requests out or switching IP addresses.
 
+How the extraction actually works — one vehicle at a time, looped until the whole dataset is copied:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
+flowchart LR
+    ATT(["Attacker<br/>single scraper script"])
+
+    subgraph LOOP["Repeated for every make -> model -> year combination"]
+        direction LR
+        M(("/api/makes"))
+        MO(("/api/models/&#123make&#125"))
+        Y(("/api/years"))
+        R(("/api/recommend"))
+        M --> MO --> Y --> R
+    end
+
+    ATT -- "one request at a time,<br/>paced under 10/min" --> LOOP
+    LOOP -- "battery code, Ah,<br/>confidence per vehicle" --> ATT
+    ATT --> COPY[("Attacker's own rebuilt copy<br/>of the vehicle-to-battery dataset")]
+
+    LOOP -. "served from" .-> CACHE[("In-memory matcher cache")]
+
+    DEF["Today's defenses:<br/>AWS WAF + per-IP slowapi limits"] -. "bypassed by pacing<br/>under the per-minute limit" .-> LOOP
+```
+
 | # | Planned solution | Description | Status |
 |---|---|---|---|
 | 1 | Daily limits per visitor, backed by Redis | Add a per-day limit on top of the existing per-minute one. **Redis** is a shared, very fast in-memory database all our servers can read/write together — without it, each of our 2+ servers would count separately and a scraper could just get lucky about which one answers. Catches someone who paces requests just under the per-minute limit but keeps going for days. | Planned |
@@ -1536,6 +1561,32 @@ Threat Model 1 assumes one attacker, scripting from one place, that we can event
 | Scanning `/api/makes` / `/api/models` | 20 requests/minute per IP, no response caching | Doesn't actually load the database (see above) — the real risk is the same dataset-copying threat from Threat Model 1 | Already covered by Threat Model 1, items 1 and 3 |
 | Feedback spam (`/api/feedback`) | 5 requests/minute per IP | A botnet spread thin enough (many IPs, each under 5/min) can still flood us with junk feedback rows | Item 1 below |
 | Unverified AWS WAF rules | WAF is attached to our load balancer | This README can only say WAF is attached — the actual rule configuration lives in AWS, outside this repo, so it can't be verified from the code | Item 3 below (a documentation task, not code) |
+
+Same extraction walk as Threat Model 1, just spread across many IPs so no single one ever trips a per-IP limit — plus the same botnet spamming `/api/feedback` on the side:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
+flowchart LR
+    BOT(["Botnet<br/>thousands of IPs,<br/>some genuinely in KE/UG/TZ"])
+
+    GEO["CloudFront geo-block"] -. "doesn't filter bots<br/>already inside KE/UG/TZ" .-> BOT
+
+    subgraph LOOP["Same walk as Threat Model 1,<br/>split across many IPs"]
+        direction LR
+        M(("/api/makes"))
+        MO(("/api/models/&#123make&#125"))
+        Y(("/api/years"))
+        R(("/api/recommend"))
+        M --> MO --> Y --> R
+    end
+
+    BOT -- "each IP stays under<br/>its own per-minute limit" --> LOOP
+    LOOP -- "battery code, Ah,<br/>confidence per vehicle" --> BOT
+    BOT --> COPY[("Attacker's own rebuilt copy<br/>of the vehicle-to-battery dataset")]
+
+    BOT -- "many IPs,<br/>each under 5/min" --> FB(("/api/feedback"))
+    FB --> SPAM[("Junk feedback rows")]
+```
 
 | # | Planned solution | Description | Status |
 |---|---|---|---|
