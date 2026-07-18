@@ -11,6 +11,7 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 ## Table of Contents
 
 - [Tech Stack](#tech-stack)
+- [Data Flow Diagram](#data-flow-diagram)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Running the App](#running-the-app)
@@ -91,6 +92,84 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 | [NumPy](https://numpy.org/) | Numerical operations underpinning Pandas transforms |
 | [Matplotlib](https://matplotlib.org/) / [Seaborn](https://seaborn.pydata.org/) | Charting in accuracy-report scripts (`scripts/generate_accuracy_report_hard_failure_modes_200.py`) |
 | [Jupyter](https://jupyter.org/) / [ipykernel](https://github.com/ipython/ipykernel) | `scripts/analysis.ipynb` exploratory analysis notebook |
+
+---
+
+## Data Flow Diagram
+
+A Level-1 DFD of the whole system — every external entity, backend process, and PostgreSQL data store that data actually passes through, plus the direction it moves in. Rectangles are **external entities** (people/systems outside the app), circles are **backend processes** (FastAPI route handlers / pipeline scripts), and cylinders are **data stores** (PostgreSQL tables, or the in-memory matcher cache). The font size is intentionally enlarged (`themeVariables.fontSize`) so it stays readable at the diagram's full width — zoom in if your Markdown viewer still renders it small.
+
+```mermaid
+%%{init: {'theme': 'default', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 70}}}%%
+flowchart TB
+    subgraph EXTERNAL["External Entities"]
+        EU["End User<br/>Browser — Kenya / Uganda / Tanzania"]
+        AD["Admin User<br/>Browser"]
+        EXT["External Data Sources<br/>fueleconomy.gov · NHTSA VPIC · CarAPI<br/>Wikipedia · Wikidata<br/>Exide fitment guide · Dial-A-Battery Excel"]
+    end
+
+    EDGE["CloudFront + WAF<br/>Geo-restriction: KE / UG / TZ"]
+
+    subgraph PROC["FastAPI Backend — Processes"]
+        P1(("P1<br/>Battery Recommendation<br/>matcher.recommend()"))
+        P2(("P2<br/>Admin Battery Management<br/>CRUD + Audit"))
+        P3(("P3<br/>Data Pipelines<br/>CRSP · Enrichment · Inference<br/>Web Validation · Expansion"))
+        P4(("P4<br/>Auth and Sessions"))
+        P5(("P5<br/>Search and Feedback Logging"))
+    end
+
+    CACHE[("In-Memory Matcher Cache<br/>pandas, @lru_cache")]
+
+    subgraph STORES["PostgreSQL Data Stores"]
+        DS1[("vehicle_years<br/>vehicle_years_exide")]
+        DS2[("battery_specs")]
+        DS3[("model_aliases")]
+        DS4[("oem_fitment")]
+        DS5[("dial_battery_inference")]
+        DS6[("web_battery_validation")]
+        DS7[("search_events")]
+        DS8[("user_feedback")]
+        DS9[("admin_users · admin_sessions<br/>battery_audit_log")]
+        DS10[("app_settings")]
+    end
+
+    EU -- "vehicle query: make, model, year, cc, fuel" --> EDGE
+    EDGE -- "allowed traffic only" --> P1
+    P1 -- "recommendation + confidence" --> EU
+    P1 -- "read cached data" --> CACHE
+    CACHE -- "loaded at startup / manual refresh" --> DS1
+    CACHE --> DS2
+    CACHE --> DS3
+    CACHE --> DS4
+    CACHE --> DS5
+    CACHE --> DS6
+    P1 -. "fire-and-forget log write" .-> P5
+    EU -- "feedback submission" --> P5
+    P5 --> DS7
+    P5 --> DS8
+
+    AD -- "login credentials" --> P4
+    P4 -- "validate / create session" --> DS9
+    P4 -- "HttpOnly session cookie" --> AD
+    AD -- "create / update / delete battery" --> P2
+    P2 --> DS2
+    P2 -- "audit entry" --> DS9
+    AD -- "trigger + review + commit" --> P3
+    P3 -- "fetch / scrape / read Excel" --> EXT
+    P3 --> DS1
+    P3 --> DS4
+    P3 --> DS5
+    P3 --> DS6
+    P3 -- "cache refresh signal" --> CACHE
+    AD -- "toggle maintenance mode" --> DS10
+```
+
+A few flows worth calling out explicitly, since they're easy to miss in the diagram:
+
+- **P1 never talks to PostgreSQL directly on the request path** — every `/api/recommend` call is served entirely from the in-memory `CACHE`, which is only refilled from the data stores at process startup or when an admin manually triggers a cache refresh. This is *why* the matching engine has no per-request database latency (see [Performance](#performance) → LRU in-memory matcher cache).
+- **The log write from P1 to P5 is fire-and-forget** — `app.py` spawns a background thread for `search_events` writes so logging a search never adds latency to the recommendation response the user is waiting on.
+- **P3 (pipelines) writes to staging tables first**, not directly to `DS1`/`DS4`/`DS5`/`DS6` — the arrows into those stores represent the *final* commit step, which only happens after an admin reviews the staged rows (see [Data Pipelines](#data-pipelines)). The staging tables themselves (`vehicle_years_staging`, `web_battery_staging`, etc.) are omitted from this diagram to keep it at system level — see the [Database Schema](#database-schema) Table Overview for the complete list.
+- **`oem_fitment` (`DS4`) feeds `CACHE` like every other store**, but it isn't a matching layer on its own — it's consulted after P1 resolves a vehicle to override the Ah figure (see [OEM Fitment Override](#oem-fitment-override)).
 
 ---
 
