@@ -1512,10 +1512,6 @@ These depend on the production topology — CloudFront → ALB + WAF → ECS Far
 
 ### Threat Model 1 — Dataset Scraping (Not Yet Implemented)
 
-Nothing today stops a script from asking our app about every car we know about, one at a time (`/api/makes` → `/api/models/{make}` → `/api/years` → `/api/recommend`), and quietly copying our entire "which battery fits which car" dataset — the actual product of all the data-cleaning work behind this project. The realistic attacker here isn't a random internet hacker; it's a local competitor in the Kenya/Uganda/Tanzania battery market who'd rather copy our data than clean their own.
-
-Today's only defenses are **AWS WAF** (a traffic filter AWS runs in front of our servers, before requests even reach our code) and **`slowapi`** (our own rate limiter — it counts how many requests each visitor's IP address makes and blocks them once they go over a limit). Both are easy for a patient scraper to get around by spacing requests out or switching IP addresses.
-
 How the extraction actually works — one vehicle at a time, looped until the whole dataset is copied:
 
 ```mermaid
@@ -1541,6 +1537,10 @@ flowchart LR
     DEF["Today's defenses:<br/>AWS WAF + per-IP slowapi limits"] -. "bypassed by pacing<br/>under the per-minute limit" .-> LOOP
 ```
 
+Nothing today stops a script from asking our app about every car we know about, one at a time (`/api/makes` → `/api/models/{make}` → `/api/years` → `/api/recommend`), and quietly copying our entire "which battery fits which car" dataset — the actual product of all the data-cleaning work behind this project. The realistic attacker here isn't a random internet hacker; it's a local competitor in the Kenya/Uganda/Tanzania battery market who'd rather copy our data than clean their own.
+
+Today's only defenses are **AWS WAF** (a traffic filter AWS runs in front of our servers, before requests even reach our code) and **`slowapi`** (our own rate limiter — it counts how many requests each visitor's IP address makes and blocks them once they go over a limit). Both are easy for a patient scraper to get around by spacing requests out or switching IP addresses.
+
 | # | Planned solution | Description | Status |
 |---|---|---|---|
 | 1 | Daily limits per visitor, backed by Redis | Add a per-day limit on top of the existing per-minute one. **Redis** is a shared, very fast in-memory database all our servers can read/write together — without it, each of our 2+ servers would count separately and a scraper could just get lucky about which one answers. Catches someone who paces requests just under the per-minute limit but keeps going for days. | Planned |
@@ -1550,17 +1550,6 @@ flowchart LR
 None of the three are implemented yet — WAF and per-IP rate limiting remain the only defenses in the current codebase.
 
 ### Threat Model 2 — Distributed Abuse (reviewed 2026-07-18, Not Yet Implemented)
-
-Threat Model 1 assumes one attacker, scripting from one place, that we can eventually recognize and slow down. This one is harder: the same attack, but spread across **thousands of different IP addresses at once** — a "botnet," meaning many separate computers or devices under one attacker's control — including some genuinely located inside Kenya/Uganda/Tanzania, so our geo-block (which only rejects traffic from *outside* those countries) doesn't filter them out. Almost every defense above counts requests *per IP address* — so a large enough botnet just gets a fresh, un-throttled counter for every IP it uses.
-
-| Attack | Today's defense | The gap | Planned fix |
-|---|---|---|---|
-| Botnet spread across many IPs | Geo-block (rejects traffic from outside KE/UG/TZ only) | Does nothing to bots already inside the region | The reCAPTCHA check (Threat Model 1, item 2) is the one defense above that isn't per-IP — extending it to cover `/api/feedback` too (item 1 below) closes this for both endpoints it reaches |
-| General per-IP rate limits (`slowapi`) | Counts requests per IP address | A big enough botnet gets a fresh, unlimited bucket per IP | Not solved by anything currently planned — see item 4 below |
-| Database connection-pool overload | No safety switch if the pool fills up | Real, but smaller than it sounds — `/api/recommend` answers entirely from data already loaded in memory, so a traffic spike there barely touches the database | Item 2 below |
-| Scanning `/api/makes` / `/api/models` | 20 requests/minute per IP, no response caching | Doesn't actually load the database (see above) — the real risk is the same dataset-copying threat from Threat Model 1 | Already covered by Threat Model 1, items 1 and 3 |
-| Feedback spam (`/api/feedback`) | 5 requests/minute per IP | A botnet spread thin enough (many IPs, each under 5/min) can still flood us with junk feedback rows | Item 1 below |
-| Unverified AWS WAF rules | WAF is attached to our load balancer | This README can only say WAF is attached — the actual rule configuration lives in AWS, outside this repo, so it can't be verified from the code | Item 3 below (a documentation task, not code) |
 
 Same extraction walk as Threat Model 1, just spread across many IPs so no single one ever trips a per-IP limit — plus the same botnet spamming `/api/feedback` on the side:
 
@@ -1587,6 +1576,17 @@ flowchart LR
     BOT -- "many IPs,<br/>each under 5/min" --> FB(("/api/feedback"))
     FB --> SPAM[("Junk feedback rows")]
 ```
+
+Threat Model 1 assumes one attacker, scripting from one place, that we can eventually recognize and slow down. This one is harder: the same attack, but spread across **thousands of different IP addresses at once** — a "botnet," meaning many separate computers or devices under one attacker's control — including some genuinely located inside Kenya/Uganda/Tanzania, so our geo-block (which only rejects traffic from *outside* those countries) doesn't filter them out. Almost every defense above counts requests *per IP address* — so a large enough botnet just gets a fresh, un-throttled counter for every IP it uses.
+
+| Attack | Today's defense | The gap | Planned fix |
+|---|---|---|---|
+| Botnet spread across many IPs | Geo-block (rejects traffic from outside KE/UG/TZ only) | Does nothing to bots already inside the region | The reCAPTCHA check (Threat Model 1, item 2) is the one defense above that isn't per-IP — extending it to cover `/api/feedback` too (item 1 below) closes this for both endpoints it reaches |
+| General per-IP rate limits (`slowapi`) | Counts requests per IP address | A big enough botnet gets a fresh, unlimited bucket per IP | Not solved by anything currently planned — see item 4 below |
+| Database connection-pool overload | No safety switch if the pool fills up | Real, but smaller than it sounds — `/api/recommend` answers entirely from data already loaded in memory, so a traffic spike there barely touches the database | Item 2 below |
+| Scanning `/api/makes` / `/api/models` | 20 requests/minute per IP, no response caching | Doesn't actually load the database (see above) — the real risk is the same dataset-copying threat from Threat Model 1 | Already covered by Threat Model 1, items 1 and 3 |
+| Feedback spam (`/api/feedback`) | 5 requests/minute per IP | A botnet spread thin enough (many IPs, each under 5/min) can still flood us with junk feedback rows | Item 1 below |
+| Unverified AWS WAF rules | WAF is attached to our load balancer | This README can only say WAF is attached — the actual rule configuration lives in AWS, outside this repo, so it can't be verified from the code | Item 3 below (a documentation task, not code) |
 
 | # | Planned solution | Description | Status |
 |---|---|---|---|
