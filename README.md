@@ -97,7 +97,11 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 
 ## Data Flow Diagram
 
-A Level-1 DFD of the system, split into two diagrams so neither one turns into a tangle of crossing lines: the public-facing request path first, then the admin/pipeline side that feeds it. Rectangles are **external entities**, circles are **processes**, and cylinders are **data stores** — PostgreSQL tables, or the in-memory matcher cache. Both diagrams force Mermaid's `dark` theme (rather than leaving it to auto-detect) so they render with real contrast regardless of which Markdown viewer or color scheme you're in, and edges into a group of tables are drawn once to the group's box instead of once per table to keep the line count down.
+DFDs at two levels of decomposition — Level 1 for the system as a whole, Level 2 for the two processes complex enough to be worth breaking down further (P1 and P3; the other three are simple enough that a diagram wouldn't add anything a sentence doesn't already say). Rectangles are **external entities**, circles are **processes**, and cylinders are **data stores** — PostgreSQL tables, or the in-memory matcher cache. Every diagram forces Mermaid's `dark` theme (rather than leaving it to auto-detect) so it renders with real contrast regardless of which Markdown viewer or color scheme you're in, and edges into a group of tables are drawn once to the group's box instead of once per table to keep the line count down.
+
+### Level 1 — System Overview
+
+Split into two diagrams so neither one turns into a tangle of crossing lines: the public-facing request path first, then the admin/pipeline side that feeds it.
 
 **1. Public request path** — what happens on every `/api/recommend` call, plus feedback:
 
@@ -114,7 +118,7 @@ flowchart LR
 
     subgraph SRC["Cache source tables"]
         direction TB
-        DS1[("vehicle_years(_exide)")]
+        DS1[("vehicle_years<br/>vehicle_years_exide")]
         DS2[("battery_specs")]
         DS3[("model_aliases")]
         DS4[("oem_fitment")]
@@ -144,18 +148,76 @@ flowchart LR
 
     subgraph WRITES["Committed by pipelines"]
         direction TB
-        DS1[("vehicle_years(_exide)")]
+        DS1[("vehicle_years<br/>vehicle_years_exide")]
         DS4[("oem_fitment")]
         DS5[("dial_battery_inference")]
         DS6[("web_battery_validation")]
     end
 ```
 
+### Level 2 — Process Detail
+
+**3. P1 decomposed — Battery Recommendation.** This shows *data flow only* — which source table each internal step reads, and where a resolved match feeds forward. It deliberately leaves out the branching/scoring logic (thresholds, confidence math, tie-breaks) that decides *which* step actually produces the match — that belongs to a flowchart, not a DFD, and already exists as the [Matching Engine flowchart](#flowchart). The two diagrams complement each other: this one for what data moves where, that one for why:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
+flowchart TB
+    IN["make, model, year<br/>engine_cc, fuel_type"] --> P1a
+    IN --> P1b
+    IN --> P1c
+    IN --> P1d
+
+    P1a(("0a<br/>Web Validation")) -- "read" --> DS6[("web_battery_validation")]
+    P1b(("0b<br/>Inference")) -- "read" --> DS5[("dial_battery_inference")]
+    P1c(("1/2<br/>Dataset + Alias")) -- "read" --> DS1[("vehicle_years")]
+    P1c -- "read" --> DS3[("model_aliases")]
+    P1d(("3<br/>Rule-Based"))
+
+    P1a --> P1e
+    P1b --> P1e
+    P1c --> P1e
+    P1d --> P1e(("OEM Override"))
+    P1e -- "read" --> DS4[("oem_fitment")]
+    P1e --> P1f(("Battery Select"))
+    P1f -- "read" --> DS2[("battery_specs")]
+    P1f --> OUT["primary + alternatives"]
+```
+
+Checked top-to-bottom in that priority order — 0a, then 0b, then 1/2 (+ JDM alias resolution), then 3 — and the first one that resolves a match is the only branch whose result actually feeds into OEM Override; the diagram shows all four converging there because *any* of them can be the one that fires, not because all four run and merge every time.
+
+**4. P3 decomposed — Data Pipelines.** Each of the six pipeline scripts is its own lane, mostly independent of the others except where Year Enrichment and Coverage Expansion both ultimately write `vehicle_years`:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'basis'}}}%%
+flowchart LR
+    EXT1["CRSP Excel"] --> P3a(("1<br/>CRSP Prep"))
+    P3a --> VR[("vehicles_raw")]
+
+    EXT2["fueleconomy · NHTSA<br/>CarAPI · Wikidata / Wikipedia"] --> P3b(("2<br/>Year Enrichment"))
+    VR --> P3b
+    P3b -. "stage, review, commit" .-> DS1[("vehicle_years")]
+
+    EXT3["Dial-A-Battery Excel"] --> P3c(("3<br/>DAB Inference"))
+    P3c --> DS5[("dial_battery_inference")]
+
+    EXT4["Search providers<br/>SearXNG · DuckDuckGo<br/>Brave · Tavily"] --> P3d(("4<br/>Web Validation"))
+    P3d -. "stage, review, commit" .-> DS6[("web_battery_validation")]
+
+    EXT5["NHTSA VPIC · CarQuery<br/>cars-data.com · car.info"] --> P3e(("5<br/>Coverage Expansion"))
+    P3e -. "stage, review, commit" .-> DS1
+
+    EXT6["Exide Fitment Excel"] --> P3f(("6<br/>Exide Fitment"))
+    P3f -- "truncate + reload" --> DS4[("oem_fitment")]
+    P3f -- "truncate + reload" --> DS1b[("vehicle_years_exide")]
+```
+
+`vehicles_raw`, `web_battery_staging`, and `vehicle_years_staging` (shared by pipelines 2 and 5) are the actual intermediate targets before an admin reviews and commits — collapsed into a single "stage, review, commit" edge here for the same reason staging tables are omitted from the Level-1 diagrams. Pipelines 3 and 6 skip staging entirely (Pipeline 3 writes `dial_battery_inference` directly; Pipeline 6 does a full `TRUNCATE`+reload of `oem_fitment`/`vehicle_years_exide` on every run) — see [Data Pipelines](#data-pipelines) for why each one does or doesn't go through review.
+
 A few flows worth calling out explicitly, since they're easy to miss:
 
 - **P1 never talks to PostgreSQL directly on the request path** — every `/api/recommend` call is served entirely from the in-memory matcher cache, which is only refilled from the source tables at process startup or when an admin manually triggers a cache refresh. This is *why* the matching engine has no per-request database latency (see [Performance](#performance) → LRU in-memory matcher cache).
 - **The log write from P1 to P5 is fire-and-forget** — `app.py` spawns a background thread for `search_events` writes so logging a search never adds latency to the recommendation response the user is waiting on.
-- **P3 (pipelines) writes to staging tables first**, not directly to the tables shown in diagram 2's "Committed by pipelines" box — those arrows represent the *final* commit step, which only happens after an admin reviews the staged rows (see [Data Pipelines](#data-pipelines)). The staging tables themselves (`vehicle_years_staging`, `web_battery_staging`, etc.) are omitted from both diagrams to keep them at system level — see the [Database Schema](#database-schema) Table Overview for the complete list.
+- **P3 (pipelines) writes to staging tables first**, not directly to the tables shown in diagram 2's "Committed by pipelines" box — those arrows represent the *final* commit step, which only happens after an admin reviews the staged rows (see [Data Pipelines](#data-pipelines)). The staging tables themselves (`vehicle_years_staging`, `web_battery_staging`, etc.) are omitted from the Level-1 diagrams to keep them at system level, and collapsed into one labeled edge in diagram 4 above — see the [Database Schema](#database-schema) Table Overview for the complete list.
 - **`oem_fitment` feeds the cache like every other source table**, but it isn't a matching layer on its own — it's consulted after P1 resolves a vehicle to override the Ah figure (see [OEM Fitment Override](#oem-fitment-override)).
 
 ---
