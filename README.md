@@ -1576,6 +1576,10 @@ A targeted audit of whether the frontend could be exposing anything about the da
 
 One non-issue noted in passing, not a leak: `db-backup-script/backup-db.ps1` (a local ops script, not part of the frontend or API surface) hardcodes the non-secret DB username/dbname (`batteryfinder`/`batteryfinderdev`) as default script parameters — no password.
 
+### Summary
+
+Taken together: authentication, sessions, CSRF, input validation, SQL injection, and secret handling are all shipped and independently audited, not just asserted — the database-exposure audit above confirms none of it leaks through the frontend. The two open items are both about *abuse at scale* rather than a hole in the app itself: a single patient scraper (Threat Model 1) and a distributed botnet (Threat Model 2) can currently rebuild the dataset or spam public endpoints faster than a real shopper would, because rate limiting today is entirely per-IP and easy to route around. Both have a concrete, staged plan to close them — none of it is architecturally blocked, it's specifically not shipped yet. Nothing in either roadmap requires a redesign; it's additive hardening (Redis caps, reCAPTCHA, WAF managed rule groups, a connection-pool circuit breaker) on top of what's already running.
+
 ---
 
 ## Production Architecture
