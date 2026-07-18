@@ -1520,6 +1520,30 @@ Nothing app-level today stops someone from scripting `/api/makes` → `/api/mode
 
 None of the three are implemented yet — WAF and per-IP rate limiting remain the only defenses in the current codebase.
 
+### Threat Model Gap Analysis — Distributed Abuse (2026-07-18)
+
+The Anti-Scraping roadmap above was scoped against *"a local competitor scripting the endpoints,"* not a resourced, distributed attacker. A separate review against a harder threat model — a botnet of 10,000+ IPs, including IPs genuinely inside Kenya/Uganda/Tanzania (so geo-restriction doesn't filter them out) — found real gaps that survive even after all three planned items above ship:
+
+| Attack vector | Current defense | Still a gap after the planned work above? |
+|---|---|---|
+| Distributed botnet (10k+ IPs in-region) | CloudFront geo-block | **Yes.** Geo-block only rejects traffic from *outside* KE/UG/TZ — it does nothing against bots already inside the allowlisted region. reCAPTCHA v3 (planned #2) is the only planned measure that isn't IP-keyed, so it's the sole thing that meaningfully survives this — but only on `/api/recommend`. |
+| Application-layer abuse (general) | `slowapi` per-IP limits | **Yes, by design** — see "Known limitation — IP rotation" above. Redis-backed daily caps (planned #1) and enumeration detection (planned #3) are both still per-IP buckets; a large enough botnet just gets a fresh bucket per IP either way. |
+| Connection pool exhaustion | No circuit breaker; `pool_size=10, max_overflow=15` (`db.py`) | **Real, but narrower than it looks.** `matcher.recommend()` runs entirely off the in-memory pandas cache — a `/api/recommend` spike doesn't touch the connection pool at all except for one fire-and-forget background-thread `search_events` insert. The pool is mostly consumed by authenticated admin routes. A fix (bounded queue + fast-fail instead of the default ~30s blocking checkout) is still worth doing, but this isn't the "first spike takes down the DB" scenario it initially looks like for this specific architecture. |
+| Read/dropdown-endpoint scanning (`/api/makes`, `/api/models`) | 20/min `slowapi` limit, no response cache | **Mischaracterized as a DB-load risk, but the real risk is on the roadmap.** These endpoints also serve from the in-memory cache — never a live Postgres query — so scanning them doesn't load the database. The actual risk (walking make→model→year→recommend to rebuild the dataset) is exactly what planned items #1 and #3 target. |
+| Feedback spam (`POST /api/feedback`) | 5/min per-IP limit | **Yes, still open.** The Redis daily-cap plan (#1) wires "both `Limiter` instances," which does cover `/api/feedback` — so one IP spamming all day gets capped. But reCAPTCHA (#2) is scoped only to `/api/recommend`; a botnet spread across thousands of IPs, each staying under 5/min, can still write unlimited garbage rows with nothing on the current roadmap to stop it. |
+| AWS WAF rule configuration | Attached to the ALB (see "AWS-Only Measures" above) | **Documentation gap, not a code gap.** WAF rule sets are configured in AWS infra, outside this repo — same as the CloudFront geo-restriction allowlist — so this README can only assert that WAF is attached, not enumerate or verify its actual rule set from the codebase. |
+
+**Verdict:** the current + planned defenses are well-matched to their stated threat (a patient, single-operator scraper) but do not defend against a genuinely distributed, resourced attacker. That's a materially larger scope than what's currently planned, not something the existing roadmap already covers under a different name — see "Planned — Distributed Abuse & Availability Hardening" below for what closing it would actually require.
+
+### Planned — Distributed Abuse & Availability Hardening (Not Yet Implemented)
+
+Concrete follow-ups from the gap analysis above, distinct from the Anti-Scraping roadmap because they target availability/spam/DoS risk rather than dataset theft:
+
+1. **Extend abuse protection to `POST /api/feedback`** — currently only `/api/recommend` is in scope for reCAPTCHA v3 (Anti-Scraping planned item #2). Feedback spam has no data-value incentive to justify a CAPTCHA-solving service, so a lighter control (honeypot field, submission-timing check, or the same Redis daily cap applied more aggressively here) is more proportionate than reCAPTCHA for this specific endpoint.
+2. **Connection-pool circuit breaker** — replace the default blocking checkout behavior (requests queue for up to `pool_timeout`, then fail) with a bounded queue and fast-fail (e.g. a 503 with `Retry-After`) once the pool is genuinely saturated, so a spike in authenticated admin traffic degrades gracefully instead of every waiting request timing out together.
+3. **WAF rule documentation** — not app code; a follow-up for whoever owns the AWS side to document (or point this README at) the actual configured WAF rule set, so "AWS WAF is attached" can be verified rather than asserted.
+4. **True distributed-botnet defense — explicitly out of scope for now.** IP-reputation feeds, a JS-challenge layer (Cloudflare-style), or reCAPTCHA Enterprise's risk scoring would be needed to meaningfully raise the cost of a genuinely resourced, 10k+-IP attacker. Not committed work — flagged here as a scope decision to make explicitly if this threat model is judged realistic for this app, rather than silently assumed to be covered by the anti-scraping measures above.
+
 ### Audit — Frontend / Database Exposure (2026-07-18)
 
 A targeted audit of whether the frontend could be exposing anything about the database — credentials, connection strings, schema/table names, raw SQL, stack traces, or admin-only data reachable without auth. Findings verified independently (a script checked auth coverage across all 81 `admin_router.py` routes; `console.*` usage was grepped directly) rather than taken on faith. Result: **clean** — no exposure found.
