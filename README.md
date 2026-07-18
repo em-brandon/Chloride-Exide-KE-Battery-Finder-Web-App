@@ -18,6 +18,7 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 - [Mobile Experience](#mobile-experience)
 - [API Reference](#api-reference)
 - [Matching Engine](#matching-engine)
+  - [Fuzzy Model Scoring](#fuzzy-model-scoring)
 - [Admin Dashboard](#admin-dashboard)
 - [Data Pipelines](#data-pipelines)
 - [Database Schema](#database-schema)
@@ -448,6 +449,91 @@ Defined in `matcher.py`. All data sources are loaded from the database at startu
 Layers 1/2/3 query `matcher._vehicles()`, which is a `UNION ALL` of `vehicle_years` and `vehicle_years_exide` (make/model/year rows exploded from Exide's fitment guide — see [OEM Fitment Override](#oem-fitment-override) below) — so vehicles that only exist in Exide's global catalog are just as matchable as ones sourced from fueleconomy.gov/NHTSA/etc., without either table needing to know about the other.
 
 Aliases (`model_aliases`) are applied between layers 1/2 and 3 to map international model names (e.g. "Civic") to their JDM dataset equivalents (e.g. "CIVIC FERIO").
+
+The confidence ranges in the table above are ranges only for Layers 1 and 2 — where the fuzzy model score and year distance combine into a continuous number (see [Fuzzy Model Scoring](#fuzzy-model-scoring) §5 below). Layers 0a and 0b each only ever return one of **two fixed values** depending on whether their internal model match was exact or fuzzy (0a: 90 or 75; 0b: 95 or 80) — there's no sliding scale within those layers. The rest of this section walks through every layer and every supporting decision (`recommend()` in `matcher.py`) in the order they actually execute.
+
+### Layer 0a — Web Validation
+
+`_web_validation_lookup(make_n, model_n, year)` checks `web_battery_validation` — data populated offline by [Pipeline 4](#pipeline-4--web-battery-validation) from internet-sourced fitment guides, i.e. what current retailers/manufacturers say a vehicle takes *today*, as opposed to what was actually sold to Kenyan customers historically (that's Layer 0b).
+
+- **This layer is strictly year-exact — there is no ±3-year tolerance here.** `year_rows = make_rows[make_rows["year"] == year]` filters to the exact requested year before any model matching happens; if `web_battery_validation` has data for this make/model but not for the specific year asked, Layer 0a misses entirely and falls through to 0b, even if an adjacent year exists in the table. This is a deliberate asymmetry from Layers 1/2 below — web-sourced fitment data is treated as authoritative only for the exact year it was recorded against.
+- Within that exact-year slice, model matching is a single `token_set_ratio` check: an exact `model_n` string match returns confidence **90**; otherwise the best fuzzy candidate (if ≥ 85) returns confidence **75**. No partial_ratio/WRatio cascade and no year-window tie-breaking — see [Fuzzy Model Scoring §6](#fuzzy-model-scoring) for why this is deliberately simpler than the Layer 1/2 algorithm.
+- On a hit, the returned `battery_code` is resolved to `(target_ah, technology)` via `_lookup_battery_by_code()` — see [Resolving a Battery Code to Ah and Technology](#resolving-a-battery-code-to-ah-and-technology) below. `resolved_cc`/`resolved_fuel` for the response are then separately best-effort filled in from `vehicle_years` (exact year first, then the same ±3-year window Layers 1/2 use) purely for display — a miss there doesn't affect the confidence or the battery recommendation, since those already came from the web-validated code.
+- `matched_make` in the response is the normalized `make_n` (uppercase) for this layer, not the display-cased value from a dataset row — layers 1/2/3 report the original-cased `make`/`model`/`year` from the matched `vehicle_years` row instead, since they resolve through that table directly.
+
+### Layer 0b — Real-World Inference
+
+`_inference_lookup(make_n, model_n)` checks `dial_battery_inference` — the highest-confidence source in the whole engine, because it's not a guess or a spec sheet at all: it's what Dial-A-Battery's call centre actually sold for that make/model historically (see [Pipeline 3](#pipeline-3--dial-a-battery-inference)).
+
+- **This layer has no year dimension at all.** `dial_battery_inference` only records `vehicle_type`, `vehicle_model`, `battery_code`, `frequency`, and `last_sale_date` — no year column — so the lookup matches purely on make + model, regardless of what year the user asked for. A confident recommendation can come back here even for a year `vehicle_years` has no row for whatsoever; the separate attempt to resolve `resolved_cc`/`resolved_fuel`/`matched_year` from `vehicle_years` (same exact-then-±3-year logic as 0a) is purely cosmetic for the response and can legitimately leave `matched_year` as `None` while the recommendation itself stays fully confident.
+- Model matching: exact `vmodel_n` string match → confidence **95**; otherwise best `token_set_ratio` fuzzy candidate (if ≥ 85) → confidence **80**.
+- When a make/model has multiple historical battery codes on record (different customers, different actual fitments over time), the tie-break is **highest sale frequency first, most recent `last_sale_date` second** — `matched_rows.sort_values(["frequency", "_sort_date"], ascending=[False, False]).iloc[0]`. This means Layer 0b reports whatever was sold *most often*, not necessarily the *most recent* fitment, unless frequencies tie.
+- Technology handling is more nuanced here than in any other layer: the parsed technology from the winning battery code is honoured directly when it's `AGM` or `EFB` (treated as a deliberate call-centre upgrade worth preserving) — but when the code parses to `MF`, the engine does **not** trust it blindly for stop-start vehicles, instead recomputing `preferred_tech` via `_preferred_tech()` as if no code-derived hint existed. The reasoning recorded in the code: MF codes in this table often reflect either non-stop-start sales or historically wrong recommendations, so blindly copying `MF` onto a stop-start vehicle being matched today would perpetuate that mistake. Layers 0a and 1/2/3 don't have this special case — it exists only for inference-sourced `MF` codes.
+
+### Resolving a Battery Code to Ah and Technology
+
+Both Layer 0a's `web_battery_validation.battery_code` and Layer 0b's `dial_battery_inference.battery_code` are free-text strings (whatever the source data recorded), not foreign keys into `battery_specs`. `_lookup_battery_by_code()` resolves either one to a concrete `(target_ah, technology)` pair using the same three-step priority regardless of which layer called it:
+
+1. **Exact match** against `battery_specs.Battery Code` (case/whitespace-normalized).
+2. **Fuzzy match** — `token_set_ratio ≥ 85` against every battery code in the catalogue.
+3. **Legacy format parser** (`_parse_inference_code()`) — a last resort for codes that don't correspond to any current catalogue entry at all (e.g. a discontinued SKU). It pattern-matches `DIN {ah}...` / `NS{ah}...` prefixes with regex (`DIN\s+0*(\d+)`, `NS\s*0*(\d+)`) and infers technology from whether `AGM`/`EFB` appears in the string, defaulting to `MF` if neither does. Returns `None` (falls through to the layer's own rule-based `_target_ah()`/`_preferred_tech()` calculation) only if none of the three steps produce anything.
+
+### Layers 1 & 2 — Exact & Soft Dataset Match
+
+If neither 0a nor 0b hits, `recommend()` moves to matching directly against `vehicle_years` (unioned with `vehicle_years_exide`). This is the only place `_fuzzy_model_score_for_year()` — documented in full in [Fuzzy Model Scoring](#fuzzy-model-scoring) below — is actually called from `recommend()` itself.
+
+1. The make is resolved first: an exact `make_n` filter via `_make_index()`, falling back to a `WRatio ≥ 75` fuzzy match against every known make if the exact one has no rows (handles typos like "TOYOYA").
+2. The model is resolved next: if the normalized input is *already* one of this make's known `model_n` values, that's used directly at score `100` (skipping the fuzzy cascade entirely — this prevents a longer trim variant from ever outscoring a literal exact match). Otherwise `_fuzzy_model_score_for_year()` runs.
+3. Once a model is resolved, the *year* determines whether this is a Layer 1 or Layer 2 result: an exact `year` row on that model → **Layer 1**, confidence `100` if the fuzzy score was `≥ 90` else the raw score itself (`"Close Match"`, not `"Exact Match"`, when the model match wasn't clean even though the year was exact). No exact year but a row within `±3` years → **Layer 2**, confidence `max(60, int(model_score) − year_delta × 3)`.
+4. Whichever row is picked, that row's own `engine_capacity`/`fuel` become `resolved_cc`/`resolved_fuel` for the response (when present) — the dataset is treated as authoritative over whatever the user typed for those two fields once a match is found.
+
+### JDM Alias Resolution
+
+If Step 2 above resolves a model at all — even via Layer 2's soft year match — alias resolution never runs; it's purely a rescue path for when *no* model in `vehicle_years` scored well enough against the raw input. Kenyan/regional import listings often use international model names (`"Civic"`) that don't appear verbatim in the JDM-sourced dataset (`"CIVIC FERIO"`, `"CIVIC HYBRID"`, ...), so `model_aliases` bridges the two:
+
+1. The typed model is fuzzy-matched (`WRatio ≥ 75`) against this make's known `international_model` values.
+2. Every `jdm_model` alias tied to that international model (there can be several, ordered by a `priority` column) is itself fuzzy-matched (`WRatio ≥ 75`) against the make's real `vehicle_years` model names, since alias table entries are free text and don't always exactly match the dataset's normalized keys either.
+3. Among all resolved candidates, the same kind of tuple tie-break as `_pick_best` picks the winner: exact year first, then smallest year delta (within ±3), then lowest (best) alias `priority`, then highest JDM fuzzy score.
+4. The winning candidate is then run back through the same exact-year/±3-year logic as Step 3 above to produce `matched_year`, `confidence`, and `match_type` — an alias-resolved match can still land as either a `100`/`"Exact Match"` or a `"Close Match"`, exactly like a direct model match would.
+
+### Layer 3 — Rule-Based Fallback
+
+If nothing above resolves a `matched_year` — including a full alias-resolution miss — the engine falls back to pure specification math, using whatever `engine_cc`/`fuel_type` the user supplied (or `1500`cc/`PETROL` if they didn't):
+
+1. `_target_ah(engine_cc, fuel, year)` walks the [Ah Bracket Rules](#ah-bracket-rules) table by engine CC ceiling, picks the column for the normalized fuel type, and — **only in this fallback path** — adds `_year_ah_modifier(year)` on top (`+10` for 2018+, `+5` for 2012–2017, `−5` for pre-2000, `0` otherwise). EVs skip the CC table entirely and use a flat `45`Ah base, since 12V auxiliary battery sizing isn't correlated with traction motor size.
+2. This is the **only** path that applies the year modifier at all — Layers 1/2 (and 0a/0b) call `_target_ah()` with `year=None` when they've already resolved a real vehicle, precisely because a dataset-matched vehicle doesn't need an era-based heuristic adjustment on top of its own real data. The code detects "we truly fell through to Layer 3" via `rule_based = confidence == 40` — `40` is `recommend()`'s untouched initial default, so this is really testing "did nothing above ever change it," not a property of the Ah number itself.
+3. `confidence` stays at its initial `40`, `match_type` at its initial `"Estimated (Rule-Based)"` — nothing in this branch ever assigns either explicitly, because nothing needed to.
+
+### Preferred Technology Selection
+
+`_preferred_tech(engine_cc, fuel, year, make, stop_start)` decides which battery chemistry to aim for, and runs for **every** layer (0a/0b compute it too, alongside whatever technology hint their matched battery code carried — see Layer 0b above for how those interact). Checked in this exact priority order, first match wins:
+
+| Priority | Condition | Result |
+|---|---|---|
+| 1 | `fuel == "EV"` | `MF` |
+| 2 | `make` is in the luxury/premium set (Audi, BMW, Mercedes, Land Rover, Lexus, Porsche, Volvo, ...) | `AGM` — always, regardless of year, engine size, or stop-start |
+| 3 | `fuel == "HYBRID"` | `EFB` |
+| 4 | `stop_start` is `True` and (`fuel == "DIESEL"` or `engine_cc ≥ 2500`) | `AGM` |
+| 5 | `stop_start` is `True` (and neither of the above) | `EFB` |
+| 6 | `stop_start` is `False` | `MF` |
+
+`stop_start` itself is an explicit boolean the frontend sends per-request (its own selector in `VehicleFinderForm.tsx`) — `matcher._infer_stop_start()` (make/year heuristics) exists in the module but is dead code, kept only in case that explicit input is ever made optional again.
+
+### Battery Region — NS/JIS vs DIN
+
+`_make_region(make)` maps the vehicle's make to a battery form factor/terminal standard: Japanese, Korean, and Chinese makes (Toyota, Honda, Nissan, Hyundai, Kia, Chery, ...) get `"NS"` (JIS), everything else — European, American, Indian, or unrecognized — defaults to `"DIN"`. This is a fixed allow-list (`_NS_MAKES`), not inferred from any other signal. `_select_batteries()` then filters `battery_specs` down to only that region before doing anything else, using `_battery_region()` on each row's `Model Key` (a `Model Key` starting with `"DIN"` is DIN, everything else is treated as NS) — so a battery physically incompatible with the vehicle's region can never be returned, even as an alternative.
+
+### Primary Battery & Alternatives Selection
+
+`_select_batteries(target_ah, preferred_tech, region)` is the single function every layer above converges on — regardless of whether `target_ah` came from a battery code (0a/0b), an OEM fitment override, or the CC/fuel bracket table (1/2/3), the selection logic downstream is identical:
+
+1. Filter the catalogue to the given `region` (see above).
+2. Take every battery whose `Ah` **exactly** equals `target_ah` — there's no tolerance window here, unlike the ±15% search used by `search_by_specs()` for the manual AH/CCA admin lookup. Sort those by technology priority (`EFB` > `AGM` > `MF` > `SB (Flooded)`) and, within the same technology, imported origin before local.
+3. Pick the first row whose technology equals `preferred_tech`. If none of the exact-Ah rows match that technology, fall back to the best-priority technology available at that same exact Ah instead (never silently switch Ah just to hit the preferred chemistry).
+4. If literally nothing is stocked at `target_ah` in this region — no technology at all — fall back to the single nearest-Ah row in the whole (region-filtered) catalogue, `idxmin()` on absolute Ah distance, with no technology preference applied at that point.
+5. **Alternatives** are computed from whatever the primary actually ended up being (`primary_ah_val`, `primary_tech`), not from the original `target_ah`/`preferred_tech` inputs — same Ah, same CCA, same technology as the primary, different battery code (i.e. a different brand/variant of what is otherwise the identical spec), imported-first, capped at 6.
+
+This is why the response always includes a primary recommendation even when the exact requested Ah/technology combination isn't stocked — the degradation path (technology substitution, then Ah substitution) is deterministic and always produces *something*, rather than the endpoint ever returning "no battery found."
 
 ### OEM Fitment Override
 
