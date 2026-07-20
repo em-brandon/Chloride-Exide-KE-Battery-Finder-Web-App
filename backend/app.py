@@ -633,12 +633,12 @@ async def spa_fallback(full_path: str):
     # Always serve files from static/ (maintenance assets must load even during maintenance mode)
     if full_path.startswith("static/"):
         candidate = os.path.normpath(os.path.join(_base, full_path))
-        static_root = os.path.normpath(os.path.join(_base, "static"))
+        static_root = os.path.normpath(os.path.join(_base, "static")) + os.sep
         if candidate.startswith(static_root) and os.path.isfile(candidate):
             return FileResponse(candidate)
     index = os.path.join(_frontend_dir, "index.html")
     file_path = os.path.normpath(os.path.join(_frontend_dir, full_path))
-    frontend_root = os.path.normpath(_frontend_dir)
+    frontend_root = os.path.normpath(_frontend_dir) + os.sep
     # Serve the actual file if it exists (JS, CSS, assets, etc.) — reject anything that
     # resolves outside frontend_root (path traversal via ../ or %2e%2e%2f in full_path)
     if file_path.startswith(frontend_root) and os.path.isfile(file_path):
