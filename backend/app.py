@@ -637,7 +637,7 @@ async def spa_fallback(full_path: str):
         if candidate.startswith(static_root) and os.path.isfile(candidate):
             return FileResponse(candidate)
     index = os.path.join(_frontend_dir, "index.html")
-    file_path = os.path.join(_frontend_dir, full_path)
+    file_path = os.path.normpath(os.path.join(_frontend_dir, full_path))
     # Serve the actual file if it exists (JS, CSS, assets, etc.)
     if os.path.isfile(file_path):
         return FileResponse(file_path)
