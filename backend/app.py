@@ -638,8 +638,10 @@ async def spa_fallback(full_path: str):
             return FileResponse(candidate)
     index = os.path.join(_frontend_dir, "index.html")
     file_path = os.path.normpath(os.path.join(_frontend_dir, full_path))
-    # Serve the actual file if it exists (JS, CSS, assets, etc.)
-    if os.path.isfile(file_path):
+    frontend_root = os.path.normpath(_frontend_dir)
+    # Serve the actual file if it exists (JS, CSS, assets, etc.) — reject anything that
+    # resolves outside frontend_root (path traversal via ../ or %2e%2e%2f in full_path)
+    if file_path.startswith(frontend_root) and os.path.isfile(file_path):
         return FileResponse(file_path)
     # Otherwise fall back to index.html for client-side routing
     return FileResponse(index)
