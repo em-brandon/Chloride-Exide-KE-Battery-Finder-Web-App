@@ -157,6 +157,34 @@ The revert-endpoint FK-violation fix, rate-limiter proxy-trust-boundary fix, adm
 
 **Not fixed, flagged as a lower-severity follow-up:** `admin_router.py`'s `/pipeline/crsp/validate` endpoint and one edit endpoint (~line 3009, 3089) accept an arbitrary `file_path` string in the request body and `pd.read_excel()` it directly, with no check that it resolves inside the CRSP uploads directory. Same "trust a path from the request" shape as the bug above, but admin-only (`require_admin`) and constrained to `.xlsx`/`.xls` suffixes, so severity is much lower — an already-trusted admin, not an anonymous caller. Worth the same normalize+contain treatment eventually, not urgent.
 
+## PLANNED FOR TOMORROW (found 2026-07-20) — Least-privilege public DB role (public traffic currently shares the full-privilege DB credential)
+
+**Found via:** following up on "is the DB we're serving to users read-only?" — traced every DB write path in the app. Public/unauthenticated endpoints (`POST /api/recommend`, `POST /api/feedback`, `POST /api/auth/register`, `POST /api/auth/login`, plus the read-counter middleware that runs on every request) do write to the database (`search_events`, `user_feedback`, `test_users`, `test_user_sessions`, `admin_stats`) — and, more importantly, the fact that public traffic never touches admin-only tables (`battery_specs`, `vehicle_years`, etc.) is enforced *only* by application-code discipline, not by the database itself. `backend/db.py` has exactly one `engine`/`SessionLocal`, backed by one Postgres role, shared identically by public routes, admin routes, and pipelines — a bug in any public-facing code path has no DB-level guardrail stopping it from writing to the matching engine's source tables.
+
+**Design — two Postgres roles / two SQLAlchemy engines:**
+- Existing role (`batteryfinder`, unchanged) stays full-privilege, used by `admin_router.py`, `admin_auth.py`, pipelines, scripts.
+- New restricted role (e.g. `batteryfinder_public`) used by public routes in `app.py` and all of `matcher.py`'s reads — matcher never writes, so it's safe to route through the restricted role everywhere, including when admin's `/cache/refresh` calls it.
+
+**Grants for the new role** (traced every actual call site, not guessed):
+- `SELECT` only: `vehicle_years`, `vehicle_years_exide`, `battery_specs`, `dial_battery_inference`, `oem_fitment`, `web_battery_validation`, `model_aliases` (matcher's 7 read sources), plus `app_settings` (maintenance-mode check, runs on every request) and `test_users` (login lookup).
+- `INSERT` only: `search_events`, `user_feedback`, `test_users`, `test_user_sessions`, `admin_stats`.
+- `UPDATE`, narrow: `test_user_sessions.last_seen_at` (session heartbeat), `admin_stats.stat_value` (read-counter increment/midnight reset).
+- No `DELETE`, no DDL, nothing else.
+
+**Code changes:**
+- `db.py` — add `public_engine`/`PublicSessionLocal`, sourced from a new `PUBLIC_DATABASE_URL` env var.
+- `matcher.py` — repoint its 7 `pd.read_sql(..., engine)` calls at the restricted engine.
+- `app.py` — swap `SessionLocal()` → `PublicSessionLocal()` at every public-route write site: read-counter flush/reset, search-event logging, feedback submission, test-user register/login, the token→session heartbeat lookup, and `app_state.py`'s maintenance-mode read.
+- `admin_router.py`, `admin_auth.py`, pipelines, scripts — untouched.
+- New Alembic migration: `CREATE ROLE` (idempotent, via a `DO $$...$$` guard — Postgres has no `CREATE ROLE IF NOT EXISTS`) plus the grants above. Password read from an env var at migration time, never hardcoded in the migration file.
+
+**Infrastructure implications (outside this repo, same situation as the CloudFront geo-restriction precedent):**
+- Local dev: new `PUBLIC_DATABASE_URL` in `.env`.
+- Production: new SSM parameter + new ECS task-definition env var injection — needs coordination outside this repo.
+- Tests: `conftest.py` currently wraps each test in one rolled-back transaction bound to the single `engine`. A second engine/role won't automatically join that transaction — tests touching feedback/search-event/test-user paths need `conftest.py` updated (bind `PublicSessionLocal` to the same test connection) or they'll leak rows into the dev DB during test runs.
+
+**Plan for tomorrow — new branch required:** implement the in-repo parts (migration, `db.py`, `matcher.py`, `app.py`, `conftest.py`); flag the production SSM/ECS piece as a follow-up the same way the CloudFront work was.
+
 ## PLANNED FOR TOMORROW (found 2026-07-18) — Web Validation region-resolution bug (DIN/NS mix-up)
 
 **Found via:** comparing two admin search-log entries for the same vehicle side by side — `toyotta harrierr 2013` (typo) returned `Exact Match 100%` / 55Ah EFB, while the correctly-spelled `toyota harrier 2013` returned `Web-Validated Match 90%` / 65Ah — a lower confidence for the *correctly* spelled query. Traced end-to-end against the live dev DB (not guessed): the typo in the **make** field caused Layers 0a/0b to miss entirely (`_web_validation_lookup()`/`_inference_lookup()` filter make with plain `==`, zero fuzzy tolerance — the ≥75 `WRatio` make correction only exists inside Layer 1/2's own code path, which runs after), so the typo'd query fell through to Layer 1's dataset match (real make/model fuzzy correction, landed on `HARRIER` cleanly) and got a generic CC-bracket Ah estimate (`oem_fitment` has zero Harrier rows). The correctly-spelled query hit real data in `web_battery_validation` — `TOYOTA / HARRIER / 2013 → DIN 060MF L EXIDE AGM, 60Ah AGM` — genuine internet-sourced fitment info, **but Toyota is an NS/JIS-region make** (`matcher._NS_MAKES`), so `_select_batteries()` couldn't use a DIN-spec battery and substituted the nearest NS equivalent (65Ah `NS70MFL POWERLAST`) instead.
