@@ -81,7 +81,7 @@ _limiter = Limiter(key_func=get_remote_address)
 _pipeline_lock = threading.Lock()
 _pipeline_state: dict = {
     "run_id":           None,
-    "status":           "idle",   # "idle" | "running" | "paused" | "done" | "error"
+    "status":           "idle",   # "idle" | "running" | "paused" | "done" | "cancelled" | "error"
     "total":            0,
     "processed":        0,
     "found":            0,
@@ -1321,8 +1321,13 @@ def run_web_validate(
     admin: AdminUser = Depends(require_admin),
 ):
     with _pipeline_lock:
-        if _pipeline_state["status"] == "running":
-            raise HTTPException(status_code=409, detail="Pipeline is already running")
+        if _pipeline_state["status"] in ("running", "paused"):
+            # A paused run is still in-flight (its thread is alive, holding its
+            # own cancel_event/pause_event/existing_keys snapshot) — starting a
+            # second run here would overwrite _pipeline_state's cancel/pause
+            # events out from under the first thread and let two independent
+            # scrapes write conflicting data for the same vehicle.
+            raise HTTPException(status_code=409, detail="Pipeline is already running or paused")
 
         run_id = str(uuid.uuid4())
         cancel_ev = threading.Event()
