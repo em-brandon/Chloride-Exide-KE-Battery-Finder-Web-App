@@ -2307,14 +2307,18 @@ def commit_staging(
 
 
 @router.post("/pipeline/web-validate/staging/discard", summary="Discard staged vehicles without touching master")
-def discard_staging(admin: AdminUser = Depends(require_admin)):
+def discard_staging(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
     # Scrape results now land in web_battery_staging directly (see
     # _upsert_rows() in pipelines/web_battery_validate.py) — master
     # (web_battery_validation) is never written to before an explicit
     # commit, so there's nothing there for a discard to undo anymore.
-    with engine.begin() as conn:
-        discarded = conn.execute(text("SELECT COUNT(*) FROM web_battery_staging")).scalar() or 0
-        conn.execute(text("TRUNCATE web_battery_staging"))
+    with _pipeline_lock:
+        if _pipeline_state["status"] in ("running", "paused"):
+            raise HTTPException(status_code=409, detail="Cannot discard staging while pipeline is running or paused")
+
+    discarded = db.execute(text("SELECT COUNT(*) FROM web_battery_staging")).scalar() or 0
+    db.execute(text("TRUNCATE web_battery_staging"))
+    db.commit()
 
     logger.info("Staging discarded by %s — %d staged rows removed", admin.username, discarded)
     return {"discarded": discarded}
