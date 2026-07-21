@@ -37,6 +37,11 @@ pipeline {
                 sh 'export PATH="$HOME/.bun/bin:$PATH" && cd frontend && bun run build'
             }
         }
+        stage('Test Frontend (vitest)') {
+            steps {
+                sh 'export PATH="$HOME/.bun/bin:$PATH" && cd frontend && bun run test:ci'
+            }
+        }
         stage('Start test database') {
             steps {
                 // Requires Docker on the Jenkins agent. Brings up the same
