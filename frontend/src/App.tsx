@@ -11,6 +11,9 @@ import { TermsGate } from '@/components/TermsGate'
 import { useIsMobile } from '@/lib/utils'
 
 const AdminLogin        = lazy(() => import('@/pages/admin/AdminLogin'))
+const AdminSetup           = lazy(() => import('@/pages/admin/AdminSetup'))
+const AdminForgotPassword  = lazy(() => import('@/pages/admin/AdminForgotPassword'))
+const AdminResetPassword   = lazy(() => import('@/pages/admin/AdminResetPassword'))
 const AdminDashboard    = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminBatteries    = lazy(() => import('@/pages/admin/AdminBatteries'))
 const AdminAuditLog     = lazy(() => import('@/pages/admin/AdminAuditLog'))
@@ -299,6 +302,9 @@ function App() {
           test-user token happens to be present in the browser. Admin auth is
           fully independent of the public test-user login system. */}
       <Route path="/admin/login"     element={<AdminLogin />} />
+      <Route path="/admin/setup"           element={<AdminSetup />} />
+      <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
+      <Route path="/admin/reset-password"  element={<AdminResetPassword />} />
       <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/batteries" element={<ProtectedRoute><AdminBatteries /></ProtectedRoute>} />
       <Route path="/admin/audit"     element={<ProtectedRoute><AdminAuditLog  /></ProtectedRoute>} />

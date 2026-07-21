@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { adminLogin } from '@/lib/adminApi'
 
 export default function AdminLogin() {
@@ -104,6 +104,17 @@ export default function AdminLogin() {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+
+          <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+            <Link
+              to="/admin/forgot-password"
+              style={{ fontSize: '0.78rem', color: 'rgba(107,114,128,0.9)', textDecoration: 'none' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#CC0000')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(107,114,128,0.9)')}
+            >
+              Forgot password?
+            </Link>
+          </div>
         </div>
       </div>
 

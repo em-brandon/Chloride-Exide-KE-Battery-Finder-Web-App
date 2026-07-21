@@ -209,6 +209,131 @@ export async function adminMe(): Promise<{ username: string }> {
 }
 
 // ---------------------------------------------------------------------------
+// Bootstrap / forgot-password / reset-password
+//
+// These are PUBLIC endpoints (no session cookie exists yet), so they don't
+// go through adminFetch — a 401 here means "wrong bootstrap token" or
+// similar, not "your session expired", and adminFetch's AdminAuthError
+// hardcodes a "Not authenticated" message that would be actively
+// misleading for these. publicAdminFetch preserves the backend's actual
+// detail message regardless of status code instead.
+// ---------------------------------------------------------------------------
+
+async function publicAdminFetch<T>(input: string, init: RequestInit = {}): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(input, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
+    })
+  } catch {
+    throw new AdminNetworkError("Can't reach the server. Check your connection and try again.")
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const detail = (body as { detail?: string }).detail
+    throw new Error(detail || `Something went wrong (error ${res.status}). Please try again.`)
+  }
+  if (res.status === 204) return undefined as unknown as T
+  return res.json() as Promise<T>
+}
+
+export async function getBootstrapStatus(): Promise<{ needs_setup: boolean }> {
+  return publicAdminFetch('/api/admin/bootstrap/status')
+}
+
+export async function bootstrapAdmin(
+  username: string,
+  password: string,
+  bootstrapToken: string,
+): Promise<{ detail: string }> {
+  return publicAdminFetch('/api/admin/bootstrap', {
+    method: 'POST',
+    body: JSON.stringify({ username, password, bootstrap_token: bootstrapToken }),
+  })
+}
+
+export async function forgotPassword(username: string): Promise<{ detail: string }> {
+  return publicAdminFetch('/api/admin/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ username }),
+  })
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<{ detail: string }> {
+  return publicAdminFetch('/api/admin/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, new_password: newPassword }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Admin user management (authenticated)
+// ---------------------------------------------------------------------------
+
+export interface AdminUserRow {
+  id: number
+  username: string
+  email: string | null
+  created_at: string
+  locked: boolean
+}
+
+export interface AdminAccountAuditEntry {
+  id: number
+  action: 'bootstrap' | 'create' | 'delete' | 'reset_link_generated' | 'password_reset'
+  actor_username: string | null
+  target_username: string
+  ip_address: string | null
+  created_at: string
+}
+
+export interface AdminAccountAuditLogResponse {
+  total: number
+  page: number
+  page_size: number
+  items: AdminAccountAuditEntry[]
+}
+
+export async function fetchAdminUsers(): Promise<{ users: AdminUserRow[] }> {
+  return adminFetch('/api/admin/users')
+}
+
+export async function createAdminUser(payload: {
+  username: string
+  password: string
+  email?: string
+}): Promise<{ id: number; username: string }> {
+  return adminFetch('/api/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateOwnEmail(id: number, email: string): Promise<{ id: number; email: string | null }> {
+  return adminFetch(`/api/admin/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function deleteAdminUser(id: number): Promise<{ detail: string }> {
+  return adminFetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+}
+
+export async function generateResetLink(id: number): Promise<{ token: string }> {
+  return adminFetch(`/api/admin/users/${id}/reset-link`, { method: 'POST' })
+}
+
+export async function fetchAdminAccountAuditLog(
+  page = 1,
+  pageSize = 50,
+): Promise<AdminAccountAuditLogResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  return adminFetch(`/api/admin/users/audit-log?${params}`)
+}
+
+// ---------------------------------------------------------------------------
 // Stats & Health
 // ---------------------------------------------------------------------------
 
