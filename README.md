@@ -383,15 +383,13 @@ Then add `PUBLIC_DATABASE_URL` to `.env` using that same password (same host/por
 
 ### Create First Admin User
 
-```bash
-cd backend && python scripts/create_admin.py --username admin --password yourpassword
-```
+There is no CLI script for this — the first admin account is created in-app via a one-time setup page.
 
-Use `--force` to update an existing password:
+1. Set `ADMIN_BOOTSTRAP_TOKEN` in `.env` (any strong random value — in production this comes from SSM, see [Environment Variables](#environment-variables)).
+2. Start the app and visit `/admin/setup`. This page (and its backing `POST /api/admin/bootstrap` endpoint) only works while zero admin accounts exist — once the first admin is created, it permanently refuses to run again regardless of token, so there's no need to unset `ADMIN_BOOTSTRAP_TOKEN` afterward.
+3. Enter a username, password, and the bootstrap token, then sign in at `/admin/login`.
 
-```bash
-python scripts/create_admin.py --username admin --password newpassword --force
-```
+Every admin after the first is created from the dashboard itself (**Admin Users** in the sidebar → **Add Admin**) by an already-logged-in admin — no token needed there, since being logged in is the gate. Forgot your password? Use **Forgot password?** on the login page (needs an email set on your account) or ask another admin to generate a one-time reset link for you from the Admin Users page.
 
 ---
 
@@ -1010,8 +1008,9 @@ Managed by Alembic (`backend/alembic/versions/`). Apply all migrations with `ale
 | `pipeline_run_log` | `web_battery_validate.py` | admin UI | Web validation run history |
 | `fueleconomy_vehicles` | `enrich_years.py` | pipelines | fueleconomy.gov vehicle cache |
 | `api_usage_quota` | pipelines | admin UI | Per-provider API call quotas (30-day rolling) |
-| `admin_users` | `create_admin.py` | `admin_auth.py` | Admin credentials (bcrypt, cost 12) |
+| `admin_users` | `POST /api/admin/bootstrap` \| `POST /api/admin/users` | `admin_auth.py` | Admin credentials (bcrypt, cost 12); email + password-reset token are nullable |
 | `admin_sessions` | `admin_auth.py` | `admin_auth.py` | Active admin sessions (8-hour TTL) |
+| `admin_account_audit_log` | admin UI | admin UI | Admin-account lifecycle events (bootstrap/create/delete/reset-link/password-reset) |
 | `search_events` | `app.py` (`/api/recommend`) | admin UI | Append-only log of every battery recommendation request |
 | `admin_stats` | `app.py` middleware | admin UI | Persisted usage counters |
 | `app_settings` | admin UI | app | Key-value runtime configuration |
@@ -1031,6 +1030,11 @@ erDiagram
         string username UK
         string password_hash
         datetime created_at
+        int failed_login_attempts
+        datetime locked_until
+        string email UK "nullable — self-service reset target"
+        string reset_token_hash "nullable, SHA-256"
+        datetime reset_token_expires_at
     }
     admin_sessions {
         int id PK
@@ -1039,6 +1043,16 @@ erDiagram
         datetime created_at
         datetime expires_at
         string ip_address
+    }
+    admin_account_audit_log {
+        int id PK
+        string action
+        int actor_admin_id FK "nullable"
+        string actor_username "nullable snapshot"
+        int target_admin_id FK "nullable"
+        string target_username
+        string ip_address
+        datetime created_at
     }
     admin_stats {
         int id PK
@@ -1186,6 +1200,7 @@ erDiagram
     }
 
     admin_users      ||--o{ admin_sessions     : "admin_id → admin_users.id (CASCADE)"
+    admin_users      |o--o{ admin_account_audit_log : "actor_admin_id / target_admin_id → admin_users.id (SET NULL)"
     battery_specs    ||--o{ battery_audit_log  : "battery_id → battery_specs.id (SET NULL)"
     test_users       ||--o{ test_user_sessions : "user_id → test_users.id (CASCADE)"
     test_users       |o--o{ user_feedback      : "test_user_id → test_users.id (SET NULL)"
@@ -1752,6 +1767,9 @@ Create a `.env` file at the repo root and fill in your values before running the
 | `PUBLIC_DB_PASSWORD` | Only when running migration `20260721_c4d5e6f7a8b9` | Password to (re-)create the `batteryfinder_public` role with. Only read at migration time, not by the running app — not needed once the role exists and `PUBLIC_DATABASE_URL` is set |
 | `ADMIN_COOKIE_SECURE` | No | Set `false` for local HTTP dev (default `true`); also gates the `Strict-Transport-Security` response header |
 | `ALLOWED_ORIGINS` | No | Comma-separated list of origins allowed to make cross-origin requests (CORS). Empty by default — CloudFront/ALB serve the SPA and API same-origin in production, so no origin is trusted unless explicitly set here |
+| `ADMIN_BOOTSTRAP_TOKEN` | Yes, before first admin setup | Shared secret required by `/admin/setup` to create the first admin account (see [Create First Admin User](#create-first-admin-user)). Set via SSM in production; the endpoint that checks it permanently 403s once any admin account exists, regardless of token, so this only matters before that first setup |
+| `SES_FROM_EMAIL` | No | Verified AWS SES sender address for forgot-password emails. Requires domain verification in the AWS SES console (done outside this repo). Self-service email silently no-ops (logs a warning) if unset — the admin-generated reset-link flow on the Admin Users page needs no email infra at all and works regardless |
+| `SES_REGION` | No | AWS region for the SES client (default `us-east-1`) |
 | `SEARXNG_URL` | No | SearXNG instance base URL for web battery validation; skipped if unset |
 | `BRAVE_SEARCH_API_KEY` | No | Brave Search API key for web battery validation; skipped if unset |
 | `BRAVE_MONTHLY_QUOTA` | No | Override Brave's monthly call quota (default 2000) |

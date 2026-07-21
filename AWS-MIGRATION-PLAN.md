@@ -174,8 +174,9 @@ mkdir -p /opt/battery-finder/pipeline_app/uploads
 source /opt/battery-finder/.venv/bin/activate
 cd /opt/battery-finder
 alembic upgrade head
-python scripts/create_admin.py --username admin --password <strong-password>
 ```
+
+There is no CLI script for admin creation — set `ADMIN_BOOTSTRAP_TOKEN` in the environment (SSM), then visit `/admin/setup` once the app is running to create the first admin account. See README's "Create First Admin User" for details.
 
 ---
 
