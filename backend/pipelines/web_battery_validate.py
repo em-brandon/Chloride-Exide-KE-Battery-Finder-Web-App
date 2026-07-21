@@ -27,6 +27,7 @@ import socket
 import sys
 import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
@@ -39,7 +40,7 @@ from sqlalchemy import text
 
 # ── project root on path so we can import matcher helpers ────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from matcher import _make_region, _norm_model_key, _select_batteries, _batteries
+from matcher import _make_region, _norm_model_key, _select_batteries, _batteries, _LUXURY_MAKES
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -504,6 +505,71 @@ def _increment_quota(eng, provider: str) -> None:
         """), {"p": provider, "now": now})
 
 
+def _try_reserve_quota(eng, provider: str) -> bool:
+    """
+    Atomically check-and-reserve one quota slot in a single conditional
+    UPDATE, replacing the separate _check_quota() (SELECT) then
+    _increment_quota() (UPDATE) two-call pattern every other caller in this
+    module used. That pattern left a real gap between "check passed" and
+    "increment applied" — with real network I/O (the actual API call) in
+    between — where concurrent worker threads could all see quota as
+    available and all proceed, overshooting quota_limit by up to the
+    worker count.
+
+    A single `UPDATE ... WHERE quota_limit = -1 OR calls_made <
+    quota_limit RETURNING calls_made` is atomic at the database level:
+    Postgres's row-level locking serializes concurrent attempts against the
+    same quota row, so a slot can only be reserved if it's genuinely still
+    available at the moment the row lock is acquired — no separate
+    read-then-write gap for another thread to race into.
+
+    Returns True if a slot was reserved (caller should proceed with the
+    call) or the provider has unlimited quota; False if exhausted or the
+    provider's API key isn't configured. No rollback if the caller's
+    subsequent API call then fails — a reserved-then-failed call still
+    counts against quota, matching how most providers rate-limit failed
+    requests too, and keeping this function simple (one round trip in the
+    common case, no compensating transaction to get wrong).
+    """
+    if provider == "brave" and not BRAVE_SEARCH_API_KEY:
+        return False
+    if provider == "searxng" and not SEARXNG_URL:
+        return False
+    if provider == "tavily" and not TAVILY_API_KEY:
+        return False
+
+    now = datetime.now(timezone.utc)
+    reserve_sql = text("""
+        UPDATE api_usage_quota
+        SET calls_made = calls_made + 1, updated_at = :now
+        WHERE provider = :p
+          AND (period_end IS NULL OR period_end > :now)
+          AND (quota_limit = -1 OR calls_made < quota_limit)
+        RETURNING calls_made
+    """)
+    with eng.begin() as conn:
+        if conn.execute(reserve_sql, {"p": provider, "now": now}).fetchone() is not None:
+            return True
+
+    # The conditional UPDATE matched no row — either no active period row
+    # exists yet for this provider, or quota_limit is genuinely exhausted.
+    # Distinguish the two: if there's truly no active row, create one
+    # (matches _check_quota's original "no row -> create one, allow"
+    # behavior for a brand-new period) and retry once.
+    with eng.connect() as conn:
+        has_active_row = conn.execute(text("""
+            SELECT 1 FROM api_usage_quota
+            WHERE provider = :p AND (period_end IS NULL OR period_end > :now)
+            LIMIT 1
+        """), {"p": provider, "now": now}).fetchone()
+    if has_active_row is not None:
+        return False  # active row exists, quota_limit genuinely exhausted
+
+    _ensure_quota_row(eng, provider)
+    with eng.begin() as conn:
+        return conn.execute(reserve_sql, {"p": provider, "now": now}).fetchone() is not None
+
+
 # ---------------------------------------------------------------------------
 # Resolve parsed specs to a battery_code from battery_specs
 # ---------------------------------------------------------------------------
@@ -520,35 +586,161 @@ def _resolve_battery_code(parsed: dict, make_n: str) -> tuple[str, int, str] | N
 
 
 # ---------------------------------------------------------------------------
+# Staging row validation helpers
+# ---------------------------------------------------------------------------
+# Moved here from admin_router.py so _upsert_rows() (below) can compute
+# is_valid/flagged inline when writing into web_battery_staging, instead of
+# a separate later pass recomputing them from already-staged data.
+# admin_router.py's patch_staging_row/fix_staging_ah still import these
+# (locally, matching this module's existing import convention) since an
+# admin editing ah/technology by hand needs the same checks re-applied.
+
+_VALID_TECHNOLOGIES = {"MF", "AGM", "EFB", "GEL", "WET"}
+
+
+def _validate_staging_row(ah, technology, battery_code) -> tuple[bool, str | None]:
+    """Return (is_valid, invalid_reason)."""
+    if battery_code is None:
+        return False, "No battery code resolved"
+    if ah is not None and (ah < 20 or ah > 250):
+        return False, f"Ah value out of range (20–250), got {ah}"
+    if technology is not None and technology.upper() not in _VALID_TECHNOLOGIES:
+        return False, f"Unknown technology type: {technology}"
+    return True, None
+
+
+_LUXURY_MIN_AH = 40
+
+
+def _flag_staging_row(make_n: str, ah) -> tuple[bool, str | None]:
+    """
+    Return (flagged, flag_reason) — a soft review marker distinct from
+    is_valid. Luxury/premium makes (matcher._LUXURY_MAKES — the same set
+    used to force AGM technology) carry heavier electrical loads and rarely
+    ship with a battery under 40Ah; a web-sourced Ah below that for one of
+    these makes is more likely a mismatched search result (wrong trim,
+    aftermarket/motorcycle listing, etc.) than a genuine spec, so it's
+    surfaced for a human to check rather than silently auto-committed.
+    """
+    if ah is not None and ah < _LUXURY_MIN_AH and make_n.upper().strip() in _LUXURY_MAKES:
+        return True, f"Luxury make with Ah={ah} (< {_LUXURY_MIN_AH}) — verify before committing"
+    return False, None
+
+
+# ---------------------------------------------------------------------------
 # DB upsert
 # ---------------------------------------------------------------------------
 
-def _upsert_rows(eng, rows: list[dict], run_id: str | None = None) -> None:
+def _upsert_rows(eng, rows: list[dict], run_id: str, truncate_staging_first: bool = False) -> None:
+    """
+    Write scrape results into web_battery_staging — NOT master
+    (web_battery_validation) — computing is_valid/invalid_reason,
+    flagged/flag_reason, and conflict/conflict_detail inline per row.
+
+    This used to write straight into master, which made conflict detection
+    structurally impossible (master already reflected this run's own data by
+    the time anything checked for conflicts) and made every commit's
+    change_type resolve to "updated" (a master row for the key always
+    already existed, because this function had just written it). Writing to
+    staging instead — merged into master only at explicit commit time —
+    fixes both, matching how the CRSP pipeline's write_to_staging() already
+    works (enrich_years.py).
+
+    truncate_staging_first: pass True on a run's first successful write, to
+    preserve "only one staging set at a time" (a run that finds zero new
+    combos never calls this at all, so it never touches existing staging).
+    """
     if not rows:
         return
     now = datetime.now(timezone.utc)
     with eng.begin() as conn:
+        if truncate_staging_first:
+            conn.execute(text("TRUNCATE web_battery_staging"))
+
+        # Bulk-load current master state for just this batch's keys — fresh
+        # on every flush (not cached across flushes), since master can
+        # legitimately change between flushes (an admin can commit a
+        # different, earlier run's staging while this run is still going).
+        # Mirrors enrich_years.py's write_to_staging(), which does the same
+        # fresh per-flush reload.
+        batch_keys = list({(r["make_n"], r["model_n"], r["year"]) for r in rows})
+        existing_by_key: dict[tuple, object] = {}
+        if batch_keys:
+            clauses = []
+            params: dict = {}
+            for i, (mn, mo, yr) in enumerate(batch_keys):
+                clauses.append(f"(make_n=:mn{i} AND model_n=:mo{i} AND year=:yr{i})")
+                params[f"mn{i}"] = mn
+                params[f"mo{i}"] = mo
+                params[f"yr{i}"] = yr
+            existing_rows = conn.execute(
+                text(
+                    "SELECT make_n, model_n, year, ah, technology"
+                    " FROM web_battery_validation WHERE " + " OR ".join(clauses)
+                ),
+                params,
+            ).fetchall()
+            existing_by_key = {(r.make_n, r.model_n, r.year): r for r in existing_rows}
+
         for row in rows:
+            make_n, model_n, year = row["make_n"], row["model_n"], row["year"]
+            ah, technology, battery_code = row["ah"], row["technology"], row["battery_code"]
+
+            is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
+            flagged, flag_reason = _flag_staging_row(make_n, ah)
+
+            # Conflict: master already has a (committed, from an earlier
+            # run) row for this key whose ah/technology differ meaningfully
+            # from what this run found.
+            conflict = False
+            conflict_detail = None
+            existing = existing_by_key.get((make_n, model_n, year))
+            if existing:
+                ah_diff = abs((existing.ah or 0) - (ah or 0)) > 5 if (existing.ah and ah) else False
+                tech_diff = (existing.technology or "").upper() != (technology or "").upper()
+                if ah_diff or tech_diff:
+                    conflict = True
+                    conflict_detail = json.dumps({
+                        "current": {"ah": existing.ah, "technology": existing.technology},
+                        "staged": {"ah": ah, "technology": technology, "source": row.get("source")},
+                    })
+
             conn.execute(
-                text(f"""
-                    INSERT INTO {TABLE_NAME}
-                        (make_n, model_n, year, battery_code, ah, technology,
-                         source, engine_cc, fuel_type, validated_at, run_id)
+                text("""
+                    INSERT INTO web_battery_staging
+                        (run_id, make_n, model_n, year, battery_code, ah, technology,
+                         source, engine_cc, fuel_type, is_valid, invalid_reason,
+                         conflict, conflict_detail, flagged, flag_reason, staged_at)
                     VALUES
-                        (:make_n, :model_n, :year, :battery_code, :ah, :technology,
-                         :source, :engine_cc, :fuel_type, :validated_at, :run_id)
+                        (:run_id, :make_n, :model_n, :year, :battery_code, :ah, :technology,
+                         :source, :engine_cc, :fuel_type, :is_valid, :invalid_reason,
+                         :conflict, :conflict_detail, :flagged, :flag_reason, :now)
                     ON CONFLICT (make_n, model_n, year)
                     DO UPDATE SET
-                        battery_code = EXCLUDED.battery_code,
-                        ah           = EXCLUDED.ah,
-                        technology   = EXCLUDED.technology,
-                        source       = EXCLUDED.source,
-                        engine_cc    = EXCLUDED.engine_cc,
-                        fuel_type    = EXCLUDED.fuel_type,
-                        validated_at = EXCLUDED.validated_at,
-                        run_id       = EXCLUDED.run_id
+                        run_id          = EXCLUDED.run_id,
+                        battery_code    = EXCLUDED.battery_code,
+                        ah              = EXCLUDED.ah,
+                        technology      = EXCLUDED.technology,
+                        source          = EXCLUDED.source,
+                        engine_cc       = EXCLUDED.engine_cc,
+                        fuel_type       = EXCLUDED.fuel_type,
+                        is_valid        = EXCLUDED.is_valid,
+                        invalid_reason  = EXCLUDED.invalid_reason,
+                        conflict        = EXCLUDED.conflict,
+                        conflict_detail = EXCLUDED.conflict_detail,
+                        flagged         = EXCLUDED.flagged,
+                        flag_reason     = EXCLUDED.flag_reason,
+                        staged_at       = EXCLUDED.staged_at
                 """),
-                {**row, "validated_at": now, "run_id": run_id},
+                {
+                    "run_id": run_id, "make_n": make_n, "model_n": model_n, "year": year,
+                    "battery_code": battery_code, "ah": ah, "technology": technology,
+                    "source": row.get("source"), "engine_cc": row.get("engine_cc"),
+                    "fuel_type": row.get("fuel_type"), "is_valid": is_valid,
+                    "invalid_reason": invalid_reason, "conflict": conflict,
+                    "conflict_detail": conflict_detail, "flagged": flagged,
+                    "flag_reason": flag_reason, "now": now,
+                },
             )
 
 
@@ -582,6 +774,12 @@ def main(
     """
     from concurrent.futures import ThreadPoolExecutor
     from db import engine
+
+    # web_battery_staging.run_id is NOT NULL (unlike master's nullable
+    # run_id) — the CLI entry point (`if __name__ == "__main__":`) calls
+    # main() with no run_id, so a fallback here keeps that path working now
+    # that _upsert_rows() targets staging instead of master.
+    run_id = run_id or str(uuid.uuid4())
 
     def _log(line: str) -> None:
         print(line)
@@ -742,11 +940,17 @@ def main(
 
     n_cached = n_fetched = n_failed = dirty_count = web_model_dirty = _buckets_attempted = 0
     rows_buffer: list[dict] = []
+    _staging_truncated = False  # True once this run has cleared web_battery_staging
 
     def _flush_rows() -> None:
         """Flush rows_buffer to DB. Must be called with _rows_lock held."""
+        nonlocal _staging_truncated
         if rows_buffer:
-            _upsert_rows(engine, rows_buffer[:], run_id=run_id)
+            _upsert_rows(
+                engine, rows_buffer[:], run_id=run_id,
+                truncate_staging_first=not _staging_truncated,
+            )
+            _staging_truncated = True
             rows_buffer.clear()
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -793,10 +997,9 @@ def main(
             any_net_error = False
 
             # Brave — primary paid provider
-            if _is_enabled("brave") and _check_quota(engine, "brave"):
+            if _is_enabled("brave") and _try_reserve_quota(engine, "brave"):
                 try:
                     web_parsed = _brave_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "brave")
                     if web_parsed:
                         src = "brave"
                         with _prov_lock:
@@ -831,11 +1034,10 @@ def main(
             if _is_cancelled():
                 return
 
-            # Tavily — second paid fallback; _check_quota returns False instantly if no key/quota
-            if web_parsed is None and _is_enabled("tavily") and _check_quota(engine, "tavily"):
+            # Tavily — second paid fallback; _try_reserve_quota returns False instantly if no key/quota
+            if web_parsed is None and _is_enabled("tavily") and _try_reserve_quota(engine, "tavily"):
                 try:
                     web_parsed = _tavily_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "tavily")
                     if web_parsed:
                         src = "tavily"
                         with _prov_lock:
@@ -852,10 +1054,9 @@ def main(
                 return
 
             # DDG — last resort, free and unlimited
-            if web_parsed is None and _is_enabled("duckduckgo") and _check_quota(engine, "duckduckgo"):
+            if web_parsed is None and _is_enabled("duckduckgo") and _try_reserve_quota(engine, "duckduckgo"):
                 try:
                     web_parsed = _duckduckgo_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "duckduckgo")
                     if web_parsed:
                         src = "duckduckgo"
                         with _prov_lock:
@@ -984,9 +1185,8 @@ def main(
 
             try:
                 # carquery: fill missing engine_cc only
-                if not engine_cc and _check_quota(engine, "carquery"):
+                if not engine_cc and _try_reserve_quota(engine, "carquery"):
                     cq = _carquery_lookup(make_n, model_n, year, cancel_event)
-                    _increment_quota(engine, "carquery")
                     if cq:
                         engine_cc = cq.get("engine_cc")
                         if not fuel_type:

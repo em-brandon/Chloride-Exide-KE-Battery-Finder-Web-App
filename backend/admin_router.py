@@ -81,7 +81,7 @@ _limiter = Limiter(key_func=get_remote_address)
 _pipeline_lock = threading.Lock()
 _pipeline_state: dict = {
     "run_id":           None,
-    "status":           "idle",   # "idle" | "running" | "paused" | "done" | "error"
+    "status":           "idle",   # "idle" | "running" | "paused" | "done" | "cancelled" | "error"
     "total":            0,
     "processed":        0,
     "found":            0,
@@ -1321,8 +1321,13 @@ def run_web_validate(
     admin: AdminUser = Depends(require_admin),
 ):
     with _pipeline_lock:
-        if _pipeline_state["status"] == "running":
-            raise HTTPException(status_code=409, detail="Pipeline is already running")
+        if _pipeline_state["status"] in ("running", "paused"):
+            # A paused run is still in-flight (its thread is alive, holding its
+            # own cancel_event/pause_event/existing_keys snapshot) — starting a
+            # second run here would overwrite _pipeline_state's cancel/pause
+            # events out from under the first thread and let two independent
+            # scrapes write conflicting data for the same vehicle.
+            raise HTTPException(status_code=409, detail="Pipeline is already running or paused")
 
         run_id = str(uuid.uuid4())
         cancel_ev = threading.Event()
@@ -1448,131 +1453,37 @@ def cancel_web_validate(admin: AdminUser = Depends(require_admin)):
 # ---------------------------------------------------------------------------
 # Staging area helpers
 # ---------------------------------------------------------------------------
-
-_VALID_TECHNOLOGIES = {"MF", "AGM", "EFB", "GEL", "WET"}
-
-
-def _validate_staging_row(ah, technology, battery_code) -> tuple[bool, str | None]:
-    """Return (is_valid, invalid_reason)."""
-    if battery_code is None:
-        return False, "No battery code resolved"
-    if ah is not None and (ah < 20 or ah > 250):
-        return False, f"Ah value out of range (20–250), got {ah}"
-    if technology is not None and technology.upper() not in _VALID_TECHNOLOGIES:
-        return False, f"Unknown technology type: {technology}"
-    return True, None
-
-
-_LUXURY_MIN_AH = 40
-
-
-def _flag_staging_row(make_n: str, ah) -> tuple[bool, str | None]:
-    """
-    Return (flagged, flag_reason) — a soft review marker distinct from
-    is_valid. Luxury/premium makes (matcher._LUXURY_MAKES — the same set
-    used to force AGM technology) carry heavier electrical loads and rarely
-    ship with a battery under 40Ah; a web-sourced Ah below that for one of
-    these makes is more likely a mismatched search result (wrong trim,
-    aftermarket/motorcycle listing, etc.) than a genuine spec, so it's
-    surfaced for a human to check rather than silently auto-committed.
-    """
-    if ah is not None and ah < _LUXURY_MIN_AH and make_n.upper().strip() in matcher._LUXURY_MAKES:
-        return True, f"Luxury make with Ah={ah} (< {_LUXURY_MIN_AH}) — verify before committing"
-    return False, None
+# _validate_staging_row/_flag_staging_row now live in pipelines/web_battery_validate.py
+# (used inline by _upsert_rows() when it writes into web_battery_staging) — imported
+# locally by the two admin-editing endpoints that still need them
+# (patch_staging_row, fix_staging_ah), matching this file's existing convention of
+# lazily importing from pipelines.web_battery_validate rather than at module level.
 
 
 def _populate_staging(run_id: str) -> tuple[int, int, int]:
     """
-    Copy records from web_battery_validation (for this run_id) into
-    web_battery_staging with validation + conflict flags applied.
+    Return (staged_count, invalid_count, conflict_count) for this run.
 
-    Returns (staged_count, invalid_count, conflict_count).
+    Historically this function did the copy-from-master-into-staging work
+    itself. Now that pipelines.web_battery_validate._upsert_rows() writes
+    directly into web_battery_staging during the scrape (computing
+    is_valid/conflict/flagged inline, against real master state — see that
+    function's docstring for why), this run's rows are already sitting in
+    staging with correct flags by the time either of this function's two
+    callers (_web_validate_thread on normal completion, cancel_web_validate
+    on cancel) run — so this just reports counts, nothing left to write.
     """
-    staged = invalid = conflicts = 0
-    with engine.begin() as conn:
-        # Fetch this run's rows from master
-        rows = conn.execute(
+    with engine.connect() as conn:
+        row = conn.execute(
             text(
-                "SELECT make_n, model_n, year, battery_code, ah, technology,"
-                " source, engine_cc, fuel_type"
-                " FROM web_battery_validation WHERE run_id = :rid"
+                "SELECT COUNT(*) AS staged,"
+                " COUNT(*) FILTER (WHERE NOT is_valid) AS invalid,"
+                " COUNT(*) FILTER (WHERE conflict) AS conflicts"
+                " FROM web_battery_staging WHERE run_id = :rid"
             ),
             {"rid": run_id},
-        ).fetchall()
-
-        if not rows:
-            return 0, 0, 0
-
-        # Clear any previous staging data (only one staging set at a time)
-        conn.execute(text("TRUNCATE web_battery_staging"))
-
-        for r in rows:
-            make_n, model_n, year = r.make_n, r.model_n, r.year
-            ah, technology, battery_code = r.ah, r.technology, r.battery_code
-
-            is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
-            flagged, flag_reason = _flag_staging_row(make_n, ah)
-
-            # Check for conflict: master has a row for same key with a DIFFERENT run_id
-            conflict = False
-            conflict_detail = None
-            existing = conn.execute(
-                text(
-                    "SELECT battery_code, ah, technology, source, run_id"
-                    " FROM web_battery_validation"
-                    " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                    "   AND run_id IS DISTINCT FROM :rid"
-                ),
-                {"mn": make_n, "mo": model_n, "yr": year, "rid": run_id},
-            ).fetchone()
-            if existing:
-                # Conflict if ah or technology differ meaningfully
-                ah_diff = abs((existing.ah or 0) - (ah or 0)) > 5 if (existing.ah and ah) else False
-                tech_diff = (existing.technology or "").upper() != (technology or "").upper()
-                if ah_diff or tech_diff:
-                    conflict = True
-                    conflicts += 1
-                    conflict_detail = json.dumps({
-                        "current": {
-                            "ah": existing.ah, "technology": existing.technology,
-                            "source": existing.source, "run_id": existing.run_id,
-                        },
-                        "staged": {"ah": ah, "technology": technology, "source": r.source},
-                    })
-
-            conn.execute(
-                text(
-                    "INSERT INTO web_battery_staging"
-                    " (run_id, make_n, model_n, year, battery_code, ah, technology,"
-                    "  source, engine_cc, fuel_type, is_valid, invalid_reason, conflict, conflict_detail,"
-                    "  flagged, flag_reason)"
-                    " VALUES"
-                    " (:rid, :mn, :mo, :yr, :bc, :ah, :tech,"
-                    "  :src, :ecc, :ft, :iv, :ir, :cf, :cd,"
-                    "  :fl, :fr)"
-                    " ON CONFLICT (make_n, model_n, year) DO UPDATE SET"
-                    "  run_id=EXCLUDED.run_id, battery_code=EXCLUDED.battery_code,"
-                    "  ah=EXCLUDED.ah, technology=EXCLUDED.technology,"
-                    "  source=EXCLUDED.source, engine_cc=EXCLUDED.engine_cc,"
-                    "  fuel_type=EXCLUDED.fuel_type, is_valid=EXCLUDED.is_valid,"
-                    "  invalid_reason=EXCLUDED.invalid_reason, conflict=EXCLUDED.conflict,"
-                    "  conflict_detail=EXCLUDED.conflict_detail, flagged=EXCLUDED.flagged,"
-                    "  flag_reason=EXCLUDED.flag_reason, staged_at=now()"
-                ),
-                {
-                    "rid": run_id, "mn": make_n, "mo": model_n, "yr": year,
-                    "bc": battery_code, "ah": ah, "tech": technology,
-                    "src": r.source, "ecc": r.engine_cc, "ft": r.fuel_type,
-                    "iv": is_valid, "ir": invalid_reason,
-                    "cf": conflict, "cd": conflict_detail,
-                    "fl": flagged, "fr": flag_reason,
-                },
-            )
-            staged += 1
-            if not is_valid:
-                invalid += 1
-
-    return staged, invalid, conflicts
+        ).fetchone()
+    return (row.staged or 0), (row.invalid or 0), (row.conflicts or 0)
 
 
 @router.get("/pipeline/quotas", summary="Get API provider quota usage (rolling monthly, or one-time prepaid balance for providers in _ONE_TIME_QUOTA_PROVIDERS)")
@@ -1930,6 +1841,9 @@ def delete_master_record(
 @router.post("/pipeline/web-validate/reset-cache", summary="Delete the battery validate lookup cache file and all matched vehicle rows")
 def reset_web_validate_cache(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
     from sqlalchemy import text as _text
+    with _pipeline_lock:
+        if _pipeline_state["status"] in ("running", "paused"):
+            raise HTTPException(status_code=409, detail="Cannot reset cache while pipeline is running or paused")
     cache_path = Path(__file__).parent / "cache" / "battery_validate_cache.json"
     file_deleted = False
     if cache_path.exists():
@@ -2032,6 +1946,8 @@ def patch_staging_row(
     body: PatchStagingRowBody,
     admin: AdminUser = Depends(require_admin),
 ):
+    from pipelines.web_battery_validate import _validate_staging_row, _flag_staging_row
+
     with engine.begin() as conn:
         row = conn.execute(
             text("SELECT * FROM web_battery_staging WHERE id = :id"),
@@ -2103,61 +2019,80 @@ def patch_staging_row(
 
 
 @router.get("/pipeline/web-validate/staging/pre-commit", summary="Re-run conflict detection against current master state")
-def staging_pre_commit(admin: AdminUser = Depends(require_admin)):
+def staging_pre_commit(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
     """Refresh conflict flags in staging table before the commit modal is shown."""
-    with engine.begin() as conn:
-        staging_rows = conn.execute(
+    with _pipeline_lock:
+        if _pipeline_state["status"] in ("running", "paused"):
+            raise HTTPException(status_code=409, detail="Cannot pre-check staging while pipeline is running or paused")
+
+    staging_rows = db.execute(
+        text(
+            "SELECT run_id, make_n, model_n, year, ah, technology, source"
+            " FROM web_battery_staging"
+            " ORDER BY make_n, model_n, year"
+        )
+    ).fetchall()
+
+    if not staging_rows:
+        return {"conflict_count": 0, "conflicts": []}
+
+    # Bulk-load master rows for exactly the keys in staging, in one query —
+    # avoids the one-SELECT-per-row conflict check the loop below used to
+    # do. No run_id filter needed anymore: master is never written to
+    # before an explicit commit, so any row found here is unambiguously
+    # "current, already-committed data" to compare against.
+    keys = {(r.make_n, r.model_n, r.year) for r in staging_rows}
+    clauses: list[str] = []
+    params: dict = {}
+    for i, (mn, mo, yr) in enumerate(keys):
+        clauses.append(f"(make_n=:mn{i} AND model_n=:mo{i} AND year=:yr{i})")
+        params[f"mn{i}"] = mn
+        params[f"mo{i}"] = mo
+        params[f"yr{i}"] = yr
+    existing_by_key = {
+        (r.make_n, r.model_n, r.year): r
+        for r in db.execute(
             text(
-                "SELECT run_id, make_n, model_n, year, ah, technology, source"
-                " FROM web_battery_staging"
-                " ORDER BY make_n, model_n, year"
-            )
+                "SELECT make_n, model_n, year, battery_code, ah, technology, source, run_id"
+                " FROM web_battery_validation WHERE " + " OR ".join(clauses)
+            ),
+            params,
         ).fetchall()
+    }
 
-        if not staging_rows:
-            return {"conflict_count": 0, "conflicts": []}
+    conflicts = []
+    for r in staging_rows:
+        existing = existing_by_key.get((r.make_n, r.model_n, r.year))
 
-        run_id = staging_rows[0].run_id
-        conflicts = []
-        for r in staging_rows:
-            existing = conn.execute(
-                text(
-                    "SELECT battery_code, ah, technology, source, run_id"
-                    " FROM web_battery_validation"
-                    " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                    "   AND run_id IS DISTINCT FROM :rid"
-                ),
-                {"mn": r.make_n, "mo": r.model_n, "yr": r.year, "rid": run_id},
-            ).fetchone()
-
-            conflict = False
-            conflict_detail = None
-            if existing:
-                ah_diff = abs((existing.ah or 0) - (r.ah or 0)) > 5 if (existing.ah and r.ah) else False
-                tech_diff = (existing.technology or "").upper() != (r.technology or "").upper()
-                if ah_diff or tech_diff:
-                    conflict = True
-                    conflict_detail = json.dumps({
-                        "current": {
-                            "ah": existing.ah, "technology": existing.technology,
-                            "source": existing.source, "run_id": existing.run_id,
-                        },
-                        "staged": {"ah": r.ah, "technology": r.technology, "source": r.source},
-                    })
-
-            conn.execute(
-                text(
-                    "UPDATE web_battery_staging SET conflict=:cf, conflict_detail=:cd"
-                    " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                ),
-                {"cf": conflict, "cd": conflict_detail, "mn": r.make_n, "mo": r.model_n, "yr": r.year},
-            )
-            if conflict:
-                conflicts.append({
-                    "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
-                    "conflict_detail": json.loads(conflict_detail),
+        conflict = False
+        conflict_detail = None
+        if existing:
+            ah_diff = abs((existing.ah or 0) - (r.ah or 0)) > 5 if (existing.ah and r.ah) else False
+            tech_diff = (existing.technology or "").upper() != (r.technology or "").upper()
+            if ah_diff or tech_diff:
+                conflict = True
+                conflict_detail = json.dumps({
+                    "current": {
+                        "ah": existing.ah, "technology": existing.technology,
+                        "source": existing.source, "run_id": existing.run_id,
+                    },
+                    "staged": {"ah": r.ah, "technology": r.technology, "source": r.source},
                 })
 
+        db.execute(
+            text(
+                "UPDATE web_battery_staging SET conflict=:cf, conflict_detail=:cd"
+                " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
+            ),
+            {"cf": conflict, "cd": conflict_detail, "mn": r.make_n, "mo": r.model_n, "yr": r.year},
+        )
+        if conflict:
+            conflicts.append({
+                "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
+                "conflict_detail": json.loads(conflict_detail),
+            })
+
+    db.commit()
     return {"conflict_count": len(conflicts), "conflicts": conflicts}
 
 
@@ -2176,7 +2111,12 @@ class CommitStagingBody(BaseModel):
 def commit_staging(
     body: CommitStagingBody = Body(default_factory=CommitStagingBody),
     admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
+    with _pipeline_lock:
+        if _pipeline_state["status"] in ("running", "paused"):
+            raise HTTPException(status_code=409, detail="Cannot commit staging while pipeline is running or paused")
+
     resolution_map: dict[tuple, str] = {
         (r.make_n, r.model_n, r.year): r.keep
         for r in body.conflict_resolutions
@@ -2185,155 +2125,171 @@ def commit_staging(
     committed = removed_invalid = conflicts_resolved = 0
     changelog_entries: list[dict] = []
 
-    with engine.begin() as conn:
-        staging_rows = conn.execute(
+    staging_rows = db.execute(
+        text(
+            "SELECT run_id, make_n, model_n, year, battery_code, ah, technology,"
+            " source, engine_cc, fuel_type, is_valid, conflict"
+            " FROM web_battery_staging"
+        )
+    ).fetchall()
+
+    if not staging_rows:
+        raise HTTPException(status_code=400, detail="No staged data to commit")
+
+    run_id = staging_rows[0].run_id
+
+    # Determine next version number
+    max_ver = db.execute(
+        text("SELECT COALESCE(MAX(version_number), 0) FROM web_battery_validation_versions")
+    ).scalar() or 0
+    version_number = max_ver + 1
+    version_id = str(uuid.uuid4())
+
+    now = datetime.now(timezone.utc)
+
+    # Bulk-load master rows for every key in staging, in one query — avoids
+    # the up-to-2-SELECTs-per-row the loop below used to do.
+    keys = {(r.make_n, r.model_n, r.year) for r in staging_rows}
+    clauses: list[str] = []
+    params: dict = {}
+    for i, (mn, mo, yr) in enumerate(keys):
+        clauses.append(f"(make_n=:mn{i} AND model_n=:mo{i} AND year=:yr{i})")
+        params[f"mn{i}"] = mn
+        params[f"mo{i}"] = mo
+        params[f"yr{i}"] = yr
+    existing_by_key = {
+        (r.make_n, r.model_n, r.year): r
+        for r in db.execute(
             text(
-                "SELECT run_id, make_n, model_n, year, battery_code, ah, technology,"
-                " source, engine_cc, fuel_type, is_valid, conflict"
-                " FROM web_battery_staging"
-            )
+                "SELECT make_n, model_n, year, battery_code, ah, technology"
+                " FROM web_battery_validation WHERE " + " OR ".join(clauses)
+            ),
+            params,
         ).fetchall()
+    }
 
-        if not staging_rows:
-            raise HTTPException(status_code=400, detail="No staged data to commit")
+    for r in staging_rows:
+        key = (r.make_n, r.model_n, r.year)
 
-        run_id = staging_rows[0].run_id
-
-        # Determine next version number
-        max_ver = conn.execute(
-            text("SELECT COALESCE(MAX(version_number), 0) FROM web_battery_validation_versions")
-        ).scalar() or 0
-        version_number = max_ver + 1
-        version_id = str(uuid.uuid4())
-
-        now = datetime.now(timezone.utc)
-
-        for r in staging_rows:
-            key = (r.make_n, r.model_n, r.year)
-
-            # Skip invalid rows from commit, but remove them from master if they're there
-            if not r.is_valid:
-                existing = conn.execute(
+        # Skip invalid rows from commit, but remove them from master if they're there
+        if not r.is_valid:
+            existing = existing_by_key.get(key)
+            if existing:
+                db.execute(
                     text(
-                        "SELECT battery_code, ah, technology FROM web_battery_validation"
+                        "DELETE FROM web_battery_validation"
                         " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
                     ),
                     {"mn": r.make_n, "mo": r.model_n, "yr": r.year},
-                ).fetchone()
-                if existing:
-                    conn.execute(
-                        text(
-                            "DELETE FROM web_battery_validation"
-                            " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                        ),
-                        {"mn": r.make_n, "mo": r.model_n, "yr": r.year},
-                    )
-                    removed_invalid += 1
-                    changelog_entries.append({
-                        "version_id": version_id,
-                        "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
-                        "change_type": "removed",
-                        "old_values": json.dumps({
-                            "battery_code": existing.battery_code,
-                            "ah": existing.ah, "technology": existing.technology,
-                        }),
-                        "new_values": None,
-                    })
-                continue
+                )
+                removed_invalid += 1
+                changelog_entries.append({
+                    "version_id": version_id,
+                    "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
+                    "change_type": "removed",
+                    "old_values": json.dumps({
+                        "battery_code": existing.battery_code,
+                        "ah": existing.ah, "technology": existing.technology,
+                    }),
+                    "new_values": None,
+                })
+            continue
 
-            # For conflicts, check resolution
-            if r.conflict:
-                resolution = resolution_map.get(key, "staging")
-                if resolution == "current":
-                    conflicts_resolved += 1
-                    continue  # keep master row unchanged
-
-            # Upsert valid row into master
-            existing = conn.execute(
-                text(
-                    "SELECT battery_code, ah, technology FROM web_battery_validation"
-                    " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                ),
-                {"mn": r.make_n, "mo": r.model_n, "yr": r.year},
-            ).fetchone()
-
-            change_type = "updated" if existing else "added"
-            old_vals = json.dumps({
-                "battery_code": existing.battery_code,
-                "ah": existing.ah, "technology": existing.technology,
-            }) if existing else None
-
-            conn.execute(
-                text(
-                    "INSERT INTO web_battery_validation"
-                    " (make_n, model_n, year, battery_code, ah, technology,"
-                    "  source, engine_cc, fuel_type, validated_at, run_id, version_id)"
-                    " VALUES"
-                    " (:mn, :mo, :yr, :bc, :ah, :tech,"
-                    "  :src, :ecc, :ft, :now, :rid, :vid)"
-                    " ON CONFLICT (make_n, model_n, year) DO UPDATE SET"
-                    "  battery_code=EXCLUDED.battery_code, ah=EXCLUDED.ah,"
-                    "  technology=EXCLUDED.technology, source=EXCLUDED.source,"
-                    "  engine_cc=EXCLUDED.engine_cc, fuel_type=EXCLUDED.fuel_type,"
-                    "  validated_at=EXCLUDED.validated_at, run_id=EXCLUDED.run_id,"
-                    "  version_id=EXCLUDED.version_id"
-                ),
-                {
-                    "mn": r.make_n, "mo": r.model_n, "yr": r.year,
-                    "bc": r.battery_code, "ah": r.ah, "tech": r.technology,
-                    "src": r.source, "ecc": r.engine_cc, "ft": r.fuel_type,
-                    "now": now, "rid": run_id, "vid": version_id,
-                },
-            )
-            committed += 1
-            if r.conflict:
+        # For conflicts, check resolution
+        if r.conflict:
+            resolution = resolution_map.get(key, "staging")
+            if resolution == "current":
                 conflicts_resolved += 1
+                continue  # keep master row unchanged
 
-            changelog_entries.append({
-                "version_id": version_id,
-                "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
-                "change_type": change_type,
-                "old_values": old_vals,
-                "new_values": json.dumps({
-                    "battery_code": r.battery_code,
-                    "ah": r.ah, "technology": r.technology,
-                }),
-            })
+        # Upsert valid row into master
+        existing = existing_by_key.get(key)
 
-        # Write version record
-        conn.execute(
+        change_type = "updated" if existing else "added"
+        old_vals = json.dumps({
+            "battery_code": existing.battery_code,
+            "ah": existing.ah, "technology": existing.technology,
+        }) if existing else None
+
+        db.execute(
             text(
-                "INSERT INTO web_battery_validation_versions"
-                " (id, version_number, committed_at, run_id, committed_count, removed_count, conflict_count,"
-                "  committed_by, initiated_by)"
-                " VALUES (:id, :vn, :now, :rid, :cc, :rc, :cfc, :cby, :iby)"
+                "INSERT INTO web_battery_validation"
+                " (make_n, model_n, year, battery_code, ah, technology,"
+                "  source, engine_cc, fuel_type, validated_at, run_id, version_id)"
+                " VALUES"
+                " (:mn, :mo, :yr, :bc, :ah, :tech,"
+                "  :src, :ecc, :ft, :now, :rid, :vid)"
+                " ON CONFLICT (make_n, model_n, year) DO UPDATE SET"
+                "  battery_code=EXCLUDED.battery_code, ah=EXCLUDED.ah,"
+                "  technology=EXCLUDED.technology, source=EXCLUDED.source,"
+                "  engine_cc=EXCLUDED.engine_cc, fuel_type=EXCLUDED.fuel_type,"
+                "  validated_at=EXCLUDED.validated_at, run_id=EXCLUDED.run_id,"
+                "  version_id=EXCLUDED.version_id"
             ),
             {
-                "id": version_id, "vn": version_number, "now": now,
-                "rid": run_id, "cc": committed, "rc": removed_invalid, "cfc": conflicts_resolved,
-                "cby": admin.username,
-                "iby": _pipeline_state.get("initiated_by"),
+                "mn": r.make_n, "mo": r.model_n, "yr": r.year,
+                "bc": r.battery_code, "ah": r.ah, "tech": r.technology,
+                "src": r.source, "ecc": r.engine_cc, "ft": r.fuel_type,
+                "now": now, "rid": run_id, "vid": version_id,
+            },
+        )
+        committed += 1
+        if r.conflict:
+            conflicts_resolved += 1
+
+        changelog_entries.append({
+            "version_id": version_id,
+            "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
+            "change_type": change_type,
+            "old_values": old_vals,
+            "new_values": json.dumps({
+                "battery_code": r.battery_code,
+                "ah": r.ah, "technology": r.technology,
+            }),
+        })
+
+    # Write version record
+    db.execute(
+        text(
+            "INSERT INTO web_battery_validation_versions"
+            " (id, version_number, committed_at, run_id, committed_count, removed_count, conflict_count,"
+            "  committed_by, initiated_by)"
+            " VALUES (:id, :vn, :now, :rid, :cc, :rc, :cfc, :cby, :iby)"
+        ),
+        {
+            "id": version_id, "vn": version_number, "now": now,
+            "rid": run_id, "cc": committed, "rc": removed_invalid, "cfc": conflicts_resolved,
+            "cby": admin.username,
+            "iby": _pipeline_state.get("initiated_by"),
+        },
+    )
+
+    # Write changelog entries
+    for entry in changelog_entries:
+        db.execute(
+            text(
+                "INSERT INTO web_battery_validation_changelog"
+                " (version_id, make_n, model_n, year, change_type, old_values, new_values)"
+                " VALUES (:vid, :mn, :mo, :yr, :ct, :ov, :nv)"
+            ),
+            {
+                "vid": entry["version_id"],
+                "mn": entry["make_n"], "mo": entry["model_n"], "yr": entry["year"],
+                "ct": entry["change_type"],
+                "ov": entry["old_values"], "nv": entry["new_values"],
             },
         )
 
-        # Write changelog entries
-        for entry in changelog_entries:
-            conn.execute(
-                text(
-                    "INSERT INTO web_battery_validation_changelog"
-                    " (version_id, make_n, model_n, year, change_type, old_values, new_values)"
-                    " VALUES (:vid, :mn, :mo, :yr, :ct, :ov, :nv)"
-                ),
-                {
-                    "vid": entry["version_id"],
-                    "mn": entry["make_n"], "mo": entry["model_n"], "yr": entry["year"],
-                    "ct": entry["change_type"],
-                    "ov": entry["old_values"], "nv": entry["new_values"],
-                },
-            )
+    # Clear staging
+    db.execute(text("TRUNCATE web_battery_staging"))
 
-        # Clear staging
-        conn.execute(text("TRUNCATE web_battery_staging"))
+    db.commit()
+
+    # matcher._web_validation() caches all of master in memory at startup and
+    # was never invalidated after a commit — admins would see stale
+    # recommendations until the server restarted. Clear it now that this
+    # commit's changes are durable.
+    matcher._web_validation.cache_clear()
 
     logger.info(
         "Staging committed by %s — version #%d: %d committed, %d removed, %d conflicts resolved",
@@ -2350,26 +2306,21 @@ def commit_staging(
     }
 
 
-@router.post("/pipeline/web-validate/staging/discard", summary="Discard staged vehicles and remove their master records")
-def discard_staging(admin: AdminUser = Depends(require_admin)):
-    with engine.begin() as conn:
-        run_id_row = conn.execute(
-            text("SELECT run_id FROM web_battery_staging LIMIT 1")
-        ).scalar()
+@router.post("/pipeline/web-validate/staging/discard", summary="Discard staged vehicles without touching master")
+def discard_staging(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    # Scrape results now land in web_battery_staging directly (see
+    # _upsert_rows() in pipelines/web_battery_validate.py) — master
+    # (web_battery_validation) is never written to before an explicit
+    # commit, so there's nothing there for a discard to undo anymore.
+    with _pipeline_lock:
+        if _pipeline_state["status"] in ("running", "paused"):
+            raise HTTPException(status_code=409, detail="Cannot discard staging while pipeline is running or paused")
 
-        if not run_id_row:
-            conn.execute(text("TRUNCATE web_battery_staging"))
-            return {"discarded": 0}
+    discarded = db.execute(text("SELECT COUNT(*) FROM web_battery_staging")).scalar() or 0
+    db.execute(text("TRUNCATE web_battery_staging"))
+    db.commit()
 
-        result = conn.execute(
-            text("DELETE FROM web_battery_validation WHERE run_id = :rid"),
-            {"rid": run_id_row},
-        )
-        discarded = result.rowcount
-
-        conn.execute(text("TRUNCATE web_battery_staging"))
-
-    logger.info("Staging discarded by %s — %d master records removed", admin.username, discarded)
+    logger.info("Staging discarded by %s — %d staged rows removed", admin.username, discarded)
     return {"discarded": discarded}
 
 
@@ -2402,7 +2353,7 @@ def _is_suspicious_ah(make_n: str, ah) -> bool:
 def fix_staging_ah(admin: AdminUser = Depends(require_admin)):
     from sqlalchemy import text as _text
     from pipelines.web_battery_validate import (
-        _duckduckgo_lookup, _check_quota, _increment_quota, REQUEST_DELAY,
+        _duckduckgo_lookup, _check_quota, _increment_quota, REQUEST_DELAY, _flag_staging_row,
     )
 
     with engine.connect() as conn:
