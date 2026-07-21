@@ -15,7 +15,8 @@ docker compose up -d      # local Postgres 15, matches RDS (run from repo root)
 cd backend
 pip install -r requirements.txt
 alembic upgrade head
-python scripts/create_admin.py --username admin --password <password>
+# Set ADMIN_BOOTSTRAP_TOKEN in .env, start the app, then visit /admin/setup to
+# create the first admin (no CLI script — see README "Create First Admin User")
 uvicorn app:app --reload          # dev server at http://localhost:8000
 uvicorn app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"   # production — required behind the ALB, see README "Running the App"
 ```
@@ -156,6 +157,24 @@ The revert-endpoint FK-violation fix, rate-limiter proxy-trust-boundary fix, adm
 **Also checked while in there (broader sweep, all clean, see below for the one exception):** every other `os.path.join()` call in `backend/` involving external input; SQL construction across `app.py`/`admin_router.py`/pipelines (f-strings only splice in hardcoded table/column names, all values go through bind params); `eval`/`exec`/`subprocess`/`os.system`/`pickle` (none present anywhere in the codebase); auth coverage on all 84 `admin_router.py` routes (scripted check — every route requires `require_admin` except `/login`/`/logout`, which correctly must be public); CORS config (explicit `ALLOWED_ORIGINS` allowlist, no wildcard); debug-mode traceback leakage (`FastAPI()` not instantiated with `debug=True`, so unhandled exceptions return a generic 500, not a stack trace).
 
 **Not fixed, flagged as a lower-severity follow-up:** `admin_router.py`'s `/pipeline/crsp/validate` endpoint and one edit endpoint (~line 3009, 3089) accept an arbitrary `file_path` string in the request body and `pd.read_excel()` it directly, with no check that it resolves inside the CRSP uploads directory. Same "trust a path from the request" shape as the bug above, but admin-only (`require_admin`) and constrained to `.xlsx`/`.xls` suffixes, so severity is much lower — an already-trusted admin, not an anonymous caller. Worth the same normalize+contain treatment eventually, not urgent.
+
+## DONE (2026-07-21, branch `feature/admin-account-self-service`) — Admin account bootstrap, forgot/reset password, Admin Users management page; `create_admin.py` removed
+
+**Why:** the only way to create an admin account was the standalone `scripts/create_admin.py` CLI, requiring direct server/DB access for every admin change — no forgot-password flow existed at all, and no way to see who has admin access from the UI.
+
+**First-admin bootstrap:** `GET /api/admin/bootstrap/status` + `POST /api/admin/bootstrap` (new public `/admin/setup` page) replace the CLI for the very first admin. Gated by both an empty `admin_users` table (checked first, so a populated table is never usable as a token-guessing oracle) and a shared-secret `ADMIN_BOOTSTRAP_TOKEN` env var (SSM in production) — once any admin exists the endpoint permanently 403s regardless of token. Every admin after the first is created from the dashboard (`POST /api/admin/users`, `require_admin`-gated) — no token needed there, since being logged in is the gate.
+
+**Found and fixed a real race condition while writing the concurrency test:** "check `admin_users` count, then insert" is not atomic under Postgres's default READ COMMITTED isolation. 8 concurrent bootstrap requests with distinct usernames produced 3 successful admin creations, not 1 — concurrent transactions can all observe `count()==0` before any of them commits, and since the usernames differ the unique constraint doesn't catch it. Fixed with `pg_advisory_xact_lock` in `bootstrap()` serializing all bootstrap attempts against each other.
+
+**Forgot/reset password — both mechanisms built, per explicit decision:** (a) an admin-generated reset link (`POST /api/admin/users/{id}/reset-link`, an already-logged-in admin generates a link for a locked-out colleague and shares it manually — no email infra needed, works today) and (b) real email delivery via a new `backend/email_utils.py` wrapping AWS SES (`SES_FROM_EMAIL`/`SES_REGION` env vars, `boto3` added to requirements.txt). SES needs domain verification done in AWS outside this repo before it can actually send in production — `send_reset_email()` no-ops with a logged warning until `SES_FROM_EMAIL` is set, so mechanism (a) keeps working regardless. Reset tokens are SHA-256 hashed (not bcrypt — high-entropy CSPRNG tokens don't need bcrypt's slow-by-design property; documented inline so it doesn't get "fixed" into bcrypt later), single-use, overwrite-on-reissue, and a successful reset invalidates every existing session for that admin (`invalidate_all_sessions`).
+
+**Admin Users management page** (`/admin/users`, new sidebar entry): list all admins, add/delete, generate a reset link, self-only email editing (an admin editing *another* admin's email would let them redirect that admin's password-reset destination — a real privilege-escalation path, so `PATCH /api/admin/users/{id}` 403s unless `id == self`). Delete blocks self-delete and blocks deleting the last remaining admin (the latter is fully subsumed by the former in practice — if you're the only admin, you're the only session that could attempt it — kept anyway as cheap defense-in-depth).
+
+**Audit trail:** new `admin_account_audit_log` table (mirrors `BatteryAuditLog`'s precedent) logs bootstrap/create/delete/reset-link-generated/password-reset, with `actor_username`/`target_username` stored as snapshots (not just FKs) so entries stay readable after either account is deleted — surfaced as an Activity section on the Admin Users page.
+
+**Verification:** 22 new backend pytest tests (`test_admin_account_management.py`, full suite 84/84 green) plus manual end-to-end runs against real dev servers through the actual Vite proxy (not just type-check/build) for both the public auth pages and the full Admin Users CRUD flow, confirming the dev DB was left clean afterward each time.
+
+`scripts/create_admin.py` deleted; README/CLAUDE.md/AWS-MIGRATION-PLAN.md/TECHNICAL_DOCUMENTATION.md updated to match.
 
 ## PLANNED FOR TOMORROW (found 2026-07-20) — Least-privilege public DB role (public traffic currently shares the full-privilege DB credential)
 

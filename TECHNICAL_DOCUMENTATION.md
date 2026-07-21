@@ -268,9 +268,11 @@ Always filter `deleted_at IS NULL` when querying active batteries. Indexes on `m
 
 ### 4.2 Admin / Audit Tables
 
-**`admin_users`** — Admin credentials (bcrypt, cost 12). Written by `create_admin.py`.
+**`admin_users`** — Admin credentials (bcrypt, cost 12). Written by `POST /api/admin/bootstrap` (first admin) or `POST /api/admin/users` (subsequent admins, requires an already-authenticated admin). Also holds a nullable `email` (self-service password-reset target) and a nullable `reset_token_hash`/`reset_token_expires_at` pair (SHA-256 hashed, single-use, overwrite-on-reissue).
 
 **`admin_sessions`** — One row per active admin login. 8-hour TTL. Token is a 64-char hex string (32 random bytes).
+
+**`admin_account_audit_log`** — Admin-account lifecycle events: bootstrap, create, delete, reset-link-generated, password-reset. `actor_username`/`target_username` are stored as snapshots (not just FKs) so entries stay readable after either account is deleted.
 
 **`battery_audit_log`** — Immutable change history for `battery_specs`. One row per INSERT/UPDATE/DELETE. Stores old/new values as JSON strings.
 
@@ -885,8 +887,9 @@ The pipeline stages are:
 # 2. Run migrations
 alembic upgrade head
 
-# 3. Create admin account
-python scripts/create_admin.py --username admin --password <password>
+# 3. Create the first admin account
+# Set ADMIN_BOOTSTRAP_TOKEN in .env, start the app, then visit /admin/setup
+# (no CLI script — see README.md's "Create First Admin User")
 
 # 4. Seed vehicle and battery data
 python pipelines/dataprep.py

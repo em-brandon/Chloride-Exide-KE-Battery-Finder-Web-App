@@ -50,7 +50,7 @@ def main() -> None:
         now = datetime.now(timezone.utc)
         result = conn.execute(DELETE_SQL, {"now": now})
         print(f"\nDone. {result.rowcount} row(s) soft-deleted (deleted_at = {now.isoformat()}).")
-        print("Run 'python scripts/create_admin.py' or restart the app to refresh the in-memory battery cache.")
+        print("Use the admin dashboard's 'Refresh Matcher Cache' action or restart the app to refresh the in-memory battery cache.")
 
 
 if __name__ == "__main__":

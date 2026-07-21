@@ -10,6 +10,16 @@ Endpoints
 POST   /api/admin/login
 POST   /api/admin/logout
 GET    /api/admin/me
+GET    /api/admin/bootstrap/status
+POST   /api/admin/bootstrap
+POST   /api/admin/forgot-password
+POST   /api/admin/reset-password
+GET    /api/admin/users
+POST   /api/admin/users
+PATCH  /api/admin/users/{id}
+DELETE /api/admin/users/{id}
+POST   /api/admin/users/{id}/reset-link
+GET    /api/admin/users/audit-log
 GET    /api/admin/stats
 GET    /api/admin/health
 GET    /api/admin/batteries
@@ -45,18 +55,25 @@ import matcher
 import pandas as pd
 from admin_auth import (
     COOKIE_NAME,
+    clear_reset_token,
     clear_session_cookie,
+    consume_reset_token,
     create_session,
     delete_session,
+    generate_reset_token,
+    hash_password,
+    invalidate_all_sessions,
     require_admin,
     set_session_cookie,
+    verify_bootstrap_token,
     verify_password,
 )
 from db import SessionLocal, engine
+from email_utils import send_reset_email
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from models import (
-    AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
+    AdminAccountAuditLog, AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
     SearchEvent, UserFeedback, TestUser, TestUserSession,
     VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog,
     EnrichmentCacheMeta, FueleconomyVehicle, ExpansionMake,
@@ -65,6 +82,7 @@ from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import func, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from upload_pipeline import process_battery_upload
 
@@ -121,6 +139,31 @@ def get_db():
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=100)
     password: str = Field(..., min_length=1, max_length=200)
+
+
+class BootstrapRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=8, max_length=200)
+    bootstrap_token: str = Field(..., min_length=1)
+
+
+class ForgotPasswordRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=100)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=200)
+
+
+class AdminUserCreateRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=8, max_length=200)
+    email: Optional[str] = Field(None, max_length=255)
+
+
+class AdminUserUpdateRequest(BaseModel):
+    email: Optional[str] = Field(None, max_length=255)
 
 
 class BatteryCreateRequest(BaseModel):
@@ -198,6 +241,279 @@ def logout(request: Request, db: Session = Depends(get_db)):
 @router.get("/me")
 def me(admin: AdminUser = Depends(require_admin)):
     return {"username": admin.username}
+
+
+def _write_account_audit_log(
+    db: Session,
+    action: str,
+    target_username: str,
+    actor: Optional[AdminUser] = None,
+    target_admin_id: Optional[int] = None,
+    ip_address: Optional[str] = None,
+) -> None:
+    db.add(AdminAccountAuditLog(
+        action=action,
+        actor_admin_id=actor.id if actor else None,
+        actor_username=actor.username if actor else None,
+        target_admin_id=target_admin_id,
+        target_username=target_username,
+        ip_address=ip_address,
+        created_at=datetime.now(timezone.utc),
+    ))
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Account bootstrap / forgot-password / reset-password (public, rate-limited)
+# ---------------------------------------------------------------------------
+
+@router.get("/bootstrap/status")
+def bootstrap_status(db: Session = Depends(get_db)):
+    return {"needs_setup": db.query(AdminUser).count() == 0}
+
+
+_BOOTSTRAP_LOCK_KEY = 872634501  # arbitrary constant; see comment in bootstrap() below
+
+
+@router.post("/bootstrap")
+@_limiter.limit("3/hour")
+def bootstrap(request: Request, body: BootstrapRequest, db: Session = Depends(get_db)):
+    # "Check count, then insert" is NOT atomic under Postgres's default
+    # READ COMMITTED isolation — two concurrent requests can both see
+    # count()==0 before either commits, and since they'd use different
+    # usernames the uniqueness constraint doesn't catch it either. This
+    # advisory lock serializes all bootstrap attempts against each other
+    # (auto-released at transaction end) so only one can ever pass the
+    # empty-table check before the row exists. Caught by
+    # test_bootstrap_concurrent_requests_only_create_one_admin, which
+    # failed (3 admins created from 8 concurrent requests) before this
+    # lock was added.
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _BOOTSTRAP_LOCK_KEY})
+
+    # Check table-emptiness BEFORE the token comparison — a populated
+    # table must never be usable as an oracle for guessing the token.
+    if db.query(AdminUser).count() > 0:
+        raise HTTPException(status_code=403, detail="Setup already completed")
+
+    if not verify_bootstrap_token(body.bootstrap_token):
+        raise HTTPException(status_code=401, detail="Invalid bootstrap token")
+
+    existing = db.query(AdminUser).filter(AdminUser.username == body.username).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already exists")
+
+    admin = AdminUser(
+        username=body.username,
+        password_hash=hash_password(body.password),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(admin)
+    db.commit()
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "bootstrap", body.username, ip_address=ip)
+    logger.info("Admin bootstrap: %s from %s", body.username, ip)
+    return {"detail": "Admin account created. Please log in."}
+
+
+@router.post("/forgot-password")
+@_limiter.limit("5/minute")
+def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    generic_response = {"detail": "If that account exists, a reset link has been sent."}
+
+    user = db.query(AdminUser).filter(AdminUser.username == body.username).first()
+    # Always do equivalent work regardless of whether the user/email
+    # exists, and always return the identical response — mirrors the
+    # login route's existing anti-enumeration pattern. Response shape/
+    # timing must never reveal whether a username exists or has an
+    # email configured.
+    if user and user.email:
+        token = generate_reset_token(db, user)
+        reset_url = f"{request.base_url}admin/reset-password?token={token}"
+        send_reset_email(user.email, reset_url)
+
+    return generic_response
+
+
+@router.post("/reset-password")
+@_limiter.limit("5/minute")
+def reset_password(request: Request, body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = consume_reset_token(db, body.token)
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    user.password_hash = hash_password(body.new_password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    clear_reset_token(db, user)
+    invalidate_all_sessions(db, user)
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "password_reset", user.username, ip_address=ip)
+    logger.info("Admin password reset: %s from %s", user.username, ip)
+    return {"detail": "Password updated. Please log in."}
+
+
+# ---------------------------------------------------------------------------
+# Admin user management (authenticated — replaces create_admin.py for
+# every admin after the first, which comes from POST /bootstrap above)
+# ---------------------------------------------------------------------------
+
+@router.get("/users")
+def list_admin_users(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    users = db.query(AdminUser).order_by(AdminUser.created_at).all()
+    return {
+        "users": [
+            {
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "created_at": u.created_at.isoformat(),
+                "locked": u.locked_until is not None and u.locked_until > now,
+            }
+            for u in users
+        ]
+    }
+
+
+@router.post("/users", status_code=201)
+def create_admin_user(
+    request: Request,
+    body: AdminUserCreateRequest,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if db.query(AdminUser).filter(AdminUser.username == body.username).first():
+        raise HTTPException(status_code=409, detail=f"Username {body.username!r} already exists")
+    if body.email and db.query(AdminUser).filter(AdminUser.email == body.email).first():
+        raise HTTPException(status_code=409, detail=f"Email {body.email!r} already in use")
+
+    new_admin = AdminUser(
+        username=body.username,
+        password_hash=hash_password(body.password),
+        email=body.email,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_admin)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Username or email already exists")
+    db.refresh(new_admin)
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "create", new_admin.username, actor=admin, target_admin_id=new_admin.id, ip_address=ip)
+    logger.info("Admin created: %s by %s", new_admin.username, admin.username)
+    return {"id": new_admin.id, "username": new_admin.username}
+
+
+@router.patch("/users/{user_id}")
+def update_admin_user(
+    user_id: int,
+    body: AdminUserUpdateRequest,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    # Self-only: an admin editing another admin's email would let them
+    # hijack that admin's password-reset delivery target.
+    if user_id != admin.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own email")
+
+    if body.email and db.query(AdminUser).filter(AdminUser.email == body.email, AdminUser.id != admin.id).first():
+        raise HTTPException(status_code=409, detail=f"Email {body.email!r} already in use")
+
+    admin.email = body.email
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email already in use")
+
+    return {"id": admin.id, "email": admin.email}
+
+
+@router.delete("/users/{user_id}")
+def delete_admin_user(
+    user_id: int,
+    request: Request,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    target = db.query(AdminUser).filter(AdminUser.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    total_admins = db.query(AdminUser).count()
+    if total_admins <= 1:
+        raise HTTPException(status_code=400, detail="Cannot delete the last remaining admin account")
+
+    target_username = target.username  # snapshot before delete
+    db.delete(target)  # AdminSession.admin_id cascades (ondelete=CASCADE)
+    db.commit()
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "delete", target_username, actor=admin, ip_address=ip)
+    logger.info("Admin deleted: %s by %s", target_username, admin.username)
+    return {"detail": f"Admin {target_username!r} deleted"}
+
+
+@router.post("/users/{user_id}/reset-link")
+def generate_admin_reset_link(
+    user_id: int,
+    request: Request,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.query(AdminUser).filter(AdminUser.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    token = generate_reset_token(db, target)
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "reset_link_generated", target.username, actor=admin, target_admin_id=target.id, ip_address=ip)
+    logger.info("Reset link generated for %s by %s", target.username, admin.username)
+    return {"token": token}
+
+
+@router.get("/users/audit-log")
+def get_admin_account_audit_log(
+    page: int = 1,
+    page_size: int = 50,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    total = db.query(AdminAccountAuditLog).count()
+    rows = (
+        db.query(AdminAccountAuditLog)
+        .order_by(AdminAccountAuditLog.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": r.id,
+                "action": r.action,
+                "actor_username": r.actor_username,
+                "target_username": r.target_username,
+                "ip_address": r.ip_address,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ],
+    }
 
 
 # ---------------------------------------------------------------------------
