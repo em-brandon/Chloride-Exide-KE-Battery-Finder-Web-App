@@ -372,6 +372,14 @@ cd frontend && bun install
 cd backend && alembic upgrade head
 ```
 
+Migration `20260721_c4d5e6f7a8b9` creates the restricted `batteryfinder_public` Postgres role used by public routes and `matcher.py` (see [Environment Variables](#environment-variables)) — set `PUBLIC_DB_PASSWORD` before running it the first time, e.g.:
+
+```bash
+cd backend && PUBLIC_DB_PASSWORD=yourpublicrolepassword alembic upgrade head
+```
+
+Then add `PUBLIC_DATABASE_URL` to `.env` using that same password (same host/port/db as `DATABASE_URL`, user `batteryfinder_public`).
+
 ### Create First Admin User
 
 ```bash
@@ -1738,7 +1746,9 @@ Create a `.env` file at the repo root and fill in your values before running the
 
 | Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string. Matches `docker-compose.yml`'s Postgres service by default — see [Local Postgres (Docker)](#local-postgres-docker) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string for the full-privilege `batteryfinder` role. Matches `docker-compose.yml`'s Postgres service by default — see [Local Postgres (Docker)](#local-postgres-docker) |
+| `PUBLIC_DATABASE_URL` | Yes | PostgreSQL connection string for the restricted `batteryfinder_public` role used by public routes (`app.py`) and `matcher.py`. Same host/db as `DATABASE_URL`, different user/password. Create the role first by running migration `20260721_c4d5e6f7a8b9` with `PUBLIC_DB_PASSWORD` set (see below) |
+| `PUBLIC_DB_PASSWORD` | Only when running migration `20260721_c4d5e6f7a8b9` | Password to (re-)create the `batteryfinder_public` role with. Only read at migration time, not by the running app — not needed once the role exists and `PUBLIC_DATABASE_URL` is set |
 | `ADMIN_COOKIE_SECURE` | No | Set `false` for local HTTP dev (default `true`); also gates the `Strict-Transport-Security` response header |
 | `ALLOWED_ORIGINS` | No | Comma-separated list of origins allowed to make cross-origin requests (CORS). Empty by default — CloudFront/ALB serve the SPA and API same-origin in production, so no origin is trusted unless explicitly set here |
 | `SEARXNG_URL` | No | SearXNG instance base URL for web battery validation; skipped if unset |
@@ -1751,6 +1761,7 @@ Example `.env`:
 
 ```env
 DATABASE_URL=postgresql://******
+PUBLIC_DATABASE_URL=postgresql://******
 ADMIN_COOKIE_SECURE=false
 ```
 
