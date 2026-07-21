@@ -505,6 +505,71 @@ def _increment_quota(eng, provider: str) -> None:
         """), {"p": provider, "now": now})
 
 
+def _try_reserve_quota(eng, provider: str) -> bool:
+    """
+    Atomically check-and-reserve one quota slot in a single conditional
+    UPDATE, replacing the separate _check_quota() (SELECT) then
+    _increment_quota() (UPDATE) two-call pattern every other caller in this
+    module used. That pattern left a real gap between "check passed" and
+    "increment applied" — with real network I/O (the actual API call) in
+    between — where concurrent worker threads could all see quota as
+    available and all proceed, overshooting quota_limit by up to the
+    worker count.
+
+    A single `UPDATE ... WHERE quota_limit = -1 OR calls_made <
+    quota_limit RETURNING calls_made` is atomic at the database level:
+    Postgres's row-level locking serializes concurrent attempts against the
+    same quota row, so a slot can only be reserved if it's genuinely still
+    available at the moment the row lock is acquired — no separate
+    read-then-write gap for another thread to race into.
+
+    Returns True if a slot was reserved (caller should proceed with the
+    call) or the provider has unlimited quota; False if exhausted or the
+    provider's API key isn't configured. No rollback if the caller's
+    subsequent API call then fails — a reserved-then-failed call still
+    counts against quota, matching how most providers rate-limit failed
+    requests too, and keeping this function simple (one round trip in the
+    common case, no compensating transaction to get wrong).
+    """
+    if provider == "brave" and not BRAVE_SEARCH_API_KEY:
+        return False
+    if provider == "searxng" and not SEARXNG_URL:
+        return False
+    if provider == "tavily" and not TAVILY_API_KEY:
+        return False
+
+    now = datetime.now(timezone.utc)
+    reserve_sql = text("""
+        UPDATE api_usage_quota
+        SET calls_made = calls_made + 1, updated_at = :now
+        WHERE provider = :p
+          AND (period_end IS NULL OR period_end > :now)
+          AND (quota_limit = -1 OR calls_made < quota_limit)
+        RETURNING calls_made
+    """)
+    with eng.begin() as conn:
+        if conn.execute(reserve_sql, {"p": provider, "now": now}).fetchone() is not None:
+            return True
+
+    # The conditional UPDATE matched no row — either no active period row
+    # exists yet for this provider, or quota_limit is genuinely exhausted.
+    # Distinguish the two: if there's truly no active row, create one
+    # (matches _check_quota's original "no row -> create one, allow"
+    # behavior for a brand-new period) and retry once.
+    with eng.connect() as conn:
+        has_active_row = conn.execute(text("""
+            SELECT 1 FROM api_usage_quota
+            WHERE provider = :p AND (period_end IS NULL OR period_end > :now)
+            LIMIT 1
+        """), {"p": provider, "now": now}).fetchone()
+    if has_active_row is not None:
+        return False  # active row exists, quota_limit genuinely exhausted
+
+    _ensure_quota_row(eng, provider)
+    with eng.begin() as conn:
+        return conn.execute(reserve_sql, {"p": provider, "now": now}).fetchone() is not None
+
+
 # ---------------------------------------------------------------------------
 # Resolve parsed specs to a battery_code from battery_specs
 # ---------------------------------------------------------------------------
@@ -932,10 +997,9 @@ def main(
             any_net_error = False
 
             # Brave — primary paid provider
-            if _is_enabled("brave") and _check_quota(engine, "brave"):
+            if _is_enabled("brave") and _try_reserve_quota(engine, "brave"):
                 try:
                     web_parsed = _brave_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "brave")
                     if web_parsed:
                         src = "brave"
                         with _prov_lock:
@@ -970,11 +1034,10 @@ def main(
             if _is_cancelled():
                 return
 
-            # Tavily — second paid fallback; _check_quota returns False instantly if no key/quota
-            if web_parsed is None and _is_enabled("tavily") and _check_quota(engine, "tavily"):
+            # Tavily — second paid fallback; _try_reserve_quota returns False instantly if no key/quota
+            if web_parsed is None and _is_enabled("tavily") and _try_reserve_quota(engine, "tavily"):
                 try:
                     web_parsed = _tavily_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "tavily")
                     if web_parsed:
                         src = "tavily"
                         with _prov_lock:
@@ -991,10 +1054,9 @@ def main(
                 return
 
             # DDG — last resort, free and unlimited
-            if web_parsed is None and _is_enabled("duckduckgo") and _check_quota(engine, "duckduckgo"):
+            if web_parsed is None and _is_enabled("duckduckgo") and _try_reserve_quota(engine, "duckduckgo"):
                 try:
                     web_parsed = _duckduckgo_lookup(make, model, rep_year, cancel_event)
-                    _increment_quota(engine, "duckduckgo")
                     if web_parsed:
                         src = "duckduckgo"
                         with _prov_lock:
@@ -1123,9 +1185,8 @@ def main(
 
             try:
                 # carquery: fill missing engine_cc only
-                if not engine_cc and _check_quota(engine, "carquery"):
+                if not engine_cc and _try_reserve_quota(engine, "carquery"):
                     cq = _carquery_lookup(make_n, model_n, year, cancel_event)
-                    _increment_quota(engine, "carquery")
                     if cq:
                         engine_cc = cq.get("engine_cc")
                         if not fuel_type:
