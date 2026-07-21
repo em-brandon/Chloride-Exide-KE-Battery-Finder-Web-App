@@ -1935,6 +1935,9 @@ def delete_master_record(
 @router.post("/pipeline/web-validate/reset-cache", summary="Delete the battery validate lookup cache file and all matched vehicle rows")
 def reset_web_validate_cache(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
     from sqlalchemy import text as _text
+    with _pipeline_lock:
+        if _pipeline_state["status"] in ("running", "paused"):
+            raise HTTPException(status_code=409, detail="Cannot reset cache while pipeline is running or paused")
     cache_path = Path(__file__).parent / "cache" / "battery_validate_cache.json"
     file_deleted = False
     if cache_path.exists():
