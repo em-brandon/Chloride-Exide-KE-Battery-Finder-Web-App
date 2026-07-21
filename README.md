@@ -1792,9 +1792,49 @@ pytest --junitxml=test-results.xml  # what CI runs, for a JUnit report
 | `test_admin_health.py` | 1 | Admin health endpoint reports the true cluster-wide DB connection count, not just one ECS task's local pool |
 | `test_health_endpoint.py` | 1 | Public unauthenticated `/health` returns only a minimal `{"status": "ok"}` body |
 
-### Frontend (none currently)
+### Frontend (`frontend/src/**/*.test.{ts,tsx}`, Vitest + React Testing Library — 169 tests)
 
-`frontend/package.json` has no `test` script, no test framework is installed (no Vitest/Jest), and there are no `*.test.*`/`*.spec.*` files anywhere in `frontend/src`. The only frontend checks that exist today are `bun run lint` (ESLint) and the type-check baked into `bun run build` (`tsc -b`) — both purely static, neither exercises runtime behavior. Not yet flagged as planned work; recorded here so the gap is visible rather than assumed away.
+`vitest.config.ts` runs in a jsdom environment with `src/test/setup.ts` as the global setup (jest-dom matchers, a `matchMedia` polyfill jsdom doesn't provide). Two stability fixes worth knowing about if you're adding tests here: `process.env.NODE_ENV` is forced to `"test"` in the config (an ambient `NODE_ENV=production` left over from a build step makes React resolve its production bundle inside jsdom, which breaks `act()`), and `fileParallelism: false` plus a raised `configure({ asyncUtilTimeout: 5000 })` are both set because running every file's jsdom instance fully in parallel produced real, reproducible `waitFor` timeouts on this machine — correctness over raw speed for a CI-run suite. Test files are excluded from `tsconfig.app.json`'s `tsc -b` (so `bun run build` never fails on test-only globals) and get their own `tsconfig.test.json` for editor support instead.
+
+Several components render unlabeled `<input>`s (no `htmlFor`/`id` pairing between `<label>` and its input — a real accessibility gap, not fixed here since that's out of scope for writing tests) — those tests select fields by DOM order/type rather than `getByLabelText`; see `AdminLogin.test.tsx` and `AdminBatteries.test.tsx` for the pattern.
+
+```bash
+cd frontend
+bun run test                              # run everything
+bun run test:ci                           # what CI runs — adds a JUnit report (test-results.xml)
+```
+
+| File | Tests | Covers |
+| --- | --- | --- |
+| `lib/utils.test.ts` | 7 | `cn()`'s tailwind-conflict merging, `stripMakePrefix()`'s prefix matching, `useIsMobile()`'s initial state and matchMedia reactivity |
+| `lib/brandBranding.test.ts` | 10 | `resolveDisplayBrand()`'s brand/technology branching (Exide Maxx detection, Chloride Exide / Exide Matrix technology splits) and `groupByBrand()`'s counting/sort order |
+| `lib/maintenance.test.ts` | 5 | 503+HTML maintenance-mode detection vs. an ordinary API error, and the reload-and-throw redirect |
+| `lib/api.test.ts` | 23 | `friendlyError()`'s full branch coverage, the public fetch wrappers' request shape/query-encoding, error-detail propagation, and the maintenance-mode path |
+| `lib/testUserApi.test.ts` | 13 | Token/cached-user localStorage helpers, register/login/logout/`fetchMe`'s token lifecycle including the 401-clears-token path |
+| `lib/adminApi.test.ts` | 27 | `adminFetch()`'s shared branching (401/5xx/4xx/network-failure/204), `friendlyErrorMessage()`'s status mapping, representative wrapper request shapes, and the two non-`adminFetch` paths (`uploadBatteriesExcel`'s FormData, `downloadFeedbackPdf/Csv`'s blob-to-download flow) |
+| `lib/TestUserContext.test.tsx` | 4 | `TestUserProvider`'s no-token fast path, loading→resolved transition, fetchMe-failure fallback, and `logout()` |
+| `components/AccuracyBar.test.tsx` | 6 | The accuracy-score calculation driven through rendered output (exact/close/fallback match types) and the compact-mode tooltip toggle |
+| `components/ConfidenceBar.test.tsx` | 4 | The displayed percentage and its three confidence-tier color classes |
+| `components/VehicleFinderForm.test.tsx` | 5 | The core select-mode search flow: make→model→year cascade, a successful submission rendering the result card, and both a failed recommendation and a failed initial makes-fetch surfacing inline |
+| `components/admin/ProtectedRoute.test.tsx` | 4 | The loading/ok/unauth/unreachable state machine, including that an unreachable backend shows a retry screen rather than bouncing to login |
+| `components/admin/AdminLayout.test.tsx` | 6 | Active-route nav highlighting, auto-collapse on certain routes, dark-mode/collapse persistence to localStorage, and sign-out |
+| `pages/admin/AdminLogin.test.tsx` | 3 | Login→navigate on success, inline error with no navigation on failure, disabled/"Signing in…" while in flight |
+| `pages/admin/AdminSessions.test.tsx` | 5 | Active/expired counts, empty state, `AdminAuthError` redirect vs. a plain load error, and revoking a session |
+| `pages/admin/AdminSettings.test.tsx` | 5 | Maintenance-mode ON/OFF button and status text, the visitor-facing banner, a successful and a failed toggle, and the load-failure path |
+| `pages/admin/AdminTestSessions.test.tsx` | 5 | Combined session+user load, the active-session-count chip, empty state, the Users tab, and revoking a session |
+| `pages/admin/AdminSearchLog.test.tsx` | 5 | Row rendering, empty/error states, pagination, and the PDF button's disabled-when-empty state |
+| `pages/admin/AdminAuditLog.test.tsx` | 7 | Entry rendering with the computed changed-field count, empty/error states, the diff-viewer expand/collapse, action-filter apply/reset, and pagination |
+| `pages/admin/AdminFeedback.test.tsx` | 6 | Summary strip + row rendering, empty/error states, the accuracy filter (reloading page 1, hiding the summary strip), CSV export, and pagination |
+| `pages/admin/AdminBatteries.test.tsx` | 7 | Overview brand grouping by origin, brand-tile drill-down, the manage-mode paginated table, adding a battery (verifying the uppercase/trim normalization), and delete confirm/cancel via `window.confirm` |
+| `pages/admin/AdminVehicleData.test.tsx` | 6 | Coverage tab's matched-percentage display, the staleness banner, coverage-by-make search filtering, a load failure, and the OEM Fitment tab |
+| `pages/admin/AdminDashboard.test.tsx` | 5 | All-four-source load rendering stats/health, a load failure, "Refresh now" re-triggering all fetches, and the cache-refresh success/failure messages |
+| `test/smoke.test.tsx` | 1 | Proves the Vitest + RTL + jsdom pipeline itself renders and asserts correctly |
+
+**Not covered, flagged as follow-up work, not silently assumed away:**
+
+- `AdminDataPipeline.tsx` (4,395 lines — three pipeline UIs bundled into one file: CRSP, web-validation, vehicle expansion) is large enough to deserve its own dedicated test-writing pass rather than being squeezed into this one.
+- `VehicleFinderForm.tsx`/`MobileVehicleFinder.tsx`'s type-mode search, battery-spec search tab, alternates list, copy-to-clipboard, and the feedback modal — only the main select-mode search+result flow is covered.
+- Every modal component (`FeedbackModal`, `FaqModal`, `HowToUseModal`, `PrivacyModal`, `CopyrightModal`, `TermsGate`, `BuildVersionModal`) and `pages/TestUserLogin.tsx` have no tests yet.
 
 ## CI/CD
 
