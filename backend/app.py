@@ -386,7 +386,7 @@ def _log_search_event(
     input_type: Optional[str] = None,
 ) -> None:
     try:
-        db = SessionLocal()
+        db = PublicSessionLocal()
         db.add(SearchEvent(
             timestamp        = datetime.now(timezone.utc),
             make             = make,
@@ -477,7 +477,7 @@ def submit_feedback(request: Request, req: FeedbackRequest):
     auth_header = request.headers.get("Authorization", "")
     token = auth_header.removeprefix("Bearer ").strip() or None
 
-    db = SessionLocal()
+    db = PublicSessionLocal()
     try:
         test_user_id: Optional[int] = None
         if token:
