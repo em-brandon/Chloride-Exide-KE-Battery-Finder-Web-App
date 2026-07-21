@@ -1845,11 +1845,12 @@ Defined in `Jenkinsfile`. Pipeline stages:
 3. Install Bun + frontend dependencies (`bun install`)
 4. Frontend lint (`bun run lint`)
 5. Frontend build (`bun run build`)
-6. Start test database — brings up the same Postgres 15 container `docker-compose.yml` defines for local dev, migrates it to head (`alembic upgrade head`)
-7. Backend tests (`pytest --junitxml=test-results.xml`) — see [Automated Test Suite](#automated-test-suite) above
-8. Archive `frontend/dist/` artifacts
+6. Frontend tests (`bun run test:ci` — Vitest with a JUnit report) — see [Automated Test Suite](#automated-test-suite) above
+7. Start test database — brings up the same Postgres 15 container `docker-compose.yml` defines for local dev, migrates it to head (`alembic upgrade head`)
+8. Backend tests (`pytest --junitxml=test-results.xml`) — see [Automated Test Suite](#automated-test-suite) above
+9. Archive `frontend/dist/` artifacts
 
-JUnit results are published from `test-results.xml` (`allowEmptyResults: true` so a missing report doesn't itself fail the build); the Docker test database is torn down in `post { always { ... } }` regardless of outcome. Build failure notifications are sent by email. Frontend build/lint gates the pipeline, but — per the note above — there's no frontend test stage because there's no frontend test suite to run yet.
+Both suites' JUnit reports are published via the same post-build step (`junit testResults: '**/test-results.xml'`, `allowEmptyResults: true` so a missing report doesn't itself fail the build); the Docker test database is torn down in `post { always { ... } }` regardless of outcome. Build failure notifications are sent by email.
 
 ### Local Postgres Dev DB Backup (`db-backup-script/`)
 
