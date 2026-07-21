@@ -272,9 +272,24 @@ def bootstrap_status(db: Session = Depends(get_db)):
     return {"needs_setup": db.query(AdminUser).count() == 0}
 
 
+_BOOTSTRAP_LOCK_KEY = 872634501  # arbitrary constant; see comment in bootstrap() below
+
+
 @router.post("/bootstrap")
 @_limiter.limit("3/hour")
 def bootstrap(request: Request, body: BootstrapRequest, db: Session = Depends(get_db)):
+    # "Check count, then insert" is NOT atomic under Postgres's default
+    # READ COMMITTED isolation — two concurrent requests can both see
+    # count()==0 before either commits, and since they'd use different
+    # usernames the uniqueness constraint doesn't catch it either. This
+    # advisory lock serializes all bootstrap attempts against each other
+    # (auto-released at transaction end) so only one can ever pass the
+    # empty-table check before the row exists. Caught by
+    # test_bootstrap_concurrent_requests_only_create_one_admin, which
+    # failed (3 admins created from 8 concurrent requests) before this
+    # lock was added.
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _BOOTSTRAP_LOCK_KEY})
+
     # Check table-emptiness BEFORE the token comparison — a populated
     # table must never be usable as an oracle for guessing the token.
     if db.query(AdminUser).count() > 0:
