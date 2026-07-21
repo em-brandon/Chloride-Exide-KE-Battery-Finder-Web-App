@@ -514,7 +514,7 @@ def submit_feedback(request: Request, req: FeedbackRequest):
 @limiter.limit("5/minute")
 def register_test_user(request: Request, req: RegisterRequest):
     assert request
-    db = SessionLocal()
+    db = PublicSessionLocal()
     try:
         existing = db.query(TestUser).filter(TestUser.username == req.username).first()
         if existing:
@@ -548,7 +548,7 @@ def login_test_user(request: Request, req: LoginRequest):
         ip = ip.split(",")[0].strip()[:45]
     user_agent = request.headers.get("User-Agent", "")[:300]
 
-    db = SessionLocal()
+    db = PublicSessionLocal()
     try:
         user = db.query(TestUser).filter(TestUser.username == req.username).first()
         if not user:
@@ -608,7 +608,7 @@ def me_test_user(request: Request):
     token = auth_header.removeprefix("Bearer ").strip() or None
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated.")
-    db = SessionLocal()
+    db = PublicSessionLocal()
     try:
         user = _get_test_user_from_token(token, db)
         if not user:
