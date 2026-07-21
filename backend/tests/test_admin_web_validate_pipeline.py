@@ -50,10 +50,17 @@ def test_reset_cache_blocked_while_running(client):
     assert resp.status_code == 409
 
 
-def test_reset_cache_allowed_while_idle(client):
+def test_reset_cache_allowed_while_idle(client, monkeypatch):
+    # reset_web_validate_cache() deletes a real file on disk
+    # (backend/cache/battery_validate_cache.json) as a side effect — that
+    # isn't covered by db_session's transaction rollback the way the DB
+    # DELETE is, so patch Path.exists to keep this test from destroying a
+    # real, git-tracked cache file every time it runs.
+    monkeypatch.setattr(Path, "exists", lambda self: False)
     admin_router._pipeline_state["status"] = "idle"
     resp = client.post("/api/admin/pipeline/web-validate/reset-cache")
     assert resp.status_code == 200
+    assert resp.json()["deleted"] is False
 
 
 def test_commit_staging_blocked_while_pipeline_running(client, db_session):
