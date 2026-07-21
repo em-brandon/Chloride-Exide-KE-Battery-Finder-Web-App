@@ -264,8 +264,9 @@ class AdminUser(Base):
     Admin dashboard user account.
 
     Passwords are stored as bcrypt hashes — never plaintext.
-    Written by: create_admin.py (CLI) or future admin management endpoints.
-    Read by:    admin_auth.py (login verification).
+    Written by: POST /api/admin/bootstrap (first admin) or POST /api/admin/users
+    (subsequent admins, requires an already-authenticated admin).
+    Read by:    admin_auth.py (login verification, password-reset token handling).
     """
 
     __tablename__ = "admin_users"
@@ -276,9 +277,13 @@ class AdminUser(Base):
     created_at             = Column(DateTime(timezone=True), nullable=False)
     failed_login_attempts  = Column(Integer, nullable=False, default=0, server_default="0")
     locked_until           = Column(DateTime(timezone=True), nullable=True)
+    email                  = Column(String(255),          nullable=True, unique=True)
+    reset_token_hash       = Column(String(64),           nullable=True)
+    reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_admin_users_username", "username", unique=True),
+        Index("ix_admin_users_email", "email", unique=True),
     )
 
     def __repr__(self) -> str:
@@ -310,6 +315,43 @@ class AdminSession(Base):
 
     def __repr__(self) -> str:
         return f"<AdminSession admin_id={self.admin_id} expires={self.expires_at}>"
+
+
+class AdminAccountAuditLog(Base):
+    """
+    Audit trail for admin-account lifecycle events — bootstrap, create,
+    delete, reset-link generation, password reset. Mirrors BatteryAuditLog's
+    shape/purpose but scoped to the auth system itself rather than battery
+    data.
+
+    actor_* is null for events with no authenticated actor (bootstrapping
+    the first admin, or a self-service password reset via emailed/shared
+    link — neither happens inside a logged-in session).
+
+    Both actor_username and target_username are stored as snapshots (not
+    just resolved via the FK) so the record stays readable after either
+    account is deleted — the FKs themselves SET NULL on delete rather than
+    cascading, since the audit trail should outlive the accounts it
+    describes.
+    """
+
+    __tablename__ = "admin_account_audit_log"
+
+    id                = Column(Integer,              primary_key=True, autoincrement=True)
+    action            = Column(String(50),           nullable=False)
+    actor_admin_id    = Column(Integer,              ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True)
+    actor_username    = Column(String(100),          nullable=True)
+    target_admin_id   = Column(Integer,              ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True)
+    target_username   = Column(String(100),          nullable=False)
+    ip_address        = Column(String(45),           nullable=True)
+    created_at        = Column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_admin_account_audit_log_created_at", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AdminAccountAuditLog {self.action} target={self.target_username}>"
 
 
 class BatteryAuditLog(Base):
