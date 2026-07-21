@@ -27,6 +27,7 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 - [Security](#security)
 - [Production Architecture](#production-architecture)
 - [Environment Variables](#environment-variables)
+- [Automated Test Suite](#automated-test-suite)
 - [CI/CD](#cicd)
 
 ---
@@ -1769,19 +1770,46 @@ ADMIN_COOKIE_SECURE=false
 
 ---
 
+## Automated Test Suite
+
+### Backend (`backend/tests/`, pytest — 62 tests)
+
+`conftest.py` wires a minimal FastAPI app around `admin_router`'s routes against the real local Docker Postgres. Each test runs inside a transaction that's rolled back afterward, so DB writes never persist — **but this only covers database operations**, not filesystem side effects (e.g. a route that deletes a cache file on disk); tests touching those need to mock the filesystem call directly rather than relying on rollback.
+
+```bash
+cd backend
+pytest                              # run everything
+pytest --junitxml=test-results.xml  # what CI runs, for a JUnit report
+```
+
+| File | Tests | Covers |
+| --- | --- | --- |
+| `test_matcher.py` | 31 | The matching engine itself: model-name/fuel normalization, Ah-bracket sizing, battery-technology preference rules (luxury→AGM, EV→MF, hybrid→EFB, stop-start/diesel combinations), NS/JIS vs DIN region rules, all 3 layers of `recommend()` (exact, soft, fallback), JDM alias resolution, year-window/tie-break edge cases, and the per-make `_make_index` cache |
+| `test_admin_battery_crud.py` | 8 | Battery catalogue CRUD edge cases — duplicate codes, not-found updates/deletes, soft-delete exclusion from listings, reusing a soft-deleted battery's code |
+| `test_admin_crsp_pipeline.py` | 7 | CRSP vehicle-data staging lifecycle — conflict/new filters, commit (add vs. skip-existing), discard, revert-by-version |
+| `test_admin_web_validate_pipeline.py` | 7 | Concurrency guards on the web-validation pipeline — blocking a new run while one is paused/running, guarding reset-cache/commit/discard the same way |
+| `test_web_validate_staging_and_quota.py` | 7 | The web-validation staging→master handoff (added vs. updated labeling, invalid-row removal, conflict resolution, discard never touching master) and the atomic quota-reservation fix under concurrency |
+| `test_admin_health.py` | 1 | Admin health endpoint reports the true cluster-wide DB connection count, not just one ECS task's local pool |
+| `test_health_endpoint.py` | 1 | Public unauthenticated `/health` returns only a minimal `{"status": "ok"}` body |
+
+### Frontend (none currently)
+
+`frontend/package.json` has no `test` script, no test framework is installed (no Vitest/Jest), and there are no `*.test.*`/`*.spec.*` files anywhere in `frontend/src`. The only frontend checks that exist today are `bun run lint` (ESLint) and the type-check baked into `bun run build` (`tsc -b`) — both purely static, neither exercises runtime behavior. Not yet flagged as planned work; recorded here so the gap is visible rather than assumed away.
+
 ## CI/CD
 
 Defined in `Jenkinsfile`. Pipeline stages:
 
 1. Checkout source
-2. Install Python dependencies
-3. Install Bun + frontend dependencies
+2. Install Python dependencies (`pip install -r backend/requirements.txt`)
+3. Install Bun + frontend dependencies (`bun install`)
 4. Frontend lint (`bun run lint`)
 5. Frontend build (`bun run build`)
-6. Python tests (`pytest`)
-7. Archive `frontend/dist/` artifacts
+6. Start test database — brings up the same Postgres 15 container `docker-compose.yml` defines for local dev, migrates it to head (`alembic upgrade head`)
+7. Backend tests (`pytest --junitxml=test-results.xml`) — see [Automated Test Suite](#automated-test-suite) above
+8. Archive `frontend/dist/` artifacts
 
-Build failure notifications are sent by email.
+JUnit results are published from `test-results.xml` (`allowEmptyResults: true` so a missing report doesn't itself fail the build); the Docker test database is torn down in `post { always { ... } }` regardless of outcome. Build failure notifications are sent by email. Frontend build/lint gates the pipeline, but — per the note above — there's no frontend test stage because there's no frontend test suite to run yet.
 
 ### Local Postgres Dev DB Backup (`db-backup-script/`)
 
