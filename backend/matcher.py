@@ -441,12 +441,12 @@ def _vehicles() -> pd.DataFrame:
     Layers 1/2/3's fuzzy matching) sees the combined vehicle universe without
     needing any changes of its own.
     """
-    from db import engine
+    from db import public_engine
     df = pd.read_sql(
         "SELECT make, model, year, engine_capacity, fuel FROM vehicle_years "
         "UNION ALL "
         "SELECT make, model, year, engine_capacity, fuel FROM vehicle_years_exide",
-        engine,
+        public_engine,
     )
     df["engine_capacity"] = pd.to_numeric(df["engine_capacity"], errors="coerce")
     df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
@@ -476,11 +476,11 @@ def _make_index(make_n: str) -> tuple[pd.DataFrame, dict[str, tuple[int, ...]]]:
 
 @lru_cache(maxsize=1)
 def _batteries() -> pd.DataFrame:
-    from db import engine
+    from db import public_engine
     df = pd.read_sql(
         "SELECT battery_code, model_key, ah, cca_en, technology, origin, brand"
         " FROM battery_specs WHERE deleted_at IS NULL",
-        engine,
+        public_engine,
     )
     # Rename DB column names back to the Excel names the rest of the code expects.
     df = df.rename(columns={
@@ -542,12 +542,12 @@ def _inference() -> pd.DataFrame:
     Load dial_battery_inference (real-world order data) into memory.
     Returns an empty DataFrame if the table is missing or empty.
     """
-    from db import engine
+    from db import public_engine
     try:
         df = pd.read_sql(
             "SELECT vehicle_type, vehicle_model, battery_code, frequency, last_sale_date"
             " FROM dial_battery_inference",
-            engine,
+            public_engine,
         )
     except Exception:
         return pd.DataFrame(
@@ -588,11 +588,11 @@ def _fitment() -> pd.DataFrame:
     Load oem_fitment (Exide's official global fitment guide) into memory.
     Returns an empty DataFrame if the table is missing or empty.
     """
-    from db import engine
+    from db import public_engine
     try:
         df = pd.read_sql(
             "SELECT make, model, year_from, year_to, ah, technology FROM oem_fitment",
-            engine,
+            public_engine,
         )
     except Exception:
         return pd.DataFrame(
@@ -614,12 +614,12 @@ def _web_validation() -> pd.DataFrame:
     Load web_battery_validation (internet-sourced fitment data) into memory.
     Returns an empty DataFrame if the table is missing or empty.
     """
-    from db import engine
+    from db import public_engine
     try:
         df = pd.read_sql(
             "SELECT make_n, model_n, year, battery_code, ah, technology"
             " FROM web_battery_validation",
-            engine,
+            public_engine,
         )
     except Exception:
         return pd.DataFrame(
@@ -643,11 +643,11 @@ def _model_aliases() -> pd.DataFrame:
     Returns an empty DataFrame (with the expected columns) if the table is
     empty or cannot be queried.
     """
-    from db import engine
+    from db import public_engine
     try:
         df = pd.read_sql(
             "SELECT make, international_model, jdm_model, priority FROM model_aliases",
-            engine,
+            public_engine,
         )
     except Exception:
         return pd.DataFrame(columns=["make_n", "intl_model_n", "jdm_model_n", "priority"])

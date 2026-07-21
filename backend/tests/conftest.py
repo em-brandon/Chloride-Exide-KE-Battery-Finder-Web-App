@@ -47,6 +47,22 @@ def db_session():
 
 
 @pytest.fixture()
+def public_db_session(db_session):
+    """
+    A session for exercising code paths that use db.PublicSessionLocal
+    (app.py's public routes, app_state.py, matcher.py's write-adjacent
+    reads) against the same rolled-back transaction as db_session, rather
+    than PublicSessionLocal's real pool — which is bound to the separate
+    batteryfinder_public role/connection and would leak rows into the dev
+    database on commit, since it can't join db_session's transaction.
+    Tests should monkeypatch the relevant module's PublicSessionLocal
+    reference to `lambda: public_db_session` (mirroring how `client` overrides
+    admin_router.get_db with db_session).
+    """
+    return db_session
+
+
+@pytest.fixture()
 def fake_admin():
     admin = AdminUser()
     admin.id = 0
