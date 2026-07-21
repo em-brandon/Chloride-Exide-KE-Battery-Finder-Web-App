@@ -2019,61 +2019,80 @@ def patch_staging_row(
 
 
 @router.get("/pipeline/web-validate/staging/pre-commit", summary="Re-run conflict detection against current master state")
-def staging_pre_commit(admin: AdminUser = Depends(require_admin)):
+def staging_pre_commit(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
     """Refresh conflict flags in staging table before the commit modal is shown."""
-    with engine.begin() as conn:
-        staging_rows = conn.execute(
+    with _pipeline_lock:
+        if _pipeline_state["status"] in ("running", "paused"):
+            raise HTTPException(status_code=409, detail="Cannot pre-check staging while pipeline is running or paused")
+
+    staging_rows = db.execute(
+        text(
+            "SELECT run_id, make_n, model_n, year, ah, technology, source"
+            " FROM web_battery_staging"
+            " ORDER BY make_n, model_n, year"
+        )
+    ).fetchall()
+
+    if not staging_rows:
+        return {"conflict_count": 0, "conflicts": []}
+
+    # Bulk-load master rows for exactly the keys in staging, in one query —
+    # avoids the one-SELECT-per-row conflict check the loop below used to
+    # do. No run_id filter needed anymore: master is never written to
+    # before an explicit commit, so any row found here is unambiguously
+    # "current, already-committed data" to compare against.
+    keys = {(r.make_n, r.model_n, r.year) for r in staging_rows}
+    clauses: list[str] = []
+    params: dict = {}
+    for i, (mn, mo, yr) in enumerate(keys):
+        clauses.append(f"(make_n=:mn{i} AND model_n=:mo{i} AND year=:yr{i})")
+        params[f"mn{i}"] = mn
+        params[f"mo{i}"] = mo
+        params[f"yr{i}"] = yr
+    existing_by_key = {
+        (r.make_n, r.model_n, r.year): r
+        for r in db.execute(
             text(
-                "SELECT run_id, make_n, model_n, year, ah, technology, source"
-                " FROM web_battery_staging"
-                " ORDER BY make_n, model_n, year"
-            )
+                "SELECT make_n, model_n, year, battery_code, ah, technology, source, run_id"
+                " FROM web_battery_validation WHERE " + " OR ".join(clauses)
+            ),
+            params,
         ).fetchall()
+    }
 
-        if not staging_rows:
-            return {"conflict_count": 0, "conflicts": []}
+    conflicts = []
+    for r in staging_rows:
+        existing = existing_by_key.get((r.make_n, r.model_n, r.year))
 
-        run_id = staging_rows[0].run_id
-        conflicts = []
-        for r in staging_rows:
-            existing = conn.execute(
-                text(
-                    "SELECT battery_code, ah, technology, source, run_id"
-                    " FROM web_battery_validation"
-                    " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                    "   AND run_id IS DISTINCT FROM :rid"
-                ),
-                {"mn": r.make_n, "mo": r.model_n, "yr": r.year, "rid": run_id},
-            ).fetchone()
-
-            conflict = False
-            conflict_detail = None
-            if existing:
-                ah_diff = abs((existing.ah or 0) - (r.ah or 0)) > 5 if (existing.ah and r.ah) else False
-                tech_diff = (existing.technology or "").upper() != (r.technology or "").upper()
-                if ah_diff or tech_diff:
-                    conflict = True
-                    conflict_detail = json.dumps({
-                        "current": {
-                            "ah": existing.ah, "technology": existing.technology,
-                            "source": existing.source, "run_id": existing.run_id,
-                        },
-                        "staged": {"ah": r.ah, "technology": r.technology, "source": r.source},
-                    })
-
-            conn.execute(
-                text(
-                    "UPDATE web_battery_staging SET conflict=:cf, conflict_detail=:cd"
-                    " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                ),
-                {"cf": conflict, "cd": conflict_detail, "mn": r.make_n, "mo": r.model_n, "yr": r.year},
-            )
-            if conflict:
-                conflicts.append({
-                    "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
-                    "conflict_detail": json.loads(conflict_detail),
+        conflict = False
+        conflict_detail = None
+        if existing:
+            ah_diff = abs((existing.ah or 0) - (r.ah or 0)) > 5 if (existing.ah and r.ah) else False
+            tech_diff = (existing.technology or "").upper() != (r.technology or "").upper()
+            if ah_diff or tech_diff:
+                conflict = True
+                conflict_detail = json.dumps({
+                    "current": {
+                        "ah": existing.ah, "technology": existing.technology,
+                        "source": existing.source, "run_id": existing.run_id,
+                    },
+                    "staged": {"ah": r.ah, "technology": r.technology, "source": r.source},
                 })
 
+        db.execute(
+            text(
+                "UPDATE web_battery_staging SET conflict=:cf, conflict_detail=:cd"
+                " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
+            ),
+            {"cf": conflict, "cd": conflict_detail, "mn": r.make_n, "mo": r.model_n, "yr": r.year},
+        )
+        if conflict:
+            conflicts.append({
+                "make_n": r.make_n, "model_n": r.model_n, "year": r.year,
+                "conflict_detail": json.loads(conflict_detail),
+            })
+
+    db.commit()
     return {"conflict_count": len(conflicts), "conflicts": conflicts}
 
 
