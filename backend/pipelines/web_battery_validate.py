@@ -27,6 +27,7 @@ import socket
 import sys
 import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
@@ -582,6 +583,12 @@ def main(
     """
     from concurrent.futures import ThreadPoolExecutor
     from db import engine
+
+    # web_battery_staging.run_id is NOT NULL (unlike master's nullable
+    # run_id) — the CLI entry point (`if __name__ == "__main__":`) calls
+    # main() with no run_id, so a fallback here keeps that path working now
+    # that _upsert_rows() targets staging instead of master.
+    run_id = run_id or str(uuid.uuid4())
 
     def _log(line: str) -> None:
         print(line)
