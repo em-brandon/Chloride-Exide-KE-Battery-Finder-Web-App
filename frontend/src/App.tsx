@@ -14,6 +14,7 @@ const AdminLogin        = lazy(() => import('@/pages/admin/AdminLogin'))
 const AdminSetup           = lazy(() => import('@/pages/admin/AdminSetup'))
 const AdminForgotPassword  = lazy(() => import('@/pages/admin/AdminForgotPassword'))
 const AdminResetPassword   = lazy(() => import('@/pages/admin/AdminResetPassword'))
+const AdminUsers           = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminDashboard    = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminBatteries    = lazy(() => import('@/pages/admin/AdminBatteries'))
 const AdminAuditLog     = lazy(() => import('@/pages/admin/AdminAuditLog'))
@@ -315,6 +316,7 @@ function App() {
       <Route path="/admin/test-sessions" element={<ProtectedRoute><AdminTestSessions /></ProtectedRoute>} />
       <Route path="/admin/settings"      element={<ProtectedRoute><AdminSettings     /></ProtectedRoute>} />
       <Route path="/admin/search-log"    element={<ProtectedRoute><AdminSearchLog    /></ProtectedRoute>} />
+      <Route path="/admin/users"         element={<ProtectedRoute><AdminUsers        /></ProtectedRoute>} />
       {/* ── Test user login ── */}
       <Route path="/login" element={<TestUserProvider><TestUserLogin /></TestUserProvider>} />
     </Routes>

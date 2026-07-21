@@ -18,6 +18,7 @@ import {
   ServerStackIcon,
   MagnifyingGlassIcon,
   TruckIcon,
+  UsersIcon,
 } from '@heroicons/react/20/solid'
 import { adminLogout } from '@/lib/adminApi'
 
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
   { to: '/admin/feedback',      label: 'Feedback',   Icon: ChatBubbleLeftRightIcon },
   { to: '/admin/search-log',    label: 'Search Log', Icon: MagnifyingGlassIcon },
   { to: '/admin/test-sessions', label: 'Test Users', Icon: UserGroupIcon },
+  { to: '/admin/users',         label: 'Admin Users', Icon: UsersIcon },
   { to: '/admin/settings',      label: 'Settings',   Icon: CogIcon },
 ]
 
