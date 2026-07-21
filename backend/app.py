@@ -9,7 +9,7 @@ from typing import Optional
 import matcher
 from admin_auth import _IS_SECURE
 from admin_router import router as admin_router
-from db import SessionLocal, engine
+from db import PublicSessionLocal, SessionLocal, engine
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,7 +45,7 @@ def _flush_read_counter() -> None:
 
     if delta > 0:
         try:
-            db = SessionLocal()
+            db = PublicSessionLocal()
             row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
             if row:
                 row.stat_value += delta
@@ -76,7 +76,7 @@ def _seconds_until_midnight() -> float:
 def _reset_daily_reads() -> None:
     """Reset the db_reads counter to 0 at midnight, then reschedule for next midnight."""
     try:
-        db = SessionLocal()
+        db = PublicSessionLocal()
         row = db.query(AdminStats).filter(AdminStats.stat_key == "db_reads").first()
         if row:
             row.stat_value = 0
