@@ -340,6 +340,168 @@ def reset_password(request: Request, body: ResetPasswordRequest, db: Session = D
 
 
 # ---------------------------------------------------------------------------
+# Admin user management (authenticated — replaces create_admin.py for
+# every admin after the first, which comes from POST /bootstrap above)
+# ---------------------------------------------------------------------------
+
+@router.get("/users")
+def list_admin_users(admin: AdminUser = Depends(require_admin), db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    users = db.query(AdminUser).order_by(AdminUser.created_at).all()
+    return {
+        "users": [
+            {
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "created_at": u.created_at.isoformat(),
+                "locked": u.locked_until is not None and u.locked_until > now,
+            }
+            for u in users
+        ]
+    }
+
+
+@router.post("/users", status_code=201)
+def create_admin_user(
+    request: Request,
+    body: AdminUserCreateRequest,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if db.query(AdminUser).filter(AdminUser.username == body.username).first():
+        raise HTTPException(status_code=409, detail=f"Username {body.username!r} already exists")
+    if body.email and db.query(AdminUser).filter(AdminUser.email == body.email).first():
+        raise HTTPException(status_code=409, detail=f"Email {body.email!r} already in use")
+
+    new_admin = AdminUser(
+        username=body.username,
+        password_hash=hash_password(body.password),
+        email=body.email,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_admin)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Username or email already exists")
+    db.refresh(new_admin)
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "create", new_admin.username, actor=admin, target_admin_id=new_admin.id, ip_address=ip)
+    logger.info("Admin created: %s by %s", new_admin.username, admin.username)
+    return {"id": new_admin.id, "username": new_admin.username}
+
+
+@router.patch("/users/{user_id}")
+def update_admin_user(
+    user_id: int,
+    body: AdminUserUpdateRequest,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    # Self-only: an admin editing another admin's email would let them
+    # hijack that admin's password-reset delivery target.
+    if user_id != admin.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own email")
+
+    if body.email and db.query(AdminUser).filter(AdminUser.email == body.email, AdminUser.id != admin.id).first():
+        raise HTTPException(status_code=409, detail=f"Email {body.email!r} already in use")
+
+    admin.email = body.email
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email already in use")
+
+    return {"id": admin.id, "email": admin.email}
+
+
+@router.delete("/users/{user_id}")
+def delete_admin_user(
+    user_id: int,
+    request: Request,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    target = db.query(AdminUser).filter(AdminUser.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    total_admins = db.query(AdminUser).count()
+    if total_admins <= 1:
+        raise HTTPException(status_code=400, detail="Cannot delete the last remaining admin account")
+
+    target_username = target.username  # snapshot before delete
+    db.delete(target)  # AdminSession.admin_id cascades (ondelete=CASCADE)
+    db.commit()
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "delete", target_username, actor=admin, ip_address=ip)
+    logger.info("Admin deleted: %s by %s", target_username, admin.username)
+    return {"detail": f"Admin {target_username!r} deleted"}
+
+
+@router.post("/users/{user_id}/reset-link")
+def generate_admin_reset_link(
+    user_id: int,
+    request: Request,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.query(AdminUser).filter(AdminUser.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    token = generate_reset_token(db, target)
+
+    ip = request.client.host if request.client else None
+    _write_account_audit_log(db, "reset_link_generated", target.username, actor=admin, target_admin_id=target.id, ip_address=ip)
+    logger.info("Reset link generated for %s by %s", target.username, admin.username)
+    return {"token": token}
+
+
+@router.get("/users/audit-log")
+def get_admin_account_audit_log(
+    page: int = 1,
+    page_size: int = 50,
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    total = db.query(AdminAccountAuditLog).count()
+    rows = (
+        db.query(AdminAccountAuditLog)
+        .order_by(AdminAccountAuditLog.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": r.id,
+                "action": r.action,
+                "actor_username": r.actor_username,
+                "target_username": r.target_username,
+                "ip_address": r.ip_address,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Stats & health
 # ---------------------------------------------------------------------------
 
