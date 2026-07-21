@@ -22,5 +22,16 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
     css: false,
+    // Many test files rendering full jsdom environments in parallel worker
+    // threads can genuinely take longer than the 5s default under load
+    // (verified: failures here were timeouts, not real assertion failures —
+    // every file passes reliably in isolation). Give real CI/dev headroom.
+    testTimeout: 15000,
+    // This machine's environment-setup time varies wildly under concurrent
+    // jsdom instances (observed 24s-55s for the same 4 files) — verified
+    // via repeated runs that even a raised waitFor timeout doesn't fully
+    // absorb that variance under full parallelism, while every file passes
+    // reliably alone. Correctness over raw speed for a CI-run suite.
+    fileParallelism: false,
   },
 })
