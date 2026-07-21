@@ -1453,131 +1453,37 @@ def cancel_web_validate(admin: AdminUser = Depends(require_admin)):
 # ---------------------------------------------------------------------------
 # Staging area helpers
 # ---------------------------------------------------------------------------
-
-_VALID_TECHNOLOGIES = {"MF", "AGM", "EFB", "GEL", "WET"}
-
-
-def _validate_staging_row(ah, technology, battery_code) -> tuple[bool, str | None]:
-    """Return (is_valid, invalid_reason)."""
-    if battery_code is None:
-        return False, "No battery code resolved"
-    if ah is not None and (ah < 20 or ah > 250):
-        return False, f"Ah value out of range (20–250), got {ah}"
-    if technology is not None and technology.upper() not in _VALID_TECHNOLOGIES:
-        return False, f"Unknown technology type: {technology}"
-    return True, None
-
-
-_LUXURY_MIN_AH = 40
-
-
-def _flag_staging_row(make_n: str, ah) -> tuple[bool, str | None]:
-    """
-    Return (flagged, flag_reason) — a soft review marker distinct from
-    is_valid. Luxury/premium makes (matcher._LUXURY_MAKES — the same set
-    used to force AGM technology) carry heavier electrical loads and rarely
-    ship with a battery under 40Ah; a web-sourced Ah below that for one of
-    these makes is more likely a mismatched search result (wrong trim,
-    aftermarket/motorcycle listing, etc.) than a genuine spec, so it's
-    surfaced for a human to check rather than silently auto-committed.
-    """
-    if ah is not None and ah < _LUXURY_MIN_AH and make_n.upper().strip() in matcher._LUXURY_MAKES:
-        return True, f"Luxury make with Ah={ah} (< {_LUXURY_MIN_AH}) — verify before committing"
-    return False, None
+# _validate_staging_row/_flag_staging_row now live in pipelines/web_battery_validate.py
+# (used inline by _upsert_rows() when it writes into web_battery_staging) — imported
+# locally by the two admin-editing endpoints that still need them
+# (patch_staging_row, fix_staging_ah), matching this file's existing convention of
+# lazily importing from pipelines.web_battery_validate rather than at module level.
 
 
 def _populate_staging(run_id: str) -> tuple[int, int, int]:
     """
-    Copy records from web_battery_validation (for this run_id) into
-    web_battery_staging with validation + conflict flags applied.
+    Return (staged_count, invalid_count, conflict_count) for this run.
 
-    Returns (staged_count, invalid_count, conflict_count).
+    Historically this function did the copy-from-master-into-staging work
+    itself. Now that pipelines.web_battery_validate._upsert_rows() writes
+    directly into web_battery_staging during the scrape (computing
+    is_valid/conflict/flagged inline, against real master state — see that
+    function's docstring for why), this run's rows are already sitting in
+    staging with correct flags by the time either of this function's two
+    callers (_web_validate_thread on normal completion, cancel_web_validate
+    on cancel) run — so this just reports counts, nothing left to write.
     """
-    staged = invalid = conflicts = 0
-    with engine.begin() as conn:
-        # Fetch this run's rows from master
-        rows = conn.execute(
+    with engine.connect() as conn:
+        row = conn.execute(
             text(
-                "SELECT make_n, model_n, year, battery_code, ah, technology,"
-                " source, engine_cc, fuel_type"
-                " FROM web_battery_validation WHERE run_id = :rid"
+                "SELECT COUNT(*) AS staged,"
+                " COUNT(*) FILTER (WHERE NOT is_valid) AS invalid,"
+                " COUNT(*) FILTER (WHERE conflict) AS conflicts"
+                " FROM web_battery_staging WHERE run_id = :rid"
             ),
             {"rid": run_id},
-        ).fetchall()
-
-        if not rows:
-            return 0, 0, 0
-
-        # Clear any previous staging data (only one staging set at a time)
-        conn.execute(text("TRUNCATE web_battery_staging"))
-
-        for r in rows:
-            make_n, model_n, year = r.make_n, r.model_n, r.year
-            ah, technology, battery_code = r.ah, r.technology, r.battery_code
-
-            is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
-            flagged, flag_reason = _flag_staging_row(make_n, ah)
-
-            # Check for conflict: master has a row for same key with a DIFFERENT run_id
-            conflict = False
-            conflict_detail = None
-            existing = conn.execute(
-                text(
-                    "SELECT battery_code, ah, technology, source, run_id"
-                    " FROM web_battery_validation"
-                    " WHERE make_n=:mn AND model_n=:mo AND year=:yr"
-                    "   AND run_id IS DISTINCT FROM :rid"
-                ),
-                {"mn": make_n, "mo": model_n, "yr": year, "rid": run_id},
-            ).fetchone()
-            if existing:
-                # Conflict if ah or technology differ meaningfully
-                ah_diff = abs((existing.ah or 0) - (ah or 0)) > 5 if (existing.ah and ah) else False
-                tech_diff = (existing.technology or "").upper() != (technology or "").upper()
-                if ah_diff or tech_diff:
-                    conflict = True
-                    conflicts += 1
-                    conflict_detail = json.dumps({
-                        "current": {
-                            "ah": existing.ah, "technology": existing.technology,
-                            "source": existing.source, "run_id": existing.run_id,
-                        },
-                        "staged": {"ah": ah, "technology": technology, "source": r.source},
-                    })
-
-            conn.execute(
-                text(
-                    "INSERT INTO web_battery_staging"
-                    " (run_id, make_n, model_n, year, battery_code, ah, technology,"
-                    "  source, engine_cc, fuel_type, is_valid, invalid_reason, conflict, conflict_detail,"
-                    "  flagged, flag_reason)"
-                    " VALUES"
-                    " (:rid, :mn, :mo, :yr, :bc, :ah, :tech,"
-                    "  :src, :ecc, :ft, :iv, :ir, :cf, :cd,"
-                    "  :fl, :fr)"
-                    " ON CONFLICT (make_n, model_n, year) DO UPDATE SET"
-                    "  run_id=EXCLUDED.run_id, battery_code=EXCLUDED.battery_code,"
-                    "  ah=EXCLUDED.ah, technology=EXCLUDED.technology,"
-                    "  source=EXCLUDED.source, engine_cc=EXCLUDED.engine_cc,"
-                    "  fuel_type=EXCLUDED.fuel_type, is_valid=EXCLUDED.is_valid,"
-                    "  invalid_reason=EXCLUDED.invalid_reason, conflict=EXCLUDED.conflict,"
-                    "  conflict_detail=EXCLUDED.conflict_detail, flagged=EXCLUDED.flagged,"
-                    "  flag_reason=EXCLUDED.flag_reason, staged_at=now()"
-                ),
-                {
-                    "rid": run_id, "mn": make_n, "mo": model_n, "yr": year,
-                    "bc": battery_code, "ah": ah, "tech": technology,
-                    "src": r.source, "ecc": r.engine_cc, "ft": r.fuel_type,
-                    "iv": is_valid, "ir": invalid_reason,
-                    "cf": conflict, "cd": conflict_detail,
-                    "fl": flagged, "fr": flag_reason,
-                },
-            )
-            staged += 1
-            if not is_valid:
-                invalid += 1
-
-    return staged, invalid, conflicts
+        ).fetchone()
+    return (row.staged or 0), (row.invalid or 0), (row.conflicts or 0)
 
 
 @router.get("/pipeline/quotas", summary="Get API provider quota usage (rolling monthly, or one-time prepaid balance for providers in _ONE_TIME_QUOTA_PROVIDERS)")
@@ -2040,6 +1946,8 @@ def patch_staging_row(
     body: PatchStagingRowBody,
     admin: AdminUser = Depends(require_admin),
 ):
+    from pipelines.web_battery_validate import _validate_staging_row, _flag_staging_row
+
     with engine.begin() as conn:
         row = conn.execute(
             text("SELECT * FROM web_battery_staging WHERE id = :id"),
@@ -2358,26 +2266,17 @@ def commit_staging(
     }
 
 
-@router.post("/pipeline/web-validate/staging/discard", summary="Discard staged vehicles and remove their master records")
+@router.post("/pipeline/web-validate/staging/discard", summary="Discard staged vehicles without touching master")
 def discard_staging(admin: AdminUser = Depends(require_admin)):
+    # Scrape results now land in web_battery_staging directly (see
+    # _upsert_rows() in pipelines/web_battery_validate.py) — master
+    # (web_battery_validation) is never written to before an explicit
+    # commit, so there's nothing there for a discard to undo anymore.
     with engine.begin() as conn:
-        run_id_row = conn.execute(
-            text("SELECT run_id FROM web_battery_staging LIMIT 1")
-        ).scalar()
-
-        if not run_id_row:
-            conn.execute(text("TRUNCATE web_battery_staging"))
-            return {"discarded": 0}
-
-        result = conn.execute(
-            text("DELETE FROM web_battery_validation WHERE run_id = :rid"),
-            {"rid": run_id_row},
-        )
-        discarded = result.rowcount
-
+        discarded = conn.execute(text("SELECT COUNT(*) FROM web_battery_staging")).scalar() or 0
         conn.execute(text("TRUNCATE web_battery_staging"))
 
-    logger.info("Staging discarded by %s — %d master records removed", admin.username, discarded)
+    logger.info("Staging discarded by %s — %d staged rows removed", admin.username, discarded)
     return {"discarded": discarded}
 
 
@@ -2410,7 +2309,7 @@ def _is_suspicious_ah(make_n: str, ah) -> bool:
 def fix_staging_ah(admin: AdminUser = Depends(require_admin)):
     from sqlalchemy import text as _text
     from pipelines.web_battery_validate import (
-        _duckduckgo_lookup, _check_quota, _increment_quota, REQUEST_DELAY,
+        _duckduckgo_lookup, _check_quota, _increment_quota, REQUEST_DELAY, _flag_staging_row,
     )
 
     with engine.connect() as conn:

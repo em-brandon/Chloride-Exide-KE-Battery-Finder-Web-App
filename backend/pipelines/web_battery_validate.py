@@ -40,7 +40,7 @@ from sqlalchemy import text
 
 # ── project root on path so we can import matcher helpers ────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from matcher import _make_region, _norm_model_key, _select_batteries, _batteries
+from matcher import _make_region, _norm_model_key, _select_batteries, _batteries, _LUXURY_MAKES
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -521,35 +521,161 @@ def _resolve_battery_code(parsed: dict, make_n: str) -> tuple[str, int, str] | N
 
 
 # ---------------------------------------------------------------------------
+# Staging row validation helpers
+# ---------------------------------------------------------------------------
+# Moved here from admin_router.py so _upsert_rows() (below) can compute
+# is_valid/flagged inline when writing into web_battery_staging, instead of
+# a separate later pass recomputing them from already-staged data.
+# admin_router.py's patch_staging_row/fix_staging_ah still import these
+# (locally, matching this module's existing import convention) since an
+# admin editing ah/technology by hand needs the same checks re-applied.
+
+_VALID_TECHNOLOGIES = {"MF", "AGM", "EFB", "GEL", "WET"}
+
+
+def _validate_staging_row(ah, technology, battery_code) -> tuple[bool, str | None]:
+    """Return (is_valid, invalid_reason)."""
+    if battery_code is None:
+        return False, "No battery code resolved"
+    if ah is not None and (ah < 20 or ah > 250):
+        return False, f"Ah value out of range (20–250), got {ah}"
+    if technology is not None and technology.upper() not in _VALID_TECHNOLOGIES:
+        return False, f"Unknown technology type: {technology}"
+    return True, None
+
+
+_LUXURY_MIN_AH = 40
+
+
+def _flag_staging_row(make_n: str, ah) -> tuple[bool, str | None]:
+    """
+    Return (flagged, flag_reason) — a soft review marker distinct from
+    is_valid. Luxury/premium makes (matcher._LUXURY_MAKES — the same set
+    used to force AGM technology) carry heavier electrical loads and rarely
+    ship with a battery under 40Ah; a web-sourced Ah below that for one of
+    these makes is more likely a mismatched search result (wrong trim,
+    aftermarket/motorcycle listing, etc.) than a genuine spec, so it's
+    surfaced for a human to check rather than silently auto-committed.
+    """
+    if ah is not None and ah < _LUXURY_MIN_AH and make_n.upper().strip() in _LUXURY_MAKES:
+        return True, f"Luxury make with Ah={ah} (< {_LUXURY_MIN_AH}) — verify before committing"
+    return False, None
+
+
+# ---------------------------------------------------------------------------
 # DB upsert
 # ---------------------------------------------------------------------------
 
-def _upsert_rows(eng, rows: list[dict], run_id: str | None = None) -> None:
+def _upsert_rows(eng, rows: list[dict], run_id: str, truncate_staging_first: bool = False) -> None:
+    """
+    Write scrape results into web_battery_staging — NOT master
+    (web_battery_validation) — computing is_valid/invalid_reason,
+    flagged/flag_reason, and conflict/conflict_detail inline per row.
+
+    This used to write straight into master, which made conflict detection
+    structurally impossible (master already reflected this run's own data by
+    the time anything checked for conflicts) and made every commit's
+    change_type resolve to "updated" (a master row for the key always
+    already existed, because this function had just written it). Writing to
+    staging instead — merged into master only at explicit commit time —
+    fixes both, matching how the CRSP pipeline's write_to_staging() already
+    works (enrich_years.py).
+
+    truncate_staging_first: pass True on a run's first successful write, to
+    preserve "only one staging set at a time" (a run that finds zero new
+    combos never calls this at all, so it never touches existing staging).
+    """
     if not rows:
         return
     now = datetime.now(timezone.utc)
     with eng.begin() as conn:
+        if truncate_staging_first:
+            conn.execute(text("TRUNCATE web_battery_staging"))
+
+        # Bulk-load current master state for just this batch's keys — fresh
+        # on every flush (not cached across flushes), since master can
+        # legitimately change between flushes (an admin can commit a
+        # different, earlier run's staging while this run is still going).
+        # Mirrors enrich_years.py's write_to_staging(), which does the same
+        # fresh per-flush reload.
+        batch_keys = list({(r["make_n"], r["model_n"], r["year"]) for r in rows})
+        existing_by_key: dict[tuple, object] = {}
+        if batch_keys:
+            clauses = []
+            params: dict = {}
+            for i, (mn, mo, yr) in enumerate(batch_keys):
+                clauses.append(f"(make_n=:mn{i} AND model_n=:mo{i} AND year=:yr{i})")
+                params[f"mn{i}"] = mn
+                params[f"mo{i}"] = mo
+                params[f"yr{i}"] = yr
+            existing_rows = conn.execute(
+                text(
+                    "SELECT make_n, model_n, year, ah, technology"
+                    " FROM web_battery_validation WHERE " + " OR ".join(clauses)
+                ),
+                params,
+            ).fetchall()
+            existing_by_key = {(r.make_n, r.model_n, r.year): r for r in existing_rows}
+
         for row in rows:
+            make_n, model_n, year = row["make_n"], row["model_n"], row["year"]
+            ah, technology, battery_code = row["ah"], row["technology"], row["battery_code"]
+
+            is_valid, invalid_reason = _validate_staging_row(ah, technology, battery_code)
+            flagged, flag_reason = _flag_staging_row(make_n, ah)
+
+            # Conflict: master already has a (committed, from an earlier
+            # run) row for this key whose ah/technology differ meaningfully
+            # from what this run found.
+            conflict = False
+            conflict_detail = None
+            existing = existing_by_key.get((make_n, model_n, year))
+            if existing:
+                ah_diff = abs((existing.ah or 0) - (ah or 0)) > 5 if (existing.ah and ah) else False
+                tech_diff = (existing.technology or "").upper() != (technology or "").upper()
+                if ah_diff or tech_diff:
+                    conflict = True
+                    conflict_detail = json.dumps({
+                        "current": {"ah": existing.ah, "technology": existing.technology},
+                        "staged": {"ah": ah, "technology": technology, "source": row.get("source")},
+                    })
+
             conn.execute(
-                text(f"""
-                    INSERT INTO {TABLE_NAME}
-                        (make_n, model_n, year, battery_code, ah, technology,
-                         source, engine_cc, fuel_type, validated_at, run_id)
+                text("""
+                    INSERT INTO web_battery_staging
+                        (run_id, make_n, model_n, year, battery_code, ah, technology,
+                         source, engine_cc, fuel_type, is_valid, invalid_reason,
+                         conflict, conflict_detail, flagged, flag_reason, staged_at)
                     VALUES
-                        (:make_n, :model_n, :year, :battery_code, :ah, :technology,
-                         :source, :engine_cc, :fuel_type, :validated_at, :run_id)
+                        (:run_id, :make_n, :model_n, :year, :battery_code, :ah, :technology,
+                         :source, :engine_cc, :fuel_type, :is_valid, :invalid_reason,
+                         :conflict, :conflict_detail, :flagged, :flag_reason, :now)
                     ON CONFLICT (make_n, model_n, year)
                     DO UPDATE SET
-                        battery_code = EXCLUDED.battery_code,
-                        ah           = EXCLUDED.ah,
-                        technology   = EXCLUDED.technology,
-                        source       = EXCLUDED.source,
-                        engine_cc    = EXCLUDED.engine_cc,
-                        fuel_type    = EXCLUDED.fuel_type,
-                        validated_at = EXCLUDED.validated_at,
-                        run_id       = EXCLUDED.run_id
+                        run_id          = EXCLUDED.run_id,
+                        battery_code    = EXCLUDED.battery_code,
+                        ah              = EXCLUDED.ah,
+                        technology      = EXCLUDED.technology,
+                        source          = EXCLUDED.source,
+                        engine_cc       = EXCLUDED.engine_cc,
+                        fuel_type       = EXCLUDED.fuel_type,
+                        is_valid        = EXCLUDED.is_valid,
+                        invalid_reason  = EXCLUDED.invalid_reason,
+                        conflict        = EXCLUDED.conflict,
+                        conflict_detail = EXCLUDED.conflict_detail,
+                        flagged         = EXCLUDED.flagged,
+                        flag_reason     = EXCLUDED.flag_reason,
+                        staged_at       = EXCLUDED.staged_at
                 """),
-                {**row, "validated_at": now, "run_id": run_id},
+                {
+                    "run_id": run_id, "make_n": make_n, "model_n": model_n, "year": year,
+                    "battery_code": battery_code, "ah": ah, "technology": technology,
+                    "source": row.get("source"), "engine_cc": row.get("engine_cc"),
+                    "fuel_type": row.get("fuel_type"), "is_valid": is_valid,
+                    "invalid_reason": invalid_reason, "conflict": conflict,
+                    "conflict_detail": conflict_detail, "flagged": flagged,
+                    "flag_reason": flag_reason, "now": now,
+                },
             )
 
 
@@ -749,11 +875,17 @@ def main(
 
     n_cached = n_fetched = n_failed = dirty_count = web_model_dirty = _buckets_attempted = 0
     rows_buffer: list[dict] = []
+    _staging_truncated = False  # True once this run has cleared web_battery_staging
 
     def _flush_rows() -> None:
         """Flush rows_buffer to DB. Must be called with _rows_lock held."""
+        nonlocal _staging_truncated
         if rows_buffer:
-            _upsert_rows(engine, rows_buffer[:], run_id=run_id)
+            _upsert_rows(
+                engine, rows_buffer[:], run_id=run_id,
+                truncate_staging_first=not _staging_truncated,
+            )
+            _staging_truncated = True
             rows_buffer.clear()
 
     # ─────────────────────────────────────────────────────────────────────────
