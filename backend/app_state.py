@@ -23,9 +23,9 @@ def set_maintenance_mode(enabled: bool) -> None:
 
 def _refresh() -> None:
     try:
-        from db import SessionLocal
+        from db import PublicSessionLocal
         from models import AppSettings
-        with SessionLocal() as db:
+        with PublicSessionLocal() as db:
             row = db.query(AppSettings).filter_by(setting_key="maintenance_mode").first()
             _cache["value"] = (row.setting_value == "true") if row else False
     except Exception:
