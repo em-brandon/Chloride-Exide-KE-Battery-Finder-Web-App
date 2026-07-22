@@ -972,8 +972,9 @@ def main(
         if f"{m}|{mo}|{b}" not in _model_web_cache
     ]
     already_cached = len(all_unique_buckets) - len(unique_buckets)
-    _log(f"  Phase 1: {len(unique_buckets)} model-year buckets to fetch"
-         f" ({already_cached} already cached, {WEB_PREFETCH_WORKERS} workers)…")
+    if phase in ("phase1", "both"):
+        _log(f"  Phase 1: {len(unique_buckets)} model-year buckets to fetch"
+             f" ({already_cached} already cached, {WEB_PREFETCH_WORKERS} workers)…")
 
     def _prefetch_web(bucket_entry: tuple) -> None:
         nonlocal web_model_dirty, _buckets_attempted
@@ -1156,21 +1157,29 @@ def main(
                 return
 
             key = _cache_key(make_n, model_n, year)
+            year_bucket = (year // 5) * 5
+            web_hit = _model_web_cache.get(f"{make_n}|{model_n}|{year_bucket}")
 
-            # File cache hit
+            # File cache hit — a cached None ("no match" from a past run) is only
+            # trusted if Phase 1 still has no bucket data for this combo. Phase 1
+            # runs are incremental (quota-limited, make-scoped), so a combo that
+            # failed last time may have real data available now; without this
+            # check that combo's negative result would never be retried, silently
+            # hiding every bucket Phase 1 fetches after the first attempt.
             with _cache_lock:
                 if key in cache:
                     cached_val = cache[key]
-                    if cached_val is not None:
-                        with _rows_lock:
-                            rows_buffer.append(cached_val)
-                            if len(rows_buffer) >= 50:
-                                _flush_rows()
-                    with _counters_lock:
-                        n_cached += 1
-                    if progress_callback:
-                        progress_callback(n_cached + n_fetched + n_failed, total, "cache", f"{make_n} {model_n} {year}")
-                    return
+                    if cached_val is not None or web_hit is None:
+                        if cached_val is not None:
+                            with _rows_lock:
+                                rows_buffer.append(cached_val)
+                                if len(rows_buffer) >= 50:
+                                    _flush_rows()
+                        with _counters_lock:
+                            n_cached += 1
+                        if progress_callback:
+                            progress_callback(n_cached + n_fetched + n_failed, total, "cache", f"{make_n} {model_n} {year}")
+                        return
 
             parsed: dict | None = None
             source_provider = "none"
@@ -1197,12 +1206,9 @@ def main(
                 if not _wait_if_paused():
                     return
 
-                if parsed is None:
-                    year_bucket = (year // 5) * 5
-                    web_hit = _model_web_cache.get(f"{make_n}|{model_n}|{year_bucket}")
-                    if web_hit:
-                        parsed = web_hit
-                        source_provider = "web_cached"
+                if parsed is None and web_hit:
+                    parsed = web_hit
+                    source_provider = "web_cached"
 
             except Exception as exc:
                 _log(f"    [ERR] {make_n} {model_n} {year}: {exc}")

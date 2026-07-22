@@ -1,15 +1,15 @@
 """
 Clean the Exide global fitment guide ('EXIDE BATTERY FINDER' Excel, repo root)
-and load it into batteryfinderdev as two tables:
+and load it into batteryfinderdev's oem_fitment table (Ah/technology fitment
+specs, kept as year-ranges) — full truncate+reload on every run (like
+dial_battery_clean.py). vehicle_years itself is NEVER written to.
 
-  - oem_fitment         Ah/technology fitment specs, kept as year-ranges.
-  - vehicle_years_exide  make/model/year existence rows, exploded from those
-                         ranges so they're searchable (unioned with
-                         vehicle_years by matcher._vehicles()).
-
-vehicle_years itself is NEVER written to — this script only ever writes to
-its own two tables, both fully truncate+reloaded on every run (like
-dial_battery_clean.py).
+vehicle_years_exide (make/model/year existence rows, unioned with
+vehicle_years by matcher._vehicles() so both are searchable) is a live SQL
+VIEW computed directly from oem_fitment (see migration
+convert_vehicle_years_exide_to_view) — it updates automatically whenever
+oem_fitment changes, by this script or otherwise, with no separate
+load/refresh step.
 
 Run once (or whenever Exide sends an updated catalog):
     python pipelines/exide_fitment_clean.py
@@ -30,6 +30,14 @@ from dataprep import strip_redundant_make_prefix
 EXCEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "EXIDE BATTERY FINDER - 01.09.2025 (2).xlsx")
 CURRENT_YEAR = 2026
 MAX_REJECTED_DETAIL = 200
+
+# Below this, an Ah value is a small AGM backup/auxiliary battery for a
+# stop-start system (real form factors like 97*43*58, 150*90*105mm — verified
+# against source rows), not the vehicle's primary starter battery. Exide's
+# sheet lists both for some models; this app only ever recommends the
+# primary battery, so these rows are dropped rather than kept with a
+# misleadingly tiny Ah.
+MIN_AH = 20.0
 
 # ── Make canonicalization ───────────────────────────────────────────────────
 # Not a filter — makes with no existing vehicle_years counterpart pass through
@@ -145,7 +153,6 @@ _TECH_FIXES = {
 
 _YEAR_RANGE_RE = re.compile(r"^(\d{4})\s*-{1,2}\s*(\d{4}|PRESENT)$", re.IGNORECASE)
 _NUMERIC_RE = re.compile(r"^\d+(\.\d+)?$")
-_TRAILING_PAREN_RE = re.compile(r"\s*\([^)]*\)?\s*$")  # trailing "(...)" or unclosed "(..."
 
 
 def _clean_make(raw) -> str:
@@ -232,14 +239,6 @@ def _parse_cylinder_cc(raw) -> int | None:
     return val if val > 0 else None
 
 
-def _strip_chassis_code_suffix(model: str) -> str:
-    """Strip a trailing '(...)' chassis-code block for display purposes,
-    e.g. 'ABARTH 500/595/695 1.4( 312.AXF1A, 312.AD1A' -> '500/595/695 1.4'.
-    Handles unclosed parens (seen in the source data)."""
-    stripped = _TRAILING_PAREN_RE.sub("", model).strip()
-    return stripped if stripped else model
-
-
 def _clean_sheet(vehicle_category: str, raw: pd.DataFrame, ah_col: int, type_col: int) -> tuple[list[dict], dict]:
     """
     Shared cleaning for one sheet. ah_col/type_col are positional indices
@@ -315,6 +314,10 @@ def _clean_sheet(vehicle_category: str, raw: pd.DataFrame, ah_col: int, type_col
         technology, raw_technology = _clean_technology(tech_val)
         cylinder_capacity_cc = _parse_cylinder_cc(cc_raw)
 
+        if ah is not None and ah < MIN_AH:
+            reject(idx, make, model, "ah_below_starter_battery_min")
+            continue
+
         if ah is None and technology is None and cylinder_capacity_cc is None:
             reject(idx, make, model, "no_ah_no_tech_no_cc")
             continue
@@ -371,42 +374,36 @@ def clean() -> tuple[pd.DataFrame, pd.DataFrame]:
     )
     print(f"  Deduplicated fitment rows: {before} -> {len(fitment_df)}")
 
-    # ── Explode into vehicle_years_exide (existence rows for the matcher/dropdowns) ──
-    vy_rows: list[dict] = []
-    for r in all_rows:
-        y1 = r["year_from"]
-        y2 = min(r["year_to"], CURRENT_YEAR) if r["year_to"] is not None else CURRENT_YEAR
-        model_display = _strip_chassis_code_suffix(r["model"])
-        for year in range(y1, y2 + 1):
-            vy_rows.append({
-                "make": r["make"],
-                "model": model_display,
-                "year": year,
-                "engine_capacity": r["cylinder_capacity_cc"],
-                "fuel": None,
-            })
+    # Collapse near-duplicate rows: same make/model/year-range/technology/dimensions
+    # (i.e. the same physical battery slot) with Ah differing by <=5 — verified
+    # against real rows to be rounding/typo noise from the source sheet (identical
+    # dimensions, adjacent source_row), not genuine distinct tiers. Keep the
+    # highest Ah. Groups with a bigger gap (>=10 Ah, same dimensions) are left
+    # alone — those are real economy/premium tier options Exide actually sells.
+    group_cols = ["make", "model", "year_from", "year_to", "technology", "dimensions"]
+    ah_hi = fitment_df.groupby(group_cols, dropna=False)["ah"].transform("max")
+    ah_lo = fitment_df.groupby(group_cols, dropna=False)["ah"].transform("min")
+    before = len(fitment_df)
+    is_near_dup_loser = fitment_df["ah"].notna() & ((ah_hi - ah_lo) <= 5) & (fitment_df["ah"] < ah_hi)
+    fitment_df = fitment_df.loc[~is_near_dup_loser].reset_index(drop=True)
+    print(f"  Collapsed near-duplicate Ah rows (delta<=5, same dimensions, keep highest): {before} -> {len(fitment_df)}")
 
-    vy_df = pd.DataFrame(vy_rows, columns=["make", "model", "year", "engine_capacity", "fuel"])
-    before = len(vy_df)
-    vy_df = vy_df.drop_duplicates(subset=["make", "model", "year"], keep="first")
-    print(f"  Exploded vehicle_years_exide candidates: {before} -> {len(vy_df)} after dedup")
-
-    return fitment_df, vy_df
+    # vehicle_years_exide (existence rows for the matcher/dropdowns) is a live
+    # SQL VIEW computed directly from oem_fitment (see migration
+    # convert_vehicle_years_exide_to_view) — it always reflects the current
+    # table with no separate explode/load step needed here.
+    return fitment_df
 
 
-def load(fitment_df: pd.DataFrame, vy_df: pd.DataFrame) -> None:
+def load(fitment_df: pd.DataFrame) -> None:
     with engine.begin() as conn:
         conn.execute(text("TRUNCATE TABLE oem_fitment RESTART IDENTITY"))
     fitment_df.to_sql("oem_fitment", engine, if_exists="append", index=False)
     print(f"Loaded {len(fitment_df)} rows into 'oem_fitment'")
 
-    with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE vehicle_years_exide RESTART IDENTITY"))
-    vy_df.to_sql("vehicle_years_exide", engine, if_exists="append", index=False)
-    print(f"Loaded {len(vy_df)} rows into 'vehicle_years_exide'")
-
 
 if __name__ == "__main__":
-    fitment_df, vy_df = clean()
-    load(fitment_df, vy_df)
-    print("Done. Restart the app or POST /api/admin/cache/refresh to pick up the new data.")
+    fitment_df = clean()
+    load(fitment_df)
+    print("Done. vehicle_years_exide is a view, so it updates automatically. "
+          "Restart the app or POST /api/admin/cache/refresh to pick up the new data.")

@@ -31563,5 +31563,230 @@
     "ah": 100,
     "technology": "MF",
     "region": null
+  },
+  "MITSUBISHI|D:5 P|1995": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|1970": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|1990": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "MITSUBISHI|D:5 P|2015": {
+    "ah": 80,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|RS 6 AVANT PERFORMANCE BASE GRADE|2025": {
+    "ah": 68,
+    "technology": "MF",
+    "region": null
+  },
+  "AUDI|SQ 8 BASE GRADE|2020": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|TT COUPE 45 TFSI QUATTRO S LINE PACKAGE|2020": {
+    "ah": 68,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "ROLLS-ROYCE|GHOST II BASEGRADE|2005": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|PHANTOM|1995": {
+    "ah": 100,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|GHOST II BASEGRADE|2010": {
+    "ah": 60,
+    "technology": "MF",
+    "region": null
+  },
+  "ROLLS-ROYCE|PHANTOM|2000": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|PHANTOM EWB|2015": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|WRAITH|2000": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|WRAITH|2005": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|WRAITH|2010": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|WRAITH|2015": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|WRAITH|2020": {
+    "ah": 85,
+    "technology": "AGM",
+    "region": null
+  },
+  "ROLLS-ROYCE|WRAITH|2025": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|ATLAS DIESEL DX|2025": {
+    "ah": 95,
+    "technology": "AGM",
+    "region": "DIN"
+  },
+  "NISSAN|ATLAS DIESEL DX DOUBLE CAB|2010": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|ATLAS DIESEL DX|1995": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|ATLAS DIESEL DX DOUBLE CAB|2015": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CARAVAN|1980": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN CHAIR CAB|2010": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CARAVAN EXCLUSIVE KINDERGARTEN VEHICLE FOR ATTENDING|1965": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN EXCLUSIVE KINDERGARTEN VEHICLE FOR ATTENDING|1975": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN GRAND PREMIUM GX|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN GX|1970": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN GX|1985": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN GX|1995": {
+    "ah": 200,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CARAVAN REFRIGERATING VAN DX|1965": {
+    "ah": 70,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CARAVAN REFRIGERATING VAN DX|1955": {
+    "ah": 100,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CARAVAN WAGON WIDEBODY|1960": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN WAGON WIDEBODY|1970": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN WAGON WIDEBODY|1975": {
+    "ah": 70,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CARAVAN WAGON WIDEBODY|1980": {
+    "ah": 61,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|CIMA HYBRID VIP G|1985": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CIMA HYBRID VIP G|1995": {
+    "ah": 92,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CIMA HYBRID VIP G|2005": {
+    "ah": 61,
+    "technology": "EFB",
+    "region": null
+  },
+  "NISSAN|CIMA HYBRID VIP G|2000": {
+    "ah": 75,
+    "technology": "MF",
+    "region": null
+  },
+  "NISSAN|CUBE 15 X V SELECTION|2010": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": null
+  },
+  "NISSAN|DAYZ G|2020": {
+    "ah": 63,
+    "technology": "AGM",
+    "region": null
+  },
+  "AUDI|TT ROADSTER 45 TFSI QUATTRO S LINE PACKAGE|2020": {
+    "ah": 92,
+    "technology": "AGM",
+    "region": "DIN"
   }
 }

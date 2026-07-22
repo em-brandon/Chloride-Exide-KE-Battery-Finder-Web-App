@@ -12,8 +12,9 @@ model_aliases     — international → JDM model name mappings (seeded from mod
                     READ at runtime by matcher.py
 oem_fitment       — Exide's official global fitment guide, Ah/technology per make/model/year-range
                     (output of pipelines/exide_fitment_clean.py) READ at runtime by matcher.py
-vehicle_years_exide — make/model/year existence rows exploded from oem_fitment's year-ranges
-                    (output of pipelines/exide_fitment_clean.py) READ at runtime by matcher.py,
+vehicle_years_exide — make/model/year existence rows, a live SQL VIEW computed directly
+                    from oem_fitment's year-ranges (not an ORM model — see migration
+                    convert_vehicle_years_exide_to_view) READ at runtime by matcher.py,
                     unioned with vehicle_years
 
 Admin tables (written by admin dashboard)
@@ -221,38 +222,14 @@ class OemFitment(Base):
         return f"<OemFitment {self.make} {self.model} {self.year_from}-{self.year_to or 'PRESENT'} {self.ah}Ah {self.technology}>"
 
 
-class VehicleYearExide(Base):
-    """
-    Make/model/year existence rows exploded from the Exide fitment guide's
-    year-ranges. Separate from vehicle_years (never written to directly) so
-    this table can be freely truncated+reloaded without any risk to the
-    externally-enriched data. Unioned with vehicle_years at matcher load time
-    (matcher._vehicles()) so both are searchable/matchable identically.
-
-    fuel is always NULL — Exide's file has no fuel-type column.
-
-    Written by: pipelines/exide_fitment_clean.py (CLI-only, full
-                TRUNCATE + reload on each run).
-    Read by:    matcher.py's _vehicles() (UNION ALL with vehicle_years).
-    """
-
-    __tablename__ = "vehicle_years_exide"
-
-    id               = Column(Integer, primary_key=True, autoincrement=True)
-    make             = Column(String(100), nullable=False)
-    model            = Column(String(300), nullable=False)  # trimmed display string
-    year             = Column(Integer, nullable=False)
-    engine_capacity  = Column(Integer, nullable=True)       # from oem_fitment.cylinder_capacity_cc
-    fuel             = Column(String(50), nullable=True)    # always NULL today
-
-    __table_args__ = (
-        UniqueConstraint("make", "model", "year", name="uq_vehicle_years_exide"),
-        Index("ix_vehicle_years_exide_make", "make"),
-        Index("ix_vehicle_years_exide_make_model", "make", "model"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<VehicleYearExide {self.make} {self.model} {self.year}>"
+# vehicle_years_exide (make/model/year existence rows, fuel always NULL —
+# Exide's file has no fuel-type column) is a live SQL VIEW computed directly
+# from oem_fitment's year-ranges (see migration
+# convert_vehicle_years_exide_to_view), not a table — so there is no ORM
+# model for it here. It always reflects the current state of oem_fitment,
+# with the chassis-code-suffix stripping and year-range explosion done in the
+# view definition itself. Read by matcher.py's _vehicles() (UNION ALL with
+# vehicle_years).
 
 
 # ---------------------------------------------------------------------------
