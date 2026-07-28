@@ -649,7 +649,7 @@ function FitmentTab({ onTotal }: { onTotal?: (total: number) => void }) {
         <div style={{ ...CARD, overflow: 'hidden' }}>
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--adm-sep)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <MakeBadge make={expandedMake} size={28} />
+              <MakeBadge make={expandedMake} size={36} />
               <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--adm-text-1)' }}>{expandedMake}</span>
               <span style={{ background: 'var(--adm-subtle-bg)', color: 'var(--adm-text-2)', fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 20 }}>
                 {fitTotal.toLocaleString()} rows
@@ -766,14 +766,13 @@ function MakeTile({ stat, active, onClick, animDelay = 0 }: {
   onClick: () => void
   animDelay?: number
 }) {
-  const color = makeColor(stat.make)
   const yearRange = stat.year_min && stat.year_max ? `${stat.year_min}–${stat.year_max}` : '–'
   return (
     <div
       onClick={onClick}
       style={{
         background: 'var(--adm-card-bg)',
-        border: '1px solid var(--adm-card-border)',
+        border: active ? '1px solid #CC0000' : '1px solid var(--adm-card-border)',
         borderRadius: 12,
         padding: '1.1rem 1.1rem 0.9rem',
         display: 'flex',
@@ -784,8 +783,7 @@ function MakeTile({ stat, active, onClick, animDelay = 0 }: {
         flex: '0 0 150px',
         transition: 'box-shadow 0.15s, transform 0.1s',
         cursor: 'pointer',
-        borderTop: `3px solid ${color}`,
-        boxShadow: active ? `0 0 0 2px ${color}55, var(--adm-card-shadow)` : 'var(--adm-card-shadow)',
+        boxShadow: active ? '0 0 0 2px #CC000033, var(--adm-card-shadow)' : 'var(--adm-card-shadow)',
         animationName: 'admCardIn', animationDuration: '0.4s',
         animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', animationFillMode: 'both',
         animationDelay: `${animDelay}ms`,
@@ -793,7 +791,7 @@ function MakeTile({ stat, active, onClick, animDelay = 0 }: {
       onMouseEnter={e => { if (!active) e.currentTarget.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
     >
-      <MakeBadge make={stat.make} size={44} />
+      <MakeBadge make={stat.make} size={60} />
       <span style={{
         fontSize: '0.78rem', fontWeight: 700, color: 'var(--adm-text-1)',
         textAlign: 'center', lineHeight: 1.2,
