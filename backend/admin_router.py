@@ -34,6 +34,7 @@ GET    /api/admin/sessions
 DELETE /api/admin/sessions/{id}
 GET    /api/admin/vehicle-data/core
 GET    /api/admin/vehicle-data/oem-fitment
+GET    /api/admin/vehicle-data/oem-fitment/by-make
 POST   /api/admin/backup
 GET    /api/admin/backup
 GET    /api/admin/backup/log
@@ -2018,26 +2019,37 @@ def get_vehicle_data_oem_fitment(
     page: int = 1,
     page_size: int = 50,
     search: str = "",
+    make: str = "",
     admin: AdminUser = Depends(require_admin),
 ):
     from sqlalchemy import text as _text
     offset = (page - 1) * page_size
     like = f"%{search.upper()}%" if search else "%"
 
-    with engine.connect() as conn:
-        total = conn.execute(_text("""
-            SELECT COUNT(*) FROM oem_fitment
-            WHERE (UPPER(make) LIKE :q OR UPPER(model) LIKE :q)
-        """), {"q": like}).scalar() or 0
+    # `make` is an exact match (used by the brand-grid drill-down panel, so
+    # it doesn't rely on `search`'s substring LIKE — a make name could
+    # otherwise ambiguously match another make's name inside a model string).
+    # It's ANDed with `search`, which still free-text filters make/model.
+    where = "(UPPER(make) LIKE :q OR UPPER(model) LIKE :q)"
+    params: dict = {"q": like}
+    if make:
+        where += " AND UPPER(make) = UPPER(:make)"
+        params["make"] = make
 
-        rows = conn.execute(_text("""
+    with engine.connect() as conn:
+        total = conn.execute(_text(f"""
+            SELECT COUNT(*) FROM oem_fitment
+            WHERE {where}
+        """), params).scalar() or 0
+
+        rows = conn.execute(_text(f"""
             SELECT id, vehicle_category, make, model, year_from, year_to,
                    ah, technology, raw_technology, dimensions, cylinder_capacity_cc
             FROM oem_fitment
-            WHERE (UPPER(make) LIKE :q OR UPPER(model) LIKE :q)
+            WHERE {where}
             ORDER BY make, model, year_from
             LIMIT :lim OFFSET :off
-        """), {"q": like, "lim": page_size, "off": offset}).fetchall()
+        """), {**params, "lim": page_size, "off": offset}).fetchall()
 
     return {
         "total":     total,
@@ -2045,6 +2057,27 @@ def get_vehicle_data_oem_fitment(
         "page_size": page_size,
         "items":     [dict(r._mapping) for r in rows],
     }
+
+
+@router.get("/vehicle-data/oem-fitment/by-make", summary="Per-make aggregate counts for oem_fitment (brand grid)")
+def get_vehicle_data_oem_fitment_by_make(
+    admin: AdminUser = Depends(require_admin),
+):
+    from sqlalchemy import text as _text
+
+    with engine.connect() as conn:
+        rows = conn.execute(_text("""
+            SELECT make,
+                   COUNT(DISTINCT model) AS model_count,
+                   COUNT(*)              AS row_count,
+                   MIN(year_from)                        AS year_min,
+                   MAX(COALESCE(year_to, year_from))      AS year_max
+            FROM oem_fitment
+            GROUP BY make
+            ORDER BY make
+        """)).fetchall()
+
+    return {"makes": [dict(r._mapping) for r in rows]}
 
 
 class MasterEditBody(BaseModel):
