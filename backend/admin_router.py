@@ -34,6 +34,10 @@ GET    /api/admin/sessions
 DELETE /api/admin/sessions/{id}
 GET    /api/admin/vehicle-data/core
 GET    /api/admin/vehicle-data/oem-fitment
+POST   /api/admin/backup
+GET    /api/admin/backup
+GET    /api/admin/backup/log
+GET    /api/admin/backup/{filename}/download
 """
 
 from __future__ import annotations
@@ -51,6 +55,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import requests
+import db_backup
 import matcher
 import pandas as pd
 from admin_auth import (
@@ -73,7 +78,7 @@ from email_utils import send_reset_email
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from models import (
-    AdminAccountAuditLog, AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
+    AdminAccountAuditLog, AdminBackupLog, AdminSession, AdminStats, AppSettings, AdminUser, BatteryAuditLog, BatterySpec,
     SearchEvent, UserFeedback, TestUser, TestUserSession,
     VehicleYear, VehicleYearStaging, VehicleYearVersion, VehicleYearChangelog,
     EnrichmentCacheMeta, FueleconomyVehicle, ExpansionMake,
@@ -4497,3 +4502,96 @@ def delete_expansion_make(
 
     logger.info("Expansion make '%s' (id=%d) deleted by %s", make, make_id, admin.username)
     return {"detail": "deleted"}
+
+
+# ---------------------------------------------------------------------------
+# On-demand database backup
+# ---------------------------------------------------------------------------
+
+@router.post("/backup", status_code=201, summary="Trigger an on-demand local Postgres backup")
+def create_backup_endpoint(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    now = datetime.now(timezone.utc)
+    try:
+        result = db_backup.create_backup()
+    except db_backup.BackupError as exc:
+        db.add(AdminBackupLog(
+            filename="", size_bytes=None, status="failed", error_detail=str(exc),
+            triggered_by=admin.username, created_at=now,
+        ))
+        db.commit()
+        logger.warning("Backup failed, triggered by %s: %s", admin.username, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    db.add(AdminBackupLog(
+        filename=result.filename, size_bytes=result.size_bytes, status="success",
+        error_detail=None, triggered_by=admin.username, created_at=now,
+    ))
+    db.commit()
+    logger.info("Backup created by %s: %s (%d bytes)", admin.username, result.filename, result.size_bytes)
+    return {
+        "filename": result.filename,
+        "size_bytes": result.size_bytes,
+        "created_at": result.created_at.isoformat(),
+    }
+
+
+@router.get("/backup", summary="List available local Postgres backups")
+def list_backups_endpoint(admin: AdminUser = Depends(require_admin)):
+    backups = db_backup.list_backups()
+    return {
+        "backups": [
+            {
+                "filename": b.filename,
+                "size_bytes": b.size_bytes,
+                "modified_at": b.modified_at.isoformat(),
+            }
+            for b in backups
+        ]
+    }
+
+
+@router.get("/backup/log", summary="Backup action history")
+def backup_log_endpoint(
+    admin: AdminUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(AdminBackupLog).order_by(AdminBackupLog.created_at.desc()).limit(100).all()
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "filename": r.filename,
+                "size_bytes": r.size_bytes,
+                "status": r.status,
+                "error_detail": r.error_detail,
+                "triggered_by": r.triggered_by,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.get("/backup/{filename}/download", summary="Download a specific backup file")
+def download_backup_endpoint(
+    filename: str,
+    admin: AdminUser = Depends(require_admin),
+):
+    try:
+        path = db_backup.resolve_backup_path(filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    def _iter():
+        with path.open("rb") as f:
+            yield from f
+
+    logger.info("Backup '%s' downloaded by %s", filename, admin.username)
+    return StreamingResponse(
+        _iter(),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
