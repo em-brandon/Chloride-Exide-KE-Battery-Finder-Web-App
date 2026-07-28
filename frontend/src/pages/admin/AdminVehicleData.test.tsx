@@ -4,8 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import AdminVehicleData from './AdminVehicleData'
 import {
-  getWebValidateCoverage, getPipelineStaleness, getVehicleDataOemFitment,
-  type CoverageInfo, type OemFitmentRow,
+  getWebValidateCoverage, getPipelineStaleness, getVehicleDataOemFitment, getVehicleDataOemFitmentByMake,
+  type CoverageInfo, type OemFitmentRow, type OemFitmentMakeStat,
 } from '@/lib/adminApi'
 
 vi.mock('@/lib/adminApi', async (importOriginal) => {
@@ -14,6 +14,7 @@ vi.mock('@/lib/adminApi', async (importOriginal) => {
     ...actual,
     getWebValidateCoverage: vi.fn(), getPipelineStaleness: vi.fn(),
     getWebValidateMatched: vi.fn(), getVehicleDataOemFitment: vi.fn(),
+    getVehicleDataOemFitmentByMake: vi.fn(),
   }
 })
 
@@ -30,10 +31,13 @@ function coverage(overrides: Partial<CoverageInfo> = {}): CoverageInfo {
 }
 function fitmentRow(overrides: Partial<OemFitmentRow> = {}): OemFitmentRow {
   return {
-    id: 1, vehicle_category: 'car', make: 'Toyota', model: 'Corolla', year_from: 2015, year_to: 2020,
+    id: 1, vehicle_category: 'car', make: 'TOYOTA', model: 'COROLLA', year_from: 2015, year_to: 2020,
     ah: 60, technology: 'MF', raw_technology: 'MF', dimensions: '230x170x200', cylinder_capacity_cc: 1800,
     ...overrides,
   }
+}
+function makeStat(overrides: Partial<OemFitmentMakeStat> = {}): OemFitmentMakeStat {
+  return { make: 'TOYOTA', model_count: 10, row_count: 20, year_min: 2000, year_max: 2020, ...overrides }
 }
 
 function renderPage() {
@@ -84,33 +88,94 @@ describe('AdminVehicleData — Coverage tab', () => {
   })
 })
 
-describe('AdminVehicleData — OEM Fitment tab', () => {
+describe('AdminVehicleData — OEM Fitment tab (brand grid)', () => {
   beforeEach(() => {
     vi.mocked(getWebValidateCoverage).mockReset().mockResolvedValue(coverage())
     vi.mocked(getPipelineStaleness).mockReset().mockResolvedValue({ stale: false, vehicles_last_updated_at: null, new_vehicles_since_last_run: 0 })
     vi.mocked(getVehicleDataOemFitment).mockReset()
+    vi.mocked(getVehicleDataOemFitmentByMake).mockReset()
   })
 
-  it('switches to the fitment tab and loads OEM fitment rows', async () => {
+  it('renders one tile per make from the by-make endpoint', async () => {
+    vi.mocked(getVehicleDataOemFitmentByMake).mockResolvedValue({
+      makes: [makeStat({ make: 'TOYOTA' }), makeStat({ make: 'HONDA', model_count: 5, row_count: 8 })],
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('OEM Fitment')).toBeInTheDocument())
+    await user.click(screen.getByText('OEM Fitment'))
+
+    await waitFor(() => expect(screen.getByText('TOYOTA')).toBeInTheDocument())
+    expect(screen.getByText('HONDA')).toBeInTheDocument()
+  })
+
+  it('expands a tile to show that make\'s fitment rows, and collapses on second click', async () => {
+    vi.mocked(getVehicleDataOemFitmentByMake).mockResolvedValue({ makes: [makeStat({ make: 'TOYOTA' })] })
     vi.mocked(getVehicleDataOemFitment).mockResolvedValue({ total: 1, page: 1, page_size: 50, items: [fitmentRow()] })
     const user = userEvent.setup()
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('OEM Fitment')).toBeInTheDocument())
     await user.click(screen.getByText('OEM Fitment'))
+    await waitFor(() => expect(screen.getByText('TOYOTA')).toBeInTheDocument())
 
-    await waitFor(() => expect(screen.getByText('2015–2020')).toBeInTheDocument())
-    expect(getVehicleDataOemFitment).toHaveBeenCalledWith(1, 50, '')
+    await user.click(screen.getByText('TOYOTA'))
+    await waitFor(() => expect(screen.getByText('COROLLA')).toBeInTheDocument())
+    expect(getVehicleDataOemFitment).toHaveBeenCalledWith(1, 50, '', 'TOYOTA')
+
+    // 'TOYOTA' now appears twice (grid tile + expanded panel header) — click the tile (first match).
+    await user.click(screen.getAllByText('TOYOTA')[0])
+    await waitFor(() => expect(screen.queryByText('COROLLA')).not.toBeInTheDocument())
   })
 
-  it('shows "No rows." when the fitment result is empty', async () => {
+  it('switches directly from one expanded make to another', async () => {
+    vi.mocked(getVehicleDataOemFitmentByMake).mockResolvedValue({
+      makes: [makeStat({ make: 'TOYOTA' }), makeStat({ make: 'HONDA' })],
+    })
+    vi.mocked(getVehicleDataOemFitment).mockImplementation(async (_p, _ps, _s, make) => ({
+      total: 1, page: 1, page_size: 50,
+      items: [fitmentRow({ make: make as string, model: make === 'HONDA' ? 'CIVIC' : 'COROLLA' })],
+    }))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByText('OEM Fitment'))
+    await waitFor(() => expect(screen.getByText('TOYOTA')).toBeInTheDocument())
+
+    await user.click(screen.getByText('TOYOTA'))
+    await waitFor(() => expect(screen.getByText('COROLLA')).toBeInTheDocument())
+
+    await user.click(screen.getByText('HONDA'))
+    await waitFor(() => expect(screen.getByText('CIVIC')).toBeInTheDocument())
+    expect(screen.queryByText('COROLLA')).not.toBeInTheDocument()
+  })
+
+  it('shows "No rows." when the expanded make has no fitment rows', async () => {
+    vi.mocked(getVehicleDataOemFitmentByMake).mockResolvedValue({ makes: [makeStat({ make: 'TOYOTA' })] })
     vi.mocked(getVehicleDataOemFitment).mockResolvedValue({ total: 0, page: 1, page_size: 50, items: [] })
     const user = userEvent.setup()
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('OEM Fitment')).toBeInTheDocument())
     await user.click(screen.getByText('OEM Fitment'))
+    await waitFor(() => expect(screen.getByText('TOYOTA')).toBeInTheDocument())
+    await user.click(screen.getByText('TOYOTA'))
 
     await waitFor(() => expect(screen.getByText('No rows.')).toBeInTheDocument())
+  })
+
+  it('filters the visible tiles via the grid search box', async () => {
+    vi.mocked(getVehicleDataOemFitmentByMake).mockResolvedValue({
+      makes: [makeStat({ make: 'TOYOTA' }), makeStat({ make: 'HONDA' })],
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByText('OEM Fitment'))
+    await waitFor(() => expect(screen.getByText('TOYOTA')).toBeInTheDocument())
+    expect(screen.getByText('HONDA')).toBeInTheDocument()
+
+    await user.type(screen.getByPlaceholderText('Filter makes…'), 'toy')
+    await waitFor(() => expect(screen.queryByText('HONDA')).not.toBeInTheDocument())
+    expect(screen.getByText('TOYOTA')).toBeInTheDocument()
   })
 })
