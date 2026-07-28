@@ -171,10 +171,11 @@ function CoverageTab({ onTotal }: { onTotal?: (total: number) => void }) {
   const pct      = coverage ? coverage.pct_matched : 0
   const pctColor = pct > 80 ? '#15803d' : pct > 50 ? '#d97706' : '#CC0000'
 
-  // Coverage-by-make table state
+  // Coverage-by-make brand grid state
   const [makeSearch, setMakeSearch] = useState('')
   const [makeSortBy, setMakeSortBy] = useState<'make' | 'total' | 'pct'>('pct')
   const [makeSortAsc, setMakeSortAsc] = useState(true)
+  const [expandedCoverageMake, setExpandedCoverageMake] = useState<string | null>(null)
 
   function toggleMakeSort(col: 'make' | 'total' | 'pct') {
     if (makeSortBy === col) {
@@ -286,14 +287,35 @@ function CoverageTab({ onTotal }: { onTotal?: (total: number) => void }) {
         </div>
       )}
 
-      {/* Coverage by Make */}
+      {/* Coverage by Make — brand grid, same pattern as the OEM Fitment tab */}
       {coverage && (
         <div style={{
           background: 'var(--adm-card-bg)', border: '1px solid var(--adm-card-border)',
           borderRadius: 14, boxShadow: 'var(--adm-card-shadow)', overflow: 'hidden',
         }}>
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--adm-sep)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--adm-text-1)' }}>Coverage by Make</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--adm-text-1)' }}>Coverage by Make</span>
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                {([
+                  ['pct', 'Coverage'], ['total', 'Total'], ['make', 'Name'],
+                ] as const).map(([col, label]) => (
+                  <button
+                    key={col}
+                    onClick={() => toggleMakeSort(col)}
+                    style={{
+                      fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer',
+                      padding: '0.2rem 0.55rem', borderRadius: 20,
+                      border: `1px solid ${makeSortBy === col ? '#fecaca' : 'var(--adm-card-border)'}`,
+                      background: makeSortBy === col ? '#fff5f5' : 'var(--adm-subtle-bg)',
+                      color: makeSortBy === col ? '#CC0000' : 'var(--adm-text-2)',
+                    }}
+                  >
+                    {label}{makeSortBy === col ? (makeSortAsc ? ' ▲' : ' ▼') : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
             <input
               value={makeSearch}
               onChange={e => setMakeSearch(e.target.value)}
@@ -307,55 +329,65 @@ function CoverageTab({ onTotal }: { onTotal?: (total: number) => void }) {
               }}
             />
           </div>
+          <div style={{ padding: '1.25rem', display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+            {byMakeRows.length === 0 && (
+              <div style={{ flex: 1, padding: '2rem', textAlign: 'center', color: 'var(--adm-text-2)' }}>
+                {makeSearch ? 'No matches found.' : 'No coverage data yet.'}
+              </div>
+            )}
+            {byMakeRows.map((m, i) => (
+              <CoverageMakeTile
+                key={m.make}
+                stat={m}
+                active={expandedCoverageMake === m.make}
+                onClick={() => setExpandedCoverageMake(prev => prev === m.make ? null : m.make)}
+                animDelay={Math.min(i * 12, 300)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Expanded make's unmatched vehicles — already loaded client-side, no extra fetch */}
+      {expandedCoverageMake && coverage && (
+        <div style={{ ...CARD, overflow: 'hidden' }}>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--adm-sep)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <MakeBadge make={expandedCoverageMake} size={40} />
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--adm-text-1)' }}>{expandedCoverageMake}</span>
+              <span style={{ background: '#fff5f5', color: '#CC0000', border: '1px solid #fecaca', fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 20 }}>
+                {coverage.unmatched_vehicles.filter(v => v.make_n === expandedCoverageMake).length} unmatched
+              </span>
+            </div>
+            <button onClick={() => setExpandedCoverageMake(null)} style={pagBtn(false)}>Close ✕</button>
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
                 <tr style={{ background: 'var(--adm-thead-bg)' }}>
-                  {([
-                    ['make', 'Make'], ['total', 'Total Combos'], ['pct', 'Coverage'],
-                  ] as const).map(([col, label]) => (
-                    <th
-                      key={col}
-                      onClick={() => toggleMakeSort(col)}
-                      style={{
-                        padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700,
-                        color: 'var(--adm-text-2)', borderBottom: '1px solid var(--adm-sep)',
-                        whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none',
-                      }}
-                    >
-                      {label}{makeSortBy === col ? (makeSortAsc ? ' ▲' : ' ▼') : ''}
-                    </th>
+                  {['Model', 'Year', 'Engine CC', 'Fuel Type'].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {byMakeRows.length === 0 && (
-                  <tr><td colSpan={3} style={{ padding: '2rem', textAlign: 'center', color: 'var(--adm-text-2)' }}>
-                    {makeSearch ? 'No matches found.' : 'No coverage data yet.'}
-                  </td></tr>
+                {coverage.unmatched_vehicles.filter(v => v.make_n === expandedCoverageMake).length === 0 && (
+                  <tr><td colSpan={4} style={emptyStyle}>Fully matched — no unmatched vehicles for this make.</td></tr>
                 )}
-                {byMakeRows.map((m, i) => {
-                  const color = m.pct_matched > 80 ? '#15803d' : m.pct_matched > 50 ? '#d97706' : '#CC0000'
-                  return (
-                    <tr key={m.make} style={{
-                      background: i % 2 === 0 ? 'transparent' : 'var(--adm-faint-bg)',
-                      borderBottom: '1px solid var(--adm-row-border)',
-                    }}>
-                      <td style={{ padding: '0.45rem 0.75rem', color: 'var(--adm-text-1)', fontWeight: 600 }}>{m.make}</td>
-                      <td style={{ padding: '0.45rem 0.75rem', color: 'var(--adm-text-2)' }}>
-                        {m.matched.toLocaleString()} / {m.total.toLocaleString()}
-                      </td>
-                      <td style={{ padding: '0.45rem 0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ width: 80, background: 'var(--adm-subtle-bg)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(m.pct_matched, 100)}%`, background: color, height: '100%', borderRadius: 99 }} />
-                          </div>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color, minWidth: 40 }}>{m.pct_matched.toFixed(1)}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {coverage.unmatched_vehicles.filter(v => v.make_n === expandedCoverageMake).map((v, i) => (
+                  <tr key={`${v.make_n}-${v.model_n}-${v.year}`} style={rowStyle(i)}>
+                    <td style={tdStyle}>{v.model_n}</td>
+                    <td style={tdStyle}>{v.year}</td>
+                    <td style={{ ...tdStyle, color: 'var(--adm-text-2)' }}>{v.engine_cc ?? '–'}</td>
+                    <td style={tdStyle}>
+                      {v.fuel_type ? (
+                        <span style={{ background: '#f0fdf4', color: '#15803d', padding: '0.1rem 0.4rem', borderRadius: 6, fontSize: '0.72rem', fontWeight: 600 }}>
+                          {v.fuel_type}
+                        </span>
+                      ) : '–'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -649,7 +681,7 @@ function FitmentTab({ onTotal }: { onTotal?: (total: number) => void }) {
         <div style={{ ...CARD, overflow: 'hidden' }}>
           <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--adm-sep)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <MakeBadge make={expandedMake} size={36} />
+              <MakeBadge make={expandedMake} size={48} />
               <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--adm-text-1)' }}>{expandedMake}</span>
               <span style={{ background: 'var(--adm-subtle-bg)', color: 'var(--adm-text-2)', fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 20 }}>
                 {fitTotal.toLocaleString()} rows
@@ -779,8 +811,8 @@ function MakeTile({ stat, active, onClick, animDelay = 0 }: {
         flexDirection: 'column',
         alignItems: 'center',
         gap: '0.6rem',
-        width: 150,
-        flex: '0 0 150px',
+        width: 175,
+        flex: '0 0 175px',
         transition: 'box-shadow 0.15s, transform 0.1s',
         cursor: 'pointer',
         boxShadow: active ? '0 0 0 2px #CC000033, var(--adm-card-shadow)' : 'var(--adm-card-shadow)',
@@ -791,7 +823,7 @@ function MakeTile({ stat, active, onClick, animDelay = 0 }: {
       onMouseEnter={e => { if (!active) e.currentTarget.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
     >
-      <MakeBadge make={stat.make} size={60} />
+      <MakeBadge make={stat.make} size={76} />
       <span style={{
         fontSize: '0.78rem', fontWeight: 700, color: 'var(--adm-text-1)',
         textAlign: 'center', lineHeight: 1.2,
@@ -803,6 +835,59 @@ function MakeTile({ stat, active, onClick, animDelay = 0 }: {
           {stat.model_count.toLocaleString()} {stat.model_count === 1 ? 'model' : 'models'}
         </span>
         <span style={{ fontSize: '0.68rem', color: 'var(--adm-text-3)' }}>{yearRange}</span>
+      </div>
+    </div>
+  )
+}
+
+function CoverageMakeTile({ stat, active, onClick, animDelay = 0 }: {
+  stat: { make: string; total: number; matched: number; pct_matched: number }
+  active: boolean
+  onClick: () => void
+  animDelay?: number
+}) {
+  const pctColor = stat.pct_matched > 80 ? '#15803d' : stat.pct_matched > 50 ? '#d97706' : '#CC0000'
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: 'var(--adm-card-bg)',
+        border: active ? '1px solid #CC0000' : '1px solid var(--adm-card-border)',
+        borderRadius: 12,
+        padding: '1.1rem 1.1rem 0.9rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '0.6rem',
+        width: 175,
+        flex: '0 0 175px',
+        transition: 'box-shadow 0.15s, transform 0.1s',
+        cursor: 'pointer',
+        boxShadow: active ? '0 0 0 2px #CC000033, var(--adm-card-shadow)' : 'var(--adm-card-shadow)',
+        animationName: 'admCardIn', animationDuration: '0.4s',
+        animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)', animationFillMode: 'both',
+        animationDelay: `${animDelay}ms`,
+      }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.transform = 'translateY(-2px)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
+    >
+      <MakeBadge make={stat.make} size={76} />
+      <span style={{
+        fontSize: '0.78rem', fontWeight: 700, color: 'var(--adm-text-1)',
+        textAlign: 'center', lineHeight: 1.2,
+      }}>
+        {stat.make}
+      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'center', width: '100%' }}>
+        <span style={{ fontSize: '0.7rem', color: 'var(--adm-text-2)' }}>
+          {stat.matched.toLocaleString()} / {stat.total.toLocaleString()}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%' }}>
+          <div style={{ flex: 1, background: 'var(--adm-subtle-bg)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+            <div style={{ width: `${Math.min(stat.pct_matched, 100)}%`, background: pctColor, height: '100%', borderRadius: 99 }} />
+          </div>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: pctColor }}>{stat.pct_matched.toFixed(0)}%</span>
+        </div>
       </div>
     </div>
   )
