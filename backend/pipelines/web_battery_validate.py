@@ -575,7 +575,16 @@ def _try_reserve_quota(eng, provider: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def _resolve_battery_code(parsed: dict, make_n: str) -> tuple[str, int, str] | None:
-    region = parsed.get("region") or _make_region(make_n)
+    # Always use the make's own known region, never the web-scraped
+    # "region" guess in `parsed` — recommend() at request time always
+    # independently recomputes region = _make_region(make_n) for Layer 0a
+    # and ignores whatever region this pipeline picked when it stored the
+    # row, so trusting the noisy scraped-text signal here could only ever
+    # pick a battery_code from the wrong region pool for zero benefit.
+    # "DIN" is also a common Exide catalogue SKU prefix (e.g. battery_specs
+    # model_key "DIN060"), not purely a physical-region marker, so it shows
+    # up in scraped listing text even for NS-market vehicles.
+    region = _make_region(make_n)
     ah     = parsed["ah"]
     tech   = parsed["technology"]
     try:
