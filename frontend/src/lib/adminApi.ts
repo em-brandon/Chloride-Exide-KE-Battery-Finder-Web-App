@@ -828,10 +828,24 @@ export async function getVehicleDataOemFitment(
   page = 1,
   pageSize = 50,
   search = '',
+  make = '',
 ): Promise<OemFitmentResponse> {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (search) params.set('search', search)
+  if (make)   params.set('make', make)
   return adminFetch(`/api/admin/vehicle-data/oem-fitment?${params}`)
+}
+
+export interface OemFitmentMakeStat {
+  make:        string
+  model_count: number
+  row_count:   number
+  year_min:    number | null
+  year_max:    number | null
+}
+
+export async function getVehicleDataOemFitmentByMake(): Promise<{ makes: OemFitmentMakeStat[] }> {
+  return adminFetch('/api/admin/vehicle-data/oem-fitment/by-make')
 }
 
 // ---------------------------------------------------------------------------
