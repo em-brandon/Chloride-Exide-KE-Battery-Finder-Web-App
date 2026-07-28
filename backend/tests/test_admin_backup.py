@@ -71,13 +71,16 @@ def test_list_backups_returns_entries(client, monkeypatch):
 
 
 def test_backup_log_endpoint_orders_newest_first(client, db_session):
+    # Dates far in the future so these two rows sort ahead of any real
+    # admin_backup_log rows already committed in the dev database (this
+    # test's transaction can still see those via READ COMMITTED).
     older = AdminBackupLog(
         filename="a.dump", size_bytes=1, status="success", error_detail=None,
-        triggered_by="test-admin", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        triggered_by="test-admin", created_at=datetime(2099, 1, 1, tzinfo=timezone.utc),
     )
     newer = AdminBackupLog(
         filename="b.dump", size_bytes=2, status="success", error_detail=None,
-        triggered_by="test-admin", created_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        triggered_by="test-admin", created_at=datetime(2099, 6, 1, tzinfo=timezone.utc),
     )
     db_session.add_all([older, newer])
     db_session.flush()
