@@ -25,6 +25,7 @@ const AdminTestSessions = lazy(() => import('@/pages/admin/AdminTestSessions'))
 const AdminSettings     = lazy(() => import('@/pages/admin/AdminSettings'))
 const AdminDataPipeline = lazy(() => import('@/pages/admin/AdminDataPipeline'))
 const AdminSearchLog    = lazy(() => import('@/pages/admin/AdminSearchLog'))
+const AdminBackups      = lazy(() => import('@/pages/admin/AdminBackups'))
 const TestUserLogin     = lazy(() => import('@/pages/TestUserLogin'))
 const FaqModal          = lazy(() => import('@/components/FaqModal').then(m => ({ default: m.FaqModal })))
 const CopyrightModal    = lazy(() => import('@/components/CopyrightModal').then(m => ({ default: m.CopyrightModal })))
@@ -317,6 +318,7 @@ function App() {
       <Route path="/admin/settings"      element={<ProtectedRoute><AdminSettings     /></ProtectedRoute>} />
       <Route path="/admin/search-log"    element={<ProtectedRoute><AdminSearchLog    /></ProtectedRoute>} />
       <Route path="/admin/users"         element={<ProtectedRoute><AdminUsers        /></ProtectedRoute>} />
+      <Route path="/admin/backups"       element={<ProtectedRoute><AdminBackups      /></ProtectedRoute>} />
       {/* ── Test user login ── */}
       <Route path="/login" element={<TestUserProvider><TestUserLogin /></TestUserProvider>} />
     </Routes>

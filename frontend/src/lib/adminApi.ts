@@ -1527,3 +1527,39 @@ export async function updateExpansionMake(id: number, data: Partial<ExpansionMak
 export async function deleteExpansionMake(id: number): Promise<{ detail: string }> {
   return adminFetch(`/api/admin/pipeline/expansion/makes/${id}`, { method: 'DELETE' })
 }
+
+// ---------------------------------------------------------------------------
+// Database backup
+// ---------------------------------------------------------------------------
+
+export interface BackupEntry {
+  filename:     string
+  size_bytes:   number
+  modified_at:  string
+}
+
+export interface BackupLogEntry {
+  id:            number
+  filename:      string
+  size_bytes:    number | null
+  status:        'success' | 'failed'
+  error_detail:  string | null
+  triggered_by:  string
+  created_at:    string
+}
+
+export async function createBackup(): Promise<{ filename: string; size_bytes: number; created_at: string }> {
+  return adminFetch('/api/admin/backup', { method: 'POST' })
+}
+
+export async function listBackups(): Promise<{ backups: BackupEntry[] }> {
+  return adminFetch('/api/admin/backup')
+}
+
+export async function getBackupLog(): Promise<{ items: BackupLogEntry[] }> {
+  return adminFetch('/api/admin/backup/log')
+}
+
+export function backupDownloadUrl(filename: string): string {
+  return `/api/admin/backup/${encodeURIComponent(filename)}/download`
+}
