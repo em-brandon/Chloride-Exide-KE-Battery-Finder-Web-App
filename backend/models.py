@@ -360,6 +360,31 @@ class BatteryAuditLog(Base):
         return f"<BatteryAuditLog {self.action} battery_id={self.battery_id} by={self.changed_by}>"
 
 
+class AdminBackupLog(Base):
+    """
+    Audit trail for on-demand database backups triggered from the admin
+    panel (db_backup.py). Mirrors AdminAccountAuditLog/BatteryAuditLog's
+    precedent of a persistent, append-only log for sensitive admin actions.
+    """
+
+    __tablename__ = "admin_backup_log"
+
+    id            = Column(Integer,              primary_key=True, autoincrement=True)
+    filename      = Column(String(255),          nullable=False)
+    size_bytes    = Column(Integer,               nullable=True)   # null if the dump failed
+    status        = Column(String(20),            nullable=False)  # success | failed
+    error_detail  = Column(Text,                  nullable=True)
+    triggered_by  = Column(String(100),           nullable=False)  # admin username
+    created_at    = Column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("ix_admin_backup_log_created_at", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AdminBackupLog {self.filename} status={self.status}>"
+
+
 class AdminStats(Base):
     """
     Persisted counters that survive server restarts.
