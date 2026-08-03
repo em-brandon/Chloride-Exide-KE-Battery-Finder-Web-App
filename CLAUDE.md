@@ -200,3 +200,78 @@ Regression tests added (`test_web_validate_staging_and_quota.py`, staging lifecy
 **Data cleanup, run against the local dev DB:** queried both directions of the mismatch — 490 NS-region-make rows in `web_battery_validation` held a DIN-coded `battery_code` (Chery Tiggo, Daihatsu Hijet Caddie/Truck, Toyota Harrier/Hilux, etc. — grew from the original ~391 as more pipeline runs happened between 2026-07-18 and 2026-07-28); the symmetric DIN-make/NS-coded case came back **clean (0 rows)**, so the bug was one-directional in practice. `backend/scripts/fix_web_validate_region_mismatch.py` (dry-run by default, `--execute` to apply) took a real backup first (`batteryfinderdev_20260728_080950.dump`, logged to `admin_backup_log`), then re-resolved all 490 rows' `battery_code` using their existing `ah`/`technology` through the now-fixed `_resolve_battery_code()`. Verified 0 mismatches remain in either direction post-fix.
 
 **Tests:** `test_web_validate_region_resolution.py` (3 tests, both directions + region-absent case) and `test_admin_backup.py` (7 tests: success/failure audit logging, list/log ordering, download's traversal rejection + valid-file streaming, require_admin gating). Full backend suite green apart from the same 18 pre-existing `test_admin_account_management.py` bootstrap/reset-password failures that already fail on `main` (caused by the shared local dev DB no longer having an empty `admin_users` table — unrelated to this work).
+
+## PLAN (scoped 2026-08-03, not yet implemented) — Year-data remediation + Japanese Wikipedia parser
+
+**Trigger:** client review of the exported "Web Validated Fitments" / "OEM Fitment Guide" spreadsheet flagged (a) implausible year ranges (a Land Cruiser 200-series listed from 1951), (b) the `technology` column disagreeing with the recommended battery, (c) missing makes (Mercedes).
+
+**MEASUREMENT CAVEAT — the local dev DB was 4 migrations behind when these numbers were taken.** DB was at `a3b4c5d6e7f8` (20260718); repo head is `20260728_4b7e9c2a1f83`. Consequences: `admin_backup_log` absent, `oem_fitment` empty, `vehicle_years_exide` empty (it became a *view* in `20260722_3278f8c1b881`), and the DIN/NS `battery_code` cleanup from commit `9bd9069` had **not** been applied to this DB. **Run `alembic upgrade head` and re-measure before acting on any figure below.** The `vehicle_years` findings are unaffected by those migrations; the `web_battery_validation` ones are suspect.
+
+### Findings — year data quality (`vehicle_years`, 58,079 rows / 3,069 variants / 46 makes)
+
+- **1,065 variants (35%) across 35 makes start implausibly early** (`min(year) < 1990`), producing **12,987 phantom year rows** (22% of the table). A further 119 variants start post-1990 but span >25 years; 337 span 16-25 years. Only 1,548 look plausible — and "plausible" only means *not obviously wrong*, since provenance is missing (below).
+- **Split by severity** (this drives the repair strategy):
+  - **673 (63%) extend to 2020+** — correct years present, phantom early years attached. *Over-inclusion; fixable by clipping to a credible nameplate envelope, no per-trim research needed.*
+  - **237 (22%) end before 2000** — range sits entirely in the wrong era, correct years absent. *Needs real research; collapses to 72 nameplates across 21 makes (Isuzu 47, Toyota 32, Mazda 31, Fuso 19, Nissan 19).*
+  - 155 (15%) partial.
+- **The 1,065 collapse to 179 nameplates** (552 for the whole table). Year ranges are a property of the generation, not the trim, so all repair work should be keyed on nameplate, not variant — a 17x reduction.
+- **Provenance is absent:** `vehicle_years.source` is NULL on 56,880 of 58,079 rows (98%), all written in one bulk load on 2026-06-01. Only 720 rows are tagged `fueleconomy`, 479 `Wikipedia`. **This is why the 1984 cluster could not be attributed to a source** — do not assert a cause for it without re-running with provenance recorded.
+
+### Root causes in `backend/pipelines/enrich_years.py`
+
+1. **`MATCH_SCORE_THRESHOLD = 45` (line 46) is far too permissive for `token_set_ratio`.** Verified live against the real `fueleconomy_vehicles` table: CRSP `RENAULT LUTECIA GT LINE` → truncated to `LUTECIA GT` → matched EPA's **`GTA` at 46.15**, accepted by 1.15 points, yielding 1987. EPA's Renault catalogue is 10 models, all 1984-87 American Renaults; no Lutecia exists in it. Stored value is 1984-2025 (42 rows).
+   - **The threshold was deliberately lowered** because CRSP model strings carry full trim detail (`3 SERIES 320D X DRIVE M-SPORT HI-LINE PACKAGE`) while external DBs list plain names, so strict matching produced too many misses. It was compensating for a *normalisation* problem with the wrong lever.
+2. **`extract_base_model()` (line 473) truncates to the first 2 tokens**, discarding the generation marker — `LAND CRUISER 250 VX` → `LAND CRUISER`.
+3. **`get_years_from_wikidata()` (lines 335-338) applies no lower year bound**, while `_parse_wiki_years()` clamps at `1960` (line 196). Its SPARQL uses `FILTER(CONTAINS(...))` + `LIMIT 1`, returning the *nameplate* entity ("Toyota Land Cruiser", inception 1951) over the generation. **This is the 1951 Land Cruiser.**
+4. **Open-ended spans default to `CURRENT_YEAR`** (lines 588/599/608/617) — 243 variants run to 2026 including discontinued models.
+5. **Amplifier:** `list(range(yf, yt + 1))` expands a span into one row per year, so one bad lookup becomes dozens of rows.
+6. **Structural:** fueleconomy.gov (US EPA) is tried *first* (line 566) but is US-market only — Renault left the US in 1987, Suzuki in 2013. For much of the Kenyan fleet the highest-priority source can only miss or mislead. `LAND CRUISER` scores 32 against `RAV4 EV`; no normalisation fixes a source that lacks the vehicle.
+
+### Findings — `web_battery_validation` (22,875 rows, 29 makes, last run 2026-07-10) — RE-VERIFY POST-MIGRATION
+
+- **`technology` disagrees with `battery_code` on ~40% of rows**: AGM 8,397/11,781 (71%), EFB 500/792 (63%), MF 58/10,302 (0.6%). The two are populated independently — `technology` from `_parse_snippets()` scanning search text, `battery_code` from catalogue resolution — with nothing reconciling them.
+- **The matcher never reads that column.** `_web_validation()` selects it (`matcher.py:620`) but nothing consumes it; `recommend()` parses `battery_code` for Ah + tech (`matcher.py:1069`). The contradiction is a reporting artifact, not a recommendation defect. **Fix = populate the export from the resolved battery, or drop the column.**
+- **17 of 46 makes have no coverage at all** (Mitsubishi 2,234 vehicle rows, Renault 1,713, Mercedes 1,515, Porsche 1,114, Lexus 654, Mini 506, Scania, Bentley, UD, Vauxhall, MAN, Tata, Rolls-Royce, Fuso, SAIC, Dongfeng). Coverage is built incrementally across runs (4 runs: 20 makes, then +17), so this is unfinished processing rather than a defect.
+- **`MERCEDES` (1,515 rows) and `MERCEDES-BENZ` (12) are separate makes** in `vehicle_years` — make-normalisation bug.
+- 391 DIN-coded `battery_code` rows on NS-region makes — **almost certainly stale**, see caveat above.
+
+### THE PARSER TO BUILD — Japanese Wikipedia year enrichment
+
+**Why:** solves the source-coverage problem that no threshold or normalisation change can. `ja.wikipedia.org` publishes a structured table *per generation* with exact production periods and manufacturer chassis codes. Free, unmetered, and reachable through the same MediaWiki API already wired up for English.
+
+**Verified working (2026-08-03, live calls):**
+- **Name resolution needs no translation.** `en.wikipedia` search → `prop=langlinks&lllang=ja` → `ja` title. 7/7 on our model names, including `Renault Lutecia` → en `Renault Clio` → `ルノー・クリオ` (en.wikipedia resolves the JDM badge itself).
+- **Generation data is present and structured.** Section headings carry generation + chassis code + years — `初代 DW系（1996年 - 2002年）`, `2代目 DY系（2002年 - 2007年）`, `3代目 DE系（2007年 - 2014年）`, `4代目 DJ系（2014年 - 2019年）` (Mazda Demio). Infoboxes carry `販売期間` fields per generation (Daihatsu Hijet: 12).
+- **Coverage sample: 12/12 affected nameplates resolved** with >=3 generation ranges each (Hijet 30, Land Cruiser 32, Crown 29, Bongo 23, Golf 23, Minicab 17, Sambar 11, Hiace 10, Delica 7, E-Class 7, Caravan 5, Dutro 3). **Includes European makes** — ja.wikipedia documents Golf and E-Class to the same standard.
+- **Concrete win:** `DEMIO XD TOURING L PACKAGE` is stored as 2002-2022 (21 rows). `XD` is Mazda's diesel badge, introduced with the DJ generation → true range 2014-2019.
+
+**What the parser must handle:**
+1. `prop=wikitext`, **not `prop=extracts`** — the current code pulls only the lead paragraph, which is nameplate-level summary and is exactly why it returns 1951. Generation tables live further down the article.
+2. Two extraction shapes, both needed — some articles have one and not the other. Isuzu Elf: 11 generation headings, 0 `販売期間`. Land Cruiser: 8 `販売期間`, 0 matching headings.
+   - Generation headings: `初代`/`N代目` + optional chassis code + `（YYYY年 - YYYY年）`
+   - Infobox `販売期間` fields, incl. multi-value forms (`トラック：1964年4月-1968年4月<br/>バン：...`)
+3. Japanese date notation (`1996年8月`), en-dash/hyphen variants, open-ended (`1951年 -`), and the **imperial era calendar** (昭和/平成/令和) where used.
+4. Chassis codes (`DW系`, `DY系`, `X57`, `ABA-RH5F1`) as generation identifiers.
+5. **Trim → generation mapping is the unsolved part.** Hijet returns 30 ranges; nothing says which one `HIJET TRUCK` is. Proposed approach: search each generation's *section body* for the grade string (`XD`, `15S`) — same article, no extra source. Won't resolve everything; residue goes to the manual nameplate pass.
+6. **Rate limiting is mandatory and its failure mode is dangerous.** A 0.35 s delay got 12 consecutive lookups throttled, returning HTML instead of JSON — which, with a bare `except`, looks identical to "no data". 1.0 s spacing worked cleanly (~30 min for a full 552-nameplate run at 3 calls each). **A throttled response must never be recorded as a miss** — that is precisely how bad data entered this table.
+
+**Source priority after this lands:** ja.wikipedia (Japanese makes, free) → en.wikipedia with its bound fixed (Western makes, free) → Brave/DuckDuckGo for the residue → **drop Wikidata entirely** (it is the one actively producing bad values, and is superseded).
+
+**Brave quota reality:** `api_usage_quota` shows brave at 5,652/6,000 used, `period_end = NULL` — a prepaid balance in `_ONE_TIME_QUOTA_PROVIDERS` that **never auto-resets**. 346 calls remain (2 spent testing on 2026-08-03). Query at nameplate level (179 affected / 552 total), never per-variant. DuckDuckGo is unmetered (`quota_limit = -1`, 58,452 calls in June) and should carry the bulk; `searxng` is configured and completely unused.
+
+### Task list
+
+1. `alembic upgrade head` on the local dev DB, then **re-measure every figure above**.
+2. Build the ja.wikipedia parser per the spec above; validate on a hand-labelled sample **before** any bulk run — an earlier attempt at stricter matching is what caused the coverage shortfall that led to threshold 45, so prove it delivers accuracy *and* coverage first.
+3. Fix the four `enrich_years.py` defects (threshold, truncation, Wikidata bound, open-ended end date). Raising the threshold alone converts false positives into misses — normalisation and source selection are the actual levers.
+4. Re-run enrichment for **all 3,069 variants** into `vehicle_years_staging`, diff against live before commit. Re-running everything (not just the visibly broken 1,065) is what surfaces the tier-4 errors that look plausible but aren't.
+5. Populate `vehicle_years.source` **and a match score** on every row going forward.
+6. Add staging-gate validation: reject `year_from` below a floor, spans >25 years, and ranges whose start equals a source's dataset floor exactly. The staging review step exists but enforces nothing automatically.
+7. Human-set ranges for the residue at **nameplate level**, prioritised by production `search_events` volume.
+8. Fix the `web_battery_validation` export's `technology` column (populate from resolved battery, or remove).
+9. Finish web-validation coverage for the 17 outstanding makes; fix the `MERCEDES`/`MERCEDES-BENZ` split.
+10. Take a DB backup before any bulk mutation — `vehicle_years_changelog` / `vehicle_years_versions` / `revert_crsp_version()` give a rollback path, but back up regardless.
+
+### Open decision
+
+For nameplates no source resolves and nobody can date confidently: leave them without years (they disappear from the year dropdown — accurate, lower coverage) or assign a conservative recent window (findable, but a guess). Affects how much of the residue needs human attention. **Not yet decided.**
