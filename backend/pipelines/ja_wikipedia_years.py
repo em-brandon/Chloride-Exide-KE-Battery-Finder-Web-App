@@ -31,6 +31,8 @@ as misses. This module never does that; every fetch function propagates
 ThrottledError to its caller instead of swallowing it.
 """
 
+import json
+import os
 import re
 import time
 
@@ -591,3 +593,201 @@ def extract_generations_from_infobox(wikitext: str, log=print) -> list:
             })
             log(f"    [ja-wiki] infobox 販売期間 (label={label!r}): {year_from}-{year_to}")
     return generations
+
+
+# =========================
+# TRIM MATCHING
+# =========================
+
+def match_trim_to_generation(generations: list, trim_hint, log=print) -> dict:
+    """
+    Search each generation's searchable text (a heading generation's full
+    section body, or an infobox generation's market/trim label) for
+    `trim_hint` (e.g. "XD", "15S" — a grade/trim token from the vehicle's
+    model string).
+
+    Matching is two-tier. Tier 1 looks for an exact chassis-code/label match
+    (an infobox market/trim label equal to the trim string) and prefers it
+    immediately if exactly one exists. Tier 2 falls back to a substring
+    search across body text + chassis code. This ordering matters: verified
+    live that Toyota Crown's "クロスオーバー" (Crossover) trim exactly equals
+    one infobox generation's own label, but a substring search alone also
+    matches the broader "16代目 S3#型" heading generation, since that
+    generation's prose naturally mentions "クロスオーバー" as one of its body
+    styles — without the exact-match tier this collapsed a real, precise
+    match into a false "ambiguous".
+
+    An unambiguous match at either tier is trusted. Anything else — no
+    trim_hint given, zero matches, or more than one match at both tiers —
+    returns matched=None with every candidate generation attached rather
+    than guessing (widest envelope, most recent generation, etc.). This is
+    deliberately the unsolved part flagged in CLAUDE.md's investigation:
+    which of a nameplate's N generations a given trim string belongs to
+    isn't always resolvable from the article text alone, and guessing wrong
+    here would reproduce the exact class of bug this source exists to fix.
+    Ambiguous cases are residue for the human review pass.
+
+    Returns {"matched": dict|None, "candidates": list,
+             "status": "matched"|"ambiguous"|"no_generations_found"}.
+    """
+    if not generations:
+        return {"matched": None, "candidates": [], "status": "no_generations_found"}
+
+    if len(generations) == 1:
+        return {"matched": generations[0], "candidates": generations, "status": "matched"}
+
+    if not trim_hint:
+        return {"matched": None, "candidates": generations, "status": "ambiguous"}
+
+    needle = trim_hint.strip().upper()
+
+    exact_hits = [
+        gen for gen in generations
+        if gen.get("chassis_code") and needle == gen["chassis_code"].strip().upper()
+    ]
+    if len(exact_hits) == 1:
+        log(
+            f"    [ja-wiki] trim '{trim_hint}' exact chassis-code match: "
+            f"{exact_hits[0]['chassis_code']!r} ({exact_hits[0]['year_from']}-{exact_hits[0]['year_to']})"
+        )
+        return {"matched": exact_hits[0], "candidates": generations, "status": "matched"}
+    if len(exact_hits) > 1:
+        log(f"    [ja-wiki] trim '{trim_hint}' has {len(exact_hits)} exact chassis-code matches — ambiguous")
+        return {"matched": None, "candidates": exact_hits, "status": "ambiguous"}
+
+    hits = [
+        gen for gen in generations
+        if needle in f"{gen.get('section_body', '')} {gen.get('chassis_code') or ''}".upper()
+    ]
+    if len(hits) == 1:
+        log(
+            f"    [ja-wiki] trim '{trim_hint}' unambiguously matches "
+            f"{hits[0]['chassis_code']!r} ({hits[0]['year_from']}-{hits[0]['year_to']})"
+        )
+        return {"matched": hits[0], "candidates": generations, "status": "matched"}
+    if len(hits) > 1:
+        log(f"    [ja-wiki] trim '{trim_hint}' matches {len(hits)} generations — ambiguous")
+        return {"matched": None, "candidates": hits, "status": "ambiguous"}
+
+    log(f"    [ja-wiki] trim '{trim_hint}' matched no generation's text — ambiguous")
+    return {"matched": None, "candidates": generations, "status": "ambiguous"}
+
+
+# =========================
+# LOCAL CACHE
+# =========================
+#
+# Same JSON-file convention as enrich_years.py's cache/year_cache.json.
+# Keyed separately: "titles" by "MAKE|MODEL" (a resolve_ja_title() result),
+# "generations" by resolved ja_title (an extract_generations_from_*()
+# result) — the latter is article-scoped, not query-scoped, so two
+# make/model pairs that resolve to the same article share one fetch.
+CACHE_FILE = "cache/ja_wikipedia_cache.json"
+
+
+def _load_cache() -> dict:
+    try:
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            cache = json.load(f)
+    except FileNotFoundError:
+        cache = {}
+    cache.setdefault("titles", {})
+    cache.setdefault("generations", {})
+    # Strip unresolved title entries so a pair that previously failed to
+    # resolve is retried against the live API next run, same as
+    # enrich_years.py's year_cache.json null-entry handling.
+    for key in [k for k, v in cache["titles"].items() if not v.get("title")]:
+        del cache["titles"][key]
+    return cache
+
+
+def _save_cache(cache: dict) -> None:
+    cache_dir = os.path.dirname(CACHE_FILE)
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+    with open(CACHE_FILE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False)
+
+
+# =========================
+# ORCHESTRATOR
+# =========================
+
+def get_ja_years(make: str, model_name: str, trim_hint=None, log=print, use_cache: bool = True) -> dict:
+    """
+    Resolve a make/model (and optional trim) to ja.wikipedia generation-level
+    production year data.
+
+    Returns a dict with keys: make, model, ja_title, resolution_method,
+    generations (list of every generation found, both shapes), matched_generation
+    (the one trim_hint disambiguated to, or None), year_from, year_to, and
+    status — one of "matched" | "ambiguous" | "no_generations_found" |
+    "title_not_resolved" | "throttled".
+
+    "throttled" is a distinct status, never conflated with a real miss —
+    caller must not cache or record a throttled result as "no data" (see
+    module docstring). Nothing is written to the local cache on that path.
+    """
+    cache = _load_cache() if use_cache else {"titles": {}, "generations": {}}
+
+    def _result(**overrides):
+        base = {
+            "make": make, "model": model_name, "ja_title": None,
+            "resolution_method": None, "generations": [],
+            "matched_generation": None, "year_from": None, "year_to": None,
+            "status": None,
+        }
+        base.update(overrides)
+        return base
+
+    title_key = f"{make.strip().upper()}|{model_name.strip().upper()}"
+    resolution = cache["titles"].get(title_key)
+    if resolution is not None:
+        log(f"    [ja-wiki] title cache hit for '{title_key}': {resolution}")
+    else:
+        try:
+            resolution = resolve_ja_title(make, model_name, log=log)
+        except ThrottledError as exc:
+            log(f"    [ja-wiki] THROTTLED resolving title for '{title_key}': {exc}")
+            return _result(status="throttled")
+        if use_cache:
+            cache["titles"][title_key] = resolution
+            _save_cache(cache)
+
+    ja_title = resolution.get("title")
+    resolution_method = resolution.get("method")
+    if not ja_title:
+        return _result(resolution_method=resolution_method, status="title_not_resolved")
+
+    generations = cache["generations"].get(ja_title)
+    if generations is not None:
+        log(f"    [ja-wiki] generation cache hit for '{ja_title}' ({len(generations)} generations)")
+    else:
+        try:
+            wikitext = fetch_ja_wikitext(ja_title, log=log)
+            generations = (
+                extract_generations_from_headings(wikitext, log=log)
+                + extract_generations_from_infobox(wikitext, log=log)
+            )
+        except ThrottledError as exc:
+            log(f"    [ja-wiki] THROTTLED fetching '{ja_title}': {exc}")
+            return _result(ja_title=ja_title, resolution_method=resolution_method, status="throttled")
+        if use_cache:
+            cache["generations"][ja_title] = generations
+            _save_cache(cache)
+
+    if not generations:
+        return _result(
+            ja_title=ja_title, resolution_method=resolution_method,
+            status="no_generations_found",
+        )
+
+    match_result = match_trim_to_generation(generations, trim_hint, log=log)
+    matched = match_result["matched"]
+    return _result(
+        ja_title=ja_title, resolution_method=resolution_method,
+        generations=generations, matched_generation=matched,
+        year_from=matched["year_from"] if matched else None,
+        year_to=matched["year_to"] if matched else None,
+        status=match_result["status"],
+    )
