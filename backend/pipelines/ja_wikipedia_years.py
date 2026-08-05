@@ -34,6 +34,7 @@ ThrottledError to its caller instead of swallowing it.
 import re
 import time
 
+import mwparserfromhell
 import requests
 import urllib3
 from rapidfuzz import fuzz, utils as fuzz_utils
@@ -290,3 +291,167 @@ def fetch_ja_wikitext(title: str, log=print) -> str:
         log(f"    [ja-wiki] parse error for '{title}': {data['error']}")
         return ""
     return data.get("parse", {}).get("wikitext", {}).get("*", "")
+
+
+# =========================
+# GENERATION-HEADING PARSING
+# =========================
+#
+# Verified against real articles (Toyota Land Cruiser, Toyota Crown, Mazda
+# Demio) rather than assumed from a single idealized example. Two heading
+# shapes are both real and common:
+#   "初代 DW系（1996年 - 2002年）"      — ordinal + chassis code (Demio, Crown)
+#   "40系（1960年 - 1984年）"          — chassis code only, NO ordinal (Land
+#                                        Cruiser — its most-cited article!)
+# A naive parser requiring the ordinal marker would miss the majority of
+# real headings on pages like Land Cruiser. Also observed and handled:
+#   - multiple date ranges in one heading, comma-separated, when a chassis
+#     code went out of and back into production:
+#     "70系（1984年 - 2004年、2014年 - 2015年、2023年 -）"
+#   - open-ended ranges: "300系（2021年 - ）" (still in production)
+#   - multiple chassis codes joined by "/": "初代 RS型/S2#型/S3#型（1955年 - 1962年）"
+
+_JP_ERA_OFFSETS = {
+    "令和": 2018,  # Reiwa: 令和1年 = 2019
+    "平成": 1988,  # Heisei: 平成1年 = 1989
+    "昭和": 1925,  # Showa: 昭和1年 = 1926
+    "大正": 1911,  # Taisho: 大正1年 = 1912
+    "明治": 1867,  # Meiji: 明治1年 = 1868
+}
+_ERA_NAMES_RE = "|".join(_JP_ERA_OFFSETS)
+
+# One "YYYY年" or "元号N年" token, with optional month/day — used via
+# finditer() against an already-isolated date-range segment, never combined
+# with itself into one bigger pattern (stdlib re disallows duplicate named
+# groups in a single pattern).
+_YEAR_TOKEN_RE = re.compile(
+    rf'(?:(?P<era>{_ERA_NAMES_RE})(?P<era_year>\d{{1,2}})|(?P<year>\d{{3,4}}))年'
+    rf'(?:(?P<month>\d{{1,2}})月)?(?:(?P<day>\d{{1,2}})日)?'
+)
+
+# A generation heading's leading ordinal, if present — often absent (see above).
+_ORDINAL_RE = re.compile(r'^(初代|\d+代目)\s*')
+
+_PAREN_OPEN = "（("
+_PAREN_CLOSE = "）)"
+
+
+def _year_token_to_int(m: "re.Match") -> int | None:
+    if m.group("era"):
+        return _JP_ERA_OFFSETS[m.group("era")] + int(m.group("era_year"))
+    if m.group("year"):
+        return int(m.group("year"))
+    return None
+
+
+def _parse_date_clusters(text: str) -> list:
+    """
+    Split `text` (the content of a heading's parenthesis) on ideographic/ASCII
+    commas into one or more date-range clusters, each describing one
+    production span. A cluster with only one year token is open-ended (still
+    in production, or at least no end date is stated) — never defaulted to
+    the current year here; that clamp belongs to the caller, matching every
+    other source in enrich_years.py.
+    """
+    clusters = []
+    for segment in re.split(r"[、,]", text):
+        tokens = list(_YEAR_TOKEN_RE.finditer(segment))
+        if not tokens:
+            continue
+        year_from = _year_token_to_int(tokens[0])
+        if year_from is None:
+            continue
+        year_to = None
+        if len(tokens) >= 2:
+            year_to = _year_token_to_int(tokens[1])
+        clusters.append({
+            "year_from": year_from,
+            "year_to": year_to,
+            "open_ended": year_to is None,
+            "raw": segment.strip(),
+        })
+    return clusters
+
+
+def _combine_clusters(clusters: list) -> tuple:
+    """
+    Collapse one or more date-range clusters into a single (year_from,
+    year_to) envelope for the generation as a whole: earliest start across
+    all clusters, latest end across all clusters — unless the chronologically
+    last cluster is open-ended, in which case year_to is None (still in
+    production as of the article).
+    """
+    if not clusters:
+        return None, None
+    year_from = min(c["year_from"] for c in clusters)
+    if clusters[-1]["open_ended"]:
+        year_to = None
+    else:
+        defined_ends = [c["year_to"] for c in clusters if c["year_to"] is not None]
+        year_to = max(defined_ends) if defined_ends else None
+    return year_from, year_to
+
+
+def parse_generation_heading(title: str) -> dict | None:
+    """
+    Parse one level-2 heading title. Returns None if it doesn't describe a
+    production period (e.g. "概要", "系譜", "モータースポーツ", "脚注" — every
+    non-generation section on a car article) — driven entirely by "does this
+    heading contain a parenthesized cluster with at least one year", not by
+    requiring an ordinal marker, since that marker is often absent on real
+    pages (see module-level comment above).
+    """
+    open_idx = next((i for i, ch in enumerate(title) if ch in _PAREN_OPEN), None)
+    if open_idx is None:
+        return None
+    close_idx = next(
+        (i for i in range(len(title) - 1, open_idx, -1) if title[i] in _PAREN_CLOSE),
+        None,
+    )
+    if close_idx is None:
+        return None
+
+    clusters = _parse_date_clusters(title[open_idx + 1:close_idx])
+    if not clusters:
+        return None
+
+    year_from, year_to = _combine_clusters(clusters)
+    label_part = title[:open_idx].strip()
+    ordinal_m = _ORDINAL_RE.match(label_part)
+    ordinal = ordinal_m.group(1) if ordinal_m else None
+    chassis_code = label_part[ordinal_m.end():].strip() if ordinal_m else label_part
+
+    return {
+        "raw_title": title,
+        "ordinal": ordinal,
+        "chassis_code": chassis_code,
+        "year_from": year_from,
+        "year_to": year_to,
+        "clusters": clusters,
+        "shape": "heading",
+    }
+
+
+def extract_generations_from_headings(wikitext: str, log=print) -> list:
+    """
+    Walk every level-2 (`==...==`) section of `wikitext` and return one dict
+    per heading that parses as a generation, each carrying its section body
+    text (everything until the next level-2-or-higher heading) for later
+    trim matching. Level-3+ subsections (e.g. "=== 年表 ===", "=== 歴史===")
+    are deliberately not treated as separate generations — they're narrative
+    detail within a generation's own section, not additional generations.
+    """
+    code = mwparserfromhell.parse(wikitext)
+    generations = []
+    for section in code.get_sections(levels=[2], include_headings=True):
+        headings = section.filter_headings()
+        if not headings:
+            continue
+        title = str(headings[0].title).strip()
+        parsed = parse_generation_heading(title)
+        if parsed is None:
+            continue
+        parsed["section_body"] = str(section)
+        generations.append(parsed)
+        log(f"    [ja-wiki] generation heading: '{title}' -> {parsed['year_from']}-{parsed['year_to']}")
+    return generations
