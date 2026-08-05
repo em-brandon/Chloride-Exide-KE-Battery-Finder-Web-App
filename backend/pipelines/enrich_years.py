@@ -15,13 +15,20 @@ External sources (in priority order):
   3. CarQuery                  — community year ranges
   4. Japanese Wikipedia        — generation-level production data with chassis
                                  codes (pipelines/ja_wikipedia_years.py); tried
-                                 before English Wikipedia/Wikidata since it's
-                                 the more accurate source for the JDM-heavy
-                                 fleet — see that module's docstring and
-                                 CLAUDE.md's year-data remediation writeup
+                                 before English Wikipedia since it's the more
+                                 accurate source for the JDM-heavy fleet — see
+                                 that module's docstring and CLAUDE.md's
+                                 year-data remediation writeup
   5. Wikipedia API             — article extracts with year mentions
-  6. Wikidata SPARQL           — structured production dates
-  7. NHTSA VPIC                — fallback model list (confirms model exists, no per-year data)
+  6. NHTSA VPIC                — fallback model list (confirms model exists, no per-year data)
+
+Wikidata SPARQL was removed as a source (2026-08-05): its P571 inception
+date has no lower bound and returns the nameplate's founding year rather
+than any real generation's start (the literal cause of a Land Cruiser
+being stored as starting in 1951 — see CLAUDE.md's year-data remediation
+writeup). ja.wikipedia (source 4 above) supersedes it with real
+generation-level data instead of guessing from a company-wide inception
+date.
 """
 
 import os
@@ -35,7 +42,7 @@ import urllib3
 
 import pandas as pd
 import requests
-from rapidfuzz import process, fuzz
+from rapidfuzz import process, fuzz, utils as fuzz_utils
 
 # Allows both `python pipelines/enrich_years.py` (standalone CLI) and
 # `from pipelines.enrich_years import ...` (admin_router import) to resolve
@@ -62,11 +69,30 @@ FUELECONOMY_CSV_URL   = "https://www.fueleconomy.gov/feg/epadata/vehicles.csv"
 FUELECONOMY_CSV       = "cache/fueleconomy_vehicles.csv"
 CURRENT_YEAR          = 2026
 REQUEST_DELAY         = 1.0
-MATCH_SCORE_THRESHOLD = 45
+# Raised from 45 (2026-08-05) after fixing a real case-sensitivity bug: every
+# fuzzy match here compared our all-caps CRSP model strings against
+# mixed-case external listings (e.g. "LAND CRUISER" vs "Land Cruiser")
+# without a case-insensitive processor, which silently pushed genuine
+# matches' scores down (Land Cruiser scored 32 against an unrelated model
+# instead of 100 against its real match) — the low threshold was
+# compensating for that corruption, not genuine ambiguity. Verified against
+# real fueleconomy_vehicles.csv data with the processor fix applied: true
+# matches score 85-100, false positives (including the exact "RENAULT
+# LUTECIA GT LINE" -> EPA "GTA" false match from CLAUDE.md's investigation)
+# top out at 53. 60 sits in the gap between them.
+MATCH_SCORE_THRESHOLD = 60
+
+# Cap on how far an open-ended span (a source found a start year but no end
+# year) is allowed to run before being capped, instead of blindly extending
+# every unresolved end date to CURRENT_YEAR. CLAUDE.md's investigation found
+# 243 variants incorrectly running to 2026 this way, including long-
+# discontinued models whose source simply didn't report an end date. Most
+# real vehicle-generation lifespans run 5-15 years; 20 gives real long-lived
+# nameplates room without letting a bad open-ended lookup claim 40+ years.
+MAX_OPEN_ENDED_SPAN_YEARS = 20
 
 NHTSA_ALL_MODELS   = "https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/{make}?format=json"
 WIKI_SEARCH_URL    = "https://en.wikipedia.org/w/api.php"
-WIKIDATA_SPARQL    = "https://query.wikidata.org/sparql"
 CARAPI_MODELS_URL  = "https://carapi.app/api/models?make={make}&verbose=yes&limit=200"
 CARQUERY_URL       = "https://www.carqueryapi.com/api/0.3/"
 
@@ -264,61 +290,6 @@ def get_years_from_wikipedia(make, model_name, log=print, rate_limit_counter=Non
                 return yf, yt
         except Exception as e:
             log(f"    [Wiki WARN] {make} {model_name}: {e}")
-            break
-    return None, None
-
-
-# =========================
-# SOURCE 3 — WIKIDATA SPARQL
-# =========================
-def get_years_from_wikidata(make, model_name, log=print, rate_limit_counter=None):
-    # Use the cleaned base model (no engine codes) so the label FILTER can match
-    # Wikidata entity names like "Audi A1 Sportback", not "Audi A1 Sportback 1.0 TFSI"
-    search_model = extract_search_model(make, model_name)
-    search_make_word = to_search_make(make).split()[0].lower()
-
-    # P571 = inception (production start year) — replaces the incorrect P2047 (duration)
-    # P582 = end time (production end year)
-    sparql = f"""
-    SELECT ?yearStart ?yearEnd WHERE {{
-      ?car wdt:P31/wdt:P279* wd:Q3231690 .
-      ?car rdfs:label ?label .
-      FILTER(LANG(?label) = "en")
-      FILTER(CONTAINS(LCASE(?label), "{search_model.lower()}"))
-      FILTER(CONTAINS(LCASE(?label), "{search_make_word}"))
-      OPTIONAL {{ ?car wdt:P571 ?yearStart . }}
-      OPTIONAL {{ ?car wdt:P582 ?yearEnd . }}
-    }} LIMIT 1
-    """
-    log(f"    [Wikidata] query label contains: '{search_make_word}' + '{search_model.lower()}'")
-    for attempt in range(3):
-        try:
-            resp = SESSION.get(
-                WIKIDATA_SPARQL,
-                params={"query": sparql, "format": "json"},
-                timeout=20,
-                headers={"Accept": "application/sparql-results+json"},
-            )
-            if resp.status_code == 429:
-                if rate_limit_counter is not None:
-                    rate_limit_counter["wikidata"] = rate_limit_counter.get("wikidata", 0) + 1
-                wait = 10 * (attempt + 1)   # 10s / 20s / 30s
-                log(f"    [Wikidata] 429 rate-limit, waiting {wait}s...")
-                time.sleep(wait)
-                continue
-            resp.raise_for_status()
-            bindings = resp.json().get("results", {}).get("bindings", [])
-            if bindings:
-                yf = bindings[0].get("yearStart", {}).get("value")
-                yt = bindings[0].get("yearEnd",   {}).get("value")
-                yf = int(yf[:4]) if yf else None
-                yt = int(yt[:4]) if yt else None
-                if yf:
-                    return yf, yt
-            log(f"    [Wikidata] no bindings returned")
-            return None, None
-        except Exception as e:
-            log(f"    [Wikidata WARN] {make} {model_name}: {e}")
             break
     return None, None
 
@@ -552,8 +523,18 @@ def lookup_years_fueleconomy(make, model_name, fe_df):
     if make_df.empty:
         return None
     unique_models = make_df["model"].dropna().unique().tolist()
-    base_name = extract_base_model(make, model_name)
-    result = process.extractOne(base_name, unique_models, scorer=fuzz.token_set_ratio)
+    # extract_search_model(), not extract_base_model() — the latter keeps
+    # trim/grade words (e.g. "GT") that extract_search_model strips, and an
+    # untrimmed query can false-match a source that has no real match at all
+    # (verified: "RENAULT LUTECIA GT LINE" -> base_model "LUTECIA GT" ->
+    # matched EPA's unrelated "GTA" at 46.15; with "GT" stripped, "LUTECIA"
+    # alone scores only 40 against the same "GTA" — still not a match, but
+    # now correctly below MATCH_SCORE_THRESHOLD instead of just above it).
+    search_name = extract_search_model(make, model_name)
+    result = process.extractOne(
+        search_name, unique_models, scorer=fuzz.token_set_ratio,
+        processor=fuzz_utils.default_process,
+    )
     if result is None or result[1] < MATCH_SCORE_THRESHOLD:
         return None
     matched_model = result[0]
@@ -592,10 +573,26 @@ def best_model_match(our_model, nhtsa_models):
     if not nhtsa_models:
         return None, 0
     names = [m.get("Model_Name", "") for m in nhtsa_models]
-    result = process.extractOne(our_model, names, scorer=fuzz.token_set_ratio)
+    result = process.extractOne(our_model, names, scorer=fuzz.token_set_ratio, processor=fuzz_utils.default_process)
     if result is None or result[1] < MATCH_SCORE_THRESHOLD:
         return None, 0
     return result[0], result[1]
+
+
+def _resolve_end_year(year_from, year_to):
+    """
+    Clamp a source's (year_from, year_to) into a bounded end year. A known
+    year_to is capped at CURRENT_YEAR (a source shouldn't report a future
+    end date). An unknown (None) year_to — the source found no end date,
+    which may mean "still in production" or may just mean the source's
+    data is incomplete for a long-discontinued model — is capped at
+    year_from + MAX_OPEN_ENDED_SPAN_YEARS rather than blindly extended to
+    CURRENT_YEAR, so one open-ended lookup can't silently claim a vehicle
+    ran for 40+ years.
+    """
+    if year_to:
+        return min(year_to, CURRENT_YEAR)
+    return min(year_from + MAX_OPEN_ENDED_SPAN_YEARS, CURRENT_YEAR)
 
 
 def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_counter=None, full_model_name=None):
@@ -625,14 +622,14 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
     # ── CarAPI ─────────────────────────────────────────────────────────────────
     if carapi_models:
         ca_names = [m.get("name", "") for m in carapi_models]
-        result = process.extractOne(model_name, ca_names, scorer=fuzz.token_set_ratio)
+        result = process.extractOne(model_name, ca_names, scorer=fuzz.token_set_ratio, processor=fuzz_utils.default_process)
         if result and result[1] >= MATCH_SCORE_THRESHOLD:
             best = carapi_models[result[2]]
             yf = best.get("year_first") or best.get("year")
             yt = best.get("year_last")
             if yf:
                 yf = int(yf)
-                yt = min(int(yt), CURRENT_YEAR) if yt else CURRENT_YEAR
+                yt = _resolve_end_year(yf, int(yt) if yt else None)
                 log(f"      → carapi: {yf}–{yt} (matched '{result[0]}', score {result[1]})")
                 return list(range(yf, yt + 1)), "carapi"
         score = result[1] if result else 0
@@ -643,7 +640,7 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
     # ── CarQuery ───────────────────────────────────────────────────────────────
     yf, yt = get_years_from_carquery(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
     if yf:
-        yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
+        yt = _resolve_end_year(yf, yt)
         log(f"      → carquery: {yf}–{yt}")
         return list(range(yf, yt + 1)), "carquery"
     log(f"      → carquery: miss")
@@ -656,7 +653,7 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
         log=log, rate_limit_counter=rate_limit_counter,
     )
     if yf:
-        yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
+        yt = _resolve_end_year(yf, yt)
         log(f"      → ja_wikipedia: {yf}–{yt}")
         return list(range(yf, yt + 1)), "ja_wikipedia"
     log(f"      → ja_wikipedia: miss")
@@ -664,19 +661,10 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
     # ── Wikipedia ──────────────────────────────────────────────────────────────
     yf, yt = get_years_from_wikipedia(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
     if yf:
-        yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
+        yt = _resolve_end_year(yf, yt)
         log(f"      → wikipedia: {yf}–{yt}")
         return list(range(yf, yt + 1)), "wikipedia"
     log(f"      → wikipedia: miss")
-    time.sleep(REQUEST_DELAY)
-
-    # ── Wikidata ───────────────────────────────────────────────────────────────
-    yf, yt = get_years_from_wikidata(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
-    if yf:
-        yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
-        log(f"      → wikidata: {yf}–{yt}")
-        return list(range(yf, yt + 1)), "wikidata"
-    log(f"      → wikidata: miss")
     time.sleep(REQUEST_DELAY)
 
     log(f"      → all sources exhausted")
@@ -929,8 +917,8 @@ def main(
     pairs_done        = {}
     pairs_count       = 0
     processed         = 0
-    rate_limit_counter = {"wikipedia": 0, "wikidata": 0, "ja_wikipedia": 0}
-    cache_hit_counts  = {"fueleconomy": 0, "carapi": 0, "wikipedia": 0, "wikidata": 0, "nhtsa": 0, "ja_wikipedia": 0}
+    rate_limit_counter = {"wikipedia": 0, "ja_wikipedia": 0}
+    cache_hit_counts  = {"fueleconomy": 0, "carapi": 0, "wikipedia": 0, "nhtsa": 0, "ja_wikipedia": 0}
 
     expanded_rows:                  list  = []
     unmatched_info: dict[tuple, str]      = {}
@@ -1080,7 +1068,7 @@ def main(
             "cache_hits":  cache_hit_counts.get(src, 0),
             "rate_limits": rate_limit_counter.get(src, 0),
         }
-        for src in ("fueleconomy", "carapi", "carquery", "ja_wikipedia", "wikipedia", "wikidata", "nhtsa")
+        for src in ("fueleconomy", "carapi", "carquery", "ja_wikipedia", "wikipedia", "nhtsa")
     }
 
     return {
