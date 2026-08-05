@@ -455,3 +455,139 @@ def extract_generations_from_headings(wikitext: str, log=print) -> list:
         generations.append(parsed)
         log(f"    [ja-wiki] generation heading: '{title}' -> {parsed['year_from']}-{parsed['year_to']}")
     return generations
+
+
+# =========================
+# INFOBOX 販売期間 PARSING
+# =========================
+#
+# Verified against real infobox data (Toyota Land Cruiser, Toyota Crown,
+# Mazda Demio). Two infobox template shapes coexist on the same article and
+# must be told apart:
+#   Infobox_自動車基本情報   — ONE per article, nameplate-level summary.
+#                              On Land Cruiser this literally reads
+#                              "販売期間= [[1951年]] -" — the exact same wrong
+#                              nameplate-level span that caused the original
+#                              1951 bug via Wikidata, just via a different
+#                              field. MUST NOT be trusted as generation data.
+#   Infobox_自動車のスペック表 — ONE PER GENERATION subsection. This is the
+#                              only infobox shape trusted here.
+# (Also seen with a space instead of underscore: "Infobox 自動車のスペック表".)
+#
+# A 販売期間 value can itself be plain text, "<br/>"-separated multi-value
+# text (e.g. "トラック：1964年4月-1968年4月<br/>バン：..."), or wrap a nested
+# list-like template — verified two real shapes: {{Ublist|label：range|...}}
+# (each argument already a complete "label：range" string) and
+# {{dl2|label|range|label|range|...}} (alternating label/value arguments).
+# mwparserfromhell is required here, not regex: naive regex over raw wikitext
+# would get confused by the nested template's own "{{"/"}}"/"|" characters
+# and either cut the field off at the wrong place or match nothing.
+_SPEC_TABLE_TEMPLATE_RE = re.compile(r'^Infobox[_ ]自動車のスペック表')
+
+# List-like templates seen wrapping multi-market/multi-trim 販売期間 values.
+_LIST_TEMPLATE_NAMES = {"ublist", "dl2", "plainlist", "unbulleted list", "flatlist", "hlist"}
+
+# A reveal/announcement-date aside, e.g. "（発表:2022年7月15日）" — must be
+# stripped before scanning for years, or it reads as a second production
+# date. Verified against a real dl2-templated Crown field:
+# "2022年9月1日 - （発表:2022年7月15日）" must yield only 2022-09 as the start.
+_ANNOUNCEMENT_ASIDE_RE = re.compile(r'[（(]発表[:：][^）)]*[）)]')
+
+
+def _strip_announcement_asides(text: str) -> str:
+    return _ANNOUNCEMENT_ASIDE_RE.sub("", text)
+
+
+def _peel_label(text: str) -> tuple:
+    """Split a leading 'label：date text' into (label, date text) if present."""
+    label, sep, rest = text.partition("：")
+    if sep and re.search(r'\d{3,4}年', rest):
+        return label.strip(), rest.strip()
+    return None, text.strip()
+
+
+def _spans_from_infobox_value(value_code, log=print) -> list:
+    """
+    Return a list of (label, text) spans to date-parse, given a
+    mwparserfromhell Wikicode value already isolated to one 販売期間 param.
+    """
+    inner_templates = value_code.filter_templates()
+    raw_spans = []
+    if not inner_templates:
+        # Split on <br/> BEFORE strip_code(), not after — strip_code() treats
+        # <br/> as a rendering-only tag with no text content and drops it
+        # entirely, so splitting the already-stripped text on <br/> never
+        # matches anything. Verified against a real case this silently
+        # merged two spans into one: Land Cruiser's 40系 infobox has
+        # "1960年 - 1984年<br />1968年 - 2001年 (ブラジル)" (a secondary
+        # Brazil-market production run) — without this ordering fix both
+        # dates collapse into a single wrong 1960-1984 cluster.
+        raw_value_str = str(value_code)
+        for raw_part in re.split(r'<br\s*/?>', raw_value_str):
+            raw_part = raw_part.strip()
+            if not raw_part:
+                continue
+            # Re-parse each fragment so wikilinks/refs within it still
+            # strip_code() down to visible text, e.g. "[[1955年]] -" -> "1955年 -".
+            part_text = mwparserfromhell.parse(raw_part).strip_code().strip()
+            if part_text:
+                raw_spans.append((None, part_text))
+    else:
+        for tmpl in inner_templates:
+            name = str(tmpl.name).strip().lower()
+            if name not in _LIST_TEMPLATE_NAMES:
+                log(f"    [ja-wiki] unknown template '{name}' inside 販売期間 — skipping (residue for manual review)")
+                continue
+            pending_label = None
+            for param in tmpl.params:
+                raw_text = param.value.strip_code().strip()
+                if not raw_text:
+                    continue
+                if re.search(r'\d{3,4}年', raw_text):
+                    raw_spans.append((pending_label, raw_text))
+                    pending_label = None
+                else:
+                    # dl2's alternating label,value,label,value shape.
+                    pending_label = raw_text
+
+    spans = []
+    for label, text in raw_spans:
+        text = _strip_announcement_asides(text)
+        if label is None:
+            label, text = _peel_label(text)
+        spans.append((label, text))
+    return spans
+
+
+def extract_generations_from_infobox(wikitext: str, log=print) -> list:
+    """
+    Extract generation-level date spans from every
+    Infobox_自動車のスペック表 template's 販売期間 parameter in `wikitext`.
+    Deliberately skips Infobox_自動車基本情報 — see module comment above.
+    """
+    code = mwparserfromhell.parse(wikitext)
+    generations = []
+    for tmpl in code.filter_templates():
+        name = str(tmpl.name).strip()
+        if not _SPEC_TABLE_TEMPLATE_RE.match(name):
+            continue
+        if not tmpl.has("販売期間"):
+            continue
+        value_code = tmpl.get("販売期間").value
+        for label, text in _spans_from_infobox_value(value_code, log=log):
+            clusters = _parse_date_clusters(text)
+            if not clusters:
+                continue
+            year_from, year_to = _combine_clusters(clusters)
+            generations.append({
+                "raw_title": label or name,
+                "ordinal": None,
+                "chassis_code": label,
+                "year_from": year_from,
+                "year_to": year_to,
+                "clusters": clusters,
+                "shape": "infobox",
+                "section_body": label or "",
+            })
+            log(f"    [ja-wiki] infobox 販売期間 (label={label!r}): {year_from}-{year_to}")
+    return generations
