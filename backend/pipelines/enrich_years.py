@@ -1,7 +1,7 @@
 """
 CRSP Pipeline — Stage 2: Year Enrichment
 
-Reads battery_lookup_dataset.csv (output of dataprep.py), queries 5 external
+Reads battery_lookup_dataset.csv (output of dataprep.py), queries external
 sources to find production year ranges for each unique make/model pair, then
 writes results to vehicle_years_staging for admin review before committing.
 
@@ -12,9 +12,16 @@ Can be run:
 External sources (in priority order):
   1. fueleconomy.gov bulk CSV  — exact per-year data (US EPA, 1984–present)
   2. CarAPI                    — community year ranges
-  3. Wikipedia API             — article extracts with year mentions
-  4. Wikidata SPARQL           — structured production dates
-  5. NHTSA VPIC                — fallback model list (confirms model exists, no per-year data)
+  3. CarQuery                  — community year ranges
+  4. Japanese Wikipedia        — generation-level production data with chassis
+                                 codes (pipelines/ja_wikipedia_years.py); tried
+                                 before English Wikipedia/Wikidata since it's
+                                 the more accurate source for the JDM-heavy
+                                 fleet — see that module's docstring and
+                                 CLAUDE.md's year-data remediation writeup
+  5. Wikipedia API             — article extracts with year mentions
+  6. Wikidata SPARQL           — structured production dates
+  7. NHTSA VPIC                — fallback model list (confirms model exists, no per-year data)
 """
 
 import os
@@ -39,6 +46,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from pipelines.model_name_utils import (
     MAKE_MAP, to_search_make, extract_base_model, extract_search_model,
 )
+from pipelines.ja_wikipedia_years import get_ja_years, ThrottledError as JaWikiThrottledError
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -492,6 +500,48 @@ def get_years_from_carquery(make: str, model_name: str, log=print, rate_limit_co
     return None, None
 
 
+# =========================
+# SOURCE — JAPANESE WIKIPEDIA
+# =========================
+def get_years_from_ja_wikipedia(make, model_name, trim_hint=None, log=print, rate_limit_counter=None):
+    """
+    Wrap pipelines.ja_wikipedia_years.get_ja_years() to the (years_list,
+    source) contract every other lookup_years() source uses.
+
+    A throttled response is logged distinctly and returns (None, None) for
+    THIS source only, falling through to the next source for this run — it
+    is never cached as a miss. That's safe here because lookup_years()'s
+    caller only ever writes cache["years"] for whichever source actually
+    resolves the pair, so a throttled ja.wikipedia attempt this run doesn't
+    poison anything; another source (or a later run) can still resolve it.
+
+    Anything other than status="matched" (ambiguous, no_generations_found,
+    title_not_resolved) is also a miss here — this source deliberately does
+    not guess when a nameplate's generation is ambiguous, so it only
+    contributes a year range when ja.wikipedia data plus (if given) a trim
+    hint unambiguously resolves one.
+    """
+    try:
+        result = get_ja_years(make, model_name, trim_hint=trim_hint, log=log)
+    except JaWikiThrottledError as exc:
+        if rate_limit_counter is not None:
+            rate_limit_counter["ja_wikipedia"] = rate_limit_counter.get("ja_wikipedia", 0) + 1
+        log(f"    [ja-wiki] THROTTLED — {exc}")
+        return None, None
+
+    if result["status"] == "throttled":
+        if rate_limit_counter is not None:
+            rate_limit_counter["ja_wikipedia"] = rate_limit_counter.get("ja_wikipedia", 0) + 1
+        log(f"    [ja-wiki] THROTTLED")
+        return None, None
+
+    if result["status"] != "matched":
+        log(f"    [ja-wiki] {result['status']} ({len(result['generations'])} candidate generations)")
+        return None, None
+
+    return result["year_from"], result["year_to"]
+
+
 def lookup_years_fueleconomy(make, model_name, fe_df):
     if fe_df.empty:
         return None
@@ -514,6 +564,30 @@ def lookup_years_fueleconomy(make, model_name, fe_df):
     return years if years else None
 
 
+def _derive_trim_hint(make, model_name, full_model_name):
+    """
+    Best-effort isolation of trailing trim/grade text from the vehicle's
+    original model string, for ja.wikipedia's trim-matching. Strips the
+    make and the already-resolved base model_name as a leading prefix;
+    whatever's left (if anything) is the trim hint.
+
+    Approximate, not exact — a full fix requires extract_base_model()'s
+    2-token truncation to be addressed (CLAUDE.md task list item 3,
+    explicitly out of scope here: fixing it changes every other source's
+    lookup, not just this one). Harmless when it can't isolate anything
+    cleanly (returns None — ja.wikipedia then only resolves nameplates with
+    exactly one generation via this wiring, which is safe, just narrower).
+    """
+    if not full_model_name:
+        return None
+    text = full_model_name.strip()
+    for prefix in (f"{make} {model_name}", model_name, make):
+        if prefix and text.upper().startswith(prefix.upper()):
+            text = text[len(prefix):].strip()
+            break
+    return text or None
+
+
 def best_model_match(our_model, nhtsa_models):
     if not nhtsa_models:
         return None, 0
@@ -524,8 +598,17 @@ def best_model_match(our_model, nhtsa_models):
     return result[0], result[1]
 
 
-def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_counter=None):
-    """Try sources in priority order. Returns (years_list, source)."""
+def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_counter=None, full_model_name=None):
+    """
+    Try sources in priority order. Returns (years_list, source).
+
+    full_model_name, if given, is the vehicle's original untruncated model
+    string (before extract_base_model()'s 2-token truncation) — passed to
+    ja.wikipedia as a trim hint so it can disambiguate which of a
+    nameplate's generations a specific grade (e.g. "XD", "15S") belongs to.
+    Falls back to model_name (already-truncated) if not given, in which
+    case ja.wikipedia only resolves nameplates with exactly one generation.
+    """
 
     # ── fueleconomy.gov ────────────────────────────────────────────────────────
     years = lookup_years_fueleconomy(make, model_name, fe_df)
@@ -565,6 +648,18 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
         return list(range(yf, yt + 1)), "carquery"
     log(f"      → carquery: miss")
     time.sleep(REQUEST_DELAY)
+
+    # ── Japanese Wikipedia ────────────────────────────────────────────────────
+    trim_hint = _derive_trim_hint(make, model_name, full_model_name)
+    yf, yt = get_years_from_ja_wikipedia(
+        make, model_name, trim_hint=trim_hint,
+        log=log, rate_limit_counter=rate_limit_counter,
+    )
+    if yf:
+        yt = min(yt, CURRENT_YEAR) if yt else CURRENT_YEAR
+        log(f"      → ja_wikipedia: {yf}–{yt}")
+        return list(range(yf, yt + 1)), "ja_wikipedia"
+    log(f"      → ja_wikipedia: miss")
 
     # ── Wikipedia ──────────────────────────────────────────────────────────────
     yf, yt = get_years_from_wikipedia(make, model_name, log=log, rate_limit_counter=rate_limit_counter)
@@ -834,8 +929,8 @@ def main(
     pairs_done        = {}
     pairs_count       = 0
     processed         = 0
-    rate_limit_counter = {"wikipedia": 0, "wikidata": 0}
-    cache_hit_counts  = {"fueleconomy": 0, "carapi": 0, "wikipedia": 0, "wikidata": 0, "nhtsa": 0}
+    rate_limit_counter = {"wikipedia": 0, "wikidata": 0, "ja_wikipedia": 0}
+    cache_hit_counts  = {"fueleconomy": 0, "carapi": 0, "wikipedia": 0, "wikidata": 0, "nhtsa": 0, "ja_wikipedia": 0}
 
     expanded_rows:                  list  = []
     unmatched_info: dict[tuple, str]      = {}
@@ -888,7 +983,7 @@ def main(
             log(f"  [{pairs_count}/{total_pairs}] [LOOKUP] {make} {lookup_name} ...")
             years_list, src = lookup_years(
                 make, lookup_name, ca_models, fe_df, log=log,
-                rate_limit_counter=rate_limit_counter,
+                rate_limit_counter=rate_limit_counter, full_model_name=model,
             )
             if years_list is not None:
                 cache["years"][year_key] = [years_list, src]
@@ -985,7 +1080,7 @@ def main(
             "cache_hits":  cache_hit_counts.get(src, 0),
             "rate_limits": rate_limit_counter.get(src, 0),
         }
-        for src in ("fueleconomy", "carapi", "carquery", "wikipedia", "wikidata", "nhtsa")
+        for src in ("fueleconomy", "carapi", "carquery", "ja_wikipedia", "wikipedia", "wikidata", "nhtsa")
     }
 
     return {

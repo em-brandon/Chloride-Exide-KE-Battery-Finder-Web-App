@@ -3432,17 +3432,19 @@ def get_crsp_provider_health(admin: AdminUser = Depends(require_admin)):
         FUELECONOMY_CSV_URL, NHTSA_ALL_MODELS, CARAPI_MODELS_URL,
         WIKI_SEARCH_URL, WIKIDATA_SPARQL, CARQUERY_URL,
     )
+    from pipelines.ja_wikipedia_years import JA_WIKI_API
 
     # Use lightweight GET probes (stream=True so we never download the body).
     # HEAD is blocked by Wikipedia/Wikidata (403) and unsupported by NHTSA (405).
     # Use public endpoints that return 200 without authentication.
     providers = {
-        "fueleconomy": "https://www.fueleconomy.gov/",
-        "nhtsa":       NHTSA_ALL_MODELS.format(make="Toyota"),
-        "carapi":      "https://carapi.app/api/makes",
-        "carquery":    CARQUERY_URL + "?cmd=getMakes",
-        "wikipedia":   WIKI_SEARCH_URL + "?action=query&format=json&list=search&srsearch=Toyota&srlimit=1",
-        "wikidata":    WIKIDATA_SPARQL + "?query=ASK%7B%7D&format=json",
+        "fueleconomy":  "https://www.fueleconomy.gov/",
+        "nhtsa":        NHTSA_ALL_MODELS.format(make="Toyota"),
+        "carapi":       "https://carapi.app/api/makes",
+        "carquery":     CARQUERY_URL + "?cmd=getMakes",
+        "ja_wikipedia": JA_WIKI_API + "?action=query&format=json&list=search&srsearch=Toyota&srlimit=1",
+        "wikipedia":    WIKI_SEARCH_URL + "?action=query&format=json&list=search&srsearch=Toyota&srlimit=1",
+        "wikidata":     WIKIDATA_SPARQL + "?query=ASK%7B%7D&format=json",
     }
     _headers = {"User-Agent": "BatteryFinderHealthCheck/1.0 (internal)"}
 
