@@ -38,7 +38,23 @@ def extract_base_model(make, model_name):
             name = name[len(prefix):].strip()
             break
     tokens = name.split()
-    return " ".join(tokens[:2]) if tokens else model_name
+    if not tokens:
+        return model_name
+    base_tokens = tokens[:2]
+    # Retain a 3rd token when it's purely numeric — a generation/series
+    # marker (e.g. "LAND CRUISER 250 VX" -> "LAND CRUISER 250"), not an
+    # engine/trim code (e.g. "3 SERIES 320D ..." correctly stays "3 SERIES"
+    # since "320D" contains a letter and isn't purely numeric, so it's left
+    # for extract_search_model()'s own digit-token stop rule to drop).
+    # The old unconditional 2-token cap discarded generation numbers
+    # entirely, collapsing e.g. "LAND CRUISER 250" and "LAND CRUISER 300"
+    # into the same base model — losing generation granularity for the
+    # cache key and any caller (CarAPI's inline match, ja.wikipedia's trim
+    # hint) that uses this output directly rather than through
+    # extract_search_model().
+    if len(tokens) > 2 and tokens[2].isdigit():
+        base_tokens.append(tokens[2])
+    return " ".join(base_tokens)
 
 
 def extract_search_model(make: str, model_name: str) -> str:
