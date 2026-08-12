@@ -263,6 +263,30 @@ def test_match_trim_exact_chassis_code_preferred_over_body_mention():
     assert result["matched"] is exact
 
 
+def test_match_trim_numeric_hint_matches_numbered_generation_exact():
+    # Regression case from the vehicle_years phantom-date cleanup work: a
+    # bare numeric trim hint ("250") never equals a numbered generation's
+    # own chassis code ("250系" — always suffixed), so without this tier it
+    # falls through to the substring tier, which real Land Cruiser data
+    # shows produces false multi-hit ambiguity (other generations' prose
+    # cross-references unrelated "250"-something specs).
+    gens = [
+        _gen("40系", 1960, 1984, body="この世代は250馬力のエンジンを搭載した。"),
+        _gen("80系", 1989, 1997, body="最大250psを発揮した。"),
+        _gen("250系", 2024, None, body="新型モデル。"),
+    ]
+    result = jwy.match_trim_to_generation(gens, "250", log=lambda m: None)
+    assert result["status"] == "matched"
+    assert result["matched"]["chassis_code"] == "250系"
+
+
+def test_match_trim_numeric_hint_multiple_numbered_matches_is_ambiguous():
+    gens = [_gen("250系", 2024, None), _gen("250系", 1990, 1995)]
+    result = jwy.match_trim_to_generation(gens, "250", log=lambda m: None)
+    assert result["status"] == "ambiguous"
+    assert result["matched"] is None
+
+
 def test_match_trim_unique_substring_match():
     gens = [
         _gen("DE系", 2007, 2014, body="このモデルはガソリンのみ。"),

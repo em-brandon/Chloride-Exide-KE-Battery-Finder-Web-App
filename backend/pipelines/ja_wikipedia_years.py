@@ -606,16 +606,25 @@ def match_trim_to_generation(generations: list, trim_hint, log=print) -> dict:
     `trim_hint` (e.g. "XD", "15S" — a grade/trim token from the vehicle's
     model string).
 
-    Matching is two-tier. Tier 1 looks for an exact chassis-code/label match
-    (an infobox market/trim label equal to the trim string) and prefers it
-    immediately if exactly one exists. Tier 2 falls back to a substring
-    search across body text + chassis code. This ordering matters: verified
-    live that Toyota Crown's "クロスオーバー" (Crossover) trim exactly equals
-    one infobox generation's own label, but a substring search alone also
-    matches the broader "16代目 S3#型" heading generation, since that
-    generation's prose naturally mentions "クロスオーバー" as one of its body
-    styles — without the exact-match tier this collapsed a real, precise
-    match into a false "ambiguous".
+    Matching is three-tier. Tier 1 looks for an exact chassis-code/label
+    match (an infobox market/trim label equal to the trim string) and
+    prefers it immediately if exactly one exists. Tier 1b, only tried when
+    the trim hint is purely numeric (a bare generation number like "250",
+    the kind CRSP model_number/model-string parsing yields), retries the
+    exact match with a trailing "系" appended — ja.wikipedia's own numbered-
+    generation chassis codes are rendered "250系", never bare "250", so a
+    plain numeric hint never clears tier 1 on its own. Tier 2 falls back to
+    a substring search across body text + chassis code. This ordering
+    matters: verified live that Toyota Crown's "クロスオーバー" (Crossover)
+    trim exactly equals one infobox generation's own label, but a substring
+    search alone also matches the broader "16代目 S3#型" heading generation,
+    since that generation's prose naturally mentions "クロスオーバー" as one
+    of its body styles — without the exact-match tier this collapsed a
+    real, precise match into a false "ambiguous". Tier 1b exists for the
+    same reason: verified live that a bare "250" needle against Land
+    Cruiser's generations hits 4 unrelated generations' prose (cross-
+    references to unrelated "250"-something specs) via the substring tier,
+    while "250系" exact-matches exactly one.
 
     An unambiguous match at either tier is trusted. Anything else — no
     trim_hint given, zero matches, or more than one match at both tiers —
@@ -654,6 +663,21 @@ def match_trim_to_generation(generations: list, trim_hint, log=print) -> dict:
     if len(exact_hits) > 1:
         log(f"    [ja-wiki] trim '{trim_hint}' has {len(exact_hits)} exact chassis-code matches — ambiguous")
         return {"matched": None, "candidates": exact_hits, "status": "ambiguous"}
+
+    if needle.isdigit():
+        numbered_hits = [
+            gen for gen in generations
+            if gen.get("chassis_code") and f"{needle}系" == gen["chassis_code"].strip().upper()
+        ]
+        if len(numbered_hits) == 1:
+            log(
+                f"    [ja-wiki] trim '{trim_hint}' exact numbered-generation match: "
+                f"{numbered_hits[0]['chassis_code']!r} ({numbered_hits[0]['year_from']}-{numbered_hits[0]['year_to']})"
+            )
+            return {"matched": numbered_hits[0], "candidates": generations, "status": "matched"}
+        if len(numbered_hits) > 1:
+            log(f"    [ja-wiki] trim '{trim_hint}' has {len(numbered_hits)} exact numbered-generation matches — ambiguous")
+            return {"matched": None, "candidates": numbered_hits, "status": "ambiguous"}
 
     hits = [
         gen for gen in generations

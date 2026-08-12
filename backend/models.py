@@ -87,6 +87,7 @@ class VehicleYear(Base):
     engine_capacity  = Column(Integer,     nullable=True)
     fuel             = Column(String(50),  nullable=True)
     source           = Column(String(50),  nullable=True)  # fueleconomy|carapi|wikipedia|wikidata|nhtsa
+    model_number     = Column(String(100), nullable=True)  # CRSP chassis/type-approval code, e.g. "3BA-VJA300W-GNUZZ"
 
     __table_args__ = (
         UniqueConstraint("make", "model", "year", name="uq_vehicle_years"),
@@ -613,6 +614,7 @@ class VehicleYearStaging(Base):
     engine_capacity  = Column(Integer,     nullable=True)
     fuel             = Column(String(50),  nullable=True)
     source           = Column(String(50),  nullable=True)  # fueleconomy|carapi|wikipedia|wikidata|nhtsa
+    model_number     = Column(String(100), nullable=True)  # CRSP chassis/type-approval code, e.g. "3BA-VJA300W-GNUZZ"
     staged_at        = Column(DateTime(timezone=True), nullable=True)
     is_valid         = Column(Boolean,     nullable=False, default=True)
     invalid_reason   = Column(Text,        nullable=True)

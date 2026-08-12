@@ -18,7 +18,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pipelines.enrich_years as ey
-from pipelines.model_name_utils import extract_base_model, extract_search_model
+from pipelines.model_name_utils import extract_base_model, extract_search_model, extract_chassis_code
 
 
 def _fe_df(rows):
@@ -97,6 +97,37 @@ def test_extract_search_model_still_strips_numeric_marker_for_external_queries()
 def test_extract_base_model_two_tokens_when_no_third_or_non_numeric():
     assert extract_base_model("TOYOTA", "CAMRY") == "CAMRY"
     assert extract_base_model("RENAULT", "LUTECIA GT LINE") == "LUTECIA GT"
+
+
+# =========================
+# extract_chassis_code: CRSP model_number -> ja.wikipedia-comparable chassis code
+# =========================
+
+def test_extract_chassis_code_three_segment_prefix_code_suffix():
+    assert extract_chassis_code("3BA-VJA300W-GNUZZ") == "VJA300W"
+
+
+def test_extract_chassis_code_two_segment_prefix_code():
+    assert extract_chassis_code("DBA-FK7") == "FK7"
+
+
+def test_extract_chassis_code_no_real_prefix_first_segment_too_long():
+    # Regression case found live: a naive "2 segments => prefix-code" rule
+    # misreads this as prefix="FJA300"/code="407", extracting "407"
+    # (garbage) instead of "FJA300" (the real code, containing the "300"
+    # generation number). Real classification prefixes are always <=3
+    # characters ("3BA", "DBA", "6AA", ...); "FJA300" (6 chars) isn't one.
+    assert extract_chassis_code("FJA300-407") == "FJA300"
+
+
+def test_extract_chassis_code_no_dash():
+    assert extract_chassis_code("F5CWGC") == "F5CWGC"
+
+
+def test_extract_chassis_code_null_or_empty():
+    assert extract_chassis_code(None) is None
+    assert extract_chassis_code("") is None
+    assert extract_chassis_code(float("nan")) is None
 
 
 # =========================

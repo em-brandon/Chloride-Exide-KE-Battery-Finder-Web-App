@@ -3907,6 +3907,7 @@ def commit_crsp_staging(
         db.add(VehicleYear(
             make=row.make, model=row.model, year=row.year,
             engine_capacity=row.engine_capacity, fuel=row.fuel, source=row.source,
+            model_number=row.model_number,
         ))
         db.add(VehicleYearChangelog(
             version_id  = version_id,
@@ -3919,6 +3920,7 @@ def commit_crsp_staging(
                 "engine_capacity": row.engine_capacity,
                 "fuel": row.fuel,
                 "source": row.source,
+                "model_number": row.model_number,
             }),
         ))
         committed += 1
@@ -4088,6 +4090,7 @@ def revert_crsp_version(
                     engine_capacity=old.get("engine_capacity"),
                     fuel=old.get("fuel"),
                     source=old.get("source"),
+                    model_number=old.get("model_number"),
                 ))
             db.add(VehicleYearChangelog(
                 version_id=new_version_id, make=entry.make, model=entry.model, year=entry.year,
@@ -4102,6 +4105,7 @@ def revert_crsp_version(
                 existing.engine_capacity = old.get("engine_capacity")
                 existing.fuel            = old.get("fuel")
                 existing.source          = old.get("source")
+                existing.model_number    = old.get("model_number")
             db.add(VehicleYearChangelog(
                 version_id=new_version_id, make=entry.make, model=entry.model, year=entry.year,
                 change_type="updated",

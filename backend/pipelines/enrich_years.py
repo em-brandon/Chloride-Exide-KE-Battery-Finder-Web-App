@@ -51,7 +51,7 @@ from rapidfuzz import process, fuzz, utils as fuzz_utils
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pipelines.model_name_utils import (
-    MAKE_MAP, to_search_make, extract_base_model, extract_search_model,
+    MAKE_MAP, to_search_make, extract_base_model, extract_search_model, extract_chassis_code,
 )
 from pipelines.ja_wikipedia_years import get_ja_years, ThrottledError as JaWikiThrottledError
 
@@ -595,7 +595,7 @@ def _resolve_end_year(year_from, year_to):
     return min(year_from + MAX_OPEN_ENDED_SPAN_YEARS, CURRENT_YEAR)
 
 
-def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_counter=None, full_model_name=None):
+def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_counter=None, full_model_name=None, model_number=None):
     """
     Try sources in priority order. Returns (years_list, source).
 
@@ -605,6 +605,17 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
     nameplate's generations a specific grade (e.g. "XD", "15S") belongs to.
     Falls back to model_name (already-truncated) if not given, in which
     case ja.wikipedia only resolves nameplates with exactly one generation.
+
+    model_number, if given, is CRSP's Japanese type-approval/chassis code
+    for this row (e.g. "3BA-VJA300W-GNUZZ") — a stronger disambiguation
+    signal than full_model_name when present, since it's the vehicle's own
+    factory chassis code rather than free-text trim wording that may or may
+    not appear in ja.wikipedia's prose. Verified live: resolves nameplates
+    full_model_name can't touch at all (e.g. "LAND CRUISER ZX" carries no
+    generation number in its CRSP model text, but its model_number's
+    chassis segment "VJA300W"/"URJ202W" matches specific generations
+    directly). Preferred over full_model_name's derived hint when both are
+    available; only affects the ja.wikipedia source below.
     """
 
     # ── fueleconomy.gov ────────────────────────────────────────────────────────
@@ -647,7 +658,7 @@ def lookup_years(make, model_name, carapi_models, fe_df, log=print, rate_limit_c
     time.sleep(REQUEST_DELAY)
 
     # ── Japanese Wikipedia ────────────────────────────────────────────────────
-    trim_hint = _derive_trim_hint(make, model_name, full_model_name)
+    trim_hint = extract_chassis_code(model_number) or _derive_trim_hint(make, model_name, full_model_name)
     yf, yt = get_years_from_ja_wikipedia(
         make, model_name, trim_hint=trim_hint,
         log=log, rate_limit_counter=rate_limit_counter,
@@ -703,13 +714,14 @@ def write_to_staging(db, run_id, enriched_rows):
 
     # Load existing vehicle_years into a dict for fast lookup
     rows = db.execute(
-        sa_text("SELECT make, model, year, engine_capacity, fuel, source FROM vehicle_years")
+        sa_text("SELECT make, model, year, engine_capacity, fuel, source, model_number FROM vehicle_years")
     ).fetchall()
     existing = {
         (r.make, r.model, r.year): {
             "engine_capacity": r.engine_capacity,
             "fuel": r.fuel,
             "source": r.source,
+            "model_number": r.model_number,
         }
         for r in rows
     }
@@ -731,6 +743,7 @@ def write_to_staging(db, run_id, enriched_rows):
                     "engine_capacity": row.get("engine_capacity"),
                     "fuel": row.get("fuel"),
                     "source": row.get("source"),
+                    "model_number": row.get("model_number"),
                 },
             })
             conflict += 1
@@ -741,16 +754,17 @@ def write_to_staging(db, run_id, enriched_rows):
         db.execute(
             sa_text("""
                 INSERT INTO vehicle_years_staging
-                    (run_id, make, model, year, engine_capacity, fuel, source,
+                    (run_id, make, model, year, engine_capacity, fuel, source, model_number,
                      staged_at, is_valid, conflict, conflict_detail)
                 VALUES
-                    (:run_id, :make, :model, :year, :ec, :fuel, :source,
+                    (:run_id, :make, :model, :year, :ec, :fuel, :source, :model_number,
                      :now, true, :conflict, :conflict_detail)
                 ON CONFLICT (make, model, year) DO UPDATE SET
                     run_id=EXCLUDED.run_id,
                     engine_capacity=EXCLUDED.engine_capacity,
                     fuel=EXCLUDED.fuel,
                     source=EXCLUDED.source,
+                    model_number=EXCLUDED.model_number,
                     staged_at=EXCLUDED.staged_at,
                     is_valid=true,
                     conflict=EXCLUDED.conflict,
@@ -764,6 +778,7 @@ def write_to_staging(db, run_id, enriched_rows):
                 "ec": _to_int(row.get("engine_capacity")),
                 "fuel": row.get("fuel"),
                 "source": row.get("source"),
+                "model_number": row.get("model_number"),
                 "now": now,
                 "conflict": is_conflict,
                 "conflict_detail": conflict_detail,
@@ -903,6 +918,7 @@ def main(
 
     # Pre-group original CSV rows by pair key so we can expand immediately on hit
     has_fuel_col = "fuel" in df.columns
+    has_model_number_col = "model_number" in df.columns
     pair_rows: dict[str, list] = {}
     for _, orig in df.iterrows():
         m  = str(orig.get("make",  "")).strip().upper()
@@ -961,6 +977,14 @@ def main(
                 matched_name, _ = best_model_match(base_model, nhtsa_models)
         lookup_name = matched_name if matched_name else extract_base_model(make, model)
 
+        model_number = None
+        if has_model_number_col:
+            for orig in pair_rows.get(pair_key, []):
+                mn = orig.get("model_number")
+                if mn and str(mn).strip() and str(mn).strip().lower() != "nan":
+                    model_number = mn
+                    break
+
         year_key = f"{make}|{lookup_name}"
         if year_key in cache["years"]:
             years_list, src = cache["years"][year_key]
@@ -972,6 +996,7 @@ def main(
             years_list, src = lookup_years(
                 make, lookup_name, ca_models, fe_df, log=log,
                 rate_limit_counter=rate_limit_counter, full_model_name=model,
+                model_number=model_number,
             )
             if years_list is not None:
                 cache["years"][year_key] = [years_list, src]
@@ -995,6 +1020,7 @@ def main(
                         "engine_capacity": orig.get("engine_capacity"),
                         "fuel":            orig.get("fuel"),
                         "source":          src,
+                        "model_number":    orig.get("model_number"),
                     }
                     expanded_rows.append(row_dict)
                     pending_rows.append(row_dict)

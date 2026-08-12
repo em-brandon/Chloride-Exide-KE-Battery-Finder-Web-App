@@ -80,3 +80,47 @@ def extract_search_model(make: str, model_name: str) -> str:
             break
         clean_tokens.append(token)
     return ' '.join(clean_tokens) if clean_tokens else base
+
+
+def extract_chassis_code(model_number) -> str | None:
+    """
+    Pull the real chassis/type code out of a CRSP "model number" value.
+
+    CRSP's model_number column holds Japanese vehicle type-approval codes in
+    the form "<classification prefix>-<chassis code>[-<market/trim suffix>]",
+    e.g. "3BA-VJA300W-GNUZZ" (classification "3BA", chassis code "VJA300W")
+    or the 2-segment "DBA-FK7" (chassis code "FK7") -- verified live against
+    real CRSP data (backend/uploads/crsp_cd5f4716.xlsx) that this segment is
+    what actually appears in ja.wikipedia generation prose/chassis codes
+    (e.g. "VJA300W" substring-matches Land Cruiser's "300系" generation),
+    unlike the full model_number string or the classification prefix alone.
+
+    Real Japanese classification prefixes are short (1-2 digits + 1-3
+    letters, e.g. "3BA", "DBA", "6AA" -- always <=3 characters). Some CRSP
+    rows have no prefix segment at all, just "<chassis code>-<suffix>"
+    (e.g. "FJA300-407", chassis code "FJA300") -- verified live that
+    blindly treating every 2-segment value as prefix-code misreads this
+    shape and extracts "407" (garbage) instead of "FJA300" (which contains
+    the real "300" generation number). A first segment longer than 3
+    characters means there's no real prefix, so the first segment itself
+    is the code.
+
+    A bare code with no dash ("F5CWGC") is returned unchanged. Non-JDM
+    model_number values (VIN fragments, occasional garbage like a leaked
+    trim description) just won't match anything downstream -- no special
+    detection needed, same as any other unresolvable trim hint.
+    """
+    if not model_number:
+        return None
+    mn = str(model_number).strip()
+    # pandas represents a missing value as float NaN, which is truthy
+    # (unlike 0.0) so it survives the `not model_number` check above and
+    # stringifies to the literal text "nan" -- caught explicitly here
+    # rather than upstream, since every caller reads model_number out of a
+    # DataFrame row where this can occur.
+    if not mn or mn.lower() == "nan":
+        return None
+    parts = mn.split('-')
+    if len(parts) == 1:
+        return parts[0]
+    return parts[1] if len(parts[0]) <= 3 else parts[0]
