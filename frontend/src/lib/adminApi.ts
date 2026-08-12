@@ -1178,6 +1178,7 @@ export interface CrspStatus {
   dataprep_result:  CrspDataprepResult | null
   unmatched_models: CrspUnmatchedModel[]
   provider_details: Record<string, CrspProviderDetail>
+  enabled_makes:    string[] | null
 }
 
 export async function crspUpload(file: File): Promise<{ file_path: string }> {
@@ -1202,11 +1203,14 @@ export async function crspUpload(file: File): Promise<{ file_path: string }> {
   return res.json() as Promise<{ file_path: string }>
 }
 
-export async function runCrspPipeline(input_csv = 'battery_lookup_dataset.csv'): Promise<{ run_id: string }> {
+export async function runCrspPipeline(
+  input_csv = 'battery_lookup_dataset.csv',
+  enabled_makes?: string[],
+): Promise<{ run_id: string }> {
   return adminFetch('/api/admin/pipeline/crsp/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input_csv }),
+    body: JSON.stringify({ input_csv, enabled_makes: enabled_makes ?? null }),
   })
 }
 

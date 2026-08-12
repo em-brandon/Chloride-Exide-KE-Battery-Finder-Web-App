@@ -3612,6 +3612,12 @@ function CrspTab() {
   // Fueleconomy cache status (for gate check + panel)
   const [crspCache, setCrspCache] = useState<CrspCacheStatus | null>(null)
 
+  // Per-make stats (for the Stage 2 make-selector) + make-selector state
+  const [stats, setStats] = useState<CrspStats | null>(null)
+  const [limitToEnrichMakes, setLimitToEnrichMakes]     = useState(false)
+  const [enrichEnabledMakes, setEnrichEnabledMakes]     = useState<Set<string>>(new Set())
+  const [enrichMakeFilterText, setEnrichMakeFilterText] = useState('')
+
   const refreshCrspCacheState = useCallback(() => {
     getCrspCacheStatus().then(setCrspCache).catch(() => null)
   }, [])
@@ -3645,6 +3651,7 @@ function CrspTab() {
       .finally(() => setLoading(false))
     checkProviderHealth()
     refreshCrspCacheState()
+    getCrspStats().then(setStats).catch(() => null)
     return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
   }, [])
 
@@ -3687,7 +3694,7 @@ function CrspTab() {
     setShowStaging(false)
     try {
       const csv = dataprepResult?.output_csv ?? crspUploadedPath ?? 'battery_lookup_dataset.csv'
-      await runCrspPipeline(csv)
+      await runCrspPipeline(csv, limitToEnrichMakes ? [...enrichEnabledMakes] : undefined)
       const s = await getCrspStatus()
       setStatus(s)
       startPolling()
@@ -3746,7 +3753,8 @@ function CrspTab() {
 
   const canRunDataprep = !!crspUploadedPath && !dataprepLoading &&
     (validateResult ? (validateResult.required_columns_present.make && validateResult.required_columns_present.model) : true)
-  const canRunEnrich = !!(dataprepResult?.status === 'done' || crspUploadedPath) && !isActive && !runLoading && feDownloaded
+  const enrichMakesBlocked = limitToEnrichMakes && enrichEnabledMakes.size === 0
+  const canRunEnrich = !!(dataprepResult?.status === 'done' || crspUploadedPath) && !isActive && !runLoading && feDownloaded && !enrichMakesBlocked
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -3866,6 +3874,137 @@ function CrspTab() {
             )}
           </div>
         </div>
+
+        {/* Make selection — only shown when idle, same toggle+grid pattern as Web Validation's */}
+        {(isIdle || isDone || isError || status?.status === 'cancelled') && (
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--adm-card-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: limitToEnrichMakes ? '1rem' : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FunnelIcon style={{ width: 14, height: 14, color: 'rgba(107,114,128,0.8)' }} />
+                <h3 style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(107,114,128,0.8)' }}>
+                  Makes for this run
+                </h3>
+                {!limitToEnrichMakes && (
+                  <span style={{ fontSize: '0.68rem', color: '#9ca3af' }}>— all {stats?.by_make?.length ?? 0} makes</span>
+                )}
+              </div>
+              <button
+                onClick={() => setLimitToEnrichMakes(v => !v)}
+                title={limitToEnrichMakes ? 'Click to run against all makes' : 'Click to limit this run to specific makes'}
+                style={{
+                  position: 'relative', width: 36, height: 20,
+                  borderRadius: 99, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
+                  background: limitToEnrichMakes ? '#22c55e' : '#d1d5db', transition: 'background 0.18s',
+                }}
+              >
+                <span style={{
+                  position: 'absolute', top: 2, left: limitToEnrichMakes ? 18 : 2,
+                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                }} />
+              </button>
+            </div>
+
+            {limitToEnrichMakes && (() => {
+              const allMakes = stats?.by_make ?? []
+              const filtered = enrichMakeFilterText
+                ? allMakes.filter(m => m.make.includes(enrichMakeFilterText.toUpperCase()))
+                : allMakes
+              return (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                    <input
+                      value={enrichMakeFilterText}
+                      onChange={e => setEnrichMakeFilterText(e.target.value)}
+                      placeholder="Filter makes…"
+                      style={{
+                        padding: '0.35rem 0.65rem', borderRadius: 8,
+                        border: '1px solid var(--adm-input-border)',
+                        background: 'var(--adm-input-bg)', color: 'var(--adm-text-1)',
+                        fontSize: '0.78rem', width: 200, outline: 'none',
+                      }}
+                    />
+                    <button
+                      onClick={() => setEnrichEnabledMakes(new Set(allMakes.map(m => m.make)))}
+                      style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0.4rem' }}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      onClick={() => setEnrichEnabledMakes(new Set())}
+                      style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0.4rem' }}
+                    >
+                      Clear
+                    </button>
+                    <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginLeft: 'auto' }}>
+                      {enrichEnabledMakes.size} selected
+                    </span>
+                  </div>
+
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem',
+                    maxHeight: 340, overflowY: 'auto', padding: '0.15rem',
+                  }}>
+                    {filtered.length === 0 ? (
+                      <p style={{ gridColumn: '1 / -1', margin: 0, fontSize: '0.72rem', color: '#9ca3af' }}>No makes match "{enrichMakeFilterText}"</p>
+                    ) : filtered.map(m => {
+                      const isOn = enrichEnabledMakes.has(m.make)
+                      return (
+                        <label
+                          key={m.make}
+                          style={{
+                            display: 'flex', flexDirection: 'column', gap: '0.3rem',
+                            padding: '0.4rem 0.55rem', borderRadius: 10, cursor: 'pointer',
+                            background: isOn ? '#f0fdf4' : 'var(--adm-subtle-bg)',
+                            border: `1px solid ${isOn ? '#bbf7d0' : 'var(--adm-card-border)'}`,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={isOn}
+                              onChange={() => setEnrichEnabledMakes(prev => {
+                                const next = new Set(prev)
+                                if (next.has(m.make)) next.delete(m.make); else next.add(m.make)
+                                return next
+                              })}
+                              style={{ flexShrink: 0 }}
+                            />
+                            <img
+                              src={makeLogoUrl(m.make)}
+                              alt=""
+                              loading="lazy"
+                              onError={e => { e.currentTarget.style.visibility = 'hidden' }}
+                              style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }}
+                            />
+                            <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'rgba(17,24,39,0.85)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.make}</span>
+                          </div>
+                          <span style={{ fontSize: '0.64rem', color: '#9ca3af' }}>
+                            {m.model_count} model{m.model_count === 1 ? '' : 's'}
+                            {m.year_min && m.year_max ? ` · ${m.year_min}–${m.year_max}` : ''}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+
+                  {enrichMakesBlocked && (
+                    <p style={{ margin: '0.6rem 0 0', fontSize: '0.7rem', color: R }}>
+                      Select at least one make to run, or turn off the toggle above to run against all makes.
+                    </p>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* Scoped-run summary for a completed/active run */}
+        {status?.enabled_makes && status.enabled_makes.length > 0 && (isActive || isDone) && (
+          <p style={{ margin: '0.75rem 0 0', fontSize: '0.72rem', color: '#6b7280' }}>
+            Scoped to {status.enabled_makes.length} make{status.enabled_makes.length === 1 ? '' : 's'}: {status.enabled_makes.slice().sort().join(', ')}
+          </p>
+        )}
 
         {/* Progress */}
         {isActive && status && (

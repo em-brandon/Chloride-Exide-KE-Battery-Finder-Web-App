@@ -3091,6 +3091,7 @@ _crsp_state: dict = {
     "dataprep_result":  None,   # set by POST /pipeline/crsp/dataprep
     "unmatched_models": [],     # list[{make, model}] from last Stage 2 run
     "provider_details": {},     # {provider: {hits, cache_hits, rate_limits}}
+    "enabled_makes":    None,   # list[str] | None — makes this run is scoped to, None = all
 }
 
 # ---------------------------------------------------------------------------
@@ -3217,7 +3218,7 @@ def _run_fe_download(cancel_ev: threading.Event) -> None:
 # ---------------------------------------------------------------------------
 
 def _crsp_thread(run_id: str, cancel_ev: threading.Event, pause_ev: threading.Event,
-                 input_csv: str, initiated_by: str) -> None:
+                 input_csv: str, initiated_by: str, enabled_makes: list[str] | None = None) -> None:
     from pipelines.enrich_years import main as _enrich_main
 
     def _log(line: str) -> None:
@@ -3245,6 +3246,7 @@ def _crsp_thread(run_id: str, cancel_ev: threading.Event, pause_ev: threading.Ev
             progress_callback=_progress,
             cancel_event=cancel_ev,
             pause_event=pause_ev,
+            enabled_makes=enabled_makes,
         )
 
         with _crsp_lock:
@@ -3633,6 +3635,7 @@ def rerun_crsp_unmatched(
 
 class CrspRunBody(BaseModel):
     input_csv: str = Field(default="battery_lookup_dataset.csv")
+    enabled_makes: list[str] | None = None  # None = all makes; [] = zero makes
 
 
 @router.post("/pipeline/crsp/run", summary="Launch the CRSP year-enrichment pipeline")
@@ -3666,11 +3669,12 @@ def run_crsp_pipeline(
             "initiated_by":     admin.username,
             "unmatched_models": [],
             "provider_details": {},
+            "enabled_makes":    body.enabled_makes,
         })
 
     t = threading.Thread(
         target=_crsp_thread,
-        args=(run_id, cancel_ev, pause_ev, body.input_csv, admin.username),
+        args=(run_id, cancel_ev, pause_ev, body.input_csv, admin.username, body.enabled_makes),
         daemon=True,
         name=f"crsp-{run_id[:8]}",
     )

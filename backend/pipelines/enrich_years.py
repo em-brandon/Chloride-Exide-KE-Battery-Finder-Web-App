@@ -801,6 +801,7 @@ def main(
     progress_callback=None,
     cancel_event: threading.Event = None,
     pause_event: threading.Event = None,
+    enabled_makes: list[str] | None = None,
 ):
     """
     Run the full year enrichment pipeline.
@@ -814,6 +815,9 @@ def main(
     progress_callback : callable(processed, total, make, model) — progress updates
     cancel_event    : threading.Event — set to abort the run
     pause_event     : threading.Event — set to pause, clear to resume
+    enabled_makes   : list[str] | None — scope the run to these makes only.
+                      None = all makes (default); [] = no makes. Same convention
+                      as admin_router.py's RunWebValidateBody.enabled_makes.
 
     Returns
     -------
@@ -863,6 +867,12 @@ def main(
         df = pd.read_csv(input_csv, encoding='utf-8')
     except UnicodeDecodeError:
         df = pd.read_csv(input_csv, encoding='latin-1')
+
+    if enabled_makes is not None:
+        enabled_upper = {m.strip().upper() for m in enabled_makes}
+        df = df[df["make"].str.upper().isin(enabled_upper)].reset_index(drop=True)
+        log(f"Scoped to {len(enabled_upper)} make(s): {', '.join(sorted(enabled_upper))}")
+
     unique_makes = df["make"].str.upper().unique().tolist()
     unique_pairs = df[["make", "model"]].drop_duplicates()
     total_pairs  = len(unique_pairs)
