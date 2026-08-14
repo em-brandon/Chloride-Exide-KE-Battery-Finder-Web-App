@@ -405,3 +405,152 @@ def test_get_ja_years_matched_and_cached(monkeypatch, tmp_path):
     result2 = jwy.get_ja_years("MAZDA", "DEMIO", log=lambda m: None)
     assert result2["year_from"] == 1996 and result2["year_to"] == 2002
     assert calls == {"resolve": 1, "fetch": 1}
+
+
+# =========================
+# Title resolution — same-make sibling rejection
+# =========================
+#
+# Regression cover for a live-confirmed wrong resolution: "TOYOTA ALLION A15"
+# (a 2001-2021 car) resolved to ja "トヨタ・カリーナ" (Toyota Carina) and matched
+# Carina's 1981-1988 A6#型 generation. Scoring the full "Make Model" string
+# can't catch this — the shared make token alone puts "Toyota Carina" at 76.9
+# against "Toyota Allion", well over _MIN_TITLE_MATCH_SCORE. Applied by
+# fix_vehicle_years_phantom_dates.py that would have deleted the Allion's real
+# years and kept only the phantom ones.
+
+def test_strip_make_removes_leading_make():
+    assert jwy._strip_make("Toyota Allion", "Toyota") == "Allion"
+    assert jwy._strip_make("Toyota Land Cruiser", "Toyota") == "Land Cruiser"
+
+
+def test_strip_make_leaves_title_without_the_make_intact():
+    # A marque-specific article reached from a parent-company query — comparing
+    # the whole string is the conservative choice, never a looser one.
+    assert jwy._strip_make("Lexus LS", "Toyota") == "Lexus LS"
+
+
+def test_strip_make_does_not_empty_a_make_only_title():
+    assert jwy._strip_make("Toyota", "Toyota") == "Toyota"
+
+
+def test_model_tokens_reject_same_make_siblings():
+    # Every pair here scores above _MIN_TITLE_MATCH_SCORE as full strings.
+    for candidate, target in [
+        ("Toyota Carina", "Toyota Allion"),
+        ("Toyota Corolla", "Toyota Corona"),
+        ("Toyota Crown", "Toyota Camry"),
+        ("Toyota Hiace", "Toyota Hilux"),
+        ("Nissan Sunny", "Nissan Sylphy"),
+        ("Subaru Legacy", "Subaru Levorg"),
+        ("Mazda Bongo", "Mazda Demio"),
+    ]:
+        make = target.split()[0]
+        assert not jwy._model_tokens_agree(candidate, target, make), candidate
+
+
+def test_model_tokens_accept_clean_title_against_trim_noisy_query():
+    # The article title is the query minus CRSP trim wording — this must still
+    # match, or correct articles get rejected (verified live: an earlier
+    # strict-ratio version rejected "Toyota 86" for "Toyota 86 GT").
+    assert jwy._model_tokens_agree("Toyota 86", "Toyota 86 GT", "Toyota")
+    assert jwy._model_tokens_agree("Toyota Land Cruiser", "Toyota Land Cruiser 250", "Toyota")
+
+
+def test_model_tokens_reject_match_on_shared_trim_word_alone():
+    # "Toyota GR GT" and "Toyota 86 GT" share only the grade token "GT".
+    assert not jwy._model_tokens_agree("Toyota GR GT", "Toyota 86 GT", "Toyota")
+
+
+def test_model_tokens_reject_unrelated_non_vehicle_articles():
+    assert not jwy._model_tokens_agree("Toyota Automobile Museum", "Toyota 86 GT", "Toyota")
+    assert not jwy._model_tokens_agree("Keiichi Tsuchiya", "Toyota 86 GT", "Toyota")
+
+
+# =========================
+# Exact-title resolution
+# =========================
+
+def test_progressive_targets_drops_trailing_tokens_longest_first():
+    assert jwy._progressive_targets("Toyota", "ALLION A15") == ["Toyota ALLION A15", "Toyota ALLION"]
+
+
+def test_progressive_targets_is_capped_and_keeps_first_token():
+    targets = jwy._progressive_targets("Toyota", "A B C D E")
+    assert len(targets) == jwy._MAX_EXACT_TITLE_ATTEMPTS
+    assert targets[0] == "Toyota A B C D E"
+
+
+def test_progressive_targets_single_token_model():
+    assert jwy._progressive_targets("Mazda", "DEMIO") == ["Mazda DEMIO"]
+
+
+def _nearmatch_payload(final_title, ja_title, redirect_from=None):
+    """Shape returned by generator=search&gsrwhat=nearmatch with langlinks."""
+    query = {"pages": {"1": {"pageid": 1, "title": final_title,
+                             "langlinks": [{"lang": "ja", "*": ja_title}]}}}
+    if redirect_from:
+        query["redirects"] = [{"from": redirect_from, "to": final_title}]
+    return {"query": query}
+
+
+def test_resolve_via_exact_title_follows_redirect_to_the_right_vehicle(monkeypatch):
+    # Real shape: "Toyota Allion" redirects to "Toyota Premio" (its platform
+    # twin) — the resolution fuzzy search got wrong by picking Carina.
+    monkeypatch.setattr(
+        jwy, "_api_get",
+        lambda url, params, log=print: _nearmatch_payload(
+            "Toyota Premio", "トヨタ・プレミオ", redirect_from="Toyota Allion"),
+    )
+    result = jwy._resolve_via_exact_title("Toyota ALLION", log=lambda m: None)
+    assert result["title"] == "トヨタ・プレミオ"
+    assert result["method"] == "exact_title_redirect"
+
+
+def test_resolve_via_exact_title_direct_hit(monkeypatch):
+    monkeypatch.setattr(
+        jwy, "_api_get",
+        lambda url, params, log=print: _nearmatch_payload("Mazda Demio", "マツダ・デミオ"),
+    )
+    result = jwy._resolve_via_exact_title("Mazda DEMIO", log=lambda m: None)
+    assert result["title"] == "マツダ・デミオ"
+    assert result["method"] == "exact_title"
+
+
+def test_resolve_via_exact_title_missing_article_returns_none(monkeypatch):
+    monkeypatch.setattr(jwy, "_api_get", lambda url, params, log=print: {"batchcomplete": ""})
+    assert jwy._resolve_via_exact_title("Toyota NOTAREALMODEL", log=lambda m: None) is None
+
+
+def test_resolve_via_exact_title_rejects_index_page(monkeypatch):
+    monkeypatch.setattr(
+        jwy, "_api_get",
+        lambda url, params, log=print: _nearmatch_payload(
+            "List of Mazda vehicles", "マツダの車種一覧"),
+    )
+    assert jwy._resolve_via_exact_title("Mazda DEMIO", log=lambda m: None) is None
+
+
+def test_resolve_via_exact_title_no_langlink_returns_none(monkeypatch):
+    monkeypatch.setattr(
+        jwy, "_api_get",
+        lambda url, params, log=print: {"query": {"pages": {"1": {"title": "Toyota Foo"}}}},
+    )
+    assert jwy._resolve_via_exact_title("Toyota FOO", log=lambda m: None) is None
+
+
+def test_resolve_ja_title_prefers_exact_title_and_skips_search(monkeypatch):
+    """An exact-title hit must short-circuit — no fuzzy search call at all."""
+    monkeypatch.setattr(
+        jwy, "_resolve_via_exact_title",
+        lambda target, log=print: {"title": "トヨタ・プレミオ",
+                                   "method": "exact_title_redirect", "match_score": 100},
+    )
+
+    def _boom(url, params, log=print):
+        raise AssertionError("fuzzy search must not run when an exact title resolves")
+
+    monkeypatch.setattr(jwy, "_api_get", _boom)
+    result = jwy.resolve_ja_title("TOYOTA", "ALLION A15", log=lambda m: None)
+    assert result["title"] == "トヨタ・プレミオ"
+    assert result["method"] == "exact_title_redirect"

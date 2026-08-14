@@ -23,13 +23,21 @@ generations found, title not resolved, or throttled) are left completely
 untouched and listed in the report instead — never guessed, never
 deleted without a confirmed replacement.
 
-Delete-only: this script does not insert replacement rows, since it has
-no way to synthesize the engine_capacity/fuel a new vehicle_years row
-needs (those come from CRSP source data, not from year-enrichment
-sources). Re-running pipelines/enrich_years.py and committing through the
-existing staging review flow is the correct way to fill any gaps this
-script's deletions create — that pipeline is purely additive, which is
-exactly the right shape for that job.
+Replace, not delete-only: rows outside the confirmed range are deleted AND
+the confirmed range's missing years are inserted, both in one transaction
+under one version. An earlier delete-only version emptied any nameplate
+whose stored years were *all* phantom — measured live at 95 of 244
+confirmed Japanese-make nameplates (e.g. TOWN ACE held 1956-2001 while the
+real generation is 2008-2026), which would have removed those models from
+the customer-facing year dropdown until a separate enrich_years.py refill
+run happened. Inserting uses the variant's own engine_capacity/fuel (see
+_load_nameplates), which the delete-only design wrongly assumed was
+unavailable outside CRSP source data.
+
+Re-running pipelines/enrich_years.py through the staging review flow is
+still the right way to add variants/years this script never considers —
+it works from CRSP source data, whereas this script only ever corrects
+years for (make, model) pairs already present in vehicle_years.
 
 Usage (run from backend/, same convention as pipelines/*.py)
 --------------------------------------------------------------
@@ -69,7 +77,7 @@ import json
 import sys
 import os
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -84,6 +92,11 @@ from pipelines.ja_wikipedia_years import get_ja_years, ThrottledError
 from pipelines.enrich_years import _resolve_end_year, _derive_trim_hint
 
 SCRIPT_NAME = "fix_vehicle_years_phantom_dates.py"
+
+# Stamped on every row this script inserts. vehicle_years.source is NULL on
+# 98% of the table (one untagged bulk load), so tagging what this pass adds
+# keeps the new rows attributable — CLAUDE.md task list item 5.
+SOURCE_TAG = "ja_wikipedia"
 
 # extract_base_model() deliberately retains one trailing marker beyond the
 # nameplate root — a numeric generation number ("LAND CRUISER 250") or,
@@ -124,21 +137,39 @@ def _load_nameplates(conn, make_filter=None):
     Group vehicle_years rows by (make, extract_base_model(make, model)).
 
     Returns {(make, base_model): {"variants": {model_str, ...},
-                                   "years": {model_str: {year, ...}}}}
+                                   "years": {model_str: {year, ...}},
+                                   "specs": {model_str: (engine_capacity, fuel)}}}
+
+    "specs" carries each variant's engine_capacity/fuel so replacement rows
+    can be synthesized for years the variant is missing. These are properties
+    of the variant, not of the year: verified against the live table that only
+    5 of 3,069 variants have more than one (engine_capacity, fuel) combination
+    across their year rows, so copying the variant's own most common pairing
+    is safe. That is what makes insertion possible here at all — the original
+    delete-only design assumed these values could only come from CRSP source
+    data, but every variant being corrected already has rows carrying them.
     """
-    query = "SELECT make, model, year FROM vehicle_years"
+    query = "SELECT make, model, year, engine_capacity, fuel FROM vehicle_years"
     params = {}
     if make_filter:
         query += " WHERE make = :make"
         params["make"] = make_filter
     rows = conn.execute(text(query), params).fetchall()
 
-    nameplates = defaultdict(lambda: {"variants": set(), "years": defaultdict(set)})
+    nameplates = defaultdict(lambda: {"variants": set(), "years": defaultdict(set),
+                                      "specs": {}})
+    spec_counts = defaultdict(Counter)
     for r in rows:
         base = extract_base_model(r.make, r.model)
         entry = nameplates[(r.make, base)]
         entry["variants"].add(r.model)
         entry["years"][r.model].add(r.year)
+        spec_counts[(r.make, base, r.model)][(r.engine_capacity, r.fuel)] += 1
+
+    for (make, base, model), counts in spec_counts.items():
+        # most_common(1) resolves the handful of variants whose rows disagree,
+        # rather than picking whichever row happened to be read last.
+        nameplates[(make, base)]["specs"][model] = counts.most_common(1)[0][0]
     return nameplates
 
 
@@ -307,6 +338,55 @@ def _plan_deletions(years_by_model, ranges):
     return out
 
 
+def _plan_insertions(years_by_model, ranges):
+    """
+    Return [(model, year), ...] for every year inside `ranges` that a variant
+    doesn't already have a row for.
+
+    This is what stops the cleanup from emptying a nameplate. Where every
+    stored year is phantom (e.g. TOWN ACE held 1956-2001 while the real
+    generation is 2008-2026), deleting alone removes the model from the year
+    dropdown entirely; inserting the confirmed years replaces them with
+    correct data instead. The years come from the same ja.wikipedia
+    generation match that justified the deletions — trusting it to delete but
+    not to insert would be inconsistent.
+    """
+    out = []
+    for model, years in years_by_model.items():
+        for rf, rt in ranges:
+            for y in range(rf, rt + 1):
+                if y not in years:
+                    out.append((model, y))
+    return sorted(set(out))
+
+
+def _ranges_predate_all_stock(years_by_model, ranges):
+    """
+    True when every confirmed year is older than every year we actually stock
+    — i.e. the two sources share no era at all, in the direction the known
+    phantom-year bug cannot explain.
+
+    That bug (unbounded Wikidata inception dates) only ever produced
+    spuriously *old* stored years, so stored data skewing ancient relative to
+    ja.wikipedia is the expected signature and is safe to correct. The reverse
+    — a confirmed generation ending before our earliest stocked year — means
+    the two sources disagree completely, and which one is wrong varies:
+    verified live across the 5 real cases, ja.wikipedia was wrong for NISSAN
+    CARAVAN CHAIR ("Chair Cab" is a modern conversion whose trim word matched
+    the 1973-1980 first generation), while the stored data was wrong for
+    TOYOTA SAI G, NISSAN TEANA XV, TOYOTA SPADE X and TOYOTA PREMIO 1.5F
+    (all genuinely discontinued before the years we hold).
+
+    Nothing available here distinguishes those two situations, and both
+    deleting every row and replacing every row would be wrong half the time —
+    so these are reported as residue for a human to settle.
+    """
+    stocked = {y for years in years_by_model.values() for y in years}
+    if not stocked or not ranges:
+        return False
+    return min(stocked) > max(rt for _rf, rt in ranges)
+
+
 def _format_ranges(ranges):
     return ", ".join(f"{rf}-{rt}" for rf, rt in ranges)
 
@@ -367,29 +447,43 @@ def main():
             residue.append((make, base, status))
             continue
         ranges = resolved
+        if _ranges_predate_all_stock(data["years"], ranges):
+            print(f"UNCONFIRMED (range_predates_all_stock: {_format_ranges(ranges)})")
+            residue.append((make, base, f"range_predates_all_stock ({_format_ranges(ranges)})"))
+            continue
         deletions = _plan_deletions(data["years"], ranges)
-        if deletions:
-            print(f"MATCHED {_format_ranges(ranges)} — {len(deletions)} row(s) outside range")
-            confirmed_with_deletions[(make, base)] = {"ranges": ranges, "deletions": deletions}
+        insertions = _plan_insertions(data["years"], ranges)
+        if deletions or insertions:
+            print(f"MATCHED {_format_ranges(ranges)} — "
+                  f"{len(deletions)} row(s) outside range, {len(insertions)} to add")
+            confirmed_with_deletions[(make, base)] = {
+                "ranges": ranges, "deletions": deletions, "insertions": insertions,
+                "specs": data["specs"],
+            }
         else:
             print(f"MATCHED {_format_ranges(ranges)} — already clean")
             confirmed_clean.append((make, base))
 
     total_deletion_rows = sum(len(v["deletions"]) for v in confirmed_with_deletions.values())
+    total_insertion_rows = sum(len(v["insertions"]) for v in confirmed_with_deletions.values())
 
     print("\n" + "-" * 72)
-    print(f"Confirmed, rows to delete : {len(confirmed_with_deletions):>5} nameplates, {total_deletion_rows} rows")
+    print(f"Confirmed, changes to make: {len(confirmed_with_deletions):>5} nameplates")
+    print(f"  rows to DELETE          : {total_deletion_rows:>5}")
+    print(f"  rows to ADD             : {total_insertion_rows:>5}")
+    print(f"  net change              : {total_insertion_rows - total_deletion_rows:>+5}")
     print(f"Confirmed, already clean  : {len(confirmed_clean):>5} nameplates")
     print(f"Unconfirmed (residue)     : {len(residue):>5} nameplates — left untouched")
     print("-" * 72)
 
     if confirmed_with_deletions:
-        print("\nBy make:")
-        by_make = defaultdict(int)
+        print("\nBy make (deleted / added):")
+        by_make = defaultdict(lambda: [0, 0])
         for (make, _base), v in confirmed_with_deletions.items():
-            by_make[make] += len(v["deletions"])
-        for make, n in sorted(by_make.items(), key=lambda x: -x[1]):
-            print(f"  {make:<20} {n:>5} rows")
+            by_make[make][0] += len(v["deletions"])
+            by_make[make][1] += len(v["insertions"])
+        for make, (ndel, nins) in sorted(by_make.items(), key=lambda x: -x[1][0]):
+            print(f"  {make:<20} -{ndel:<5} +{nins}")
 
         print("\nSample deletions (up to 30):")
         shown = 0
@@ -404,6 +498,19 @@ def main():
         if total_deletion_rows > 30:
             print(f"  ... and {total_deletion_rows - 30} more rows not shown")
 
+        print("\nSample additions (up to 30):")
+        shown = 0
+        for (make, _base), v in confirmed_with_deletions.items():
+            for model, year in v["insertions"]:
+                if shown >= 30:
+                    break
+                print(f"  {make:<15} {model:<30} {year}  (inside {_format_ranges(v['ranges'])})")
+                shown += 1
+            if shown >= 30:
+                break
+        if total_insertion_rows > 30:
+            print(f"  ... and {total_insertion_rows - 30} more rows not shown")
+
     if residue:
         print(f"\nResidue — needs manual review (CLAUDE.md task item 7), {len(residue)} nameplates:")
         for make, base, status in residue:
@@ -414,7 +521,7 @@ def main():
         return
 
     if not confirmed_with_deletions:
-        print("\nNothing to delete.\n")
+        print("\nNothing to change.\n")
         return
 
     print("\nTaking a backup before applying changes...")
@@ -435,9 +542,10 @@ def main():
             print(f"\n  ERROR — backup failed, aborting cleanup:\n  {exc}\n")
             sys.exit(1)
 
-    print("\nApplying deletions...")
+    print("\nApplying changes...")
     version_id = str(uuid.uuid4())
     deleted_count = 0
+    inserted_count = 0
     with engine.begin() as conn:
         max_ver = conn.execute(
             text("SELECT COALESCE(MAX(version_number), 0) FROM vehicle_years_versions")
@@ -478,12 +586,45 @@ def main():
                 })
                 deleted_count += 1
 
+        # Insertions run in the same transaction as the deletions above, so a
+        # nameplate whose stored years were all phantom is never momentarily
+        # left with no years at all, and one revert undoes both halves.
+        for (make, _base), v in confirmed_with_deletions.items():
+            for model, year in v["insertions"]:
+                engine_capacity, fuel = v["specs"].get(model, (None, None))
+                result = conn.execute(text(
+                    "INSERT INTO vehicle_years (make, model, year, engine_capacity, fuel, source)"
+                    " VALUES (:make, :model, :year, :ec, :fuel, :source)"
+                    " ON CONFLICT DO NOTHING"
+                ), {
+                    "make": make, "model": model, "year": year,
+                    "ec": engine_capacity, "fuel": fuel, "source": SOURCE_TAG,
+                })
+                if result.rowcount == 0:
+                    continue  # row already present (e.g. re-run) — nothing added
+                conn.execute(text(
+                    "INSERT INTO vehicle_years_changelog"
+                    " (version_id, make, model, year, change_type, old_values, new_values)"
+                    " VALUES (:vid, :make, :model, :year, 'added', NULL, :new)"
+                ), {
+                    "vid": version_id, "make": make, "model": model, "year": year,
+                    "new": json.dumps({
+                        "engine_capacity": engine_capacity,
+                        "fuel": fuel,
+                        "source": SOURCE_TAG,
+                    }),
+                })
+                inserted_count += 1
+
         conn.execute(text(
-            "UPDATE vehicle_years_versions SET removed_count = :n WHERE id = :id"
-        ), {"n": deleted_count, "id": version_id})
+            "UPDATE vehicle_years_versions SET removed_count = :n, committed_count = :a"
+            " WHERE id = :id"
+        ), {"n": deleted_count, "a": inserted_count, "id": version_id})
 
     print(f"\n  DONE")
-    print(f"    Deleted: {deleted_count:,} rows")
+    print(f"    Deleted:  {deleted_count:,} rows")
+    print(f"    Added:    {inserted_count:,} rows")
+    print(f"    Net:      {inserted_count - deleted_count:+,} rows")
     print(f"    Version: {version_id} (revertible via the admin UI pipeline version history)\n")
 
 

@@ -60,6 +60,49 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # "Make Model" query, correctly ranking the real model article above it.
 _MIN_TITLE_MATCH_SCORE = 55
 
+# Scoring the full "Make Model" string against a candidate article title is not
+# sufficient on its own: the shared make token puts a floor under every
+# same-make candidate, so a completely different model by the same manufacturer
+# clears _MIN_TITLE_MATCH_SCORE regardless. Verified live — "Toyota Carina"
+# scores 76.9 against "Toyota Allion", "Toyota Corolla" 88.9 against "Toyota
+# Corona", "Subaru Legacy" 76.9 against "Subaru Levorg"; 11 of 11 wrong
+# same-make pairs tested passed at 55. That is exactly how "TOYOTA ALLION A15"
+# (a 2001-2021 car) resolved to Carina and matched its 1981-1988 A6#型
+# generation — which, applied, would have deleted the Allion's real years.
+#
+# So the make-stripped *model* portions are scored against each other as well,
+# at a deliberately strict threshold. Calibrated against real pairs: the two
+# tightest wrong pairs are "Corolla" vs "Corona" (76.9) and "Land Cruiser
+# Prado" vs "Land Cruiser" (80.0, genuinely distinct model lines — see the
+# Prado false-collapse bug in CLAUDE.md), both rejected at 85 while exact
+# model-name agreement (100) passes. Legitimate cross-market renames
+# ("Lutecia" -> "Clio") score near zero here and would be rejected, which is
+# why _resolve_via_exact_title() below runs FIRST — en.wikipedia's own
+# redirects resolve renames authoritatively, leaving this guard to police only
+# the fuzzy search fallback, where a wrong confident answer is worse than
+# honest residue.
+_MIN_MODEL_TOKEN_SCORE = 85
+
+# How many exact-title lookups to try per nameplate before falling back to
+# fuzzy search. Each is one API call (~1s), so this trades a bounded amount of
+# time for the authoritative resolution path.
+_MAX_EXACT_TITLE_ATTEMPTS = 3
+
+# Tokens that describe a grade, body style or powertrain rather than naming a
+# model, excluded when testing whether two titles refer to the same vehicle.
+# Mirrors extract_search_model()'s own trim stop list (which is local to that
+# function), plus body/powertrain words that appear in CRSP model strings.
+_GENERIC_MODEL_TOKENS = frozenset({
+    "s", "se", "sl", "sr", "gt", "rs", "gts", "trd", "gr",
+    "line", "sport", "sports", "advanced", "amg", "quattro", "awd", "4matic",
+    "limited", "edition", "package", "plus", "black", "white", "style",
+    "premium", "luxury", "signature", "exclusive", "techno", "midnight",
+    "ultimate", "base", "classic", "elite", "comfort", "elegance",
+    "executive", "progressive", "dynamic", "urban",
+    "hybrid", "diesel", "petrol", "turbo", "wagon", "sedan", "coupe",
+    "hatchback", "van", "truck", "pickup", "suv", "automobile",
+})
+
 # en.wikipedia's search sometimes top-matches a "List of X vehicles"
 # disambiguation/index page rather than the model's own article (e.g. "Mazda
 # DEMIO automobile" -> "List of Mazda vehicles"). Its ja langlink is a list
@@ -84,6 +127,54 @@ SESSION.headers["User-Agent"] = (
 
 def _title_score(a: str, b: str) -> float:
     return fuzz.token_sort_ratio(a, b, processor=fuzz_utils.default_process)
+
+
+def _strip_make(title: str, search_make: str) -> str:
+    """
+    Return `title` with a leading make name removed ("Toyota Allion" ->
+    "Allion"), so two candidates can be compared on the part that actually
+    identifies the vehicle. Falls back to the whole title when it doesn't
+    start with the make (e.g. a marque-specific article like "Lexus LS"
+    reached from a Toyota query) — comparing the full string is the
+    conservative choice there, never a looser one.
+    """
+    t = title.strip()
+    if t.lower().startswith(search_make.lower()):
+        stripped = t[len(search_make):].strip()
+        if stripped:
+            return stripped
+    return t
+
+
+def _identifying_tokens(text: str) -> set[str]:
+    """
+    Lowercased alphanumeric tokens of `text`, minus generic trim/body words
+    that identify a grade rather than a model. Without this exclusion a shared
+    trim word alone would count as agreement — verified live that "Toyota GR
+    GT" and "Toyota 86 GT" share only "gt", and treating that as a match
+    accepts an unrelated car.
+    """
+    return {t for t in re.findall(r"[a-z0-9]+", text.lower())
+            if t not in _GENERIC_MODEL_TOKENS}
+
+
+def _model_tokens_agree(candidate_title: str, target: str, search_make: str) -> bool:
+    """
+    True when `candidate_title` plausibly names the same model as `target`,
+    judged on the make-stripped portion only. See _MIN_MODEL_TOKEN_SCORE for
+    why the full-string score is not enough on its own.
+
+    Agreement means either sharing at least one identifying token, or scoring
+    highly as whole strings. The token test is what lets a clean article title
+    match a noisy CRSP query that carries extra trim wording ("Toyota 86" for
+    "Toyota 86 GT"); the score test catches close spelling variants that share
+    no whole token. A candidate meeting neither is a different vehicle.
+    """
+    cand = _strip_make(candidate_title, search_make)
+    tgt = _strip_make(target, search_make)
+    if _identifying_tokens(cand) & _identifying_tokens(tgt):
+        return True
+    return _title_score(cand, tgt) >= _MIN_MODEL_TOKEN_SCORE
 
 
 class ThrottledError(Exception):
@@ -176,6 +267,82 @@ def _fetch_ja_langlink(en_title: str, log=print) -> str | None:
     return langlinks[0]["*"] if langlinks else None
 
 
+def _progressive_targets(search_make: str, search_model: str) -> list[str]:
+    """
+    "Make Model Trim" -> ["Make Model Trim", "Make Model"], longest first,
+    capped at _MAX_EXACT_TITLE_ATTEMPTS entries and never reducing the model
+    below its first token.
+    """
+    tokens = search_model.split()
+    targets = []
+    for end in range(len(tokens), 0, -1):
+        targets.append(f"{search_make} {' '.join(tokens[:end])}".strip())
+        if len(targets) == _MAX_EXACT_TITLE_ATTEMPTS:
+            break
+    return targets
+
+
+def _resolve_via_exact_title(target: str, log=print) -> dict | None:
+    """
+    Look the exact "Make Model" title up on en.wikipedia and return its ja
+    langlink — one API call that does case-insensitive exact title matching
+    (`generator=search&gsrwhat=nearmatch`), redirect following, and the
+    langlink fetch together.
+
+    nearmatch rather than a plain `titles=` lookup because MediaWiki titles
+    are case-sensitive after the first character, while CRSP model names are
+    all-caps: `titles=Toyota ALLION` is simply missing. Naive title-casing
+    isn't a fix either — it would corrupt real titles like "Nissan GT-R" and
+    "BMW X5". nearmatch resolved all 10 probed cases correctly, including
+    those two.
+
+    This is the authoritative path and runs before any fuzzy search, because
+    en.wikipedia's own redirects encode the model-identity facts a fuzzy title
+    score cannot infer. Verified live:
+      "Toyota Allion"   -> redirect -> "Toyota Premio" -> トヨタ・プレミオ
+          (the Allion's actual platform twin; fuzzy search picked Carina,
+           a different car, and produced its 1981-1988 years)
+      "Renault Lutecia" -> redirect -> "Renault Clio"  -> ルノー・クリオ
+          (the JDM-badge rename this module was originally built to handle)
+      "Hino Dutro" / "Subaru Sambar" / "Volkswagen Golf" -> exact articles
+          (all three previously unresolved or mis-resolved via search)
+
+    Returns None — never raises for a genuine miss — when the title doesn't
+    exist, has no ja langlink, or lands on an index/list page, so the caller
+    falls through to the existing search paths. ThrottledError still
+    propagates, per this module's contract.
+    """
+    data = _api_get(
+        EN_WIKI_API,
+        {"action": "query", "generator": "search", "gsrsearch": target,
+         "gsrwhat": "nearmatch", "gsrlimit": 1, "redirects": 1,
+         "prop": "langlinks", "lllang": "ja", "format": "json", "utf8": 1},
+        log=log,
+    )
+    query = data.get("query", {})
+    pages = query.get("pages", {})
+    page = next(iter(pages.values()), {}) if pages else {}
+    if not page or "missing" in page:
+        log(f"    [ja-wiki] no en.wikipedia article titled '{target}'")
+        return None
+
+    langlinks = page.get("langlinks", [])
+    if not langlinks:
+        log(f"    [ja-wiki] en '{page.get('title')}' has no ja langlink")
+        return None
+
+    ja_title = langlinks[0]["*"]
+    if _JA_LIST_PAGE_RE.search(ja_title):
+        log(f"    [ja-wiki] exact-title ja '{ja_title}' is an index/list page — rejecting")
+        return None
+
+    redirects = query.get("redirects", [])
+    method = "exact_title_redirect" if redirects else "exact_title"
+    via = f" (redirect -> '{page.get('title')}')" if redirects else ""
+    log(f"    [ja-wiki] '{target}'{via} -> ja '{ja_title}' [{method}]")
+    return {"title": ja_title, "method": method, "match_score": 100}
+
+
 def _fetch_en_langlink(ja_title: str, log=print) -> str | None:
     ll_data = _api_get(
         JA_WIKI_API,
@@ -193,10 +360,19 @@ def resolve_ja_title(make: str, model_name: str, log=print) -> dict:
     """
     Resolve a make/model pair to a ja.wikipedia.org article title.
 
-    Primary path: search en.wikipedia (top 3 candidates), then follow the
-    best-scoring candidate's langlink to ja — e.g. Renault's JDM badge
-    "Lutecia" -> en "Renault Clio" -> ja "ルノー・クリオ", no translation
-    layer needed.
+    Primary path: look up the exact "Make Model" title on en.wikipedia,
+    following redirects, and take its ja langlink (_resolve_via_exact_title).
+    Wikipedia's own redirects settle model identity authoritatively — both
+    JDM-badge renames ("Renault Lutecia" -> "Renault Clio" -> "ルノー・クリオ")
+    and platform twins ("Toyota Allion" -> "Toyota Premio") — in one call,
+    without any fuzzy scoring.
+
+    Second path (no exact article): search en.wikipedia (top 3 candidates)
+    and follow the best-scoring candidate's langlink to ja. Candidates must
+    now clear _MIN_MODEL_TOKEN_SCORE on the make-stripped model name as well
+    as _MIN_TITLE_MATCH_SCORE on the full string, so a different model by the
+    same make can no longer be accepted on the strength of the shared make
+    token alone.
 
     Fallback (no acceptable langlink found): search ja.wikipedia directly
     (top 3 candidates), then round-trip each back to English via its own
@@ -219,6 +395,18 @@ def resolve_ja_title(make: str, model_name: str, log=print) -> dict:
     query = f"{search_make} {search_model} automobile"
     target = f"{search_make} {search_model}"
 
+    # Try the exact title with progressively fewer trailing model tokens.
+    # CRSP model strings keep trim wording extract_search_model() doesn't know
+    # to strip ("ALLION A15", "86 GT"), so the full string frequently isn't a
+    # real article title while its head is — "Toyota Allion A15" is missing,
+    # "Toyota Allion" redirects to Toyota Premio. Bounded to
+    # _MAX_EXACT_TITLE_ATTEMPTS calls, shortest-last, so a resolvable head is
+    # found without ever paying for a long tail of hopeless lookups.
+    for candidate_target in _progressive_targets(search_make, search_model):
+        exact = _resolve_via_exact_title(candidate_target, log=log)
+        if exact:
+            return exact
+
     data = _api_get(
         EN_WIKI_API,
         {"action": "query", "list": "search", "srsearch": query,
@@ -238,6 +426,9 @@ def resolve_ja_title(make: str, model_name: str, log=print) -> dict:
         if score < _MIN_TITLE_MATCH_SCORE:
             log(f"    [ja-wiki] en '{en_title}' score {score} < {_MIN_TITLE_MATCH_SCORE} — stopping (rest are worse)")
             break
+        if not _model_tokens_agree(en_title, target, search_make):
+            log(f"    [ja-wiki] en '{en_title}' is a different model by the same make — rejecting")
+            continue
         ja_title = _fetch_ja_langlink(en_title, log=log)
         if not ja_title:
             log(f"    [ja-wiki] en '{en_title}' has no ja langlink")
@@ -266,6 +457,9 @@ def resolve_ja_title(make: str, model_name: str, log=print) -> dict:
         rt_en_title = _fetch_en_langlink(ja_candidate, log=log) or ja_candidate
         score = _title_score(rt_en_title, target)
         log(f"    [ja-wiki] ja candidate '{ja_candidate}' round-trips to '{rt_en_title}' (score {score})")
+        if not _model_tokens_agree(rt_en_title, target, search_make):
+            log(f"    [ja-wiki] '{rt_en_title}' is a different model by the same make — rejecting")
+            continue
         if score > best_score:
             best_title, best_score = ja_candidate, score
 

@@ -31,4 +31,6 @@ Thumbs.db
 
 # Local DB backups/restores
 backups/
+# Stray pg_dump files (restore artifacts) outside backups/
+*.dump
 db-restore/

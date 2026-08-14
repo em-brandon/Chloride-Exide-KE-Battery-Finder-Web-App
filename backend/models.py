@@ -99,6 +99,48 @@ class VehicleYear(Base):
         return f"<VehicleYear {self.make} {self.model} {self.year}>"
 
 
+class VehicleYearUnverifiable(Base):
+    """
+    Quarantine for vehicle_years rows whose years no automated source could
+    confirm and which show the fingerprints of the phantom-year defects.
+
+    Rows are moved here rather than deleted, so the table doubles as the
+    manual-research worklist (base_model + reason say what to look up and why
+    it stalled) and any batch can be put back verbatim.
+
+    Deliberately NOT granted to the batteryfinder_public role — quarantined
+    rows must never reach the matcher.
+
+    Written by: scripts/quarantine_phantom_era_rows.py,
+                scripts/quarantine_unverifiable_years.py
+    """
+
+    __tablename__ = "vehicle_years_unverifiable"
+
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    make            = Column(String(100), nullable=False)
+    model           = Column(String(200), nullable=False)
+    year            = Column(Integer,     nullable=False)
+    engine_capacity = Column(Integer,     nullable=True)
+    fuel            = Column(String(50),  nullable=True)
+    source          = Column(String(50),  nullable=True)
+    model_number    = Column(String(100), nullable=True)
+    base_model      = Column(String(200), nullable=True)   # nameplate it was grouped under
+    reason          = Column(String(64),  nullable=True)   # "<residue reason>|<rule>"
+    moved_at        = Column(DateTime(timezone=True), nullable=True)
+    batch_id        = Column(String(64),  nullable=True)   # groups one run, for --restore
+
+    __table_args__ = (
+        UniqueConstraint("make", "model", "year", name="uq_vehicle_years_unverifiable"),
+        Index("ix_vehicle_years_unverifiable_make",   "make"),
+        Index("ix_vehicle_years_unverifiable_reason", "reason"),
+        Index("ix_vehicle_years_unverifiable_batch",  "batch_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<VehicleYearUnverifiable {self.make} {self.model} {self.year}>"
+
+
 class BatterySpec(Base):
     """
     Battery catalogue — one row per battery SKU.
