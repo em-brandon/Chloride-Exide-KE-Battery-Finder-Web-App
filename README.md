@@ -1,6 +1,6 @@
 # Chloride Exide KE — Battery Finder
 
-Chloride Exide KE Battery Finder is a production web application that helps Eastern African Drivers (Kenya Uganda & Tanzania ) drivers and service centres identify the correct battery for any vehicle in the local market. It is built on a cleaned and enriched CRSP/NTS dataset covering tens of thousands of make-model-year combinations, extended with engine capacity and fuel type data sourced from fueleconomy.gov, NHTSA VPIC, CarAPI, Wikipedia, and Wikidata, and further widened by Exide's own official global fitment guide (a separate table, curated down to Kenya/UG/TZ-relevant makes) which also supplies a precise Ah spec that overrides the engine-CC rule-of-thumb wherever available (technology preference still follows this app's own luxury-make/stop-start rules).
+Chloride Exide KE Battery Finder is a production web application that helps Eastern African Drivers (Kenya Uganda & Tanzania ) drivers and service centres identify the correct battery for any vehicle in the local market. It is built on a cleaned and enriched CRSP/NTS dataset covering tens of thousands of make-model-year combinations, extended with engine capacity and fuel type data sourced from fueleconomy.gov, NHTSA VPIC, CarAPI, CarQuery, Japanese Wikipedia (generation-level production-year data, parsed via `mwparserfromhell`), and English Wikipedia, and further widened by Exide's own official global fitment guide (a separate table, curated down to Kenya/UG/TZ-relevant makes) which also supplies a precise Ah spec that overrides the engine-CC rule-of-thumb wherever available (technology preference still follows this app's own luxury-make/stop-start rules).
 
 The system is organized into three layers. The data pipeline layer normalises raw CRSP vehicle records, resolves production year gaps through multi-source API enrichment, ingests real-world Dial-A-Battery call-centre order history, cleans and filters Exide's own fitment guide down to market-relevant makes, and stages all changes for admin review before they are committed to the live dataset. The backend is a FastAPI server running a five-layer matching engine that resolves a vehicle query against web-validated fitment data, real-world sales history, exact dataset matches, fuzzy close matches, and engine-CC rule-based fallback — with Exide's own fitment spec substituted in as the Ah source whenever available (technology preference is untouched, always following this app's own luxury-make/stop-start rules), regardless of which layer resolved the vehicle — returning a primary battery recommendation with confidence score, match type, `ah_source`, and a list of alternatives. The frontend is a React 19 + TypeScript application built with Vite and Tailwind CSS v4, with a full admin dashboard for managing the battery catalogue, reviewing pipeline output, browsing vehicle-data coverage, monitoring search logs and user feedback, and inspecting audit history.
 
@@ -80,11 +80,14 @@ Full pinned list: [`frontend/package.json`](frontend/package.json).
 | Tool | Purpose |
 |---|---|
 | [Pandas](https://pandas.pydata.org/) | Data cleaning, normalization, and output |
-| [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) | Fuzzy model name matching across external API results |
+| [RapidFuzz](https://github.com/maxbachmann/RapidFuzz) | Fuzzy model name matching across external API results (case-insensitive `token_sort_ratio`/`token_set_ratio` with an explicit `processor`) |
 | [NHTSA VPIC API](https://vpic.nhtsa.dot.gov/api/) | Vehicle make/model lookup |
 | [CarAPI](https://carapi.app/) | Year-range data per model |
+| [CarQuery API](https://www.carqueryapi.com/) | Supplementary year-range data per model |
 | [fueleconomy.gov](https://www.fueleconomy.gov/) | US DOE/EPA bulk CSV (local cache) |
-| [Wikidata](https://www.wikidata.org/) / [Wikipedia](https://www.wikipedia.org/) | Supplementary year and fuel-type enrichment |
+| [Japanese Wikipedia](https://ja.wikipedia.org/) | Generation-level production-year data with chassis codes, parsed from raw wikitext (headings + `Infobox 自動車のスペック表`) — supersedes Wikidata, whose unbounded inception date previously produced wrong nameplate-level years (e.g. a Land Cruiser dated from 1951) |
+| [mwparserfromhell](https://github.com/earwig/mwparserfromhell) | Wikitext/template parsing for the Japanese Wikipedia source — avoids regex mis-extraction of nested templates (multi-market/multi-trim production-period fields) |
+| [English Wikipedia](https://www.wikipedia.org/) | Fallback supplementary year enrichment, used only when the sources above miss |
 | [duckduckgo-search](https://github.com/deedy5/duckduckgo_search) (`ddgs`) | Web battery validation pipeline |
 | [Tavily](https://tavily.com/) | AI-powered web search — battery validation pipeline |
 | [Requests](https://requests.readthedocs.io/) | HTTP client underlying all external API/scraping calls |
@@ -142,7 +145,7 @@ flowchart LR
     P2 -- "audit entry" --> DS9
 
     AD -- "run / review / commit" --> P3(("P3<br/>Data Pipelines"))
-    P3 -- "fetch / scrape / read" --> EXT["External Sources<br/>fueleconomy · NHTSA · CarAPI<br/>Wikipedia · Wikidata<br/>Exide guide · Dial-A-Battery"]
+    P3 -- "fetch / scrape / read" --> EXT["External Sources<br/>fueleconomy · NHTSA · CarAPI · CarQuery<br/>Japanese Wikipedia · English Wikipedia<br/>Exide guide · Dial-A-Battery"]
     P3 --> WRITES
     P3 -. "refresh" .-> CACHE[("Matcher Cache<br/>in-memory")]
     AD -- "toggle" --> DS10[("app_settings")]
@@ -194,7 +197,7 @@ flowchart LR
     EXT1["CRSP Excel"] --> P3a(("1<br/>CRSP Prep"))
     P3a --> VR[("vehicles_raw")]
 
-    EXT2["fueleconomy · NHTSA<br/>CarAPI · Wikidata / Wikipedia"] --> P3b(("2<br/>Year Enrichment"))
+    EXT2["fueleconomy · NHTSA · CarAPI<br/>CarQuery · Japanese Wikipedia · English Wikipedia"] --> P3b(("2<br/>Year Enrichment"))
     VR --> P3b
     P3b -. "stage, review, commit" .-> DS1[("vehicle_years")]
 
@@ -366,6 +369,8 @@ cd backend && pip install -r requirements.txt
 # Frontend
 cd frontend && bun install
 ```
+
+> `mwparserfromhell` (used by the Japanese Wikipedia year-enrichment source) ships no prebuilt wheel for some Python/Windows combinations and needs MSVC Build Tools to compile from source. If you hit a build error and don't want to install Build Tools, install it via its pure-Python tokenizer fallback instead: `WITH_EXTENSION=0 pip install mwparserfromhell` (same library, verified working identically).
 
 ### Apply Database Migrations
 
@@ -925,8 +930,8 @@ Output: `battery_lookup_dataset.csv`
 cd backend && python pipelines/enrich_years.py
 ```
 
-Fetches production years from (in order): fueleconomy.gov bulk CSV → NHTSA VPIC → CarAPI → Wikidata/Wikipedia.
-Results cached in `backend/cache/year_cache.json` and `backend/cache/fueleconomy_vehicles.csv`. Safe to delete to force a full re-fetch.
+Fetches production years from (in order): fueleconomy.gov bulk CSV → CarAPI → CarQuery → Japanese Wikipedia (generation-level data with chassis codes, parsed via `mwparserfromhell` — see `pipelines/ja_wikipedia_years.py`) → English Wikipedia. NHTSA VPIC is used separately to confirm a model exists (not as a year source). Wikidata was removed from this chain — its unbounded inception date previously produced wrong nameplate-level years (e.g. dating a Land Cruiser from 1951).
+Results cached in `backend/cache/year_cache.json`, `backend/cache/fueleconomy_vehicles.csv`, and `backend/cache/ja_wikipedia_cache.json`. Safe to delete any of these to force a full re-fetch.
 
 ### Pipeline 3 — Dial-A-Battery Inference
 
@@ -1534,6 +1539,8 @@ Vite is configured with manual chunk splitting (`vite.config.ts`) to separate ve
 - **Revocable sessions** — `require_admin` (`admin_auth.py`) re-validates the session cookie against a database row on every request rather than trusting a self-contained signed token. That means an admin session can be invalidated immediately by deleting its row — there's no stateless-JWT-style window where a revoked session keeps working until it naturally expires
 - **Session visibility & remote revocation** — the admin Sessions page lists every active admin session, and an endpoint (`admin_router.py`) lets an admin delete any of them on demand — so a suspicious or forgotten login can be killed from another device without waiting for its TTL
 - **Cross-Site-Request-Forgery (CSRF)** — admin cookies are `HttpOnly` + `Secure` + `SameSite=Strict` (`admin_auth.py`), which already blocks the browser from attaching the session cookie to a cross-site request in any modern browser — the standard, sufficient CSRF defense for this app's threat model, without needing a separate token/double-submit scheme
+- **Known limitation — what `SameSite=Strict` doesn't cover** — the CSRF defense above only holds if its own precondition holds: no XSS. `SameSite` governs which *site* a cookie is sent to, not who can run script *on* this site — an XSS payload executes same-origin, so the browser attaches the cookie exactly as it would for a legitimate request; `HttpOnly` stops JavaScript from *reading* the cookie's value, but not from riding on it via a same-origin `fetch()`. Three further preconditions, none verifiable from this repo alone: (1) `CORSMiddleware`'s `allow_credentials=True` + `ALLOWED_ORIGINS` (see "CORS" below) has to stay tightly scoped in production — a mistakenly broad entry there would matter more than a missing CSRF token, since it also lets the origin *read* responses, not just fire requests blind; (2) `SameSite` enforcement depends on the client browser honoring it — universal in shipping browsers for years, but a browser-enforced control, not a cryptographic guarantee; (3) `SameSite=Strict` scopes to the registrable domain, not the exact origin — a less-trusted subdomain on the same domain could exploit the same-site carve-out, and this repo has no visibility into DNS/subdomain layout to say whether one exists. Precondition (1) is a live, real gap today — see the XSS finding immediately below
+- **Cross-Site Scripting (XSS) — found 2026-08-17, not yet fixed** — `AdminAuditLog.tsx`'s `exportPDF()` is the one place in the frontend that bypasses React's default JSX auto-escaping: it hand-builds an HTML string by directly interpolating audit-log field values (`battery_code`, admin `changed_by`, among others) with no escaping, then renders it via `win.document.write(html)` inside a same-origin popup (`window.open('', ...)` — an empty URL inherits the opener's origin). Both interpolated fields are reachable through completely ordinary admin actions: `battery_code` (`admin_router.py`'s `BatteryCreateRequest`) and admin `username` are both `Field(..., min_length=1, max_length=100)` — length-capped only, no character/pattern restriction — so a malicious or compromised admin account, or a bulk CRSP/Excel upload (`upload_pipeline.py`, same unrestricted `str` type), can plant a script payload in either field. It executes the moment *any* admin opens the Audit Log and clicks "Export PDF," in a window that inherits the admin panel's own origin — running with that admin's session cookie attached to whatever same-origin requests it makes, which is the exact outcome the CSRF defense above exists to prevent, reached through a different door. Confirmed by source inspection (grepped the whole frontend for `dangerouslySetInnerHTML`, `.innerHTML`, `eval(`, and `document.write` — this is the only hit, an isolated instance rather than a repeated pattern); not yet reproduced live or patched. Planned fix: HTML-escape the interpolated values (or build the export via DOM APIs instead of a raw string) before this ships.
 - **Rate limiting** — per-endpoint limits enforced via `slowapi` (10/min recommend, 5/min feedback, 20/min dropdown lookups, 5/min auth endpoints), keyed off the real client IP. Production uvicorn runs with `--proxy-headers --forwarded-allow-ips="*"` so `request.client.host` is corrected from the ALB's `X-Forwarded-For` header — without this flag, every request behind the ALB reports the ALB's own IP, and all users would silently share one rate-limit bucket
 - **Known limitation — IP rotation** — `slowapi`'s per-endpoint limits (and AWS WAF's rate-based rules) key their counters by client IP. An attacker spreading requests across many IPs (rotating proxies, a botnet) still gets a fresh bucket per IP, so neither layer alone meaningfully throttles a distributed attacker. For the highest-value target — admin login — there's a second, IP-independent layer: `admin_users.failed_login_attempts`/`locked_until` locks an account for 15 minutes after 8 consecutive failed attempts, tracked by username in the database (not in-memory, since 2+ Fargate tasks behind the ALB would each keep an inconsistent counter). This is deliberately targeted at login rather than a general CAPTCHA/behavioral-analysis system, which would be disproportionate for a single-admin-team internal dashboard; other endpoints remain IP-rotation-gameable by design
 - **CORS** — an explicit `CORSMiddleware` (`app.py`) allowlists origins from `ALLOWED_ORIGINS` (empty by default — no origin is trusted unless configured) rather than `*`, with `allow_credentials=True` since admin auth uses cookies. CloudFront/ALB already serve the SPA and API same-origin in production, so this is defense-in-depth that makes the trust boundary explicit rather than implicit-by-topology
