@@ -99,6 +99,46 @@ class VehicleYear(Base):
         return f"<VehicleYear {self.make} {self.model} {self.year}>"
 
 
+class WebBatteryUnmatched(Base):
+    """
+    Quarantine for web_battery_staging/validation rows pulled out by the
+    report-readiness gate because their Ah could not be defended.
+
+    Same rationale as VehicleYearUnverifiable: removing a row silently loses
+    both the vehicle and the evidence of what went wrong, so rows are moved
+    here instead. expected_ah records what the engine-size rules predicted
+    alongside the scraped ah, which is the whole reason the row was pulled —
+    that pair is the research worklist.
+
+    Example of what lands here: NISSAN GT R staged at 45Ah against an expected
+    95Ah for a 3.8 L twin-turbo. Either the scrape is wrong or the vehicle
+    genuinely uses a small AGM and our rules are wrong for it; both need a
+    human to look, and neither should silently reach a customer.
+
+    Deliberately NOT granted to the batteryfinder_public role — quarantined
+    rows must never reach the matcher.
+
+    Written by: scripts/quarantine_web_battery_unmatched.py
+    """
+
+    __tablename__ = "web_battery_unmatched"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    make_n       = Column(String(100), nullable=False)
+    model_n      = Column(String(200), nullable=False)
+    year         = Column(Integer,     nullable=False)
+    ah           = Column(Integer,     nullable=True)   # what the web said
+    expected_ah  = Column(Integer,     nullable=True)   # what the rules say
+    engine_cc    = Column(Integer,     nullable=True)
+    fuel_type    = Column(String(50),  nullable=True)
+    battery_code = Column(String(120), nullable=True)
+    technology   = Column(String(50),  nullable=True)
+    source_table = Column(String(64),  nullable=True)   # where it was pulled from
+    reason       = Column(String(64),  nullable=True)
+    moved_at     = Column(DateTime(timezone=True), nullable=True)
+    batch_id     = Column(String(64),  nullable=True)   # groups one run, for --restore
+
+
 class VehicleYearUnverifiable(Base):
     """
     Quarantine for vehicle_years rows whose years no automated source could

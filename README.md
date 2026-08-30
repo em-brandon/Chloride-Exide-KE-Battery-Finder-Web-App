@@ -54,7 +54,7 @@ The application is geo-restricted to Kenya, Uganda and Tanzania served entirely 
 | File uploads | [python-multipart](https://github.com/Kludex/python-multipart) — multipart form parsing for battery Excel uploads |
 | PDF export | [ReportLab](https://www.reportlab.com/) — admin battery catalogue PDF generation |
 
-Full pinned list: [`backend/requirements.txt`](backend/requirements.txt).
+Full pinned list: [`backend/requirements.txt`](backend/requirements.txt) (runtime). Pipeline-only and dev-only packages are split into [`requirements-pipeline.txt`](backend/requirements-pipeline.txt) and [`requirements-dev.txt`](backend/requirements-dev.txt), each including the previous via `-r`, so a production web host installs only what it actually imports.
 
 ### Frontend
 | Layer | Technology |
@@ -244,7 +244,9 @@ A few flows worth calling out explicitly, since they're easy to miss:
 │   ├── models.py                # SQLAlchemy ORM models for all tables
 │   ├── db.py                    # SQLAlchemy engine + SessionLocal factory
 │   ├── upload_pipeline.py        # Battery spec upload/import handler
-│   ├── requirements.txt          # Python dependencies
+│   ├── requirements.txt          # Runtime deps (serving the app)
+│   ├── requirements-pipeline.txt # + data-pipeline deps
+│   ├── requirements-dev.txt      # + test and analysis deps
 │   │
 │   ├── alembic/                  # Database migration scripts
 │   │   ├── env.py
@@ -364,7 +366,9 @@ source .venv/Scripts/activate
 
 ```bash
 # Python (with .venv active) — all backend code lives in backend/
-cd backend && pip install -r requirements.txt
+# Dev set = runtime + pipeline + test deps. Use requirements.txt alone for a
+# web-only production host; requirements-pipeline.txt to also run the pipelines.
+cd backend && pip install -r requirements-dev.txt
 
 # Frontend
 cd frontend && bun install
@@ -414,6 +418,14 @@ cd backend && uvicorn app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwa
 The app starts on **http://localhost:8000**. Static frontend assets are served directly from `frontend/dist/` by FastAPI.
 
 `--proxy-headers --forwarded-allow-ips="*"` is required in production: the app runs behind an ALB (see Production Architecture below), so without it every request's `request.client.host` is the ALB's own IP rather than the real client's, which silently collapses slowapi's per-client rate limits into one shared bucket for all users. `--forwarded-allow-ips="*"` is safe here because ECS Fargate tasks are only reachable via the ALB — there is no direct public path to the container that could spoof `X-Forwarded-For` from outside.
+
+> **Self-hosted deployments must not use `"*"`.** The value above is safe *only* because a Fargate task has no path to it except the ALB. On a single server where nginx reverse-proxies to uvicorn on the same host, uvicorn is directly reachable, so `"*"` lets any caller that reaches it spoof `X-Forwarded-For` and defeat every per-IP rate limit. Use the proxy's own address instead:
+>
+> ```bash
+> uvicorn app:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips="127.0.0.1"
+> ```
+>
+> Binding to `127.0.0.1` rather than `0.0.0.0` closes the same hole from the other side: uvicorn then accepts connections only from the local nginx, never from the network directly.
 
 ### Development (hot reload)
 
@@ -1866,7 +1878,7 @@ bun run test:ci                           # what CI runs — adds a JUnit report
 Defined in `Jenkinsfile`. Pipeline stages:
 
 1. Checkout source
-2. Install Python dependencies (`pip install -r backend/requirements.txt`)
+2. Install Python dependencies (`pip install -r backend/requirements-dev.txt`)
 3. Install Bun + frontend dependencies (`bun install`)
 4. Frontend lint (`bun run lint`)
 5. Frontend build (`bun run build`)

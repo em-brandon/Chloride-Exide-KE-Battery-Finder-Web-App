@@ -1,32 +1,36 @@
-pandas>=2.2.0
-numpy>=1.26.0
-openpyxl>=3.1.0
-xlrd>=2.0.1
-matplotlib>=3.8.0
-seaborn>=0.13.0
-jupyter>=1.0.0
-ipykernel>=6.29.0
-requests>=2.31.0
-ddgs>=9.0.0
-tavily-python>=0.3.0
-rapidfuzz>=3.6.0
-mwparserfromhell>=0.6.6
-pandas-stubs
+# Runtime dependencies — everything needed to serve the app.
+#
+# This is the only file a production web server needs. Pipeline-only and
+# development-only packages live in requirements-pipeline.txt and
+# requirements-dev.txt so an internet-facing host doesn't carry tooling it
+# never imports (see CLAUDE.md's self-hosted deployment plan).
+
+# --- Web layer ---
 fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
 pydantic>=2.7.0
 slowapi>=0.1.9
-uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9      # multipart parsing for battery Excel uploads
+
+# --- Database ---
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 alembic>=1.13.0
-python-dotenv>=1.0.0
-# Admin dashboard deps
+
+# --- Matching engine ---
+pandas>=2.2.0
+numpy>=1.26.0
+rapidfuzz>=3.6.0
+
+# --- Admin dashboard ---
 bcrypt>=4.1.0
-python-multipart>=0.0.9
-reportlab>=4.0.0
-beautifulsoup4>=4.12.0
-lxml>=5.2.0
-boto3>=1.34.0
-# Test suite (backend/tests/) — pytest-httpx via fastapi.testclient.TestClient
-pytest>=8.0.0
-httpx>=0.27.0
+reportlab>=4.0.0             # battery catalogue PDF export (admin_router.py)
+boto3>=1.34.0                # SES password-reset email (email_utils.py)
+requests>=2.31.0             # provider-health probes (admin_router.py)
+openpyxl>=3.1.0              # .xlsx upload/validate
+xlrd>=2.0.1                  # .xls upload/validate — admin_router.py accepts
+                             # both suffixes and pandas needs xlrd for legacy
+                             # .xls, so this is runtime, not pipeline-only
+
+# --- Config ---
+python-dotenv>=1.0.0

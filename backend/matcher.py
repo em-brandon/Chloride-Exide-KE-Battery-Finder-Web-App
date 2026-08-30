@@ -404,6 +404,61 @@ def _target_ah(engine_cc: int, fuel: str, year: Optional[int] = None) -> int:
 _TECH_PRIORITY = ["EFB", "AGM", "MF", "SB (Flooded)"]
 
 
+# AGM did not become an OEM fitment on premium cars until stop-start and
+# brake-energy regeneration arrived — BMW from roughly 2007, Mercedes 2008.
+# Before that even a 7-Series left the factory on a flooded battery, so the
+# "premium electronics baseline" reasoning simply does not apply to a 2001
+# 320i: it recommends a materially more expensive battery than the car was
+# built for, and misstates the fitment in the exported guide. The premium rule
+# is therefore gated on the year the technology actually existed; older cars
+# fall through to the normal engine/fuel/stop-start logic like any other make.
+# Per-make first year AGM became the OEM fitment, anchored on when each brand
+# actually shipped stop-start / brake-energy regeneration — the systems AGM was
+# introduced to serve. A single industry-wide date is too blunt: BMW was fitting
+# AGM in 2007, Maserati not until the Quattroporte VI in 2013, so one cutoff
+# either strips AGM from cars that had it or leaves it on cars that never did.
+#
+# THESE ARE APPROXIMATE BRAND-LEVEL ADOPTION DATES, NOT PER-MODEL FITMENT FACTS.
+# Flagship models generally led their brand by a year or two, so a date here may
+# be late for a top-of-range car and early for a base one. They are deliberately
+# set at the point the technology became normal for the brand rather than at its
+# first appearance anywhere in the range, so the rule errs toward the ordinary
+# car rather than the halo model. Where Exide's own fitment guide covers a
+# vehicle, that data wins over this table — see _fitment_override.
+_LUXURY_AGM_FROM: dict[str, int] = {
+    "BMW": 2007,            # EfficientDynamics brake-energy regeneration
+    "MERCEDES": 2008,       # BlueEFFICIENCY ECO start/stop (W204)
+    "MERCEDES-BENZ": 2008,
+    "AUDI": 2010,           # start-stop across A4/A5/A6/A8
+    "PORSCHE": 2010,        # Panamera, Cayenne 958
+    "VOLVO": 2010,          # DRIVe start/stop rollout
+    "CADILLAC": 2010,
+    "ROLLS-ROYCE": 2010,    # Ghost (BMW N74 platform)
+    "FERRARI": 2010,        # HELE start-stop, 458
+    "JAGUAR": 2011,         # XF 2.2d start-stop
+    "LANDROVER": 2011,      # Evoque; Range Rover/Discovery later still
+    "BENTLEY": 2012,        # Continental GT W12
+    "LEXUS": 2012,          # late to AGM on non-hybrid models
+    "INFINITI": 2013,
+    "MASERATI": 2013,       # Quattroporte VI / Ghibli
+}
+# Fallback for a premium make added to _LUXURY_MAKES without its own date:
+# the middle of the industry transition rather than either extreme.
+_LUXURY_AGM_FROM_YEAR = 2010
+
+
+def _luxury_agm(make: str, year: Optional[int]) -> bool:
+    """True when a make's premium-AGM baseline applies for that model year."""
+    m = make.upper().strip()
+    if m not in _LUXURY_MAKES:
+        return False
+    # Unknown year keeps the previous behaviour: assume the modern fitment
+    # rather than downgrade a car we cannot date.
+    if year is None:
+        return True
+    return int(year) >= _LUXURY_AGM_FROM.get(m, _LUXURY_AGM_FROM_YEAR)
+
+
 def _preferred_tech(
     engine_cc: int,
     fuel: str,
@@ -414,8 +469,9 @@ def _preferred_tech(
     """Return the preferred battery technology given engine size and fuel."""
     if fuel == "EV":
         return "MF"
-    # Luxury/premium makes always need AGM — advanced electronics baseline.
-    if make.upper().strip() in _LUXURY_MAKES:
+    # Luxury/premium makes need AGM — advanced electronics baseline — but only
+    # from the model year AGM was actually fitted. See _luxury_agm.
+    if _luxury_agm(make, year):
         return "AGM"
     if fuel == "HYBRID":
         return "EFB"
@@ -1069,7 +1125,7 @@ def recommend(
         parsed = _lookup_battery_by_code(web_code)
         if parsed is not None:
             target_ah, parsed_tech = parsed
-            if make_n in _LUXURY_MAKES:
+            if _luxury_agm(make_n, effective_web_year):
                 pref_tech = "AGM"
             elif not stop_start:
                 pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_web_year, make_n, False)
@@ -1167,7 +1223,7 @@ def recommend(
         parsed = _lookup_battery_by_code(inf_code)
         if parsed is not None:
             target_ah, parsed_tech = parsed
-            if make_n in _LUXURY_MAKES:
+            if _luxury_agm(make_n, effective_inf_year):
                 pref_tech = "AGM"
             elif not stop_start:
                 pref_tech = _preferred_tech(resolved_cc, resolved_fuel, effective_inf_year, make_n, False)

@@ -163,9 +163,11 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-# CloudFront/ALB serve the built SPA and API same-origin in production, so no
-# cross-origin origins are trusted unless explicitly configured — set
-# ALLOWED_ORIGINS (comma-separated) to enable a genuine cross-origin caller.
+# The SPA and the API are always served same-origin — by CloudFront/ALB on the
+# AWS deployment, by nginx on a self-hosted one — so no cross-origin origins
+# are trusted unless explicitly configured. Set ALLOWED_ORIGINS
+# (comma-separated) to enable a genuine cross-origin caller. Leaving it empty
+# is correct for both topologies.
 _allowed_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,

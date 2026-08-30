@@ -130,7 +130,9 @@ git clone <your-repo-url> /opt/battery-finder
 cd /opt/battery-finder
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+# pipeline set = runtime + data-pipeline deps; this host runs both.
+# Use requirements.txt alone for a web-only host.
+pip install -r requirements-pipeline.txt
 ```
 
 ### 2.3 Build Both Frontends
@@ -288,7 +290,7 @@ pg_restore -h <rds-endpoint> -U <db-user> -d batteryfinderdb /tmp/backup.dump
 cd /opt/battery-finder
 git pull
 source .venv/bin/activate
-pip install -r requirements.txt                               # if requirements changed
+pip install -r requirements-pipeline.txt                      # if requirements changed
 alembic upgrade head                                          # if new migrations
 cd frontend && bun run build && cd ..                         # if main frontend changed
 cd pipeline_app/frontend && npm run build && cd ../..         # if pipeline frontend changed
