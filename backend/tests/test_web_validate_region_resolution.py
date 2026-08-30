@@ -23,7 +23,7 @@ def test_resolve_battery_code_ignores_scraped_region_for_ns_make(monkeypatch):
 
     def _fake_select_batteries(target_ah, preferred_tech, region="NS"):
         seen_regions.append(region)
-        return {"battery_code": "NS70MFL POWERLAST"}, []
+        return {"battery_code": "NS70MFL POWERLAST", "technology": preferred_tech}, []
 
     monkeypatch.setattr(wbv, "_select_batteries", _fake_select_batteries)
 
@@ -41,7 +41,7 @@ def test_resolve_battery_code_ignores_scraped_region_for_din_make(monkeypatch):
 
     def _fake_select_batteries(target_ah, preferred_tech, region="NS"):
         seen_regions.append(region)
-        return {"battery_code": "DIN060 EXIDE"}, []
+        return {"battery_code": "DIN060 EXIDE", "technology": preferred_tech}, []
 
     monkeypatch.setattr(wbv, "_select_batteries", _fake_select_batteries)
 
@@ -59,7 +59,7 @@ def test_resolve_battery_code_uses_make_region_when_parsed_region_absent(monkeyp
 
     def _fake_select_batteries(target_ah, preferred_tech, region="NS"):
         seen_regions.append(region)
-        return {"battery_code": "NS40 EXIDE"}, []
+        return {"battery_code": "NS40 EXIDE", "technology": preferred_tech}, []
 
     monkeypatch.setattr(wbv, "_select_batteries", _fake_select_batteries)
 
@@ -67,3 +67,58 @@ def test_resolve_battery_code_uses_make_region_when_parsed_region_absent(monkeyp
     wbv._resolve_battery_code(parsed, "HONDA")
 
     assert seen_regions == ["NS"]
+
+
+def test_resolve_battery_code_reports_the_selected_batterys_technology(monkeypatch):
+    """
+    The stored technology must describe the battery actually chosen, not the
+    one scraped from search text and passed in as a preference.
+
+    _select_batteries() falls back when the preferred technology isn't stocked
+    at the target Ah, so the battery it returns is frequently a different
+    technology. Returning the requested value alongside the resolved
+    battery_code made the two columns contradict each other on ~40% of
+    web_battery_validation rows (AGM 8,508 of 11,781, EFB 500 of 792), which
+    is what the client saw in the exported fitment guide.
+    """
+    def _fake_select_batteries(target_ah, preferred_tech, region="NS"):
+        # Whatever technology was preferred, nothing is stocked in it at this
+        # Ah, so an MF battery comes back instead.
+        return {"battery_code": "NS70MFL POWERLAST", "technology": "MF"}, []
+
+    monkeypatch.setattr(wbv, "_select_batteries", _fake_select_batteries)
+
+    parsed = {"ah": 65, "technology": "AGM"}
+    result = wbv._resolve_battery_code(parsed, "TOYOTA")
+
+    assert result == ("NS70MFL POWERLAST", 65, "MF")
+
+
+def test_resolve_battery_code_ignores_the_scraped_technology(monkeypatch):
+    """
+    Ah is the ONLY figure taken from the web; technology is decided by our own
+    rules and what is actually in stock.
+
+    Search snippets name a technology far less reliably than they name a
+    capacity — a listing for an AGM upgrade part reads as "AGM" for a car that
+    was never built with one. Passing that scraped word through as the
+    preference let a retailer's product page decide a fitment, so
+    _resolve_battery_code() now derives the preference from _preferred_tech()
+    (engine size, fuel, year, make, inferred stop-start) and never consults
+    parsed["technology"].
+    """
+    seen: list[str] = []
+
+    def _fake_select_batteries(target_ah, preferred_tech, region="NS"):
+        seen.append(preferred_tech)
+        return {"battery_code": "NS60 EXIDE", "technology": "MF"}, []
+
+    monkeypatch.setattr(wbv, "_select_batteries", _fake_select_batteries)
+
+    # A small petrol Toyota: the rules say nothing exotic, whatever the scrape
+    # claims. "AGM" appearing in parsed must not reach _select_batteries.
+    parsed = {"ah": 45, "technology": "AGM"}
+    wbv._resolve_battery_code(parsed, "TOYOTA", engine_cc=1300,
+                              fuel_type="PETROL", year=2005)
+
+    assert seen and "AGM" not in seen

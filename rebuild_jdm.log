@@ -1,0 +1,30 @@
+==========================================================================
+  REBUILD WEB VALIDATION — EXECUTING
+==========================================================================
+
+Makes                 : 13
+  TOYOTA, SUBARU, MAZDA, HONDA, NISSAN, DAIHATSU, MITSUBISHI, SUZUKI, LEXUS, ISUZU, HINO, NISSAN DIESEL/UD, MITSUBISHI FUSO
+
+Rows to clear         : 0
+Combos to rebuild     : 10,512
+Phase                 : both
+Min year              : 2000
+Sequential per make   : False
+
+Taking a backup before clearing...
+  Backup created: batteryfinderdev_20260814_202021.dump (2,526,815 bytes)
+
+==========================================================================
+  [1/1] TOYOTA, SUBARU, MAZDA, HONDA, NISSAN, DAIHATSU, MITSUBISHI, SUZUKI, LEXUS, ISUZU, HINO, NISSAN DIESEL/UD, MITSUBISHI FUSO
+==========================================================================
+  Cleared 0 existing rows
+[START] web_battery_validate.py
+  [CONFIG] duckduckgo: active
+  [CONFIG] searxng: SEARXNG_URL not set — will be skipped
+  [CONFIG] brave: active
+  [CONFIG] tavily: quota exhausted — will be skipped
+  36895 unique (make, model, year) combinations in vehicle_years
+  [CONFIG] min_year=2000 — 7709 combos skipped, 29186 remain
+  [CONFIG] scoped to 13 make(s): DAIHATSU, HINO, HONDA, ISUZU, LEXUS, MAZDA, MITSUBISHI, MITSUBISHI FUSO, NISSAN, NISSAN DIESEL/UD, SUBARU, SUZUKI, TOYOTA — 10352 combos remain
+  12296 already validated — skipping
+  Phase 1: 754 model-year buckets to fetch (2072 already cached, 6 workers)…

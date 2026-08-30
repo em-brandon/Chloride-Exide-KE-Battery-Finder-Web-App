@@ -18,7 +18,7 @@ pipeline {
             steps {
                 sh 'python --version || sudo apt-get install python${PYTHON_VERSION}'
                 sh 'python -m pip install --upgrade pip'
-                sh 'pip install -r backend/requirements.txt'
+                sh 'pip install -r backend/requirements-dev.txt'   // dev set: runtime + pipeline + pytest
             }
         }
         stage('Set up Node.js & Bun') {

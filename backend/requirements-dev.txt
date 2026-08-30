@@ -1,0 +1,17 @@
+# Development and CI dependencies. Superset of runtime + pipeline.
+
+-r requirements-pipeline.txt
+
+# --- Test suite (backend/tests/) ---
+pytest>=8.0.0
+httpx>=0.27.0                # fastapi.testclient.TestClient transport
+
+# --- Type stubs ---
+pandas-stubs
+
+# --- Ad hoc analysis notebooks ---
+# Not imported anywhere in the codebase; kept for exploratory work only.
+matplotlib>=3.8.0
+seaborn>=0.13.0
+jupyter>=1.0.0
+ipykernel>=6.29.0

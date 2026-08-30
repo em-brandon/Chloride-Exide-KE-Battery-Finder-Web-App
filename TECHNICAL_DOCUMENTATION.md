@@ -870,7 +870,7 @@ FastAPI automatically detects `frontend/dist/` at startup and serves it. All non
 The pipeline stages are:
 
 1. **Checkout** — pull source
-2. **Setup Python** — install `requirements.txt`
+2. **Setup Python** — install `requirements-dev.txt` (runtime + pipeline + test deps; CI runs pytest)
 3. **Setup Node.js & Bun** — install frontend dependencies
 4. **Lint Frontend** — `bun run lint`
 5. **Build Frontend** — `bun run build`

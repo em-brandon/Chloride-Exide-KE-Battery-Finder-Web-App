@@ -1,11 +1,11 @@
-"""
+﻿"""
 fix_vehicle_years_oem_floor.py
 ------------------------------
 Second-pass year cleanup for nameplates ja.wikipedia could not resolve,
 using `oem_fitment` (Exide's own global fitment guide, already in this
-database) as the authority. No network calls — it reads a local table.
+database) as the authority. No network calls â€” it reads a local table.
 
-FLOOR ONLY — and why
+FLOOR ONLY â€” and why
 --------------------
 `oem_fitment` gives a year_from and a year_to per fitment. Only the FIRST is
 trustworthy:
@@ -19,7 +19,7 @@ trustworthy:
 
 Concretely, HINO DUTRO ALL LOW FLOOR holds 74 rows spanning 1953-2026 and
 oem_fitment reports "1999-2001". Trusting both ends would keep 3 rows and
-delete 71 — including all 25 genuine post-2001 rows, so a customer with a
+delete 71 â€” including all 25 genuine post-2001 rows, so a customer with a
 2015 Dutro would get no recommendation at all. Trusting only the floor
 deletes the 46 impossible pre-1999 rows and leaves the rest alone.
 
@@ -33,7 +33,7 @@ Emptied variants
 ----------------
 A variant whose every row sits below the floor would be left with no years
 at all. Where sibling variants of the same nameplate survive the cut, their
-surviving years are copied across — those siblings are the same vehicle in
+surviving years are copied across â€” those siblings are the same vehicle in
 a different trim, so their post-floor range is real evidence. Where the
 whole nameplate is below the floor there is nothing to copy from, so it is
 left untouched and reported as residue rather than guessed at.
@@ -76,7 +76,7 @@ SOURCE_TAG = "oem_fitment"
 CURRENT_YEAR = datetime.now(timezone.utc).year
 
 # A name/alias-tier floor is only ever "the year Exide's guide starts covering
-# this nameplate", which is >= the real launch year — not equal to it. Verified
+# this nameplate", which is >= the real launch year â€” not equal to it. Verified
 # live: the guide's earliest HINO 700 SERIES entry is 2002 while the Profia it
 # maps to launched in 1992, so deleting everything below 2002 would have taken
 # 10 genuine 1992-2001 rows along with the 37 phantom pre-1990 ones.
@@ -85,18 +85,107 @@ CURRENT_YEAR = datetime.now(timezone.utc).year
 # the era we independently know to be junk (the unbounded-inception-date bug
 # never produced years after this), never rows that could be real.
 #
-# A chassis-code floor is exempt — matching an exact chassis code identifies
+# A chassis-code floor is exempt â€” matching an exact chassis code identifies
 # one generation, so the guide's year_from for it really is that generation's
 # start (LEXUS ES300H -> 2018, HONDA VEZEL E:HEV -> 2021, both correct).
 PHANTOM_FLOOR = 1990
 
+# A make's oem_fitment coverage is "current" when its newest year_to is within
+# this many years of now. Coverage staleness varies enormously by make and is
+# measurable rather than guessable: Hino's newest entry is 2006 and Daihatsu's
+# 2013 (both still in production, so their year_to is meaningless as an end
+# date), while Mercedes-Benz, Volkswagen, Land Rover and Mini all run to 2025
+# with zero open-ended entries. Only for a current make is year_to trustworthy
+# enough to delete rows ABOVE it as well as below year_from.
+COVERAGE_FRESHNESS_YEARS = 2
+
+# A name-tier match is nameplate-level, so its span covers every generation of
+# that nameplate. Beyond this width it says nothing useful about any one
+# vehicle and is not used to bound anything.
+MAX_NAMEPLATE_SPAN = 40
+
+
+# vehicle_years and oem_fitment spell some makes differently. Mapping them for
+# the lookup only, rather than renaming the make in vehicle_years, keeps the
+# public makes dropdown and matcher._DIN_MAKES untouched — the MERCEDES /
+# MERCEDES-BENZ split is a real data defect worth fixing, but not as a side
+# effect of a year-cleanup pass.
+OEM_MAKE_ALIASES = {
+    "MERCEDES": "MERCEDES-BENZ",
+}
+
 
 def load_oem(conn, make):
+    lookup = OEM_MAKE_ALIASES.get(make.upper().strip(), make)
     rows = conn.execute(text(
-        "SELECT DISTINCT model, year_from FROM oem_fitment"
+        "SELECT DISTINCT model, year_from, year_to FROM oem_fitment"
         " WHERE upper(make) = upper(:mk) AND year_from IS NOT NULL"
-    ), {"mk": make}).fetchall()
+    ), {"mk": lookup}).fetchall()
     return [r for r in rows if EARLIEST_CREDIBLE_YEAR <= r.year_from <= CURRENT_YEAR]
+
+
+def coverage_is_current(conn, make):
+    """
+    True when this make's oem_fitment data runs close enough to the present
+    that year_to means "production ended" rather than "our guide stops here".
+    Measured per make rather than assumed â€” see COVERAGE_FRESHNESS_YEARS.
+    """
+    lookup = OEM_MAKE_ALIASES.get(make.upper().strip(), make)
+    row = conn.execute(text(
+        "SELECT max(year_to) FROM oem_fitment WHERE upper(make) = upper(:mk)"
+        "  AND year_to IS NOT NULL AND year_to <= :cy"
+    ), {"mk": lookup, "cy": CURRENT_YEAR}).fetchone()
+    return bool(row and row[0] and row[0] >= CURRENT_YEAR - COVERAGE_FRESHNESS_YEARS)
+
+
+def find_ceiling(oem_rows, make, base_model, alias_names=None):
+    """
+    Latest credible year_to across the oem entries matching this nameplate, or
+    None. Only meaningful for makes whose coverage is current; open-ended
+    (NULL year_to) entries mean "still in production" and veto any ceiling.
+    """
+    head_needle = base_model.upper().strip()
+    first_token = head_needle.split()[0] if head_needle.split() else head_needle
+    needles = {head_needle, first_token}
+    for jdm, intls in (alias_names or {}).items():
+        if head_needle == jdm or head_needle.startswith(jdm + " ") or first_token == jdm:
+            needles |= intls
+
+    hi = None
+    for r in oem_rows:
+        head = oem_head(r.model, make)
+        for needle in needles:
+            if head == needle or head.startswith(needle + " ") or needle.startswith(head + " "):
+                if r.year_to is None:
+                    return None          # still in production â€” no ceiling
+                hi = max(hi or 0, int(r.year_to))
+                break
+    return hi
+
+
+def oem_head(model: str, make: str) -> str:
+    """
+    The model-name part of an oem_fitment entry, with any leading make name
+    removed: "LAND ROVER DEFENDER STATION WAGON (L316)" -> "DEFENDER STATION
+    WAGON".
+
+    Some makes repeat their own name inside the model string and some do not,
+    and the spacing differs from ours ("LAND ROVER" there, "LANDROVER" in
+    vehicle_years), so the comparison is done on a space-stripped copy. Without
+    this every one of Land Rover's 271 catalogued models failed to match â€” the
+    make's 3,192 phantom rows are its single biggest block of bad data.
+    """
+    head = model.split("(")[0].strip().upper()
+    compact_make = make.upper().replace(" ", "").replace("-", "")
+    seen = 0
+    for i, ch in enumerate(head):
+        if ch not in (" ", "-"):
+            seen += 1
+        if seen == len(compact_make):
+            if head[:i + 1].replace(" ", "").replace("-", "") == compact_make:
+                return head[i + 1:].strip() or head
+            break
+    return head
 
 
 def load_alias_names(conn, make):
@@ -104,7 +193,7 @@ def load_alias_names(conn, make):
     JDM nameplate -> the international/export names it is also sold under.
 
     oem_fitment uses export naming for some makes while vehicle_years uses the
-    JDM nameplate — Hino's 300/500/700 Series are the Dutro/Ranger/Profia — so
+    JDM nameplate â€” Hino's 300/500/700 Series are the Dutro/Ranger/Profia â€” so
     a name-tier lookup finds nothing without this bridge. model_aliases is
     already the repo's table for that mapping, so it is read rather than
     duplicated here.
@@ -118,7 +207,7 @@ def load_alias_names(conn, make):
     return out
 
 
-def find_floor(oem_rows, base_model, chassis_hint, alias_names=None):
+def find_floor(oem_rows, make, base_model, chassis_hint, alias_names=None):
     """
     Earliest credible year_from for this nameplate, or None.
 
@@ -144,7 +233,7 @@ def find_floor(oem_rows, base_model, chassis_hint, alias_names=None):
 
     hits, via = [], "model_name"
     for r in oem_rows:
-        head = r.model.split("(")[0].strip().upper()
+        head = oem_head(r.model, make)
         for needle in needles:
             if head == needle or head.startswith(needle + " ") or needle.startswith(head + " "):
                 hits.append(r.year_from)
@@ -159,8 +248,17 @@ def find_floor(oem_rows, base_model, chassis_hint, alias_names=None):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--residue-dir", required=True,
-                   help="Directory of fix_vehicle_years_phantom_dates.py per-make logs.")
+    p.add_argument("--residue-dir", default=None,
+                   help="Directory of fix_vehicle_years_phantom_dates.py per-make logs. "
+                        "Restricts the pass to nameplates that pass left unresolved.")
+    p.add_argument("--all-nameplates", action="store_true",
+                   help="Ignore --residue-dir and process every nameplate of the selected "
+                        "makes. Use where oem_fitment is the primary source rather than a "
+                        "fallback â€” its Western-make coverage is far better than "
+                        "ja.wikipedia's, so there is no reason to gate on ja.wikipedia "
+                        "having failed first.")
+    p.add_argument("--makes", default=None,
+                   help="Comma-separated list of makes (alternative to --make).")
     p.add_argument("--execute", action="store_true", help="Apply. Default is a dry run.")
     p.add_argument("--make", default=None, help="Restrict to one make.")
     p.add_argument("--crsp-file", default=None,
@@ -168,11 +266,29 @@ def main():
                         "generation-precise floor instead of a nameplate-wide one.")
     args = p.parse_args()
 
-    residue = load_residue(args.residue_dir)
-    if args.make:
-        residue = {k: v for k, v in residue.items() if k[0].upper() == args.make.upper()}
+    wanted_makes = None
+    if args.makes:
+        wanted_makes = {m.strip().upper() for m in args.makes.split(",") if m.strip()}
+    elif args.make:
+        wanted_makes = {args.make.upper()}
+
+    if args.all_nameplates:
+        with engine.connect() as conn:
+            q = "SELECT DISTINCT make, model FROM vehicle_years"
+            rows_mm = conn.execute(text(q)).fetchall()
+        residue = {}
+        for r in rows_mm:
+            if wanted_makes and r.make.upper() not in wanted_makes:
+                continue
+            residue[(r.make, extract_base_model(r.make, r.model))] = "all_nameplates"
+    else:
+        if not args.residue_dir:
+            p.error("--residue-dir is required unless --all-nameplates is given")
+        residue = load_residue(args.residue_dir)
+        if wanted_makes:
+            residue = {k: v for k, v in residue.items() if k[0].upper() in wanted_makes}
     if not residue:
-        print("No residue nameplates matched.")
+        print("No nameplates matched.")
         return
 
     model_numbers = {}
@@ -197,6 +313,7 @@ def main():
 
         oem_cache = {}
         alias_cache = {}
+        fresh_cache = {}
         plans = {}
         no_floor = []
         for key in sorted(residue):
@@ -206,6 +323,7 @@ def main():
             if make not in oem_cache:
                 oem_cache[make] = load_oem(conn, make)
                 alias_cache[make] = load_alias_names(conn, make)
+                fresh_cache[make] = coverage_is_current(conn, make)
             variants = groups[key]
 
             hint = None
@@ -215,34 +333,54 @@ def main():
                     hint = c
                     break
 
-            floor, via = find_floor(oem_cache[make], base, hint, alias_cache.get(make))
+            floor, via = find_floor(oem_cache[make], make, base, hint, alias_cache.get(make))
             if not floor:
                 no_floor.append(key)
                 continue
             if via != "chassis_code":
                 floor = min(floor, PHANTOM_FLOOR)  # see PHANTOM_FLOOR
 
+            # An upper bound is only used where the make's guide is current
+            # (so year_to means "production ended") and the matched span is
+            # narrow enough to describe a real vehicle rather than a nameplate's
+            # entire history.
+            ceiling = None
+            if fresh_cache.get(make):
+                c = find_ceiling(oem_cache[make], make, base, alias_cache.get(make))
+                if c and c >= floor and (c - floor + 1) <= MAX_NAMEPLATE_SPAN:
+                    # A ceiling at the edge of the guide's own coverage means
+                    # "still current when this was compiled", not "discontinued
+                    # that year" — Land Rover's newest Defender entry is 2025
+                    # and the Defender is plainly still built. Extending to the
+                    # current year stops that reading a live vehicle's newest
+                    # rows as phantom.
+                    if c >= CURRENT_YEAR - COVERAGE_FRESHNESS_YEARS:
+                        c = CURRENT_YEAR
+                    ceiling = c
+
             deletions, insertions = [], []
-            survivors = {y for years in variants.values() for y in years if y >= floor}
+            survivors = {y for years in variants.values() for y in years
+                         if y >= floor and (ceiling is None or y <= ceiling)}
             for model, years in variants.items():
-                below = sorted(y for y in years if y < floor)
-                if not below:
+                out = sorted(y for y in years
+                             if y < floor or (ceiling is not None and y > ceiling))
+                if not out:
                     continue
-                keeps = years - set(below)
-                deletions.extend((model, y) for y in below)
+                keeps = years - set(out)
+                deletions.extend((model, y) for y in out)
                 if not keeps:
-                    # Every row for this variant is below the floor. Copy the
-                    # nameplate's surviving years if any sibling has some.
+                    # Every row for this variant falls outside the range. Copy
+                    # the nameplate's surviving years if any sibling has some.
                     insertions.extend((model, y) for y in sorted(survivors))
             if deletions:
-                plans[key] = {"floor": floor, "via": via,
+                plans[key] = {"floor": floor, "ceiling": ceiling, "via": via,
                               "deletions": deletions, "insertions": insertions}
 
     tot_del = sum(len(v["deletions"]) for v in plans.values())
     tot_ins = sum(len(v["insertions"]) for v in plans.values())
 
     print("=" * 74)
-    print("  OEM-FLOOR YEAR CLEANUP —", "EXECUTING" if args.execute else "DRY RUN")
+    print("  OEM-FLOOR YEAR CLEANUP â€”", "EXECUTING" if args.execute else "DRY RUN")
     print("=" * 74)
     print(f"\nResidue nameplates considered : {len(residue)}")
     print(f"  with an oem_fitment floor   : {len(plans) + len([1 for k in residue if k not in plans and k not in no_floor])}")
@@ -263,7 +401,8 @@ def main():
 
     print("\nSample (up to 20):")
     for (make, base), v in list(plans.items())[:20]:
-        print(f"  {make:<10} {base:<28} floor={v['floor']} ({v['via']})  "
+        rng = f"{v['floor']}-{v['ceiling']}" if v.get("ceiling") else f"{v['floor']}+"
+        print(f"  {make:<12} {base:<26} {rng:<12} ({v['via']})  "
               f"-{len(v['deletions'])} +{len(v['insertions'])}")
 
     if not args.execute:
@@ -288,7 +427,7 @@ def main():
                 "INSERT INTO admin_backup_log (filename, size_bytes, status, error_detail,"
                 " triggered_by, created_at) VALUES ('', NULL, 'failed', :e, :t, :c)"
             ), {"e": str(exc), "t": SCRIPT_NAME, "c": now})
-            print(f"\n  ERROR — backup failed, aborting:\n  {exc}\n")
+            print(f"\n  ERROR â€” backup failed, aborting:\n  {exc}\n")
             sys.exit(1)
 
     version_id = str(uuid.uuid4())
@@ -301,7 +440,7 @@ def main():
             " committed_count, updated_count, removed_count, conflict_count, committed_by,"
             " initiated_by, notes) VALUES (:id, :vn, :now, NULL, 0, 0, 0, 0, :by, :by, :notes)"
         ), {"id": version_id, "vn": max_ver + 1, "now": now, "by": SCRIPT_NAME,
-            "notes": "OEM-floor cleanup — rows predating the oem_fitment year_from floor"})
+            "notes": "OEM-floor cleanup â€” rows predating the oem_fitment year_from floor"})
 
         for (make, _base), v in plans.items():
             for model, year in v["deletions"]:

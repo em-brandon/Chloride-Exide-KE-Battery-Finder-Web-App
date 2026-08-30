@@ -26,6 +26,45 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 # set, so a stray .env in a production image can never clobber a real secret.
 load_dotenv(override=False)
 
+
+def _int_env(name: str, default: int, minimum: int = 0) -> int:
+    """Read a non-negative integer from the environment, falling back to `default`.
+
+    Raises rather than silently falling back on a malformed value — a typo in a
+    pool-size variable would otherwise be invisible until the app ran out of
+    connections under load.
+    """
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        raise RuntimeError(f"{name} must be an integer, got {raw!r}.") from None
+    if value < minimum:
+        raise RuntimeError(f"{name} must be >= {minimum}, got {value}.")
+    return value
+
+
+# Pool sizing is environment-tunable because the ceiling that matters is
+# *cluster-wide*: every worker process holds its own pool, so the real
+# connection count is
+#     (workers) x (DB_POOL_SIZE + DB_MAX_OVERFLOW
+#                  + PUBLIC_DB_POOL_SIZE + PUBLIC_DB_MAX_OVERFLOW)
+# which must stay under Postgres's `max_connections` (default 100). With the
+# defaults below that is 50 per worker, so a 4-worker deployment can demand
+# 200 connections and exhaust the server before it ever runs short of CPU or
+# RAM. Self-hosted deployments should either lower these, raise
+# `max_connections`, or put pgbouncer in front. Defaults preserve the previous
+# hardcoded behaviour, so existing deployments are unaffected.
+_POOL_SIZE = _int_env("DB_POOL_SIZE", 10, minimum=1)
+_MAX_OVERFLOW = _int_env("DB_MAX_OVERFLOW", 15)
+# The public pool carries all unauthenticated traffic and the admin pool
+# comparatively little, so they are tunable independently rather than sharing
+# one knob. Each falls back to the corresponding admin value when unset.
+_PUBLIC_POOL_SIZE = _int_env("PUBLIC_DB_POOL_SIZE", _POOL_SIZE, minimum=1)
+_PUBLIC_MAX_OVERFLOW = _int_env("PUBLIC_DB_MAX_OVERFLOW", _MAX_OVERFLOW)
+
 _DATABASE_URL = os.environ.get("DATABASE_URL")
 if not _DATABASE_URL:
     raise RuntimeError(
@@ -37,8 +76,8 @@ if not _DATABASE_URL:
 engine = create_engine(
     _DATABASE_URL,
     pool_pre_ping=True,   # drops stale connections before use
-    pool_size=10,
-    max_overflow=15,
+    pool_size=_POOL_SIZE,
+    max_overflow=_MAX_OVERFLOW,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -55,8 +94,8 @@ if not _PUBLIC_DATABASE_URL:
 public_engine = create_engine(
     _PUBLIC_DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=15,
+    pool_size=_PUBLIC_POOL_SIZE,
+    max_overflow=_PUBLIC_MAX_OVERFLOW,
 )
 
 PublicSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=public_engine)

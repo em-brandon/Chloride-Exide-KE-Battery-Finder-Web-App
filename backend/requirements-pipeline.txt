@@ -1,0 +1,17 @@
+# Data-pipeline dependencies — needed to RUN the enrichment pipelines and the
+# standalone scripts in scripts/, not to serve the app.
+#
+# Install on whichever host executes the pipelines. On a combined deployment
+# that's the same box; the split exists so a web-only host can skip these.
+
+-r requirements.txt
+
+beautifulsoup4>=4.12.0       # HTML parsing (pipelines/vehicle_coverage_expansion.py)
+lxml>=5.2.0                  # bs4's parser backend — passed by name as
+                             # BeautifulSoup(..., "lxml"), never imported directly
+mwparserfromhell>=0.6.6      # ja.wikipedia wikitext parsing
+                             # NOTE: no prebuilt wheel on Windows/Python 3.14.
+                             # Install with WITH_EXTENSION=0 to use the
+                             # pure-Python tokenizer and avoid needing MSVC.
+ddgs>=9.0.0                  # DuckDuckGo search (web battery validation)
+tavily-python>=0.3.0         # Tavily search provider

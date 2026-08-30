@@ -40,7 +40,8 @@ from sqlalchemy import text
 
 # ── project root on path so we can import matcher helpers ────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from matcher import _make_region, _norm_model_key, _select_batteries, _batteries, _LUXURY_MAKES
+from matcher import (_make_region, _norm_model_key, _select_batteries, _batteries,
+                     _LUXURY_MAKES, _preferred_tech, _norm_fuel, _infer_stop_start)
 
 load_dotenv()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -574,7 +575,13 @@ def _try_reserve_quota(eng, provider: str) -> bool:
 # Resolve parsed specs to a battery_code from battery_specs
 # ---------------------------------------------------------------------------
 
-def _resolve_battery_code(parsed: dict, make_n: str) -> tuple[str, int, str] | None:
+def _resolve_battery_code(
+    parsed: dict,
+    make_n: str,
+    engine_cc: int | None = None,
+    fuel_type: str | None = None,
+    year: int | None = None,
+) -> tuple[str, int, str] | None:
     # Always use the make's own known region, never the web-scraped
     # "region" guess in `parsed` — recommend() at request time always
     # independently recomputes region = _make_region(make_n) for Layer 0a
@@ -586,10 +593,56 @@ def _resolve_battery_code(parsed: dict, make_n: str) -> tuple[str, int, str] | N
     # up in scraped listing text even for NS-market vehicles.
     region = _make_region(make_n)
     ah     = parsed["ah"]
-    tech   = parsed["technology"]
+
+    # Ah is the ONLY figure taken from the web. parsed["technology"] — the
+    # AGM/EFB keyword scraped off arbitrary listing text — is deliberately
+    # ignored: it says nothing about what Chloride Exide stocks or what the
+    # vehicle needs.
+    #
+    # Technology instead comes from _preferred_tech(), the same rules engine
+    # recommend() applies at request time (engine size, fuel, luxury make,
+    # stop-start), with _select_batteries() then falling back through actual
+    # catalogue availability at this Ah.
+    #
+    # Note this is NOT the same as passing None. None makes _select_batteries()
+    # take the top of _TECH_PRIORITY (= EFB whenever any EFB is stocked at this
+    # Ah), which would quietly override the "diesel or >=2500cc needs AGM" rule
+    # — matcher.py's Layer 0a reuses a stored AGM/EFB verbatim when stop_start
+    # is on (its default), so a 3.0 L diesel would be recommended EFB instead
+    # of AGM. Feeding the real rules keeps the stored row and the live matcher
+    # in agreement.
+    #
+    # Stop-start is INFERRED here, not assumed. recommend() gets it from the
+    # frontend's selector, which is why _infer_stop_start() is dead code there
+    # — but this pipeline has no user to ask, and defaulting it to True would
+    # assert that every vehicle ever built has stop-start, pushing pre-stop-start
+    # cars to EFB when plain MF is correct (a 2005 Corolla does not need an EFB).
+    # _infer_stop_start() answers it from make + year, which is the best signal
+    # available without a user.
+    #
+    # Storing the inferred answer does not override the live request: when a
+    # request says stop_start=True and this row stored MF, matcher.py falls
+    # through to _preferred_tech(..., True) and recomputes, so the user's own
+    # answer still wins at recommend time.
+    norm_fuel = _norm_fuel(fuel_type) if fuel_type else ""
+    pref_tech = _preferred_tech(
+        engine_cc or 0,
+        norm_fuel,
+        year,
+        make_n,
+        _infer_stop_start(make_n, year, norm_fuel),
+    )
     try:
-        primary, _ = _select_batteries(ah, tech, region)
-        return primary["battery_code"], ah, tech
+        primary, _ = _select_batteries(ah, pref_tech, region)
+        # Return the technology of the battery actually selected.
+        # _select_batteries() falls back when the preferred technology isn't
+        # stocked at this Ah — first to the best available technology at the
+        # same Ah, then to the nearest Ah in any technology — so the battery it
+        # returns often isn't the technology that was asked for. Returning the
+        # requested value alongside the resolved battery_code made the two
+        # columns contradict each other on ~40% of rows (AGM 8,508 of 11,781),
+        # which is what the exported fitment guide surfaced to the client.
+        return primary["battery_code"], ah, primary["technology"]
     except Exception:
         return None
 
@@ -767,6 +820,7 @@ def main(
     run_id: str | None = None,                         # UUID from admin_router — tags DB rows
     phase1_progress_callback: Callable | None = None,  # (fetched, total)
     phase: str = "both",                               # "phase1", "phase2", or "both"
+    min_year: int | None = None,                       # skip combos older than this
 ) -> dict:
     """
     Run the web battery validation pipeline.
@@ -915,6 +969,12 @@ def main(
     )
     combos["year"] = combos["year"].astype(int)
     _log(f"  {len(combos)} unique (make, model, year) combinations in vehicle_years")
+
+    if min_year is not None:
+        _before = len(combos)
+        combos = combos[combos["year"] >= min_year]
+        _log(f"  [CONFIG] min_year={min_year} — {_before - len(combos)} combos skipped,"
+             f" {len(combos)} remain")
 
     if enabled_makes is not None:
         _em = {m.upper().strip() for m in enabled_makes}
@@ -1243,7 +1303,7 @@ def main(
                 _mark_failed()
                 return
 
-            resolved = _resolve_battery_code(parsed, make_n)
+            resolved = _resolve_battery_code(parsed, make_n, engine_cc, fuel_type, year)
             if resolved is None:
                 _log(f"    [SKIP] {make_n} {model_n} {year} — could not resolve battery_code")
                 _mark_failed()
