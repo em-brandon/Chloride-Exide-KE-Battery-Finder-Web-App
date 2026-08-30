@@ -54,7 +54,7 @@ for _s in (sys.stdout, sys.stderr):
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, RGBColor
 
 BODY_FONT = "Calibri"
 MONO_FONT = "Courier New"
@@ -71,6 +71,22 @@ BODY_SPACE_AFTER = Pt(4)
 BLOCK_SPACE = Pt(4)          # code blocks: before and after
 BLOCK_INDENT = Cm(0.5)       # code blocks and list items: 14.15pt
 
+# Palette, also measured off the document this replaces. BRAND_RED carries the
+# Chloride Exide identity through the headings, the inline code and the table
+# header rows; without it the document falls back to Word's stock blue theme
+# and stops looking like the rest of the company's material.
+BRAND_RED = RGBColor(0xCC, 0x00, 0x00)     # H1, H2, inline code, table headers
+INK = RGBColor(0x11, 0x18, 0x27)           # H3 and table body text
+CODE_INK = RGBColor(0x1F, 0x29, 0x37)      # code blocks
+WHITE = RGBColor(0xFF, 0xFF, 0xFF)         # text on a red header row
+
+HEADING_COLOR = {1: BRAND_RED, 2: BRAND_RED, 3: INK, 4: INK}
+
+TABLE_TEXT_PT = Pt(9)
+TABLE_HEADER_FILL = "CC0000"
+TABLE_ROW_FILLS = ("FFFFFF", "F9FAFB")     # zebra striping, header excluded
+CODE_BLOCK_FILL = "F3F4F6"                 # grey panel behind a code block
+
 # Inline spans, matched in one pass so nesting resolves correctly.
 _INLINE_RE = re.compile(
     r"(?P<code>`[^`]+`)"
@@ -85,7 +101,7 @@ _TABLE_DIVIDER_RE = re.compile(r"^\s*\|?[\s:-]*-[\s|:-]*\|?\s*$")
 
 
 def add_inline(paragraph, text: str, *, bold: bool = False, italic: bool = False,
-               mono_ok: bool = True):
+               mono_ok: bool = True, color=None, size=None):
     """Add `text` to `paragraph`, honouring markdown inline code/bold/italic.
 
     `mono_ok=False` strips code markers without switching font — headings in
@@ -94,31 +110,42 @@ def add_inline(paragraph, text: str, *, bold: bool = False, italic: bool = False
     """
     text = _LINK_RE.sub(r"\1", text)
     pos = 0
+    kw = {"color": color, "size": size}
     for m in _INLINE_RE.finditer(text):
         if m.start() > pos:
-            _run(paragraph, text[pos:m.start()], bold=bold, italic=italic)
+            _run(paragraph, text[pos:m.start()], bold=bold, italic=italic, **kw)
         if m.group("code"):
-            _run(paragraph, m.group("code")[1:-1], bold=bold, italic=italic, mono=mono_ok)
+            _run(paragraph, m.group("code")[1:-1], bold=bold, italic=italic,
+                 mono=mono_ok, **kw)
         elif m.group("bold"):
             add_inline(paragraph, m.group("bold")[2:-2], bold=True, italic=italic,
-                       mono_ok=mono_ok)
+                       mono_ok=mono_ok, **kw)
         else:
             add_inline(paragraph, m.group("italic")[1:-1], bold=bold, italic=True,
-                       mono_ok=mono_ok)
+                       mono_ok=mono_ok, **kw)
         pos = m.end()
     if pos < len(text):
-        _run(paragraph, text[pos:], bold=bold, italic=italic)
+        _run(paragraph, text[pos:], bold=bold, italic=italic, **kw)
 
 
-def _run(paragraph, text: str, *, bold=False, italic=False, mono=False):
+def _run(paragraph, text: str, *, bold=False, italic=False, mono=False,
+         color=None, size=None):
     if not text:
-        return
+        return None
     run = paragraph.add_run(text)
     run.bold = bold or None
     run.italic = italic or None
     if mono:
+        # Inline code is set in the brand red unless the caller has already
+        # committed to a colour (a table header row, for instance).
         run.font.name = MONO_FONT
-        run.font.size = CODE_INLINE_PT
+        run.font.size = size or CODE_INLINE_PT
+        run.font.color.rgb = color or BRAND_RED
+        return run
+    if size is not None:
+        run.font.size = size
+    if color is not None:
+        run.font.color.rgb = color
     return run
 
 
@@ -140,10 +167,12 @@ def add_code_block(doc, lines: list[str]) -> None:
     fmt.space_after = BLOCK_SPACE
     fmt.left_indent = BLOCK_INDENT
     fmt.keep_together = True
+    _shade_paragraph(para, CODE_BLOCK_FILL)
     for i, line in enumerate(lines):
         run = para.add_run(("\n" if i else "") + line)
         run.font.name = MONO_FONT
         run.font.size = CODE_BLOCK_PT
+        run.font.color.rgb = CODE_INK
 
 
 def _list_number_abstract_id(doc) -> str | None:
@@ -214,24 +243,55 @@ def _no_row_split(row) -> None:
     tr_pr.append(cant_split)
 
 
+def _shading(fill: str):
+    """A w:shd element painting a solid background in `fill`."""
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), fill)
+    return shd
+
+
+def _shade_cell(cell, fill: str) -> None:
+    """Paint a table cell's background."""
+    cell._tc.get_or_add_tcPr().append(_shading(fill))
+
+
+def _shade_paragraph(paragraph, fill: str) -> None:
+    """Paint a paragraph's background — the panel behind a code block."""
+    paragraph._p.get_or_add_pPr().append(_shading(fill))
+
+
 def add_table(doc, rows: list[list[str]]) -> None:
+    """A Table Grid with a brand-red header row and zebra-striped body.
+
+    Cell text is deliberately set plain rather than honouring inline code —
+    a monospace red run inside an already-striped 9pt cell fights the row
+    colour and makes narrow columns wrap badly.
+    """
     header, body = rows[0], rows[1:]
     table = doc.add_table(rows=1, cols=len(header))
     table.style = "Table Grid"
+
     for i, text in enumerate(header):
         cell = table.rows[0].cells[i]
-        cell.paragraphs[0].text = ""
-        add_inline(cell.paragraphs[0], text, bold=True)
+        _shade_cell(cell, TABLE_HEADER_FILL)
+        # A new cell's paragraph already has no runs; assigning .text here
+        # would add an empty unformatted one alongside the real content.
+        add_inline(cell.paragraphs[0], text, bold=True, mono_ok=False,
+                   color=WHITE, size=TABLE_TEXT_PT)
     _repeat_header_row(table.rows[0])
     _no_row_split(table.rows[0])
-    for row in body:
+
+    for n, row in enumerate(body):
         cells = table.add_row().cells
         _no_row_split(table.rows[-1])
+        fill = TABLE_ROW_FILLS[n % len(TABLE_ROW_FILLS)]
         for i in range(len(header)):
             value = row[i] if i < len(row) else ""
-            para = cells[i].paragraphs[0]
-            para.text = ""
-            add_inline(para, value)
+            _shade_cell(cells[i], fill)
+            add_inline(cells[i].paragraphs[0], value, mono_ok=False,
+                       color=INK, size=TABLE_TEXT_PT)
     doc.add_paragraph()
 
 
@@ -291,6 +351,7 @@ def convert(md_path: str, out_path: str) -> Document:
             add_inline(para, heading.group(2), mono_ok=False)
             for run in para.runs:
                 run.font.size = HEADING_PT.get(level, Pt(11))
+                run.font.color.rgb = HEADING_COLOR.get(level, INK)
             # Never leave a heading stranded at the foot of a page.
             para.paragraph_format.keep_with_next = True
             i += 1
