@@ -18,8 +18,17 @@
 10. [Frontend Architecture](#10-frontend-architecture)
 11. [Data Pipelines](#11-data-pipelines)
 12. [Rate Limiting & Observability](#12-rate-limiting--observability)
-13. [Automated Test Suite](#13-automated-test-suite)
-14. [Deployment & Environment](#14-deployment--environment)
+13. [Performance & Caching Strategy](#13-performance--caching-strategy)
+14. [Error Handling & Failure Modes](#14-error-handling--failure-modes)
+15. [Automated Test Suite](#15-automated-test-suite)
+16. [Deployment & Environment](#16-deployment--environment)
+17. [Operations Runbook](#17-operations-runbook)
+18. [Data Quality — History and Current State](#18-data-quality--history-and-current-state)
+19. [Glossary](#19-glossary)
+20. [Appendix A — Environment Variables](#20-appendix-a--environment-variables)
+21. [Appendix B — Database Table Index](#21-appendix-b--database-table-index)
+22. [Appendix C — Migration History](#22-appendix-c--migration-history)
+23. [Appendix D — Repository Layout](#23-appendix-d--repository-layout)
 
 ---
 
@@ -101,10 +110,13 @@ The Battery Finder is a production web application that recommends the correct c
 │                           fueleconomy_vehicles       test_users / _sessions  │
 │                                                                              │
 │                  * = SQL view computed live over oem_fitment                 │
-└───────────────┬──────────────────────────────────────────────────────────────┘
-                ▲
-                │ offline, admin-triggered
-┌───────────────┴──────────────────────────────────────────────────────────────┐
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Everything above serves live traffic. The data those tables hold is produced offline by the pipelines below, which an administrator triggers and reviews — they never run as part of a request.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
 │  Data pipelines (backend/pipelines/)                                         │
 │                                                                              │
 │  dataprep → enrich_years (ja.wikipedia · fueleconomy · CarAPI ·              │
@@ -113,6 +125,62 @@ The Battery Finder is a production web application that recommends the correct c
 │  exide_fitment_clean · dial_battery_clean · vehicle_coverage_expansion       │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+### 2.1 Request Lifecycle — a single recommendation
+
+The diagram below traces one `POST /api/recommend` from the browser to the response, showing every component it passes through and what each one contributes.
+
+```
+ BROWSER                                                                       
+    │  POST /api/recommend { make, model, year, engine_cc, fuel_type,          
+    │                        stop_start, input_type }                          
+    ▼                                                                          
+┌──────────────────────────────────────────────────────────────────────────┐   
+│ maintenance_mode_middleware                                              │   
+│   app_settings cached 5s → serve maintenance.html + 503, or pass through │   
+└────────────────────────────────┬─────────────────────────────────────────┘   
+                                 ▼                                             
+┌──────────────────────────────────────────────────────────────────────────┐   
+│ slowapi limiter — 10/min per client IP → 429 with retry_after on breach  │   
+└────────────────────────────────┬─────────────────────────────────────────┘   
+                                 ▼                                             
+┌──────────────────────────────────────────────────────────────────────────┐   
+│ Pydantic RecommendRequest                                                │   
+│   year 1960-2030 · engine_cc 500-8000 · input_type in {select, type}     │   
+│   failure → 422 with every field error flattened into one message        │   
+└────────────────────────────────┬─────────────────────────────────────────┘   
+                                 ▼                                             
+┌──────────────────────────────────────────────────────────────────────────┐   
+│ matcher.recommend()          NO DATABASE ROUND-TRIP — all in-process     │   
+│                                                                          │   
+│   normalise make_n / model_n / fuel                                      │   
+│   0a web_battery_validation ─┐                                           │   
+│   0b dial_battery_inference  │  first hit wins                           │   
+│   1  exact year              │                                           │   
+│   2  soft year (±3)          │                                           │   
+│   2b alias → retry 1/2       │                                           │   
+│   3  rule-based fallback ────┘                                           │   
+│                                                                          │   
+│   oem_fitment override → replaces Ah, sets ah_source                     │   
+│   _select_batteries() → primary + up to 6 alternatives                   │   
+└────────────────────────────────┬─────────────────────────────────────────┘   
+                                 ▼                                             
+┌──────────────────────────────────────────────────────────────────────────┐   
+│ response assembled, then two side effects that never block the reply:    │   
+│   count_reads_middleware  → in-memory counter, flushed to DB every 60s   │   
+│   daemon thread           → INSERT into search_events                    │   
+└────────────────────────────────┬─────────────────────────────────────────┘   
+                                 ▼                                             
+┌──────────────────────────────────────────────────────────────────────────┐   
+│ security_headers → CSP, X-Frame-Options, HSTS ·  GZip if over 500 bytes  │   
+└────────────────────────────────┬─────────────────────────────────────────┘   
+                                 ▼                                             
+ BROWSER — renders result card + AccuracyBar from confidence / match_type      
+```
+
+The single most important property here is that the matcher touches no database. Every source table is loaded into a pandas DataFrame at startup and held in an LRU cache, so a recommendation is pure in-process computation. The only database work in the request path is the two deferred side effects at the end, and neither of them can delay or fail the response.
 
 ---
 
@@ -591,6 +659,287 @@ Once `target_ah`, `preferred_tech` and `region` are known:
 
 ---
 
+## Matching Engine — Decision Flow
+
+The layers described above compose into the decision tree below. Read it top to bottom; the first box that returns is the answer.
+
+```
+                        recommend(make, model, year, cc, fuel, stop_start)     
+                                          │                                    
+                        normalise: make_n, model_n, fuel                       
+                        defaults: cc=1500, confidence=40                       
+                                          │                                    
+                                          ▼                                    
+                    ┌─────────────────────────────────────────┐                
+                    │ web_battery_validation row for          │  yes           
+                    │ (make, model, EXACT year)?              ├──────► 0a      
+                    └────────────────────┬────────────────────┘   conf 75/90   
+                                         │ no                                  
+                                         ▼                                     
+                    ┌─────────────────────────────────────────┐                
+                    │ dial_battery_inference row for          │  yes           
+                    │ (make, model)?  year not required       ├──────► 0b      
+                    └────────────────────┬────────────────────┘   conf 80/95   
+                                         │ no                                  
+                                         ▼                                     
+                    ┌─────────────────────────────────────────┐                
+                    │ make in vehicle_years?                  │                
+                    │ no → fuzzy make, WRatio ≥ 75            │                
+                    └────────────────────┬────────────────────┘                
+                                         ▼                                     
+                    ┌─────────────────────────────────────────┐                
+                    │ model: exact model_n hit?               │                
+                    │ no → partial_ratio ≥ 80 → token_set ≥   │                
+                    │      72 → WRatio ≥ 60, year-weighted    │                
+                    └────────────────────┬────────────────────┘                
+                                         ▼                                     
+                    ┌─────────────────────────────────────────┐  yes           
+                    │ exact year row for that model?          ├──────► 1       
+                    └────────────────────┬────────────────────┘   conf 100     
+                                         │ no                                  
+                                         ▼                                     
+                    ┌─────────────────────────────────────────┐  yes           
+                    │ any row within ±3 years?                ├──────► 2       
+                    └────────────────────┬────────────────────┘   conf 60-89   
+                                         │ no                                  
+                                         ▼                                     
+                    ┌─────────────────────────────────────────┐  yes           
+                    │ model_aliases: intl → JDM, WRatio ≥ 75? ├──► 2b, retry   
+                    └────────────────────┬────────────────────┘   1 then 2     
+                                         │ no                                  
+                                         ▼                                     
+                    ┌─────────────────────────────────────────┐                
+                    │ 3  rules: cc + fuel → Ah bracket        │                
+                    │    + year modifier                      │   conf 40      
+                    └────────────────────┬────────────────────┘                
+                                         ▼                                     
+              ┌────────────────────────────────────────────────────┐           
+              │ oem_fitment covers (make, model, year)?            │           
+              │ yes → its Ah REPLACES the layer's, ah_source set   │           
+              └───────────────────────────┬────────────────────────┘           
+                                          ▼                                    
+                          _select_batteries(ah, tech, region)                  
+```
+
+Note the asymmetry between 0a and 0b: web validation demands an exact year match and gives up otherwise, because its rows are year-specific claims about a particular model year. Inference has no year requirement at all — a call centre's sales record for "Corolla" is evidence about the nameplate, not about one model year — so it consults `vehicle_years` afterwards only to fill in engine specs for the response.
+
+### Worked Example 1 — exact match with an OEM override
+
+Request: `TOYOTA / Corolla Axio G / 2015 / 1500cc / Petrol / stop_start=true`.
+
+```
+0a  web_battery_validation  → no row for (TOYOTA, COROLLA AXIO G, 2015)
+0b  dial_battery_inference  → no row for (TOYOTA, COROLLA AXIO G)
+1   vehicle_years           → model_n "COROLLA AXIO G" is an exact key → 100
+                              year 2015 present → confidence 100, Exact Match
+                              engine_capacity 1500, fuel PETROL taken from row
+    _preferred_tech(1500, PETROL, 2015, TOYOTA, stop_start=True)
+        not EV · TOYOTA not a luxury make · not hybrid
+        stop_start and cc < 2500 and not diesel        → EFB
+    _target_ah — not consulted: confidence is not 40, so no rule estimate
+    oem_fitment → row covers TOYOTA / COROLLA / 2012-2018, ah 55, EFB
+                              → target_ah = 55, ah_source = "oem_fitment"
+    _select_batteries(55, EFB, NS)
+        NS pool, Ah == 55, technology EFB, imported before local
+```
+
+Response: `confidence 100`, `match_type "Exact Match"`, `recommended_ah 55`, `preferred_tech "EFB"`, `ah_source "oem_fitment"`. The AccuracyBar shows Car Found 50/50 and Year 25/25.
+
+### Worked Example 2 — falling all the way through to rules
+
+Request: `PEUGEOT / 3008 GT LINE / 2019 / 2000cc / Diesel / stop_start=true`, where the model is not in the dataset.
+
+```
+0a / 0b                     → no rows
+1   make PEUGEOT present, but no model scores above threshold
+2   no candidate has a year within ±3
+2b  model_aliases has no PEUGEOT entry for "3008 GT LINE"
+3   rule-based:
+      _target_ah(2000, DIESEL, 2019)
+          bracket max_cc 2000, diesel column          → 65
+          _year_ah_modifier(2019) — 2018 or later     → +10
+                                                      → 75 Ah
+      _preferred_tech(2000, DIESEL, 2019, PEUGEOT, True)
+          PEUGEOT is not in _LUXURY_MAKES
+          stop_start and fuel == DIESEL               → AGM
+      _make_region("PEUGEOT")                         → DIN
+    oem_fitment → no row (the model never resolved)   → ah_source stays
+                                                        "cc_bracket_estimate"
+    _select_batteries(75, AGM, DIN)
+        nothing stocked at exactly 75 Ah in DIN/AGM
+        → best available technology at 75 Ah, else nearest Ah in any tech
+```
+
+Response: `confidence 40`, `match_type "Estimated (Rule-Based)"`, `matched_make null`. The frontend shows the amber fallback banner, and the AccuracyBar's Car Found segment is empty.
+
+### Worked Example 3 — why the year gate on luxury AGM matters
+
+Request: `BMW / 320i / 2001 / 2000cc / Petrol / stop_start=false`.
+
+Before the gate existed, `_preferred_tech()` matched "BMW is a luxury make" and returned AGM for every model year. A 2001 320i left the factory on a flooded battery — AGM did not appear on BMWs until brake-energy regeneration arrived around 2007 — so the recommendation was both materially more expensive than the car needs and wrong as a statement of fitment.
+
+```
+_luxury_agm("BMW", 2001)
+    "BMW" in _LUXURY_MAKES                              → True so far
+    _LUXURY_AGM_FROM["BMW"] == 2007;  2001 >= 2007      → False
+→ rule does not apply; falls through to the ordinary path
+_preferred_tech: not EV, not luxury-gated, not hybrid, stop_start False → MF
+```
+
+The same request for a 2015 320i returns AGM, because `2015 >= 2007`.
+
+## Selecting the Battery — Decision Tree
+
+`_select_batteries()` turns a target Ah, a preferred technology and a region into one primary battery plus alternatives.
+
+```
+      target_ah, preferred_tech, region                                    
+                    │                                                      
+                    ▼                                                      
+      filter battery_specs to region                                       
+      (Model Key starting "DIN" → DIN, otherwise NS)                       
+                    │                                                      
+                    ▼                                                      
+      rows where Ah == target_ah                                           
+                    │                                                      
+        ┌───────────┴────────────┐                                         
+        │ any rows?              │                                         
+        └───┬────────────────┬───┘                                         
+         no │                │ yes                                         
+            ▼                ▼                                             
+   nearest Ah in     sort by technology EFB > AGM > MF > SB (Flooded),     
+   any technology    then imported before local                            
+   (primary steps         │                                                
+    off target_ah)        ▼                                                
+            │      ┌──────────────────────────┐                            
+            │      │ preferred_tech in stock  │ yes → that row is primary  
+            │      │ at this Ah?              │                            
+            │      └──────────┬───────────────┘                            
+            │                 │ no                                         
+            │                 ▼                                            
+            │      best available technology at the same Ah                
+            │                 │                                            
+            └────────┬────────┘                                            
+                     ▼                                                     
+      alternatives: same Ah as the ACTUAL primary, same CCA,               
+      same technology, different battery code, imported first, max 6       
+```
+
+The alternatives filter keys off the primary's real Ah rather than the requested one. When nothing was stocked at the target and the primary stepped to a neighbouring Ah, using `target_ah` here would return an empty list or, worse, a set of alternatives that do not physically match the battery being recommended.
+
+## Reading the Code — Key Functions
+
+The normalisation that makes fuzzy matching work at all is small enough to read in full:
+
+```python
+def _norm_model_key(s: str) -> str:
+    """Canonical model name for matching.
+
+    Normalises all common separator/spacing variations so that user inputs
+    like "CX5", "CX 5", and "CX-5" resolve to the same key ("CX 5"):
+      1. Uppercase + strip
+      2. Hyphens → space; collapse repeated spaces
+      3. Insert a space at every letter↔digit boundary (CX5 → CX 5)
+      4. Final collapse
+    """
+    s = re.sub(r"[\-]+", " ", s.upper().strip())
+    s = re.sub(r"([A-Z])(\d)", r"\1 \2", s)
+    s = re.sub(r"(\d)([A-Z])", r"\1 \2", s)
+    return re.sub(r"\s+", " ", s).strip()
+```
+
+Fuel normalisation is a lookup table rather than logic, and it carries the source data's typos deliberately — the CRSP extract genuinely contains "DEISEL" and "ELECCTRIC":
+
+```python
+_FUEL_MAP: dict[str, str] = {
+    "GASOLINE":        "PETROL",
+    "PETROL":          "PETROL",
+    "PETROL/ELECTRIC": "PETROL",
+    "DIESEL":          "DIESEL",
+    "DEISEL":          "DIESEL",          # typo in source data
+    "HYBRID":          "HYBRID",
+    "PLUG-IN HYBRID":  "HYBRID",
+    "EV":              "EV",
+    "ELECTRIC(EV)":    "EV",
+    "ELECCTRIC":       "EV",              # typo in source data
+    "ELECTRIC":        "EV",
+}
+```
+
+Anything unrecognised becomes `PETROL`, which is the safe default: it produces the smallest Ah of the three main fuel types at any given displacement, so an unknown fuel never inflates the recommendation.
+
+The tie-breaking inside model matching is where most of the accuracy lives. Candidates are not ranked by score alone:
+
+```python
+def _pick_best(results: list[tuple[str, float, int]]):
+    # Prefer semantic prefix matches (candidate starts with user query /
+    # first token), then year proximity, then score.
+    best_pick = None   # (starts_with, is_exact, -year_delta, score, model_n)
+    for cand_model_n, score, _ in results:
+        cand_years = _cand_years(cand_model_n)
+        if not cand_years:
+            continue
+        starts_with = 1 if _starts_with_query(cand_model_n) else 0
+        if year in cand_years:
+            pick = (starts_with, 1, 0, float(score), cand_model_n)
+        else:
+            nearby_years = [y for y in cand_years if year - 3 <= y <= year + 3]
+            if not nearby_years:
+                continue
+            ...
+```
+
+Score is the *fourth* key, not the first. This is what stops a search for a 2011 "FIT" from landing on "FIT SPORT" — several trims tie at score 100 against a short query, and the tuple ordering resolves the tie toward the candidate that actually has rows near the requested year.
+
+The Ah rules are a plain table plus a year modifier, so they can be audited without reading code:
+
+```python
+_AH_RULES: list[tuple[int, int, int, int]] = [
+    # (max_cc_inclusive, petrol_ah, diesel_ah, hybrid_ah)
+    (1000,  35,  40,  35),
+    (1600,  45,  50,  45),
+    (2000,  55,  65,  55),
+    (2500,  70,  80,  65),
+    (3000,  80,  90,  80),
+    (4000,  90, 100,  90),
+    (9999, 100, 120, 100),
+]
+
+def _year_ah_modifier(year: int) -> int:
+    if year >= 2018:
+        return 10   # modern electronics era
+    if year >= 2012:
+        return 5    # early ADAS era
+    if year < 2000:
+        return -5   # pre-OBD2, minimal load
+    return 0
+```
+
+The year modifier is applied **only** in rule-based mode. When a real fitment source supplied the Ah, adding a decade-based fudge factor to a known-good figure would corrupt it.
+
+Finally, the per-make cache that keeps all of this fast:
+
+```python
+@lru_cache(maxsize=128)
+def _make_index(make_n: str) -> tuple[pd.DataFrame, dict[str, tuple[int, ...]]]:
+    """
+    Precompute, once per make, what recommend() and
+    _fuzzy_model_score_for_year() otherwise re-derive via a fresh pandas
+    scan/filter on every cache-miss call: the make-scoped row slice and a
+    model_n -> sorted years sold lookup.
+    """
+    make_df = _vehicles()[_vehicles()["make_n"] == make_n]
+    years_by_model = {
+        model_n: tuple(sorted(sub["year"].dropna().unique().astype(int).tolist()))
+        for model_n, sub in make_df.groupby("model_n")
+    }
+    return make_df, years_by_model
+```
+
+Before this existed, every candidate a scorer returned — sixty to eighty of them on a common make — triggered its own boolean-mask filter over the full vehicle table just to find out which years that trim was sold in.
+
+---
+
 ## 6. Matching Mode 1: Select Mode
 
 Select mode is the default user experience. The form uses three cascading dropdowns.
@@ -742,7 +1091,7 @@ Public traffic and admin traffic no longer share a database role. `db.py` expose
 
 The restricted role is created by migration `20260721_c4d5e6f7a8b9` with exactly the grants it needs: `SELECT` on the matcher's seven read sources plus `app_settings` and `test_users`, and `INSERT` with a narrow `UPDATE` on `search_events`, `user_feedback`, `test_users`, `test_user_sessions` and `admin_stats`. Enforcement is now the database's job rather than a matter of application-code discipline.
 
-Both pools are sized independently via environment variables (section 14.1), because the ceiling that matters is cluster-wide: every worker holds its own pools, so the real connection count is *workers × (DB_POOL_SIZE + DB_MAX_OVERFLOW + PUBLIC_DB_POOL_SIZE + PUBLIC_DB_MAX_OVERFLOW)*, which must stay under Postgres's `max_connections`. With the defaults that is 50 per worker, so a 4-worker deployment can demand 200 connections against a default limit of 100.
+Both pools are sized independently via environment variables (section 13.3), because the ceiling that matters is cluster-wide: every worker holds its own pools, so the real connection count is *workers × (DB_POOL_SIZE + DB_MAX_OVERFLOW + PUBLIC_DB_POOL_SIZE + PUBLIC_DB_MAX_OVERFLOW)*, which must stay under Postgres's `max_connections`. With the defaults that is 50 per worker, so a 4-worker deployment can demand 200 connections against a default limit of 100.
 
 ### 8.6 HTTP Security Headers
 
@@ -769,6 +1118,138 @@ Two endpoints resolve a caller-supplied path, and both normalise and containment
 One lower-severity instance remains open: `POST /api/admin/pipeline/crsp/validate` and one edit endpoint accept an arbitrary `file_path` in the request body and read it with `pandas`. Both are `require_admin`-gated and constrained to `.xlsx`/`.xls` suffixes, so the caller is already trusted, but they deserve the same normalise-and-contain treatment.
 
 A broader sweep at the same time confirmed: SQL is built with bind parameters throughout (f-strings only splice in hardcoded table and column names); there is no `eval`, `exec`, `subprocess`, `os.system` or `pickle` anywhere in the codebase; all admin routes carry `require_admin` except login and logout; CORS uses an explicit allowlist with no wildcard; and FastAPI is not instantiated with `debug=True`, so unhandled exceptions return a generic 500 rather than a stack trace.
+
+---
+
+### 8.8 Admin Session Lifecycle — end to end
+
+```
+   LOGIN                                                                       
+     │ POST /api/admin/login { username, password }        limiter 5/min       
+     ▼                                                                         
+   ┌────────────────────────────────────────────────────────────────────┐      
+   │ locked_until in the future?          → 401 with the unlock time    │      
+   │ bcrypt compare (dummy hash if the user does not exist)             │      
+   │   fail → failed_login_attempts += 1                                │      
+   │          at 8 attempts, locked_until = now + 15 min                │      
+   │   pass → both counters cleared                                     │      
+   └───────────────────────────────┬────────────────────────────────────┘      
+                                   ▼                                           
+   ┌────────────────────────────────────────────────────────────────────┐      
+   │ token = secrets.token_hex(32)          64 hex characters           │      
+   │ INSERT admin_sessions (token, admin_id, expires_at = now + 8h, ip) │      
+   │ Set-Cookie admin_session — HttpOnly; Secure; SameSite=Strict       │      
+   └───────────────────────────────┬────────────────────────────────────┘      
+                                   ▼                                           
+   EVERY ADMIN REQUEST — Depends(require_admin)                                
+   ┌────────────────────────────────────────────────────────────────────┐      
+   │ read cookie → look up admin_sessions row                           │      
+   │   missing        → 401                                             │      
+   │   expires_at past→ delete the row, then 401                        │      
+   │   valid          → return AdminUser                                │      
+   └───────────────────────────────┬────────────────────────────────────┘      
+                                   ▼                                           
+   PASSWORD RESET (either route reaches the same place)                        
+   ┌────────────────────────────────────────────────────────────────────┐      
+   │ a) admin generates a link for a colleague:                         │      
+   │       POST /api/admin/users/{id}/reset-link                        │      
+   │ b) self-service:  POST /api/admin/forgot-password → SES email      │      
+   │                                                                    │      
+   │ token = CSPRNG;  stored as sha256(token), never the token itself   │      
+   │ reset_token_expires_at = now + 60 min;  single use                 │      
+   │ reissue overwrites any previous token                              │      
+   └───────────────────────────────┬────────────────────────────────────┘      
+                                   ▼                                           
+   ┌────────────────────────────────────────────────────────────────────┐      
+   │ POST /api/admin/reset-password { token, new_password }             │      
+   │   consume token → set password → clear token                       │      
+   │   invalidate EVERY existing session for that admin                 │      
+   │   write admin_account_audit_log                                    │      
+   └────────────────────────────────────────────────────────────────────┘      
+```
+
+Reset tokens are hashed with SHA-256 rather than bcrypt. That is deliberate and is documented inline in `admin_auth.py` so it does not get "corrected" later: bcrypt's value is its slowness against brute-forcing *low-entropy* human passwords. A 32-byte CSPRNG token has no such weakness, and the only thing bcrypt would add is latency on every reset attempt.
+
+### 8.9 The Bootstrap Race, and the Lock That Fixes It
+
+The first-admin endpoint has to answer "are there no admins yet?" and then create one. Those two steps are not atomic under Postgres's default READ COMMITTED isolation, and because concurrent requests can use different usernames, the unique constraint does not save you either:
+
+```python
+@router.post("/bootstrap")
+@_limiter.limit("3/hour")
+def bootstrap(request: Request, body: BootstrapRequest, db: Session = Depends(get_db)):
+    # "Check count, then insert" is NOT atomic under Postgres's default
+    # READ COMMITTED isolation — two concurrent requests can both see
+    # count()==0 before either commits, and since they'd use different
+    # usernames the uniqueness constraint doesn't catch it either. This
+    # advisory lock serializes all bootstrap attempts against each other
+    # (auto-released at transaction end) so only one can ever pass the
+    # empty-table check before the row exists.
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _BOOTSTRAP_LOCK_KEY})
+
+    # Check table-emptiness BEFORE the token comparison — a populated
+    # table must never be usable as an oracle for guessing the token.
+```
+
+The regression test that found this fired eight concurrent bootstrap requests with distinct usernames and got **three** admin accounts. The ordering of the two checks matters independently: emptiness is tested before the token is compared, so an attacker cannot use response timing or status codes against a live system to learn anything about the bootstrap secret.
+
+### 8.10 What the Restricted Role Can Actually Do
+
+The migration that creates `batteryfinder_public` enumerates its grants explicitly rather than granting on a schema-wide basis, so adding a table does not silently widen public access:
+
+```python
+_READ_ONLY_TABLES = [
+    "vehicle_years", "vehicle_years_exide", "battery_specs", "model_aliases",
+    "dial_battery_inference", "web_battery_validation", "oem_fitment",
+    "app_settings",
+]
+
+# Tables public routes write to. Granted SELECT as well as INSERT/UPDATE —
+# not just for reads, but because Postgres also requires SELECT on: (a) any
+# column returned by SQLAlchemy's implicit RETURNING after an INSERT, and
+# (b) any column referenced in an UPDATE's WHERE clause.
+_READ_WRITE_TABLES = [
+    "search_events", "user_feedback", "test_users",
+    "test_user_sessions", "admin_stats",
+]
+```
+
+Note what is absent: `admin_users`, `admin_sessions`, every audit log, every staging and versioning table, and `api_usage_quota`. If a vulnerability in a public route were ever exploited to run arbitrary SQL, the connection it runs on cannot read an admin password hash or a session token, and cannot touch the audit trail.
+
+### 8.11 The Path Traversal Fix, in Full
+
+This is worth reading closely because the same shape recurs anywhere a caller-supplied path is joined to a directory:
+
+```python
+@app.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    _base = os.path.dirname(__file__)
+    # Always serve files from static/ (maintenance assets must load even
+    # during maintenance mode)
+    if full_path.startswith("static/"):
+        candidate = os.path.normpath(os.path.join(_base, full_path))
+        static_root = os.path.normpath(os.path.join(_base, "static")) + os.sep
+        if candidate.startswith(static_root) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+    index = os.path.join(_frontend_dir, "index.html")
+    file_path = os.path.normpath(os.path.join(_frontend_dir, full_path))
+    frontend_root = os.path.normpath(_frontend_dir) + os.sep
+    # Serve the actual file if it exists (JS, CSS, assets, etc.) — reject
+    # anything that resolves outside frontend_root (path traversal via ../
+    # or %2e%2e%2f in full_path)
+    if file_path.startswith(frontend_root) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    # Otherwise fall back to index.html for client-side routing
+    return FileResponse(index)
+```
+
+Three details make this correct rather than merely plausible:
+
+- `normpath()` runs **after** the join, not before. Normalising the untrusted segment on its own does not help, because the traversal only resolves once it is attached to the base directory.
+- The root is compared with `os.sep` appended. Without it, a sibling directory named `dist-evil` passes a bare `startswith("…/dist")` test.
+- A rejected path falls through to `index.html` rather than returning 404, so the endpoint gives no signal about which files exist on disk.
+
+A literal `../` in a URL is collapsed by the browser before the request is sent, which is why this looked safe. URL-encoding the separators as `%2f` survives that, and Starlette does not decode-and-normalise `..` segments before dispatching to the handler. Both `GET /..%2f..%2fbackend%2fapp.py` and `GET /..%2f..%2f.env` returned HTTP 200 with real file contents against a live server before the fix, with no authentication of any kind.
 
 ---
 
@@ -888,7 +1369,7 @@ Every mutation writes to `battery_audit_log` and clears and re-warms `matcher._b
 | `GET /backup/log` | Backup history from `admin_backup_log` |
 | `GET /backup/{filename}/download` | Download a dump (path-traversal guarded) |
 
-Backups keep the 10 most recent dumps and prune the rest. See section 14.3 for the two backup modes.
+Backups keep the 10 most recent dumps and prune the rest. See section 16.3 for the two backup modes.
 
 ---
 
@@ -1090,6 +1571,80 @@ Returns `{ inserted, updated, skipped_unchanged, rejected, errors }`.
 
 ---
 
+### 11.5 Staging, Commit and Revert — the safety net
+
+No pipeline writes to a live table. Everything lands in staging, is reviewed, and only then is committed — and every commit can be undone.
+
+```
+   PIPELINE RUN                                                                
+        │  enrich_years.py / vehicle_coverage_expansion.py                     
+        ▼                                                                      
+   ┌──────────────────────────────────────────────────────────────────────┐    
+   │ vehicle_years_staging                                                │    
+   │   run_id groups the run                                              │    
+   │   is_valid + invalid_reason   — failed a validation rule             │    
+   │   conflict + conflict_detail  — disagrees with the live row,         │    
+   │                                 JSON {current: {...}, staged: {...}} │    
+   └────────────────────────────────┬─────────────────────────────────────┘    
+                                    ▼                                          
+   ┌──────────────────────────────────────────────────────────────────────┐    
+   │ ADMIN REVIEW      /admin/data-pipeline                               │    
+   │   filter: all · new · conflicts · invalid                            │    
+   │   PATCH a staged row to correct engine_capacity or fuel by hand      │    
+   │   pre-commit re-runs conflict detection against CURRENT live data,   │    
+   │   because the table may have moved since the run started             │    
+   └───────────────┬──────────────────────────────────┬───────────────────┘    
+                   │ commit                           │ discard               
+                   ▼                                  ▼                       
+   ┌───────────────────────────────────────┐   ┌──────────────────────────┐    
+   │ vehicle_years          rows applied   │   │ staging rows deleted,    │    
+   │ vehicle_years_versions one row:       │   │ live table untouched     │    
+   │   committed / updated / removed /     │   └──────────────────────────┘    
+   │   conflict counts, who ran it,        │                                   
+   │   who committed it                    │                                   
+   │ vehicle_years_changelog one row per   │                                   
+   │   change: added | updated | removed   │                                   
+   │   with old_values and new_values JSON │                                   
+   └───────────────────┬───────────────────┘                                   
+                       ▼                                                       
+   ┌──────────────────────────────────────────────────────────────────────┐    
+   │ REVERT   POST /pipeline/crsp/versions/{id}/revert                    │    
+   │   walk the changelog backwards:                                      │    
+   │     added   → delete the row                                         │    
+   │     updated → restore old_values                                     │    
+   │     removed → re-insert from old_values                              │    
+   └──────────────────────────────────────────────────────────────────────┘    
+```
+
+The changelog is what makes the revert possible: storing only "version 4 changed 7,185 rows" would let you see the damage without undoing it. Storing `old_values` per row means the previous state is recoverable field by field.
+
+Conflict detection is deliberately narrow about which columns count:
+
+```python
+# same key, different engine_cc or fuel → conflict=1, conflict_detail=JSON
+```
+
+`model_number` is carried through staging but is excluded from this comparison. It is a matching *input* — the chassis code used to pick the right generation — not a spec value a reviewer needs to adjudicate. Including it would have marked every already-correct row as conflicting the moment the column started being populated, burying the real conflicts in noise.
+
+### 11.6 Rate Limiting an External Source Safely
+
+The Japanese Wikipedia parser illustrates a failure mode worth generalising. A throttled MediaWiki response is an HTTP error page, not JSON. Parsed by a lenient `except`, it looks exactly like "this vehicle has no data" — and gets recorded as such:
+
+```python
+class ThrottledError(RuntimeError):
+    """Raised when the API returns something other than a normal JSON body.
+
+    Never caught and treated as "no data" — that is precisely how bad year
+    data entered this table in the first place.
+    """
+```
+
+The contract is that `ThrottledError` propagates to every caller and aborts the run. A run that stops halfway with a clear error is recoverable; a run that completes having silently written thousands of "no data" verdicts is not — and you find out months later, from a customer.
+
+The same principle governs the trim-to-generation matcher: where a trim cannot be attributed to exactly one generation, it returns no match with the candidate list attached, rather than guessing. Unresolved nameplates are logged as residue and left for a human. Across the full cleanup pass this "decline rather than guess" behaviour fired correctly seven times on genuinely ambiguous nameplate groups — including one where a single confident-looking match would have deleted real Land Cruiser Prado year rows, because `extract_base_model()` collapses "LAND CRUISER ZX" and "LAND CRUISER PRADO TX" into the same nameplate group.
+
+---
+
 ## 12. Rate Limiting & Observability
 
 ### 12.1 Rate Limiting
@@ -1142,9 +1697,154 @@ The write is one INSERT per request on the public role's connection. At current 
 
 ---
 
-## 13. Automated Test Suite
+## 13. Performance & Caching Strategy
 
-### 13.1 Backend (`backend/tests/`, pytest)
+### 13.1 Why the Matcher Holds Everything in Memory
+
+The recommendation path does no database work. Every source table is read once into a pandas DataFrame and kept in an LRU cache for the life of the process. This is affordable because the working set is small — tens of thousands of vehicle rows and a few thousand battery SKUs — and it removes both database latency and connection-pool pressure from the hot path entirely.
+
+```
+   PROCESS START (lifespan)                                                    
+        │                                                                      
+        ├─ _vehicles()        vehicle_years UNION ALL vehicle_years_exide      
+        ├─ _batteries()       battery_specs WHERE deleted_at IS NULL           
+        ├─ _model_aliases()   model_aliases                                    
+        ├─ _inference()       dial_battery_inference                           
+        └─ _fitment()         oem_fitment                                      
+             │                                                                 
+             │  first request for a make                                       
+             ▼                                                                 
+        _make_index(make_n)   maxsize=128 — row slice + model → years map      
+             │                                                                 
+             │  first request for an exact argument tuple                      
+             ▼                                                                 
+        recommend(...)        maxsize=512 — memoised whole result              
+             │                                                                 
+   ┌─────────┴──────────────────────────────────────────────────────────┐      
+   │ INVALIDATION                                                       │      
+   │   battery add/edit/delete/upload → _batteries + recommend          │      
+   │   POST /cache/refresh            → _vehicles, _make_index,         │      
+   │                                    _batteries, _model_aliases,     │      
+   │                                    _inference, _fitment, recommend │      
+   │   web-validate staging commit    → _web_validation                 │      
+   │ then re-warmed immediately, in-process                             │      
+   └────────────────────────────────────────────────────────────────────┘      
+```
+
+`recommend()` itself is memoised at `maxsize=512`. Real traffic is heavily skewed toward a small set of popular vehicles, so this absorbs most repeat lookups without recomputing any fuzzy matching at all. It is cleared alongside the data caches — a memoised result computed from stale battery data would otherwise outlive the data it came from.
+
+### 13.2 Cost of Each Layer
+
+| Layer | Work done | Relative cost |
+|-------|-----------|---------------|
+| `recommend()` cache hit | Dictionary lookup | Negligible |
+| 0a / 0b | Two DataFrame filters plus at most one `extractOne` over the models for one make | Low |
+| 1 / 2 | Up to three `rapidfuzz` scorer passes over one make's model list, then the tie-break sort | Moderate — the dominant cost |
+| 2b | Alias lookup plus a second fuzzy pass per resolved JDM candidate | Highest, but only reached when everything else failed |
+| 3 | Table lookup and arithmetic | Negligible |
+
+The expensive case is therefore a *miss* — a vehicle that reaches alias resolution and still fails. That is also the case where the answer is least useful, which is a reasonable trade: the system spends its time on the searches that are hardest to satisfy.
+
+### 13.3 Connection Pools
+
+Two engines, each with its own pool, and the ceiling that matters is cluster-wide rather than per process:
+
+```
+    total connections = workers x ( DB_POOL_SIZE + DB_MAX_OVERFLOW
+                                  + PUBLIC_DB_POOL_SIZE + PUBLIC_DB_MAX_OVERFLOW )
+```
+
+With the defaults (10 + 15 for each of the two pools) that is 50 per worker, so four workers can demand 200 connections against Postgres's default `max_connections` of 100. The application will exhaust connections long before it exhausts CPU or memory, and the failure presents as timeouts rather than as anything obviously connection-related. Self-hosted deployments should lower the pool variables, raise `max_connections`, or put pgbouncer in front.
+
+The malformed-value behaviour is deliberate:
+
+```python
+def _int_env(name: str, default: int, minimum: int = 0) -> int:
+    """Read a non-negative integer from the environment, falling back to
+    `default`.
+
+    Raises rather than silently falling back on a malformed value — a typo in
+    a pool-size variable would otherwise be invisible until the app ran out of
+    connections under load.
+    """
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        raise RuntimeError(f"{name} must be an integer, got {raw!r}.") from None
+    if value < minimum:
+        raise RuntimeError(f"{name} must be >= {minimum}, got {value}.")
+    return value
+```
+
+A typo fails the process at startup, where it is obvious, instead of silently reverting to a default and failing under load a week later.
+
+### 13.4 Other Performance Work
+
+- **Per-make index.** `_make_index()` removed a full-table pandas scan per candidate during fuzzy matching. On a make with many trims that was sixty to eighty scans for one request.
+- **N+1 elimination in the pipelines.** Quota accounting in `web_battery_validate.py` was one database round-trip per check — more than ten thousand per run. It now uses an in-memory cache flushed once at the end. The staging endpoints (`_populate_staging`, `staging_pre_commit`, `commit_staging`) bulk-load existing keys instead of querying per row, changelog inserts are batched, and `revert_crsp_version()` uses a single `tuple_()`-keyed `IN` query rather than one `SELECT` per changelog row.
+- **Response compression.** GZip above 500 bytes.
+- **Immutable asset caching.** Vite emits content-hashed filenames, so `/assets/*` is served with a one-year `max-age` and `immutable`.
+- **Lazy admin bundle.** Every admin page is behind `React.lazy()`, so a member of the public never downloads dashboard code.
+
+---
+
+## 14. Error Handling & Failure Modes
+
+### 16.1 How Errors Reach the Client
+
+| Condition | Status | Body |
+|-----------|--------|------|
+| Request fails schema validation | 422 | Every field error flattened into one readable `detail` string |
+| Rate limit exceeded | 429 | `detail` plus `retry_after` |
+| No models or years for the requested vehicle | 404 | `detail` naming the make/model |
+| Spec search with neither `ah` nor `cca` | 422 | `detail` listing the accepted parameters |
+| Admin route without a valid session | 401 | `detail` |
+| Admin editing another admin's email | 403 | `detail` |
+| Unhandled exception | 500 | Generic message — FastAPI is not in debug mode, so no traceback is returned |
+| Maintenance mode | 503 | The static maintenance page |
+| Database unreachable at `/health` | 503 | `{"status": "down"}` |
+
+### 16.2 Failures That Are Deliberately Swallowed
+
+Three paths log and continue rather than failing the request, because the user's answer does not depend on them:
+
+- **Search-event logging.** Runs on a daemon thread; a failure is logged at debug level. A telemetry outage must never cost a customer their recommendation.
+- **Read-counter flush.** A failed flush logs a warning and the timer reschedules. The counter is a dashboard statistic, not an accounting record.
+- **Maintenance-mode refresh.** If the settings lookup fails, `app_state` keeps its previous cached value rather than raising on every request. The consequence is that a maintenance toggle may not propagate during a database outage — acceptable, since a database outage is already visible through `/health`.
+
+Everything else propagates.
+
+### 16.3 Degradation Behaviour
+
+| What breaks | What happens |
+|-------------|--------------|
+| `oem_fitment` empty or missing | `_fitment()` returns an empty DataFrame; the override never fires; recommendations fall back to their layer's own Ah |
+| `web_battery_validation` empty | Layer 0a never fires; Layer 0b onward is unaffected |
+| `dial_battery_inference` empty | Layer 0b never fires |
+| `model_aliases` empty | Alias resolution is skipped; international model names simply fail to match |
+| Database down at startup | Startup fails fast in `lifespan` — deliberate; a worker that cannot load its caches must not accept traffic |
+| Database down while running | Recommendations keep working from cache; writes to `search_events` and `admin_stats` fail silently; `/health` reports 503 |
+
+The last row is worth underlining: because the matcher is fully in-memory, the public battery finder keeps answering correctly through a database outage. Only telemetry and the admin dashboard degrade.
+
+### 16.4 Known Issues
+
+**Stale Layer 0a data after editing a committed web-validation record.** `matcher._web_validation()` is invalidated in exactly one place — the staging commit in `admin_router.py`. It is *not* cleared by `POST /api/admin/cache/refresh`, nor by `PATCH`/`DELETE` on a master record, nor by a version revert, nor by `reset-cache`. Editing, deleting or reverting committed web-validation data therefore leaves the matcher serving the previous values until the process restarts, and the general cache-refresh button does not fix it. This is the same class of bug the commit path already fixed once, and the same fix applies: add `matcher._web_validation.cache_clear()` to `refresh_cache()` and to the four master-mutation routes.
+
+**Per-IP rate limits are multiplied by the worker count.** `slowapi`'s default storage is in-process. Each worker keeps its own counters, so the effective limit is the configured limit times the number of workers, and every deploy resets them. Redis is provisioned and unused; pointing both `Limiter` instances at it with `storage_uri` is the intended fix.
+
+**Two admin endpoints trust a caller-supplied file path.** `POST /pipeline/crsp/validate` and one edit endpoint accept an arbitrary `file_path` in the request body and open it with pandas, without confirming it resolves inside the uploads directory. Both require an admin session and only accept `.xlsx`/`.xls`, so the exposure is limited to an already-trusted caller, but they should get the same normalise-and-contain treatment as the SPA fallback.
+
+**Long-running pipelines are tied to one worker.** Pipeline state lives in process memory, so the pause, resume, cancel and status endpoints only work against the worker that started the run. Behind a load balancer with multiple workers, a control request can land on a worker that knows nothing about the run.
+
+---
+
+## 15. Automated Test Suite
+
+### 15.1 Backend (`backend/tests/`, pytest)
 
 `conftest.py` wires a minimal FastAPI app around `admin_router`'s routes against a real local Postgres, and wraps each test in a transaction that is rolled back afterwards, so database writes never persist. A separate `public_db_session` fixture keeps tests that exercise public-route writes inside that same transaction rather than leaking rows through the restricted role's own connection.
 
@@ -1173,7 +1873,7 @@ pytest                              # run everything
 pytest --junitxml=test-results.xml  # what CI runs
 ```
 
-### 13.2 Frontend (`frontend/`, Vitest)
+### 15.2 Frontend (`frontend/`, Vitest)
 
 Component and module tests live beside their subjects as `*.test.tsx` / `*.test.ts`, covering `VehicleFinderForm`, `AccuracyBar`, `ConfidenceBar`, the admin pages, `ProtectedRoute`, `AdminLayout`, and the API and utility modules.
 
@@ -1185,9 +1885,9 @@ bun run test:ci     # JUnit report for Jenkins
 
 ---
 
-## 14. Deployment & Environment
+## 16. Deployment & Environment
 
-### 14.1 Environment Variables
+### 16.1 Environment Variables
 
 `.env` lives at the repository root and is loaded by `python-dotenv` in `db.py`, which walks up from wherever the process started. It is loaded with `override=False`, so real environment variables — the ones ECS injects from SSM Parameter Store and Secrets Manager in production — always win over anything in the file. A stray `.env` baked into a production image therefore cannot clobber a real secret.
 
@@ -1201,7 +1901,7 @@ bun run test:ci     # JUnit report for Jenkins
 | `ALLOWED_ORIGINS` | No | Comma-separated CORS allowlist. Empty by default — the SPA and API are same-origin |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | No | Admin pool sizing (defaults 10 / 15) |
 | `PUBLIC_DB_POOL_SIZE` / `PUBLIC_DB_MAX_OVERFLOW` | No | Public pool sizing; each falls back to the corresponding admin value |
-| `DB_BACKUP_MODE` | No | `docker` (default) or `direct` — see 14.3 |
+| `DB_BACKUP_MODE` | No | `docker` (default) or `direct` — see 16.3 |
 | `DB_BACKUP_CONTAINER` / `DB_BACKUP_USER` / `DB_BACKUP_NAME` | No | Backup target overrides |
 | `SES_FROM_EMAIL` / `SES_REGION` | No | Verified SES sender for reset emails; the feature no-ops with a warning if unset |
 | `SEARXNG_URL` | No | SearXNG base URL for web validation; skipped if unset |
@@ -1210,7 +1910,7 @@ bun run test:ci     # JUnit report for Jenkins
 
 Pool-size variables are parsed by a helper that **raises on a malformed or negative value rather than falling back silently** — a typo in a pool-size variable would otherwise stay invisible until the application ran out of connections under load. Maintenance mode is not an environment variable; see section 3.4.
 
-### 14.2 Dependency Sets
+### 16.2 Dependency Sets
 
 `requirements.txt` is split three ways, each including the previous:
 
@@ -1224,7 +1924,7 @@ Two allocations are easy to get wrong and are worth stating explicitly: `xlrd` i
 
 On Windows with recent Python versions, `mwparserfromhell` has no prebuilt wheel and would need MSVC build tools. Install it with `WITH_EXTENSION=0` to use its documented pure-Python tokenizer instead — same library, same behaviour, no compiler.
 
-### 14.3 Database Backups
+### 16.3 Database Backups
 
 `db_backup.py` supports two modes, chosen with `DB_BACKUP_MODE`:
 
@@ -1233,7 +1933,7 @@ On Windows with recent Python versions, `mwparserfromhell` has no prebuilt wheel
 
 Backups are written to `backups/`, the ten most recent are kept, and every attempt — success or failure — is recorded in `admin_backup_log`. A failed direct dump removes its own zero-byte output file, which `pg_dump` creates before it has even connected and which would otherwise be listed as a real backup.
 
-### 14.4 Starting the Server
+### 16.4 Starting the Server
 
 **Development:**
 
@@ -1261,7 +1961,7 @@ FastAPI detects `frontend/dist/` at startup and serves it; all non-API paths fal
 
 Note that the local Postgres container publishes on host port **5434**, not 5432. A native Postgres install commonly already owns 5432, and on Windows Docker Desktop would bind the container's side on IPv6 rather than erroring — silently splitting `localhost:5432` across two different databases.
 
-### 14.5 CI/CD (Jenkinsfile)
+### 16.5 CI/CD (Jenkinsfile)
 
 | # | Stage | What it does |
 |---|-------|--------------|
@@ -1277,12 +1977,12 @@ Note that the local Postgres container publishes on host port **5434**, not 5432
 
 The post block always publishes JUnit results and tears the database container down. The Python test stage genuinely fails the build — an earlier version swallowed pytest failures silently.
 
-### 14.6 First-Time Setup
+### 16.6 First-Time Setup
 
 ```bash
 # 1. Environment
 #    Create .env at the repo root with DATABASE_URL and PUBLIC_DATABASE_URL
-#    (see 14.1, and README.md's Environment Variables section)
+#    (see 16.1, and README.md's Environment Variables section)
 
 # 2. Database
 docker compose up -d
@@ -1304,6 +2004,332 @@ python pipelines/exide_fitment_clean.py
 # 5. Start the server
 uvicorn app:app --reload
 ```
+
+---
+
+## 17. Operations Runbook
+
+Common tasks, in the order an operator is likely to need them.
+
+### 17.1 Refreshing the Matcher After a Data Change
+
+Any change made outside the admin UI — a script run against the database, a pipeline executed from the CLI — is invisible to running workers until their caches are cleared.
+
+```
+Admin dashboard → any page → Refresh Cache
+   or
+POST /api/admin/cache/refresh      (admin session cookie required)
+```
+
+This clears and re-warms `_vehicles`, `_make_index`, `_batteries`, `_model_aliases`, `_inference`, `_fitment` and the memoised `recommend()`. It does **not** clear `_web_validation` (see 14.4); after editing committed web-validation data, restart the workers.
+
+With more than one worker, this only affects the worker that answers the request. Restart the service when you need certainty.
+
+### 17.2 Running the CRSP Pipeline End to End
+
+```
+1. /admin/data-pipeline → CRSP tab → Upload the new CRSP Excel
+2. Validate            — checks the sheet before anything is written
+3. Stage 1: Dataprep   — populates vehicles_raw + battery_lookup_dataset.csv
+4. Stage 2: Enrichment — writes vehicle_years_staging; watch the log stream
+5. Review staging      — filter to Conflicts first, then Invalid, then New
+6. Pre-commit          — re-checks conflicts against current live data
+7. Commit              — writes vehicle_years, creates a version + changelog
+8. Refresh cache       (17.1)
+```
+
+Stop at step 5 if the conflict count is unexpectedly high; that usually means the source file's shape changed rather than that the data is wrong.
+
+To undo: `/admin/data-pipeline` → Versions → the version → Revert. This walks the changelog backwards and restores prior values row by row.
+
+### 17.3 Taking and Restoring a Backup
+
+```
+Admin dashboard → Backups → Take Backup
+   or
+POST /api/admin/backup
+```
+
+The ten most recent dumps are kept; older ones are pruned automatically. Every attempt, successful or not, is recorded in `admin_backup_log` with the triggering admin's username.
+
+Set `DB_BACKUP_MODE=direct` on any deployment that is not the local Docker container — RDS, or a native Postgres install. In `direct` mode the connection details are derived from `DATABASE_URL` itself, so a backup cannot target a different database than the one being served.
+
+Restoring is deliberately not exposed through the UI. Use `db-backup-script/restore-db.ps1`, or `pg_restore` directly, with the application stopped.
+
+### 17.4 Putting the Site into Maintenance Mode
+
+```
+Admin dashboard → Settings → Maintenance Mode
+```
+
+The flag is stored in `app_settings` and cached per worker for five seconds, so every worker and every instance picks it up within five seconds without a restart. Admin routes, `/admin/*`, `/static/*`, `/assets/*` and `/health` continue to serve; everything else returns the maintenance page with HTTP 503. The load-balancer health check is unaffected by design.
+
+### 17.5 Creating and Recovering Admin Accounts
+
+| Situation | Action |
+|-----------|--------|
+| Brand-new deployment, no admins yet | Set `ADMIN_BOOTSTRAP_TOKEN`, visit `/admin/setup` |
+| Adding a colleague | Admin Users → Add. No token involved |
+| Colleague locked out, email not configured | Admin Users → their row → Generate reset link, send it to them by hand |
+| Colleague locked out, SES configured | They use `/admin/forgot-password` |
+| Account locked by failed logins | Wait 15 minutes, or reset the password, which clears the lock |
+| Someone left the company | Admin Users → Delete. This also invalidates their sessions |
+
+An admin cannot change another admin's email address; the endpoint returns 403. Redirecting someone else's password-reset destination would otherwise be a privilege-escalation path.
+
+### 17.6 Checking Health
+
+```
+GET /health              public, no auth — {"status": "ok"} or 503
+GET /api/admin/health    admin — latency, cluster connections, pool usage
+```
+
+`degraded` means latency above 500 ms or pool usage above 85%. The cluster connection count comes from `pg_stat_activity` and is the number to watch: if it approaches `max_connections`, reduce the pool variables or add pgbouncer (13.3).
+
+### 17.7 Provider Quotas and Web Validation
+
+```
+/admin/data-pipeline → Web Validation → Quotas
+```
+
+DuckDuckGo is unmetered and carries most of the volume. Brave is a prepaid balance that never auto-resets — once spent, it stays spent until topped up. Tavily and Brave both accept a monthly override through their `*_MONTHLY_QUOTA` variables. If SearXNG is configured it is tried first, and it costs nothing.
+
+---
+
+## 18. Data Quality — History and Current State
+
+This section exists because the dataset's accuracy problems were not obvious from the code, and the reasoning behind the fixes is worth preserving.
+
+### 18.1 The Year-Data Problem
+
+A client review flagged implausible year ranges — a Land Cruiser 200-series listed as available from 1951. Investigation found that roughly a third of model variants started implausibly early, producing about 22% phantom rows in `vehicle_years`, and that 98% of rows carried no `source` value at all, so no bad value could be attributed to the source that produced it.
+
+Five distinct defects were responsible:
+
+| # | Defect | Effect |
+|---|--------|--------|
+| 1 | Fuzzy matching ran case-sensitively against mixed-case external data | "LAND CRUISER" scored 32 against an unrelated "RAV4 EV" instead of 100 against the real entry |
+| 2 | The match threshold was 45, lowered to compensate for defect 1 | "LUTECIA GT" matched EPA's unrelated "GTA" at 46.15 and returned 1987 |
+| 3 | Model names were truncated to two tokens | "LAND CRUISER 250 VX" became "LAND CRUISER", losing the generation marker |
+| 4 | Wikidata's `P571` inception date had no lower bound | Returned the nameplate's founding year — the literal source of the 1951 Land Cruiser |
+| 5 | Open-ended year ranges defaulted to the current year | 243 variants ran to 2026, including discontinued models |
+
+Defect 1 was foundational: the permissive threshold existed to compensate for scores that were being corrupted by case sensitivity. Fixing the case handling first made it possible to raise the threshold to 60 without losing genuine matches — real matches score 85-100 and the false positives top out at 53, so the new threshold sits in a real gap rather than at an arbitrary point.
+
+### 18.2 What Was Done
+
+- Case-insensitive processing added to every `rapidfuzz` call site.
+- Threshold raised 45 → 60, calibrated against both directions.
+- `extract_base_model()` now keeps a third token when it is purely numeric, so "LAND CRUISER 250" survives while "320D" style trim codes still do not.
+- Wikidata removed entirely as a source.
+- Open-ended spans capped at `year_from + 20` rather than the current year.
+- Japanese Wikipedia added as a generation-level source, and `oem_fitment` added as a second, zero-cost source that covers the commercial vehicles ja.wikipedia does not.
+- CRSP `Model number` chassis codes wired in as a matching input.
+- A cleanup pass removed 7,185 rows whose years could not be true.
+
+That cleanup is instructive: only 1,750 of the 7,185 deleted rows were in the originally-flagged "year before 1990" set. The rest looked plausible and were still wrong — for example an Audi "A3 SEDAN 30 TFSI" dated to 2006, when "30 TFSI" is a naming scheme Audi introduced after 2019. A year-floor filter alone would have missed them.
+
+### 18.3 Coverage, Honestly Stated
+
+Resolution rates track vehicle type rather than any particular make. Japanese passenger cars resolve well; Western and commercial vehicles much less so.
+
+| Group | Typical residue |
+|-------|-----------------|
+| Toyota | ~49% unresolved — the best-covered make |
+| Daihatsu, Honda, Volvo | ~52-53% |
+| Audi, Land Rover, Hino, Isuzu | 91-97% |
+| Chevrolet, Ford, MAN, Mini, Rolls-Royce, Scania, Tata | ~100% |
+
+The practical consequence is that manual attention should be prioritised by `search_events` volume rather than by which nameplates look worst, because the gap is structural to the source rather than concentrated in a few fixable records.
+
+### 18.4 Still Open
+
+- Re-running enrichment to refill correct years for the nameplates the cleanup emptied. The cleanup only deletes; it never inserts, because there is no way to synthesise `engine_capacity` and `fuel` for a row that does not exist.
+- Sweeping `web_battery_validation` rows orphaned by the deleted years.
+- The manual nameplate pass for roughly 993 unresolved nameplates.
+- A policy decision, still unmade: for nameplates no source can date, leave them without years (accurate, but they vanish from the year dropdown) or assign a conservative recent window (findable, but a guess).
+- The `technology` column in `web_battery_validation` disagrees with `battery_code` on about 40% of rows. The matcher never reads that column — it parses `battery_code` instead — so this is a reporting artefact in exported spreadsheets rather than a recommendation defect. The fix is to populate the export from the resolved battery, or drop the column.
+
+---
+
+## 19. Glossary
+
+| Term | Meaning |
+|------|---------|
+| **Ah** | Ampere-hours. Battery capacity; the primary sizing figure this system recommends |
+| **CCA** | Cold Cranking Amps. Current the battery can deliver when cold; quoted here on the EN standard |
+| **AGM** | Absorbent Glass Mat. Premium construction for heavy cycling, stop-start and high electrical load |
+| **EFB** | Enhanced Flooded Battery. Mid-tier, designed for stop-start below AGM's duty |
+| **MF** | Maintenance Free. Conventional sealed battery |
+| **SB (Flooded)** | Standard flooded battery, the lowest tier in the priority order |
+| **NS / JIS** | Japanese battery case and terminal standard. Used for Japanese, Korean and Chinese vehicles |
+| **DIN** | European battery standard. Used for European, American and Indian vehicles |
+| **i-stop / stop-start** | Engine cut at idle. Cycles the battery far harder, driving the EFB/AGM preference |
+| **JDM** | Japanese Domestic Market. JDM trim names differ from export names, hence `model_aliases` |
+| **CRSP** | The vehicle dataset this project is built from; the source of `vehicle_years` |
+| **Chassis code** | Manufacturer type-approval code, e.g. `VJA300W`. Identifies a generation precisely where the model name does not |
+| **Nameplate** | A model line across all generations — "Land Cruiser" as opposed to "Land Cruiser 250 VX" |
+| **Layer** | One stage of the matching cascade; the first to produce an answer wins |
+| **Staging** | The review table a pipeline writes to instead of the live table |
+| **Residue** | Records a pipeline declined to resolve rather than guessing at |
+
+---
+
+## 20. Appendix A — Environment Variables
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `DATABASE_URL` | Yes | — | Full-privilege `batteryfinder` role |
+| `PUBLIC_DATABASE_URL` | Yes | — | Restricted `batteryfinder_public` role |
+| `PUBLIC_DB_PASSWORD` | Migration only | — | Password used when the role is created |
+| `ADMIN_COOKIE_SECURE` | No | `true` | `false` for local HTTP dev; also gates HSTS |
+| `ADMIN_BOOTSTRAP_TOKEN` | Before first setup | — | Shared secret for `/admin/setup` |
+| `ALLOWED_ORIGINS` | No | empty | Comma-separated CORS allowlist |
+| `DB_POOL_SIZE` | No | `10` | Admin pool size |
+| `DB_MAX_OVERFLOW` | No | `15` | Admin pool overflow |
+| `PUBLIC_DB_POOL_SIZE` | No | `DB_POOL_SIZE` | Public pool size |
+| `PUBLIC_DB_MAX_OVERFLOW` | No | `DB_MAX_OVERFLOW` | Public pool overflow |
+| `DB_BACKUP_MODE` | No | `docker` | `docker` or `direct` |
+| `DB_BACKUP_CONTAINER` | No | `battery-finder-postgres` | Container name in `docker` mode |
+| `DB_BACKUP_USER` | No | from `DATABASE_URL` | Override the dump user |
+| `DB_BACKUP_NAME` | No | from `DATABASE_URL` | Override the database name |
+| `SES_FROM_EMAIL` | No | — | Verified SES sender; the feature no-ops if unset |
+| `SES_REGION` | No | `us-east-1` | SES client region |
+| `SEARXNG_URL` | No | — | SearXNG base URL; skipped if unset |
+| `BRAVE_SEARCH_API_KEY` | No | — | Brave provider; skipped if unset |
+| `BRAVE_MONTHLY_QUOTA` | No | `2000` | Brave call ceiling |
+| `TAVILY_API_KEY` | No | — | Tavily provider; skipped if unset |
+| `TAVILY_MONTHLY_QUOTA` | No | `1000` | Tavily call ceiling |
+
+There is no `MAINTENANCE_MODE` variable. Maintenance is a row in `app_settings` (3.4).
+
+---
+
+## 21. Appendix B — Database Table Index
+
+| Table | Group | Written by |
+|-------|-------|------------|
+| `vehicle_years` | Matcher source | CRSP pipeline commit, cleanup scripts |
+| `vehicle_years_exide` | Matcher source (view) | Derived live from `oem_fitment` |
+| `battery_specs` | Matcher source | Admin CRUD, Excel upload |
+| `model_aliases` | Matcher source | Migrations, manual |
+| `dial_battery_inference` | Matcher source | `dial_battery_clean.py` |
+| `web_battery_validation` | Matcher source | Web-validation commit |
+| `oem_fitment` | Matcher source | `exide_fitment_clean.py` |
+| `vehicles_raw` | Pipeline | `dataprep.py` |
+| `vehicle_years_staging` | Pipeline | `enrich_years.py`, expansion pipeline |
+| `vehicle_years_versions` | Pipeline | Commit |
+| `vehicle_years_changelog` | Pipeline | Commit |
+| `vehicle_years_unmatched` | Pipeline | Enrichment run |
+| `vehicle_years_unverifiable` | Pipeline | Quarantine scripts |
+| `web_battery_staging` | Pipeline | `web_battery_validate.py` |
+| `web_battery_validation_versions` | Pipeline | Commit |
+| `web_battery_validation_changelog` | Pipeline | Commit |
+| `web_battery_unmatched` | Pipeline | Web validation |
+| `pipeline_run_log` | Pipeline | Any pipeline run |
+| `expansion_makes` | Pipeline | Admin UI |
+| `fueleconomy_vehicles` | Pipeline | Bulk CSV download |
+| `enrichment_cache_meta` | Pipeline | Cache downloads |
+| `api_usage_quota` | Pipeline | Provider calls |
+| `admin_users` | Admin | Bootstrap, Admin Users page |
+| `admin_sessions` | Admin | Login/logout |
+| `admin_account_audit_log` | Admin | Account events |
+| `battery_audit_log` | Admin | Battery mutations |
+| `admin_backup_log` | Admin | Backup attempts |
+| `admin_stats` | Telemetry | Read-counter flush |
+| `app_settings` | Admin | Settings page |
+| `search_events` | Telemetry | Every recommendation |
+| `user_feedback` | User | Feedback modal |
+| `test_users` | User | Test-user registration |
+| `test_user_sessions` | User | Test-user login |
+
+---
+
+## 22. Appendix C — Migration History
+
+Applied in order by `alembic upgrade head`. The list doubles as a changelog of when each capability arrived.
+
+| Revision | Adds |
+|----------|------|
+| `20260505_932c18968f61` | Initial schema |
+| `20260505_b3a9f2d1c8e4` | Admin tables |
+| `20260511_a1b2c3d4e5f6` | Test users and sessions |
+| `20260511_c7e1f9a2b3d5` | `user_feedback` |
+| `20260511_d4e2f8a1b3c6` | Feedback input/match columns |
+| `20260511_e5f1a2b3c4d6` | `recommended_battery` on feedback |
+| `20260525_f6a1b2c3d4e5` | `origin`, `brand` on `battery_specs` |
+| `20260526_a7b2c3d4e5f6` | `dial_battery_inference` |
+| `20260526_b8c3d4e5f6a7` | `last_sale_date` on inference |
+| `20260527_c9d4e5f6a7b8` | `web_battery_validation` |
+| `20260529_a2b3c4d5e6f7` | Vehicle fields on web validation |
+| `20260529_b3c4d5e6f7a8` | Web-validation staging and versioning |
+| `20260529_d1e2f3a4b5c6` | `api_usage_quota` |
+| `20260601_6259d46ad841` | User tracking on versions |
+| `20260610_a1b2c3d4e5f6` | 30-day quota period |
+| `20260610_b2c3d4e5f6a7` | `vehicle_years` staging and versioning |
+| `20260612_219dab65024d` | `app_settings` |
+| `20260624_a1b2c3d4e5f6` | `vehicle_years_unmatched` |
+| `20260624_b2c3d4e5f6a7` | `fueleconomy_vehicles` |
+| `20260701_0369c7f9b5dc` | `search_events` |
+| `20260701_1a2b3c4d5e6f` | IP on search events |
+| `20260701_2b3c4d5e6f7a` | Vehicle/battery fields on search events |
+| `20260701_3c4d5e6f7a8b` | Performance indexes |
+| `20260704_d2e3f4a5b6c7` | `expansion_makes` |
+| `20260708_e3f4a5b6c7d8` | Login lockout on `admin_users` |
+| `20260709_f4a5b6c7d8e9` | Review flag on web-battery staging |
+| `20260714_c1d2e3f4a5b6` | `oem_fitment` and `vehicle_years_exide` |
+| `20260718_a3b4c5d6e7f8` | `input_type` on search events |
+| `20260721_6e114cfe6168` | Admin reset tokens and account audit log |
+| `20260721_c4d5e6f7a8b9` | `batteryfinder_public` role and grants |
+| `20260722_3278f8c1b881` | `vehicle_years_exide` converted to a view |
+| `20260728_4b7e9c2a1f83` | `admin_backup_log` |
+| `20260812_fc5fac9ccee3` | `model_number` on vehicle years |
+| `20260814_a7c3e91d5b42` | `vehicle_years_unverifiable` |
+| `20260814_b8d4f02e6c17` | Hino series aliases |
+| `20260815_c9e2a4b71f38` | `web_battery_unmatched` |
+
+---
+
+## 23. Appendix D — Repository Layout
+
+```
+.
+├── backend/
+│   ├── app.py                 public API, middleware, SPA serving, lifespan
+│   ├── admin_router.py        every /api/admin/* route
+│   ├── admin_auth.py          bcrypt, sessions, reset tokens
+│   ├── matcher.py             the recommendation engine
+│   ├── models.py              SQLAlchemy models
+│   ├── db.py                  the two engines and their pools
+│   ├── db_backup.py           pg_dump wrapper, docker and direct modes
+│   ├── email_utils.py         SES password-reset email
+│   ├── app_state.py           maintenance-mode flag with a 5s cache
+│   ├── upload_pipeline.py     battery Excel validation and upsert
+│   ├── alembic/versions/      migrations
+│   ├── pipelines/             dataprep, enrich_years, ja_wikipedia_years,
+│   │                          oem_fitment_years, web_battery_validate,
+│   │                          exide_fitment_clean, dial_battery_clean,
+│   │                          vehicle_coverage_expansion, model_name_utils
+│   ├── scripts/               ~50 standalone remediation and report scripts
+│   ├── tests/                 pytest suite + conftest fixtures
+│   ├── cache/                 enrichment caches (safe to delete)
+│   ├── data/                  source spreadsheets
+│   ├── static/                maintenance page, logo
+│   └── requirements*.txt      runtime → pipeline → dev
+├── frontend/
+│   └── src/
+│       ├── components/        VehicleFinderForm, AccuracyBar, modals, ui/
+│       ├── pages/admin/       16 dashboard pages
+│       ├── lib/               typed API wrappers, contexts, helpers
+│       └── types/             shared TypeScript types
+├── db-backup-script/          backup-db.ps1, restore-db.ps1
+├── docker-compose.yml         local Postgres 15 on host port 5434
+├── Jenkinsfile                CI pipeline
+├── .env                       local secrets — never committed
+└── TECHNICAL_DOCUMENTATION.md source of this document
+```
+
+The document you are reading is generated from that last file by `backend/scripts/md_to_docx.py`. Edit the markdown and regenerate; do not edit the Word file directly, or the next regeneration will discard the change.
 
 ---
 

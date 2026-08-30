@@ -54,7 +54,7 @@ for _s in (sys.stdout, sys.stderr):
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, RGBColor
 
 BODY_FONT = "Calibri"
 MONO_FONT = "Courier New"
@@ -63,6 +63,29 @@ BODY_PT = Pt(10)
 CODE_INLINE_PT = Pt(9)
 CODE_BLOCK_PT = Pt(8)
 HEADING_PT = {1: Pt(20), 2: Pt(15), 3: Pt(12), 4: Pt(11)}
+
+# Paragraph geometry, measured off the document this replaces so a regenerated
+# file sits on the page exactly like its predecessor. These are set per
+# paragraph rather than on the styles because that is how the original did it.
+BODY_SPACE_AFTER = Pt(4)
+BLOCK_SPACE = Pt(4)          # code blocks: before and after
+BLOCK_INDENT = Cm(0.5)       # code blocks and list items: 14.15pt
+
+# Palette, also measured off the document this replaces. BRAND_RED carries the
+# Chloride Exide identity through the headings, the inline code and the table
+# header rows; without it the document falls back to Word's stock blue theme
+# and stops looking like the rest of the company's material.
+BRAND_RED = RGBColor(0xCC, 0x00, 0x00)     # H1, H2, inline code, table headers
+INK = RGBColor(0x11, 0x18, 0x27)           # H3 and table body text
+CODE_INK = RGBColor(0x1F, 0x29, 0x37)      # code blocks
+WHITE = RGBColor(0xFF, 0xFF, 0xFF)         # text on a red header row
+
+HEADING_COLOR = {1: BRAND_RED, 2: BRAND_RED, 3: INK, 4: INK}
+
+TABLE_TEXT_PT = Pt(9)
+TABLE_HEADER_FILL = "CC0000"
+TABLE_ROW_FILLS = ("FFFFFF", "F9FAFB")     # zebra striping, header excluded
+CODE_BLOCK_FILL = "F3F4F6"                 # grey panel behind a code block
 
 # Inline spans, matched in one pass so nesting resolves correctly.
 _INLINE_RE = re.compile(
@@ -77,33 +100,52 @@ _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 _TABLE_DIVIDER_RE = re.compile(r"^\s*\|?[\s:-]*-[\s|:-]*\|?\s*$")
 
 
-def add_inline(paragraph, text: str, *, bold: bool = False, italic: bool = False):
-    """Add `text` to `paragraph`, honouring markdown inline code/bold/italic."""
+def add_inline(paragraph, text: str, *, bold: bool = False, italic: bool = False,
+               mono_ok: bool = True, color=None, size=None):
+    """Add `text` to `paragraph`, honouring markdown inline code/bold/italic.
+
+    `mono_ok=False` strips code markers without switching font — headings in
+    the source document are set in one face throughout, and a monospace run
+    inside a heading reads as a mistake rather than as emphasis.
+    """
     text = _LINK_RE.sub(r"\1", text)
     pos = 0
+    kw = {"color": color, "size": size}
     for m in _INLINE_RE.finditer(text):
         if m.start() > pos:
-            _run(paragraph, text[pos:m.start()], bold=bold, italic=italic)
+            _run(paragraph, text[pos:m.start()], bold=bold, italic=italic, **kw)
         if m.group("code"):
-            _run(paragraph, m.group("code")[1:-1], bold=bold, italic=italic, mono=True)
+            _run(paragraph, m.group("code")[1:-1], bold=bold, italic=italic,
+                 mono=mono_ok, **kw)
         elif m.group("bold"):
-            add_inline(paragraph, m.group("bold")[2:-2], bold=True, italic=italic)
+            add_inline(paragraph, m.group("bold")[2:-2], bold=True, italic=italic,
+                       mono_ok=mono_ok, **kw)
         else:
-            add_inline(paragraph, m.group("italic")[1:-1], bold=bold, italic=True)
+            add_inline(paragraph, m.group("italic")[1:-1], bold=bold, italic=True,
+                       mono_ok=mono_ok, **kw)
         pos = m.end()
     if pos < len(text):
-        _run(paragraph, text[pos:], bold=bold, italic=italic)
+        _run(paragraph, text[pos:], bold=bold, italic=italic, **kw)
 
 
-def _run(paragraph, text: str, *, bold=False, italic=False, mono=False):
+def _run(paragraph, text: str, *, bold=False, italic=False, mono=False,
+         color=None, size=None):
     if not text:
-        return
+        return None
     run = paragraph.add_run(text)
     run.bold = bold or None
     run.italic = italic or None
     if mono:
+        # Inline code is set in the brand red unless the caller has already
+        # committed to a colour (a table header row, for instance).
         run.font.name = MONO_FONT
-        run.font.size = CODE_INLINE_PT
+        run.font.size = size or CODE_INLINE_PT
+        run.font.color.rgb = color or BRAND_RED
+        return run
+    if size is not None:
+        run.font.size = size
+    if color is not None:
+        run.font.color.rgb = color
     return run
 
 
@@ -113,13 +155,24 @@ def add_code_block(doc, lines: list[str]) -> None:
     Kept as a single paragraph so Word treats the block as one unit when
     selecting or moving it, and so no paragraph spacing opens up between
     lines of what is meant to read as contiguous output.
+
+    `keep_together` is what stops a diagram being split down the middle by a
+    page break: Word keeps every line of a single paragraph on one page when
+    it can. A block taller than the text area still has to break somewhere —
+    check_blocks() in this file reports any that are at risk.
     """
     para = doc.add_paragraph()
-    para.paragraph_format.space_after = Pt(6)
+    fmt = para.paragraph_format
+    fmt.space_before = BLOCK_SPACE
+    fmt.space_after = BLOCK_SPACE
+    fmt.left_indent = BLOCK_INDENT
+    fmt.keep_together = True
+    _shade_paragraph(para, CODE_BLOCK_FILL)
     for i, line in enumerate(lines):
         run = para.add_run(("\n" if i else "") + line)
         run.font.name = MONO_FONT
         run.font.size = CODE_BLOCK_PT
+        run.font.color.rgb = CODE_INK
 
 
 def _list_number_abstract_id(doc) -> str | None:
@@ -175,21 +228,70 @@ def _split_row(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
+def _repeat_header_row(row) -> None:
+    """Mark a table row as a header so Word repeats it on every page."""
+    tr_pr = row._tr.get_or_add_trPr()
+    header = OxmlElement("w:tblHeader")
+    header.set(qn("w:val"), "true")
+    tr_pr.append(header)
+
+
+def _no_row_split(row) -> None:
+    """Stop a single row being broken across a page boundary."""
+    tr_pr = row._tr.get_or_add_trPr()
+    cant_split = OxmlElement("w:cantSplit")
+    tr_pr.append(cant_split)
+
+
+def _shading(fill: str):
+    """A w:shd element painting a solid background in `fill`."""
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), fill)
+    return shd
+
+
+def _shade_cell(cell, fill: str) -> None:
+    """Paint a table cell's background."""
+    cell._tc.get_or_add_tcPr().append(_shading(fill))
+
+
+def _shade_paragraph(paragraph, fill: str) -> None:
+    """Paint a paragraph's background — the panel behind a code block."""
+    paragraph._p.get_or_add_pPr().append(_shading(fill))
+
+
 def add_table(doc, rows: list[list[str]]) -> None:
+    """A Table Grid with a brand-red header row and zebra-striped body.
+
+    Cell text is deliberately set plain rather than honouring inline code —
+    a monospace red run inside an already-striped 9pt cell fights the row
+    colour and makes narrow columns wrap badly.
+    """
     header, body = rows[0], rows[1:]
     table = doc.add_table(rows=1, cols=len(header))
     table.style = "Table Grid"
+
     for i, text in enumerate(header):
         cell = table.rows[0].cells[i]
-        cell.paragraphs[0].text = ""
-        add_inline(cell.paragraphs[0], text, bold=True)
-    for row in body:
+        _shade_cell(cell, TABLE_HEADER_FILL)
+        # A new cell's paragraph already has no runs; assigning .text here
+        # would add an empty unformatted one alongside the real content.
+        add_inline(cell.paragraphs[0], text, bold=True, mono_ok=False,
+                   color=WHITE, size=TABLE_TEXT_PT)
+    _repeat_header_row(table.rows[0])
+    _no_row_split(table.rows[0])
+
+    for n, row in enumerate(body):
         cells = table.add_row().cells
+        _no_row_split(table.rows[-1])
+        fill = TABLE_ROW_FILLS[n % len(TABLE_ROW_FILLS)]
         for i in range(len(header)):
             value = row[i] if i < len(row) else ""
-            para = cells[i].paragraphs[0]
-            para.text = ""
-            add_inline(para, value)
+            _shade_cell(cells[i], fill)
+            add_inline(cells[i].paragraphs[0], value, mono_ok=False,
+                       color=INK, size=TABLE_TEXT_PT)
     doc.add_paragraph()
 
 
@@ -246,9 +348,12 @@ def convert(md_path: str, out_path: str) -> Document:
         if heading:
             level = min(len(heading.group(1)), 4)
             para = doc.add_heading("", level=level)
-            add_inline(para, heading.group(2))
+            add_inline(para, heading.group(2), mono_ok=False)
             for run in para.runs:
                 run.font.size = HEADING_PT.get(level, Pt(11))
+                run.font.color.rgb = HEADING_COLOR.get(level, INK)
+            # Never leave a heading stranded at the foot of a page.
+            para.paragraph_format.keep_with_next = True
             i += 1
             continue
 
@@ -259,13 +364,21 @@ def convert(md_path: str, out_path: str) -> Document:
             continue
 
         # ── blockquote ──────────────────────────────────────────────────────
+        # Rendered as an indented body paragraph rather than Word's Intense
+        # Quote, which introduces a colour and rule this document does not use
+        # anywhere else.
         if stripped.startswith(">"):
             quoted = [stripped.lstrip("> ").strip()]
             i += 1
             while i < len(lines) and lines[i].strip().startswith(">"):
                 quoted.append(lines[i].strip().lstrip("> ").strip())
                 i += 1
-            para = doc.add_paragraph(style="Intense Quote")
+            para = doc.add_paragraph()
+            fmt = para.paragraph_format
+            fmt.left_indent = BLOCK_INDENT
+            fmt.space_before = BLOCK_SPACE
+            fmt.space_after = BLOCK_SPACE
+            fmt.keep_together = True
             add_inline(para, " ".join(q for q in quoted if q))
             continue
 
@@ -290,6 +403,7 @@ def convert(md_path: str, out_path: str) -> Document:
                 else:
                     break
                 para = doc.add_paragraph(style=style)
+                para.paragraph_format.left_indent = BLOCK_INDENT
                 if num_id is not None:
                     apply_numbering(para, num_id)
                 add_inline(para, text)
@@ -316,11 +430,45 @@ def convert(md_path: str, out_path: str) -> Document:
             buf.append(nxt)
             i += 1
         para = doc.add_paragraph()
+        para.paragraph_format.space_after = BODY_SPACE_AFTER
         add_inline(para, " ".join(buf))
 
     doc.core_properties.title = "Chloride Exide KE — Battery Finder: Technical Documentation"
     doc.save(os.path.abspath(out_path))
     return doc
+
+
+def check_blocks(md_path: str) -> list[tuple[int, int, int]]:
+    """Report fenced blocks that cannot fit on one page.
+
+    `keep_together` only helps a paragraph that fits in the text area to begin
+    with; a taller one is broken wherever it lands. Text height is the page
+    less its margins. The 1.29 line factor is Word's actual line box for
+    Courier New, calibrated against a 66-line block that split despite
+    keepLines: 66 lines exactly overran the 678pt text area, putting the real
+    figure at ~10.3pt for an 8pt font, not the ~9.6pt a naive 1.2 would give.
+    The block's own before/after spacing is charged against the same budget.
+
+    Returns (line_no, height_lines, limit) per offender.
+    """
+    text_height_pt = (11.0 - 2 * 2.0 / 2.54) * 72          # Letter, 2cm margins
+    usable_pt = text_height_pt - 2 * BLOCK_SPACE.pt
+    line_pt = CODE_BLOCK_PT.pt * 1.29
+    limit = int(usable_pt / line_pt)
+
+    offenders, in_block, start, count = [], False, 0, 0
+    for n, line in enumerate(open(md_path, encoding="utf-8").read().splitlines(), 1):
+        if line.strip().startswith("```"):
+            if in_block:
+                if count > limit:
+                    offenders.append((start, count, limit))
+                in_block = False
+            else:
+                in_block, start, count = True, n, 0
+            continue
+        if in_block:
+            count += 1
+    return offenders
 
 
 def main() -> int:
@@ -331,10 +479,17 @@ def main() -> int:
     p.add_argument("--out", required=True, help="destination .docx")
     args = p.parse_args()
 
+    offenders = check_blocks(args.md)
+    for line_no, height, limit in offenders:
+        print(f"  WARNING — code block at line {line_no} is {height} lines; "
+              f"only {limit} fit on a page, so it will be split.")
+
     doc = convert(args.md, args.out)
     out = os.path.abspath(args.out)
     print(f"  DONE — {out}  ({os.path.getsize(out) / 1024:.0f} KB)")
     print(f"  {len(doc.paragraphs)} paragraphs, {len(doc.tables)} tables")
+    if not offenders:
+        print("  all fenced blocks fit on a single page")
     return 0
 
 
